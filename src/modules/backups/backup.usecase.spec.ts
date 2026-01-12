@@ -375,7 +375,7 @@ describe('BackupUseCase', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When folder is found, then it should call deleteByUser', async () => {
+    it('When folder is found, then it should call deleteByUser and deleteDevicesBy', async () => {
       const mockFolder = newFolder({
         attributes: {
           bucket: userMocked.backupsBucket,
@@ -385,12 +385,17 @@ describe('BackupUseCase', () => {
         .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValue(mockFolder);
       jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue(undefined);
+      jest.spyOn(backupRepository, 'deleteDevicesBy').mockResolvedValue(1);
 
       await backupUseCase.deleteDeviceAsFolder(userMocked, 'folder-uuid');
 
       expect(folderUseCases.deleteByUser).toHaveBeenCalledWith(userMocked, [
         mockFolder,
       ]);
+      expect(backupRepository.deleteDevicesBy).toHaveBeenCalledWith({
+        userId: userMocked.id,
+        folderUuid: 'folder-uuid',
+      });
     });
 
     it('When folder is not in the backups bucket, then it should throw a BadRequestException', async () => {
@@ -407,6 +412,27 @@ describe('BackupUseCase', () => {
       await expect(
         backupUseCase.deleteDeviceAsFolder(userMocked, 'folder-uuid'),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When folder is deleted, then it should delete associated devices to prevent orphaned records', async () => {
+      const mockFolder = newFolder({
+        attributes: {
+          uuid: 'test-folder-uuid',
+          bucket: userMocked.backupsBucket,
+        },
+      });
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(mockFolder);
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue(undefined);
+      jest.spyOn(backupRepository, 'deleteDevicesBy').mockResolvedValue(2);
+
+      await backupUseCase.deleteDeviceAsFolder(userMocked, 'test-folder-uuid');
+
+      expect(backupRepository.deleteDevicesBy).toHaveBeenCalledWith({
+        userId: userMocked.id,
+        folderUuid: 'test-folder-uuid',
+      });
     });
   });
 

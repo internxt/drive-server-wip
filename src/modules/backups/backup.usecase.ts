@@ -97,7 +97,6 @@ export class BackupUseCase {
       bucket = backupsBucket;
     }
 
-    const encryptedName = this.cryptoService.encryptName(deviceName, bucket);
     const folders = await this.folderUsecases.getFolders(user.id, {
       bucket,
       plainName: deviceName,
@@ -110,7 +109,6 @@ export class BackupUseCase {
     }
 
     const createdFolder = await this.folderUsecases.createFolderDevice(user, {
-      name: encryptedName,
       plainName: deviceName,
       bucket,
     });
@@ -129,8 +127,11 @@ export class BackupUseCase {
     if (folder.bucket !== backupsBucket) {
       throw new BadRequestException('Folder is not in the backups bucket');
     }
-
     await this.folderUsecases.deleteByUser(user, [folder]);
+    await this.backupRepository.deleteDevicesBy({
+      userId: user.id,
+      folderUuid: uuid,
+    });
   }
 
   async getDevicesAsFolder(user: User) {
