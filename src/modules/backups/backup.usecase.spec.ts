@@ -515,9 +515,6 @@ describe('BackupUseCase', () => {
         userId: userWithoutBackups.id,
       });
       jest
-        .spyOn(backupUseCase, 'activate')
-        .mockResolvedValue({ backupsBucket: 'new-bucket' });
-      jest
         .spyOn(backupRepository, 'findConflictingUserDevice')
         .mockResolvedValue(null);
       jest
@@ -532,7 +529,10 @@ describe('BackupUseCase', () => {
         createDeviceDto,
       );
 
-      expect(backupUseCase.activate).toHaveBeenCalledWith(userWithoutBackups);
+      expect(backupUseCase.createDeviceAsFolder).toHaveBeenCalledWith(
+        userWithoutBackups,
+        createDeviceDto.name,
+      );
       expect(result).toEqual({ ...mockDevice, folder: mockFolder });
     });
 
