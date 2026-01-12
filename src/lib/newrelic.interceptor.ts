@@ -1,11 +1,5 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  NestInterceptor,
-} from '@nestjs/common';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const newrelic = require('newrelic');
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
+const newrelic = require('newrelic')
 
 /**
  * Only for the headers, the instrumentation is not done directly here
@@ -21,24 +15,18 @@ export class NewRelicInterceptor implements NestInterceptor {
     if (rawClient) {
       newrelic.addCustomAttribute(
         'internxtClient',
-        String(Array.isArray(rawClient) ? rawClient[0] : rawClient).slice(
-          0,
-          50,
-        ),
+        String(Array.isArray(rawClient) ? rawClient[0] : rawClient).slice(0, 50),
       );
     }
 
     if (rawVersion) {
       newrelic.addCustomAttribute(
         'internxtVersion',
-        String(Array.isArray(rawVersion) ? rawVersion[0] : rawVersion).slice(
-          0,
-          15,
-        ),
+        String(Array.isArray(rawVersion) ? rawVersion[0] : rawVersion).slice(0, 15),
       );
     }
 
-    console.log(rawClient, rawVersion);
+    console.log(rawClient, rawVersion)
 
     return next.handle();
   }
