@@ -934,8 +934,6 @@ export class FileUseCases {
     );
 
     if (shouldVersion) {
-      await this.applyRetentionPolicy(fileUuid, user.uuid);
-
       const { fileId, size, modificationTime } = newFileData;
 
       await Promise.all([
@@ -1265,61 +1263,6 @@ export class FileUseCases {
     }
 
     return { versionable: true, limits };
-  }
-
-  private async applyRetentionPolicy(
-    fileUuid: string,
-    userUuid: string,
-  ): Promise<void> {
-    const limits =
-      await this.featureLimitService.getFileVersioningLimits(userUuid);
-
-    if (!limits.enabled) {
-      return;
-    }
-
-    const { retentionDays, maxVersions } = limits;
-
-    const cutoffDate = Time.daysAgo(retentionDays);
-
-    const versions = await this.fileVersionRepository.findAllByFileId(fileUuid);
-
-    const versionsToDeleteByAge = versions.filter(
-      (version) => version.createdAt < cutoffDate,
-    );
-
-    const remainingVersions = versions
-      .filter((version) => version.createdAt >= cutoffDate)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    const versionsToDeleteByCount = remainingVersions.slice(maxVersions);
-
-    const versionsToDelete = [
-      ...versionsToDeleteByAge,
-      ...versionsToDeleteByCount,
-    ];
-
-    const remainingCount = versions.length - versionsToDelete.length;
-    if (remainingCount >= maxVersions) {
-      const versionsNotDeleted = versions.filter(
-        (v) => !versionsToDelete.some((vd) => vd.id === v.id),
-      );
-      const oldestVersion = versionsNotDeleted.sort(
-        (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
-      )[0];
-
-      if (oldestVersion) {
-        versionsToDelete.push(oldestVersion);
-      }
-    }
-
-    if (versionsToDelete.length > 0) {
-      const idsToDelete = versionsToDelete.map((v) => v.id);
-      await this.fileVersionRepository.updateStatusBatch(
-        idsToDelete,
-        FileVersionStatus.DELETED,
-      );
-    }
   }
 
   async getVersioningLimits(userUuid: string): Promise<{
