@@ -2695,7 +2695,7 @@ describe('WorkspacesUsecases', () => {
     const workspace = newWorkspace();
     const limit = 50;
     const offset = 0;
-    const sort: 'id' | 'updatedAt' | 'name' | 'size' | 'plainName' = 'name';
+    const sort: 'id' | 'updatedAt' | 'size' | 'plainName' = 'plainName';
     const order: 'ASC' | 'DESC' = 'ASC';
 
     it('When folder does not exist, then it should throw', async () => {
@@ -2956,7 +2956,7 @@ describe('WorkspacesUsecases', () => {
     const folderUuid = v4();
     const itemsType = WorkspaceItemType.Folder;
     const token = null;
-    const options = { page: 0, perPage: 50, order: [['name', 'asc']] };
+    const options = { page: 0, perPage: 50, order: [['plainName', 'asc']] };
 
     it('When folder is trashed, then it should throw', async () => {
       const folder = newFolder({ attributes: { deleted: true } });
@@ -3355,7 +3355,7 @@ describe('WorkspacesUsecases', () => {
     const folder = newFolder();
     const limit = 50;
     const offset = 0;
-    const sort = 'name';
+    const sort = 'plainName';
     const order = 'asc';
 
     it('When parent folder does not exist, then it should throw', async () => {
@@ -3680,7 +3680,7 @@ describe('WorkspacesUsecases', () => {
         WorkspaceItemType.File,
         limit,
         offset,
-        ['name', 'ASC'] as any,
+        ['plainName', 'ASC'] as any,
       );
 
       expect(result).toEqual({ result: trashedFiles });
@@ -3688,7 +3688,7 @@ describe('WorkspacesUsecases', () => {
         user.uuid,
         workspaceId,
         { status: FileStatus.TRASHED },
-        { limit, offset, sort: ['name', 'ASC'] },
+        { limit, offset, sort: ['plainName', 'ASC'] },
       );
     });
 
@@ -3704,7 +3704,7 @@ describe('WorkspacesUsecases', () => {
         WorkspaceItemType.Folder,
         limit,
         offset,
-        ['name', 'ASC'] as any,
+        ['plainName', 'ASC'] as any,
       );
 
       expect(result).toEqual({ result: trashedFolders });
@@ -3712,7 +3712,7 @@ describe('WorkspacesUsecases', () => {
         user.uuid,
         workspaceId,
         { deleted: true, removed: false },
-        { limit, offset, sort: ['name', 'ASC'] },
+        { limit, offset, sort: ['plainName', 'ASC'] },
       );
     });
   });
@@ -5789,7 +5789,7 @@ describe('WorkspacesUsecases', () => {
     const updatedAfter = new Date();
     const bucket = 'bucket-name';
     const options = {
-      sort: 'name',
+      sort: 'plainName',
       order: 'ASC',
       limit: 10,
       offset: 0,
@@ -5857,7 +5857,7 @@ describe('WorkspacesUsecases', () => {
         {
           limit: options.limit,
           offset: options.offset,
-          sort: [['name', 'ASC']],
+          sort: [['plainName', 'ASC']],
         },
       );
     });
@@ -5879,7 +5879,7 @@ describe('WorkspacesUsecases', () => {
         {
           limit: options.limit,
           offset: options.offset,
-          sort: [['name', 'ASC']],
+          sort: [['plainName', 'ASC']],
         },
       );
     });
@@ -5890,7 +5890,7 @@ describe('WorkspacesUsecases', () => {
     const workspaceId = v4();
     const updatedAfter = new Date();
     const options = {
-      sort: 'name',
+      sort: 'plainName',
       order: 'ASC',
       limit: 10,
       offset: 0,
@@ -5922,7 +5922,7 @@ describe('WorkspacesUsecases', () => {
         {
           limit: options.limit,
           offset: options.offset,
-          sort: [['name', 'ASC']],
+          sort: [['plainName', 'ASC']],
         },
       );
     });
@@ -5964,7 +5964,7 @@ describe('WorkspacesUsecases', () => {
         {
           limit: options.limit,
           offset: options.offset,
-          sort: [['name', 'ASC']],
+          sort: [['plainName', 'ASC']],
         },
       );
     });
@@ -5984,7 +5984,7 @@ describe('WorkspacesUsecases', () => {
       ).toHaveBeenCalledWith(userUuid, workspaceId, {}, updatedAfter, {
         limit: options.limit,
         offset: options.offset,
-        sort: [['name', 'ASC']],
+        sort: [['plainName', 'ASC']],
       });
     });
 
