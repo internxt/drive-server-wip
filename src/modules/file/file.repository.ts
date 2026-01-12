@@ -25,7 +25,7 @@ import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-use
 import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 export interface FileRepository {
-  create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
+  create(file: Omit<FileAttributes, 'id' | 'name'>): Promise<File | null>;
   deleteByFileId(fileId: any): Promise<any>;
   deleteFilesByUser(user: User, files: File[]): Promise<void>;
   destroyFile(where: Partial<FileModel>): Promise<void>;
@@ -171,7 +171,9 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
-  async create(file: Omit<FileAttributes, 'id'>): Promise<File | null> {
+  async create(
+    file: Omit<FileAttributes, 'id' | 'name'>,
+  ): Promise<File | null> {
     const raw = await this.fileModel.create(file);
 
     return raw ? this.toDomain(raw) : null;
