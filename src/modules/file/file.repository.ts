@@ -171,9 +171,7 @@ export class SequelizeFileRepository implements FileRepository {
     });
   }
 
-  async create(
-    file: Omit<FileAttributes, 'id' | 'name'>,
-  ): Promise<File | null> {
+  async create(file: Omit<FileAttributes, 'id'>): Promise<File | null> {
     const raw = await this.fileModel.create(file);
 
     return raw ? this.toDomain(raw) : null;
