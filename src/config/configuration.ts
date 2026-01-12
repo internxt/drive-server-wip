@@ -142,6 +142,12 @@ export default () => ({
   },
   users: {
     preCreatedPassword: process.env.PCREATED_USERS_PASSWORD,
+    rateLimit: {
+      default: {
+        ttl: process.env.RATE_LIMIT_DEFAULT_TTL,
+        limit: process.env.RATE_LIMIT_DEFAULT_LIMIT
+      }
+    }
   },
   jitsi: {
     appId: process.env.JITSI_APP_ID,
