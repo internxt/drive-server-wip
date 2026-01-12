@@ -138,12 +138,8 @@ export class User implements UserAttributes {
 
 export enum ReferralKey {
   CreateAccount = 'create-account',
-  InstallMobileApp = 'install-mobile-app',
   ShareFile = 'share-file',
-  InstallDesktopApp = 'install-desktop-app',
   InviteFriends = 'invite-friends',
-  SubscribeToNewsletter = 'subscribe-to-newsletter',
-  CompleteSurvey = 'complete-survey',
 }
 
 export interface ReferralAttributes {
@@ -166,5 +162,4 @@ export interface UserReferralAttributes {
 
 export enum AccountTokenAction {
   Unblock = 'unblock-account',
-  Recover = 'recover-account',
 }

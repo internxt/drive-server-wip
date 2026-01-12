@@ -3,5 +3,4 @@ export enum Ids {
   SignUpEventError = 'signup-error',
   SubscribeNewsletterSuccess = 'subscribe-newsletter-success',
   SubscribeNewsletterError = 'subscribe-newsletter-error',
-  ReferralInvitationAcceptedSuccess = '',
 }
