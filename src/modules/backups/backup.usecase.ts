@@ -255,10 +255,6 @@ export class BackupUseCase {
       throw new BadRequestException('You need to send either hostname or key');
     }
 
-    if (!user.hasBackupsEnabled()) {
-      await this.activate(user);
-    }
-
     await this.verifyDeviceDoesNotExist(user, {
       key: createDeviceDto.key,
       platform: createDeviceDto.platform,
