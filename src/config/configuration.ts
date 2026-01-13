@@ -142,10 +142,23 @@ export default () => ({
   },
   users: {
     preCreatedPassword: process.env.PCREATED_USERS_PASSWORD,
+    freeTierId: process.env.USERS_FREE_TIER_ID,
     rateLimit: {
       default: {
         ttl: process.env.RATE_LIMIT_DEFAULT_TTL,
         limit: process.env.RATE_LIMIT_DEFAULT_LIMIT
+      },
+      anonymous: {
+        ttl: process.env.RATE_LIMIT_ANON_TTL,
+        limit: process.env.RATE_LIMIT_ANON_LIMIT
+      },
+      free: {
+        ttl: process.env.RATE_LIMIT_FREE_TTL,
+        limit: process.env.RATE_LIMIT_FREE_LIMIT
+      },
+      paid: {
+        ttl: process.env.RATE_LIMIT_PAID_TTL,
+        limit: process.env.RATE_LIMIT_PAID_LIMIT
       }
     }
   },
