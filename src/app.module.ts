@@ -31,6 +31,8 @@ import { JobsModule } from './modules/jobs/jobs.module';
 import { v4 } from 'uuid';
 import { getClientIdFromHeaders } from './common/decorators/client.decorator';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import { CustomThrottlerGuard } from './guards/throttler.guard';
+import { AuthGuard } from './modules/auth/auth.guard';
 
 @Module({
   imports: [
@@ -168,7 +170,11 @@ import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis'
     },
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard
+      useClass: AuthGuard
+    },
+    {
+      provide: APP_GUARD,
+      useClass: CustomThrottlerGuard
     }
   ],
 })

@@ -16,7 +16,6 @@ import {
 import { AppModule } from './app.module';
 import configuration from './config/configuration';
 import { TransformInterceptor } from './lib/transform.interceptor';
-import { AuthGuard } from './modules/auth/auth.guard';
 import { RequestLoggerInterceptor } from './middlewares/requests-logger.interceptor';
 import { NewRelicInterceptor } from './lib/newrelic.interceptor';
 
@@ -70,8 +69,6 @@ async function bootstrap() {
   app.disable('x-powered-by');
   app.enableShutdownHooks();
 
-  const reflector = app.get(Reflector);
-  app.useGlobalGuards(new AuthGuard(reflector));
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Drive API')
     .setDescription('Drive API')
