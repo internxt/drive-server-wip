@@ -965,6 +965,19 @@ describe('FolderUseCases', () => {
     });
   });
 
+  describe('createRootFolder', () => {
+    it('When plinName is empty or contains RegExp expressions, then it should throw', async () => {
+      const mockBucketID = 'user-bucket';
+      await expect(
+        service.createRootFolder(userMocked, '', mockBucketID),
+      ).rejects.toThrow('Invalid folder name');
+
+      await expect(
+        service.createRootFolder(userMocked, '///', mockBucketID),
+      ).rejects.toThrow('Invalid folder name');
+    });
+  });
+
   describe('searchFoldersInFolder', () => {
     const user = newUser();
     const folderUuid = v4();
