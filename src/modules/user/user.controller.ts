@@ -107,6 +107,7 @@ import { PlatformName } from '../../common/constants';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
+import { CaptchaGuard } from '../auth/captcha.guard';
 
 @ApiTags('User')
 @Controller('users')
@@ -968,7 +969,7 @@ export class UserController {
   }
 
   @Put('/public-key/:email')
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(CaptchaGuard)
   @UseInterceptors(TimingConsistencyInterceptor)
   @TimingConsistency({ minimumResponseTimeMs: 900 })
   @HttpCode(200)
