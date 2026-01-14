@@ -289,7 +289,7 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ThrottlerGuard, CaptchaGuard)
   @Throttle({
     long: {
       ttl: 3600,
@@ -604,7 +604,7 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ThrottlerGuard, CaptchaGuard)
   @Post('/recover-account')
   @HttpCode(200)
   @ApiOperation({
@@ -634,7 +634,7 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ThrottlerGuard, CaptchaGuard)
   @Post('/unblock-account')
   @HttpCode(200)
   @ApiOperation({
@@ -968,6 +968,12 @@ export class UserController {
     return { publicKey: keys.ecc, keys };
   }
 
+  @Throttle({
+    default: {
+      ttl: 60,
+      limit: 5
+    }
+  })
   @Put('/public-key/:email')
   @UseGuards(CaptchaGuard)
   @UseInterceptors(TimingConsistencyInterceptor)
@@ -996,7 +1002,7 @@ export class UserController {
   }
 
   @HttpCode(201)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ThrottlerGuard, CaptchaGuard)
   @Post('/attempt-change-email')
   async createAttemptChangeEmail(
     @UserDecorator() user: User,
@@ -1113,6 +1119,7 @@ export class UserController {
   }
 
   @Post('/email-verification/send')
+  @UseGuards(CaptchaGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Send account verification email',
