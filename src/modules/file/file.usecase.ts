@@ -400,7 +400,7 @@ export class FileUseCases {
       throw new ConflictException('File already exists');
     }
 
-    const isFileEmpty = newFileDto.size === BigInt(0);
+    const isFileEmpty = BigInt(newFileDto.size) === BigInt(0);
 
     if (isFileEmpty) {
       await this.checkEmptyFilesLimit(user);
