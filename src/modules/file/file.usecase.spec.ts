@@ -371,6 +371,7 @@ describe('FileUseCases', () => {
         ...fileAttributes,
         name: encryptedName,
         folderId,
+        plainName: null,
       };
 
       const decryptedName = 'decryptedName';
@@ -389,6 +390,22 @@ describe('FileUseCases', () => {
           ...file,
           name: decryptedName,
           plainName: decryptedName,
+        }),
+      );
+    });
+
+    it('When the file has a plain name, then the plain name is returned', () => {
+      const file = File.build({
+        ...fileAttributes,
+        plainName: 'plain name',
+      });
+
+      const result = service.decrypFileName(file);
+      expect(result).toEqual(
+        File.build({
+          ...file,
+          name: 'plain name',
+          plainName: 'plain name',
         }),
       );
     });
@@ -1826,7 +1843,12 @@ describe('FileUseCases', () => {
 
       const result = await service.getFileMetadata(userMocked, mockFile.uuid);
 
-      expect(result).toEqual(mockFile);
+      expect(result).toEqual(
+        File.build({
+          ...mockFile,
+          name: mockFile.plainName,
+        }),
+      );
       expect(fileRepository.findByUuid).toHaveBeenCalledWith(
         mockFile.uuid,
         userMocked.id,
