@@ -1066,10 +1066,9 @@ export class FileUseCases {
   }
 
   decrypFileName(file: File): any {
-    const decryptedName = this.cryptoService.decryptName(
-      file.name,
-      file.folderId,
-    );
+    const decryptedName =
+      file.plainName ??
+      this.cryptoService.decryptName(file.name, file.folderId);
 
     if (decryptedName === '') {
       return File.build(file);
