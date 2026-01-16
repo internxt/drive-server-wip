@@ -874,28 +874,20 @@ export class UserUseCases {
     return !hasBeenSubscribed;
   }
 
-  async getAuthTokens(
+  async getNewToken(
     user: User,
-    customIat?: number,
     tokenExpirationTime: string | number = '3d',
     platform?: string,
-  ): Promise<{ token: string; newToken: string }> {
+    customIat?: number,
+  ) {
     const jti = v4();
-
     const availableWorkspaces =
       await this.workspaceRepository.findUserAvailableWorkspaces(user.uuid);
 
     const owners = [
       ...new Set(availableWorkspaces.map(({ workspace }) => workspace.ownerId)),
     ];
-
-    const token = SignEmail(
-      user.email,
-      this.configService.get('secrets.jwt'),
-      tokenExpirationTime,
-      customIat,
-    );
-    const newToken = Sign(
+    const token = Sign(
       {
         jti,
         sub: user.uuid,
@@ -916,6 +908,27 @@ export class UserUseCases {
       },
       this.configService.get('secrets.jwt'),
       tokenExpirationTime,
+    );
+    return token;
+  }
+
+  async getAuthTokens(
+    user: User,
+    customIat?: number,
+    tokenExpirationTime: string | number = '3d',
+    platform?: string,
+  ): Promise<{ token: string; newToken: string }> {
+    const token = SignEmail(
+      user.email,
+      this.configService.get('secrets.jwt'),
+      tokenExpirationTime,
+      customIat,
+    );
+    const newToken = await this.getNewToken(
+      user,
+      tokenExpirationTime,
+      platform,
+      customIat,
     );
 
     return { token, newToken };
@@ -1543,15 +1556,10 @@ export class UserUseCases {
     return this.userRepository.getNotificationTokens(user.uuid);
   }
 
-  async loginAccess(
-    loginAccessDto: Omit<
-      LoginAccessDto,
-      'privateKey' | 'publicKey' | 'revocateKey' | 'revocationKey'
-    > & { platform?: string },
-  ) {
+  async getUserData(email: string): Promise<User> {
     const MAX_LOGIN_FAIL_ATTEMPTS = 10;
 
-    const userData = await this.findByEmail(loginAccessDto.email.toLowerCase());
+    const userData = await this.findByEmail(email.toLowerCase());
 
     if (!userData) {
       throw new UnauthorizedException('Wrong login credentials');
@@ -1565,20 +1573,15 @@ export class UserUseCases {
         'Your account has been blocked for security reasons. Please reach out to us',
       );
     }
+    return userData;
+  }
 
-    const hashedPass = this.cryptoService.decryptText(loginAccessDto.password);
-
-    if (hashedPass !== userData.password.toString()) {
-      await this.userRepository.loginFailed(userData, true);
-      throw new UnauthorizedException('Wrong login credentials');
-    }
-
-    const twoFactorEnabled =
-      userData.secret_2FA && userData.secret_2FA.length > 0;
+  verify2FAcode(token: string, secret: string) {
+    const twoFactorEnabled = secret && secret.length > 0;
     if (twoFactorEnabled) {
       const tfaResult = speakeasy.totp.verifyDelta({
-        secret: userData.secret_2FA,
-        token: loginAccessDto.tfa,
+        secret,
+        token,
         encoding: 'base32',
         window: 2,
       });
@@ -1587,6 +1590,24 @@ export class UserUseCases {
         throw new UnauthorizedException('Wrong 2-factor auth code');
       }
     }
+  }
+
+  async loginAccess(
+    loginAccessDto: Omit<
+      LoginAccessDto,
+      'privateKey' | 'publicKey' | 'revocateKey' | 'revocationKey'
+    > & { platform?: string },
+  ) {
+    const userData = await this.getUserData(loginAccessDto.email);
+    const hashedPass = this.cryptoService.decryptText(loginAccessDto.password);
+
+    if (hashedPass !== userData.password.toString()) {
+      await this.userRepository.loginFailed(userData, true);
+      throw new UnauthorizedException('Wrong login credentials');
+    }
+
+    this.verify2FAcode(loginAccessDto.tfa, userData.secret_2FA);
+
     const { token, newToken } = await this.getAuthTokens(
       userData,
       undefined,
@@ -1666,6 +1687,54 @@ export class UserUseCases {
     };
 
     return { user, token, userTeam: null, newToken };
+  }
+
+  async loginAccessOpaque(email: string, tfa: string) {
+    const userData = await this.getUserData(email);
+    this.verify2FAcode(tfa, userData.secret_2FA);
+
+    const token = await this.getNewToken(userData);
+    await this.userRepository.loginFailed(userData, false);
+
+    this.updateByUuid(userData.uuid, { updatedAt: new Date() });
+
+    const rootFolder = await this.getOrCreateUserRootFolderAndBucket(userData);
+
+    const userBucket = rootFolder?.bucket;
+
+    const keys = await this.keyServerUseCases.findUserKeys(userData.id);
+
+    const user = {
+      email: userData.email,
+      userId: userData.userId,
+      mnemonic: userData.mnemonic.toString(),
+      root_folder_id: rootFolder?.id,
+      rootFolderId: rootFolder?.uuid,
+      name: userData.name,
+      lastname: userData.lastname,
+      uuid: userData.uuid,
+      credit: userData.credit,
+      createdAt: userData.createdAt,
+      tierId: userData.tierId,
+      privateKey: null,
+      publicKey: null,
+      revocateKey: null,
+      keys: keys,
+      bucket: userBucket,
+      registerCompleted: userData.registerCompleted,
+      teams: false,
+      username: userData.username,
+      bridgeUser: userData.bridgeUser,
+      sharedWorkspace: userData.sharedWorkspace,
+      appSumoDetails: null,
+      hasReferralsProgram: false,
+      backupsBucket: userData.backupsBucket,
+      avatar: userData.avatar ? await this.getAvatarUrl(userData.avatar) : null,
+      emailVerified: userData.emailVerified,
+      lastPasswordChangedAt: userData.lastPasswordChangedAt,
+    };
+
+    return { user, token };
   }
 
   async getOrCreateUserRootFolderAndBucket(user: User) {
@@ -2108,5 +2177,21 @@ export class UserUseCases {
       token: oldToken,
       newToken: newToken,
     };
+  }
+
+  async getSessionKey(sessionID: string): Promise<string> {
+    return this.cacheManager.getSessionKey(sessionID);
+  }
+
+  async setSessionKey(sessionID: string, sessionKey: string): Promise<void> {
+    await this.cacheManager.setSessionKey(sessionID, sessionKey);
+  }
+
+  async setLoginState(email: string, serverLoginState: string): Promise<void> {
+    this.cacheManager.setLoginState(email, serverLoginState);
+  }
+
+  async getLoginState(email: string): Promise<string> {
+    return this.cacheManager.getLoginState(email);
   }
 }

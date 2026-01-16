@@ -30,7 +30,11 @@ import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { LoginDto } from './dto/login-dto';
-import { LoginAccessDto } from './dto/login-access.dto';
+import {
+  LoginAccessDto,
+  LoginAccessOpaqueStartDto,
+  LoginAccessOpaqueFinishDto,
+} from './dto/login-access.dto';
 import { User as UserDecorator } from './decorators/user.decorator';
 import { TwoFactorAuthService } from './two-factor-auth.service';
 import { DeleteTfaDto } from './dto/delete-tfa.dto';
@@ -40,7 +44,11 @@ import { WorkspaceLogType } from '../workspaces/attributes/workspace-logs.attrib
 import { AreCredentialsCorrectDto } from './dto/are-credentials-correct.dto';
 import { AuditLog } from '../../common/audit-logs/decorators/audit-log.decorator';
 import { AuditAction } from '../../common/audit-logs/audit-logs.attributes';
-import { LoginAccessResponseDto } from './dto/responses/login-access-response.dto';
+import {
+  LoginAccessResponseDto,
+  LoginAccessResponseOpaqueFinishDto,
+  LoginAccessResponseOpaqueStartDto,
+} from './dto/responses/login-access-response.dto';
 import { LoginResponseDto } from './dto/responses/login-response.dto';
 import { JwtToken } from './decorators/get-jwt.decorator';
 import { AuthUsecases } from './auth.usecase';
@@ -85,6 +93,9 @@ export class AuthController {
         user.secret_2FA && user.secret_2FA.length > 0,
       );
       const keys = await this.keyServerUseCases.findUserKeys(user.id);
+      const isOpaqueEnabled = Boolean(
+        user.registrationRecord && user.registrationRecord.length > 0,
+      );
 
       return {
         hasKeys: !!keys.ecc,
@@ -92,6 +103,7 @@ export class AuthController {
         tfa: required2FA,
         hasKyberKeys: !!keys.kyber,
         hasEccKeys: !!keys.ecc,
+        useOpaqueLogin: isOpaqueEnabled,
       };
     } catch (err) {
       if (!(err instanceof HttpException)) {
@@ -139,6 +151,104 @@ export class AuthController {
     } catch (error) {
       Logger.error(
         `[AUTH/LOGIN-ACCESS] Failed login attempt for email: ${body.email}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  @Post('/login-opaque/start')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Start opaque to access user account',
+  })
+  @ApiOkResponse({
+    description: 'User successfully complited first stage of opaque login',
+    type: LoginAccessResponseOpaqueStartDto,
+  })
+  @Public()
+  @WorkspaceLogAction(WorkspaceLogType.LoginOpaqueStart)
+  async loginOpaqueStart(
+    @Body() body: LoginAccessOpaqueStartDto,
+  ): Promise<LoginAccessResponseOpaqueStartDto> {
+    Logger.log(
+      `[AUTH/LOGIN-ACCESS-OPAQUE-START] Attempting first step of opaque login for email: ${body.email}`,
+    );
+    try {
+      const email = body.email.toLowerCase();
+      const user = await this.userUseCases.findByEmail(email);
+
+      if (!user) {
+        throw new UnauthorizedException('Wrong login credentials');
+      }
+
+      const { loginResponse, serverLoginState } =
+        this.cryptoService.startLoginOpaque(
+          email,
+          user.registrationRecord,
+          body.startLoginRequest,
+        );
+
+      await this.userUseCases.setLoginState(email, serverLoginState);
+
+      Logger.log(
+        `[AUTH/LOGIN-ACCESS-OPAQUE-START] Successful first step of opaque login for email: ${body.email}`,
+      );
+      return { loginResponse };
+    } catch (error) {
+      Logger.error(
+        `[AUTH/LOGIN-ACCESS-OPAQUE-START] Failed first step of opaque login attempt for email: ${body.email}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  @Post('/login-opaque/finish')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Finish opaque to access user account',
+  })
+  @ApiOkResponse({
+    description: 'User successfully complited first stage of opaque login',
+    type: LoginAccessResponseOpaqueFinishDto,
+  })
+  @Public()
+  @WorkspaceLogAction(WorkspaceLogType.LoginOpaqueFinish)
+  async loginOpaqueFinish(
+    @Body() body: LoginAccessOpaqueFinishDto,
+  ): Promise<LoginAccessResponseOpaqueFinishDto> {
+    Logger.log(
+      `[AUTH/LOGIN-ACCESS-OPAQUE-FINISH] Attempting second step of opaque login for email: ${body.email}`,
+    );
+    try {
+      const email = body.email.toLowerCase();
+      const user = await this.userUseCases.findByEmail(email);
+
+      if (!user) {
+        throw new UnauthorizedException('Wrong login credentials');
+      }
+
+      const serverLoginState = await this.userUseCases.getLoginState(email);
+
+      const { sessionKey } = this.cryptoService.finishLoginOpaque(
+        body.finishLoginRequest,
+        serverLoginState,
+      );
+
+      const sessionID = this.cryptoService.generateSessionID();
+      await this.userUseCases.setSessionKey(sessionID, sessionKey);
+
+      const { user: userDTO, token } =
+        await this.userUseCases.loginAccessOpaque(email, body.tfa);
+
+      Logger.log(
+        `[AUTH/LOGIN-ACCESS-OPAQUE-FINISH] Successful second step of opaque login for email: ${body.email}`,
+      );
+      return { user: userDTO, sessionID, token };
+    } catch (error) {
+      Logger.error(
+        `[AUTH/LOGIN-ACCESS-OPAQUE-START] Failed first step of opaque login attempt for email: ${body.email}`,
         error.stack,
       );
       throw error;

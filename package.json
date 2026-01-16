@@ -54,6 +54,7 @@
     "@nestjs/swagger": "^11.2.3",
     "@nestjs/throttler": "^6.4.0",
     "@sendgrid/mail": "^8.1.6",
+    "@serenity-kit/opaque": "^1.0.0",
     "@types/passport-jwt": "^3.0.13",
     "agentkeepalive": "^4.5.0",
     "axios": "^1.12.0",
@@ -132,28 +133,6 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "4.2.0",
     "typescript": "^5.8.3"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "roots": [
-      "src",
-      "test"
-    ],
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "testEnvironment": "node",
-    "setupFilesAfterEnv": [
-      "<rootDir>/jest.setup.js"
-    ]
   },
   "lint-staged": {
     "./src/**/*.{js,ts}": "yarn run lint"
