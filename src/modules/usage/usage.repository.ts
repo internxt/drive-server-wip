@@ -39,25 +39,36 @@ export class SequelizeUsageRepository {
     const yesterday = Time.startOf(Time.dateWithTimeAdded(-1, 'day'), 'day');
     const periodFormatted = Time.formatAsDateOnly(yesterday);
 
-    const selectResult = await this.usageModel.sequelize.query(
+    const selectResult = (await this.usageModel.sequelize.query(
       `
       SELECT
           uuid_generate_v4() as id,
-          u.uuid AS user_id,
-          COALESCE(
-          SUM(CASE
-            WHEN f.status != 'DELETED' OR (f.status = 'DELETED' AND f.updated_at >= :currentDate) THEN f.size
-          	ELSE 0
-          END), 0) AS delta,
+          :userUuid AS user_id,
+          COALESCE(SUM(delta), 0) AS delta,
           :yesterday AS period,
           'daily' AS type
-      FROM
-          users u
-      LEFT JOIN public.files f ON u.id = f.user_id AND f.created_at < :currentDate
-      WHERE
-          u.uuid = :userUuid
-      GROUP BY
-          u.uuid
+      FROM (
+          -- Files
+          SELECT
+              CASE
+                  WHEN f.status != 'DELETED' OR (f.status = 'DELETED' AND f.updated_at >= :currentDate) THEN f.size
+                  ELSE 0
+              END as delta
+          FROM files f
+          JOIN users u ON u.id = f.user_id
+          WHERE u.uuid = :userUuid AND f.created_at < :currentDate
+
+          UNION ALL
+
+          -- File Versions
+          SELECT
+              CASE
+                  WHEN fv.status != 'DELETED' OR (fv.status = 'DELETED' AND fv.updated_at >= :currentDate) THEN fv.size
+                  ELSE 0
+              END as delta
+          FROM file_versions fv
+          WHERE fv.user_id = :userUuid AND fv.created_at < :currentDate
+      ) combined
       `,
       {
         replacements: {
@@ -67,9 +78,17 @@ export class SequelizeUsageRepository {
         },
         type: QueryTypes.SELECT,
       },
-    );
+    )) as [
+      {
+        id: string;
+        user_id: string;
+        delta: string;
+        period: string;
+        type: string;
+      },
+    ];
 
-    const data = selectResult[0] as any;
+    const data = selectResult[0];
 
     const [newUsage] = await this.usageModel.findOrCreate({
       where: {
