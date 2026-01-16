@@ -30,9 +30,9 @@ import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter
 import { JobsModule } from './modules/jobs/jobs.module';
 import { v4 } from 'uuid';
 import { getClientIdFromHeaders } from './common/decorators/client.decorator';
-import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { CustomThrottlerGuard } from './guards/throttler.guard';
 import { AuthGuard } from './modules/auth/auth.guard';
+import { CustomThrottlerModule } from './guards/throttler.module';
 
 @Module({
   imports: [
@@ -125,21 +125,7 @@ import { AuthGuard } from './modules/auth/auth.guard';
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
-    ThrottlerModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        return ({
-          throttlers: [
-            {
-              ttl: seconds(config.get('users.rateLimit.default.ttl')),
-              limit: config.get('users.rateLimit.default.limit')
-            }
-          ],
-          storage: new ThrottlerStorageRedisService(config.get('cache.redisConnectionString'))
-        })
-      },
-    }),
+    CustomThrottlerModule,
     JobsModule,
     NotificationModule,
     NotificationsModule,
