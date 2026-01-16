@@ -403,4 +403,81 @@ describe('SequelizeFileVersionRepository', () => {
       );
     });
   });
+
+  describe('findExpiredVersionIdsByRetentionPolicy', () => {
+    it('When expired versions exist, then it returns version IDs', async () => {
+      const mockResults = [
+        { version_id: 'version-1' },
+        { version_id: 'version-2' },
+        { version_id: 'version-3' },
+      ];
+
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValue(mockResults as any);
+
+      const result =
+        await repository.findExpiredVersionIdsByRetentionPolicy(100);
+
+      expect(result).toEqual(['version-1', 'version-2', 'version-3']);
+      expect(fileVersionModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('WITH retention_config AS'),
+        expect.objectContaining({
+          replacements: { limit: 100 },
+        }),
+      );
+    });
+
+    it('When no expired versions exist, then it returns empty array', async () => {
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValue([] as any);
+
+      const result =
+        await repository.findExpiredVersionIdsByRetentionPolicy(100);
+
+      expect(result).toEqual([]);
+    });
+
+    it('When limit is specified, then query uses that limit', async () => {
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValue([] as any);
+
+      await repository.findExpiredVersionIdsByRetentionPolicy(50);
+
+      expect(fileVersionModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: { limit: 50 },
+        }),
+      );
+    });
+
+    it('When query includes retention policy calculation, then it uses COALESCE logic', async () => {
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValue([] as any);
+
+      await repository.findExpiredVersionIdsByRetentionPolicy(100);
+
+      expect(fileVersionModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('COALESCE'),
+        expect.any(Object),
+      );
+    });
+
+    it('When query filters by status, then it only queries EXISTS versions', async () => {
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValue([] as any);
+
+      await repository.findExpiredVersionIdsByRetentionPolicy(100);
+
+      expect(fileVersionModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining("fv.status = 'EXISTS'"),
+        expect.any(Object),
+      );
+    });
+  });
 });
