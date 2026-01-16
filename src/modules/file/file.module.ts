@@ -21,6 +21,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { RedisService } from '../../externals/redis/redis.service';
 import { TrashModule } from '../trash/trash.module';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
+import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { CacheManagerModule } from '../cache-manager/cache-manager.module';
     FileUseCases,
     MailerService,
     RedisService,
+    CustomEndpointThrottleGuard
   ],
   exports: [
     FileUseCases,
