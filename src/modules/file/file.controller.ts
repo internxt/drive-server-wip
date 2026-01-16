@@ -347,6 +347,10 @@ export class FileController {
     return result;
   }
 
+  @UseGuards(CustomEndpointThrottleGuard)
+  @CustomThrottle({
+    short: { ttl: 60, limit: 100 },
+  })
   @Get('/')
   @ApiOkResponse({ isArray: true, type: FileDto })
   async getFiles(
