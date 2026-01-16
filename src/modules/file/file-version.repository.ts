@@ -32,6 +32,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
   async create(version: CreateFileVersionData): Promise<FileVersion> {
     const createdVersion = await this.model.create({
       fileId: version.fileId,
+      userId: version.userId,
       networkFileId: version.networkFileId,
       size: version.size,
       status: version.status || FileVersionStatus.EXISTS,
@@ -44,6 +45,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
     const [instance] = await this.model.upsert(
       {
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status || FileVersionStatus.EXISTS,
