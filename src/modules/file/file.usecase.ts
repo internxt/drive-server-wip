@@ -48,9 +48,8 @@ import {
   PLAN_FREE_INDIVIDUAL_TIER_LABEL,
   LimitLabels,
 } from '../feature-limit/limits.enum';
-import { FeatureLimitUsecases } from '../feature-limit/feature-limit.usecase';
 import { SequelizeFileVersionRepository } from './file-version.repository';
-import { FileVersion, FileVersionStatus } from './file-version.domain';
+import { FileVersionStatus } from './file-version.domain';
 import { FileVersionDto } from './dto/responses/file-version.dto';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
@@ -59,6 +58,7 @@ import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import { Workspace } from '../workspaces/domains/workspaces.domain';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -88,7 +88,6 @@ export class FileUseCases {
     private readonly usageService: UsageService,
     private readonly mailerService: MailerService,
     private readonly featureLimitService: FeatureLimitService,
-    private readonly featureLimitUsecases: FeatureLimitUsecases,
     @Inject(forwardRef(() => UserUseCases))
     private readonly userUsecases: UserUseCases,
     private readonly redisService: RedisService,
@@ -484,6 +483,16 @@ export class FileUseCases {
     }
   }
 
+  async getZeroSizeFilesInWorkspaceByMember(
+    memberId: string,
+    workspaceId: string,
+  ) {
+    return this.fileRepository.getZeroSizeFilesCountInWorkspaceByMember(
+      memberId,
+      workspaceId,
+    );
+  }
+
   async updateFileMetaData(
     user: User,
     fileUuid: File['uuid'],
@@ -873,6 +882,10 @@ export class FileUseCases {
     user: User,
     fileUuid: File['fileId'],
     newFileData: ReplaceFileDto,
+    workspaceOptions?: {
+      workspace: Workspace;
+      memberId: string;
+    },
   ): Promise<FileDto> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
 
@@ -887,7 +900,14 @@ export class FileUseCases {
     const isFileEmpty = newFileData.size === BigInt(0);
 
     if (isFileEmpty) {
-      await this.checkEmptyFilesLimit(user);
+      if (!workspaceOptions) {
+        await this.checkEmptyFilesLimit(user);
+      } else {
+        await this.checkWorkspaceEmptyFilesLimit(
+          workspaceOptions.memberId,
+          workspaceOptions.workspace,
+        );
+      }
     }
 
     const newFileId = isFileEmpty ? null : newFileData.fileId;
@@ -901,7 +921,7 @@ export class FileUseCases {
     if (shouldVersion) {
       await this.applyRetentionPolicy(fileUuid, user.uuid);
 
-      const { fileId, size, modificationTime } = newFileData;
+      const { size, modificationTime } = newFileData;
 
       await Promise.all([
         this.fileVersionRepository.upsert({
@@ -969,6 +989,33 @@ export class FileUseCases {
       fileId: newFileId,
       size,
     };
+  }
+
+  async checkWorkspaceEmptyFilesLimit(memberId: string, workspace: Workspace) {
+    const workspaceNetworkUser = await this.userUsecases.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    const [maxZeroSizeFilesLimit, zeroSizeFilesCount] = await Promise.all([
+      this.featureLimitService.getUserLimitByLabel(
+        LimitLabels.MaxZeroSizeFiles,
+        workspaceNetworkUser,
+      ),
+      this.fileRepository.getZeroSizeFilesCountInWorkspaceByMember(
+        memberId,
+        workspace.id,
+      ),
+    ]);
+
+    if (
+      maxZeroSizeFilesLimit.shouldLimitBeEnforced({
+        currentCount: zeroSizeFilesCount,
+      })
+    ) {
+      throw new BadRequestException(
+        'You can not have more empty files in this workspace',
+      );
+    }
   }
 
   async deleteUserTrashedFilesBatch(
