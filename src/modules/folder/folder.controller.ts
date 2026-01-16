@@ -14,6 +14,7 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -66,6 +67,8 @@ import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { GetFilesInFoldersDto } from './dto/get-files-in-folder.dto';
 import { GetFoldersInFoldersDto } from './dto/get-folders-in-folder.dto';
 import { GetFoldersQueryDto } from './dto/get-folders.dto';
+import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
+import { CustomThrottle } from '../../guards/custom-endpoint-throttle.decorator';
 
 export class BadRequestWrongFolderIdException extends BadRequestException {
   constructor() {
@@ -760,6 +763,10 @@ export class FolderController {
     return folderDto;
   }
 
+  @UseGuards(CustomEndpointThrottleGuard)
+  @CustomThrottle({
+    short: { ttl: 60, limit: 30 },
+  })
   @Get('/meta')
   async getFolderMetaByPath(
     @UserDecorator() user: User,
