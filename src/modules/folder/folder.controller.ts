@@ -482,6 +482,10 @@ export class FolderController {
     };
   }
 
+  @UseGuards(CustomEndpointThrottleGuard)
+  @CustomThrottle({
+    short: { ttl: 60, limit: 100 },
+  })
   @Get('/')
   @ApiOkResponse({ isArray: true, type: FolderDto })
   async getFolders(
