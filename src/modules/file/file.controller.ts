@@ -56,6 +56,8 @@ import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { RequestLoggerInterceptor } from '../../middlewares/requests-logger.interceptor';
 import { Version } from '../../common/decorators/version.decorator';
+import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
+import { CustomThrottle } from '../../guards/custom-endpoint-throttle.decorator';
 
 @ApiTags('File')
 @Controller('files')
@@ -449,6 +451,10 @@ export class FileController {
     return files;
   }
 
+  @UseGuards(CustomEndpointThrottleGuard)
+  @CustomThrottle({
+    short: { ttl: 60, limit: 100 },
+  })
   @Get('/meta')
   @ApiOkResponse({ type: FileDto })
   async getFileMetaByPath(
