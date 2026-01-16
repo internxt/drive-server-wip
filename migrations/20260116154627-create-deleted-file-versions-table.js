@@ -49,11 +49,6 @@ module.exports = {
         allowNull: true,
       },
     });
-
-    await queryInterface.addIndex(tableName, {
-      fields: ['processed'],
-      name: 'deleted_file_versions_processed_index',
-    });
   },
 
   async down(queryInterface) {

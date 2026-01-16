@@ -9,7 +9,7 @@ module.exports = {
 
     await queryInterface.sequelize.query(`
       CREATE TRIGGER file_version_deleted_trigger
-      AFTER UPDATE ON file_versions
+      AFTER UPDATE OF status ON file_versions
       FOR EACH ROW
       WHEN (OLD.status != 'DELETED' AND NEW.status = 'DELETED')
       EXECUTE FUNCTION insert_into_deleted_file_versions();
