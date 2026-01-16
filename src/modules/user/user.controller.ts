@@ -108,6 +108,8 @@ import { PaymentRequiredException } from '../feature-limit/exceptions/payment-re
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
 import { CaptchaGuard } from '../auth/captcha.guard';
+import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
+import { CustomThrottle } from '../../guards/custom-endpoint-throttle.decorator';
 
 @ApiTags('User')
 @Controller('users')
@@ -1257,6 +1259,10 @@ export class UserController {
     }
   }
 
+  @UseGuards(CustomEndpointThrottleGuard)
+  @CustomThrottle({
+    short: { ttl: 60, limit: 100 },
+  })
   @Get('/usage')
   @ApiBearerAuth()
   @ApiOperation({
