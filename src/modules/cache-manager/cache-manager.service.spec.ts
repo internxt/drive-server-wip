@@ -396,7 +396,7 @@ describe('CacheManagerService', () => {
       expect(result.timeToExpire).toBe(expiresAt - now);
     });
 
-    it('When existing entry expired then it still increments but ttl becomes 0', async () => {
+    it('When existing entry expired then it sets hits=1 and ttl equals requested ttl (ms)', async () => {
       const now = 1_600_000_040_000;
       const expiresAt = now - 500;
       const existing = { hits: 5, expiresAt };
@@ -407,10 +407,13 @@ describe('CacheManagerService', () => {
       const setSpy = jest.spyOn(cacheManager, 'set').mockResolvedValue(undefined as any);
 
       const result = await cacheManagerService.increment(key, ttlSeconds);
-      const expectedNewHits = existing.hits + 1;
-      const expectedTimeToExpire = 0;
+      const expectedNewHits = 1
+      const expectedTimeToExpire = ttlSeconds * 1000;
     
-      expect(setSpy).toHaveBeenCalledWith(key, { hits: expectedNewHits, expiresAt }, 0);
+      expect(setSpy).toHaveBeenCalledWith(key, { 
+        hits: expectedNewHits, 
+        expiresAt: now + expectedTimeToExpire 
+      }, expectedTimeToExpire);
       expect(result.totalHits).toBe(expectedNewHits);
       expect(result.timeToExpire).toBe(expectedTimeToExpire);
     });
