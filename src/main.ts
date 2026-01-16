@@ -3,10 +3,9 @@ import dotenv from 'dotenv';
 dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
 
 import { ValidationPipe } from '@nestjs/common';
-import { NestFactory, Reflector } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
-import apiMetrics from 'prometheus-api-metrics';
 import helmet from 'helmet';
 import {
   DocumentBuilder,
@@ -61,7 +60,6 @@ async function bootstrap() {
   app.useGlobalInterceptors(app.get(CustomThrottlerInterceptor));
 
   app.use(helmet());
-  app.use(apiMetrics());
 
   if (!config.isProduction) {
     app.useGlobalInterceptors(new RequestLoggerInterceptor());
