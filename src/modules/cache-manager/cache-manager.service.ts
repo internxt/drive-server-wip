@@ -12,7 +12,9 @@ export class CacheManagerService {
   private readonly TTL_10_MINUTES = 10 * 60 * 1000;
   private readonly TTL_24_HOURS = 24 * 60 * 60 * 1000;
 
-  constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
+  constructor(
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {}
 
   /**
    * Get user's storage usage
@@ -125,14 +127,13 @@ export class CacheManagerService {
     const ttlMs = ttlSeconds * 1000;
     const now = Date.now();
 
-    const existing = await this.cacheManager.get<{ hits: number; expiresAt: number }>(
-      key,
-    );
+    const existing = await this.cacheManager.get<{ hits: number; expiresAt: number }>(key);
 
     let hits = 1;
     let expiresAt = now + ttlMs;
+    const existingAndNotExpired = existing && existing.expiresAt > now;
 
-    if (existing && typeof existing.hits === 'number' && existing.expiresAt) {
+    if (existingAndNotExpired) {
       hits = existing.hits + 1;
       expiresAt = existing.expiresAt;
     }
