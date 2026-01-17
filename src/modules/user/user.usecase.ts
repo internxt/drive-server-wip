@@ -12,7 +12,6 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Environment } from '@internxt/inxt-js';
 import { v4, validate } from 'uuid';
 import { generateMnemonic } from 'bip39';
 import * as speakeasy from 'speakeasy';
@@ -362,7 +361,7 @@ export class UserUseCases {
     user: User,
     bucketId: string,
   ): Promise<[Folder, Folder, Folder]> {
-    const rootFolderName = this.cryptoService.encryptName(`${v4()}`);
+    const rootFolderName = v4();
 
     const rootFolder = await this.folderUseCases.createRootFolder(
       user,
@@ -375,12 +374,12 @@ export class UserUseCases {
       this.userRepository.updateById(user.id, { rootFolderId: rootFolder.id }),
       this.folderUseCases.createFolders(user, [
         {
-          name: 'Family',
+          plainName: 'Family',
           parentFolderId: rootFolder.id,
           parentUuid: rootFolder.uuid,
         },
         {
-          name: 'Personal',
+          plainName: 'Personal',
           parentFolderId: rootFolder.id,
           parentUuid: rootFolder.uuid,
         },

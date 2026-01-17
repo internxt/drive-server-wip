@@ -765,7 +765,7 @@ describe('SequelizeFolderRepository', () => {
   describe('create', () => {
     it('When creating a folder with basic parameters, then it should return the created folder', async () => {
       const userId = 1;
-      const name = 'encrypted-name';
+      const plainName = 'plain-name';
       const bucket = 'bucket-id';
       const parentId = 2;
       const encryptVersion = '03-aes' as const;
@@ -774,7 +774,7 @@ describe('SequelizeFolderRepository', () => {
       const createdFolder = newFolder({
         attributes: {
           userId,
-          name,
+          plainName,
           bucket,
           parentId,
           encryptVersion,
@@ -787,7 +787,7 @@ describe('SequelizeFolderRepository', () => {
 
       const result = await repository.create(
         userId,
-        name,
+        plainName,
         bucket,
         parentId,
         encryptVersion,
@@ -796,7 +796,7 @@ describe('SequelizeFolderRepository', () => {
 
       expect(folderModel.create).toHaveBeenCalledWith({
         userId,
-        name,
+        plainName,
         bucket,
         parentId,
         encryptVersion,
@@ -833,7 +833,7 @@ describe('SequelizeFolderRepository', () => {
       const foldersData = [
         {
           userId: 1,
-          name: 'folder1',
+          plainName: 'folder1',
           bucket: 'bucket1',
           parentId: 1,
           encryptVersion: '03-aes' as const,
@@ -841,7 +841,7 @@ describe('SequelizeFolderRepository', () => {
         },
         {
           userId: 1,
-          name: 'folder2',
+          plainName: 'folder2',
           bucket: 'bucket2',
           parentId: 1,
           encryptVersion: '03-aes' as const,

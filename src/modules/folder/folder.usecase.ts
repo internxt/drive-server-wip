@@ -256,7 +256,7 @@ export class FolderUseCases {
 
   async createRootFolder(
     creator: User,
-    name: FolderAttributes['name'],
+    plainName: FolderAttributes['plainName'],
     bucketId: string,
   ): Promise<Folder> {
     const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;
@@ -271,15 +271,13 @@ export class FolderUseCases {
       user = await this.userRepository.findByUsername(creator.bridgeUser);
     }
 
-    if (name === '' || invalidName.test(name)) {
+    if (plainName === '' || invalidName.test(plainName)) {
       throw new Error('Invalid folder name');
     }
 
-    const encryptedFolderName = this.cryptoService.encryptName(name, null);
-
     const folder = await this.folderRepository.create(
       user.id,
-      encryptedFolderName,
+      plainName,
       bucketId,
       null,
       '03-aes',
@@ -291,7 +289,7 @@ export class FolderUseCases {
   async createFolders(
     creator: User,
     folders: {
-      name: FolderAttributes['name'];
+      plainName: FolderAttributes['plainName'];
       parentFolderId: FolderAttributes['parentId'];
       parentUuid: FolderAttributes['parentUuid'];
     }[],
@@ -318,11 +316,7 @@ export class FolderUseCases {
       folders.map((folder) => {
         return {
           userId: user.id,
-          plainName: folder.name,
-          name: this.cryptoService.encryptName(
-            folder.name,
-            folder.parentFolderId,
-          ),
+          plainName: folder.plainName,
           encryptVersion: '03-aes',
           bucket: null,
           parentId: folder.parentFolderId,

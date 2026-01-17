@@ -3582,13 +3582,12 @@ describe('User use cases', () => {
     it('When creating initial folders, then it should create root, family and personal folders', async () => {
       const user = newUser();
       const bucketId = 'bucket-123';
-      const rootFolder = newFolder({ attributes: { name: 'Root' } });
-      const familyFolder = newFolder({ attributes: { name: 'Family' } });
-      const personalFolder = newFolder({ attributes: { name: 'Personal' } });
+      const rootFolder = newFolder({ attributes: { plainName: 'Root' } });
+      const familyFolder = newFolder({ attributes: { plainName: 'Family' } });
+      const personalFolder = newFolder({
+        attributes: { plainName: 'Personal' },
+      });
 
-      jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValue('encrypted-name');
       jest
         .spyOn(folderUseCases, 'createRootFolder')
         .mockResolvedValue(rootFolder);
@@ -3601,7 +3600,7 @@ describe('User use cases', () => {
 
       expect(folderUseCases.createRootFolder).toHaveBeenCalledWith(
         user,
-        'encrypted-name',
+        expect.any(String),
         bucketId,
       );
       expect(userRepository.updateById).toHaveBeenCalledWith(user.id, {
@@ -3609,12 +3608,12 @@ describe('User use cases', () => {
       });
       expect(folderUseCases.createFolders).toHaveBeenCalledWith(user, [
         {
-          name: 'Family',
+          plainName: 'Family',
           parentFolderId: rootFolder.id,
           parentUuid: rootFolder.uuid,
         },
         {
-          name: 'Personal',
+          plainName: 'Personal',
           parentFolderId: rootFolder.id,
           parentUuid: rootFolder.uuid,
         },
