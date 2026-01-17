@@ -1075,10 +1075,15 @@ export class UserUseCases {
         ecc: string;
         kyber: string;
       };
+      publicKeys?: {
+        ecc?: string;
+        kyber?: string;
+      };
     },
     withReset = false,
   ): Promise<void> {
-    const { mnemonic, password, salt, privateKeys } = newCredentials;
+    const { mnemonic, password, salt, privateKeys, publicKeys } =
+      newCredentials;
 
     const shouldUpdateKeys = privateKeys && Object.keys(privateKeys).length > 0;
 
@@ -1088,7 +1093,24 @@ export class UserUseCases {
       );
     }
 
+    if (!withReset && !publicKeys) {
+      throw new BadRequestException('Invalid keys');
+    }
+
     const user = await this.userRepository.findByUuid(userUuid);
+
+    if (publicKeys) {
+      const existingKeys = await this.keyServerUseCases.getPublicKeys(user.id);
+      const eccMismatch = existingKeys.ecc !== publicKeys.ecc;
+      const kyberMismatch = existingKeys.kyber !== publicKeys.kyber;
+
+      if (eccMismatch) {
+        throw new BadRequestException('Invalid ECC public key');
+      }
+      if (kyberMismatch) {
+        throw new BadRequestException('Invalid Kyber public key');
+      }
+    }
 
     if (shouldUpdateKeys) {
       for (const [version, privateKey] of Object.entries(privateKeys)) {
