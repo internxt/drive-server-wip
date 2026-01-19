@@ -87,6 +87,10 @@ export class FolderController {
     private readonly storageNotificationService: StorageNotificationService,
   ) {}
 
+  @UseGuards(CustomEndpointThrottleGuard)
+  @CustomThrottle({
+    short: { ttl: 60, limit: 80 }
+  })
   @Post('/')
   @ApiOperation({
     summary: 'Create Folder',
