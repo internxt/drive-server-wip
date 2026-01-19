@@ -106,13 +106,6 @@ export class FileUseCases {
     return this.fileRepository.getFilesWithUserByUuuid(uuids, order);
   }
 
-  getByUuidsAndUser(
-    user: User,
-    uuids: FileAttributes['uuid'][],
-  ): Promise<File[]> {
-    return this.fileRepository.findByUuids(uuids, { userId: user.id });
-  }
-
   async getUserUsedStorage(user: User): Promise<number> {
     const usageCalculation = await this.getUserUsedStorageIncrementally(user);
 
@@ -407,7 +400,7 @@ export class FileUseCases {
       throw new ConflictException('File already exists');
     }
 
-    const isFileEmpty = newFileDto.size === BigInt(0);
+    const isFileEmpty = BigInt(newFileDto.size) === BigInt(0);
 
     if (isFileEmpty) {
       await this.checkEmptyFilesLimit(user);
@@ -563,34 +556,6 @@ export class FileUseCases {
     status: FileStatus,
   ) {
     return this.fileRepository.getFilesByFolderUuid(folderUuid, status);
-  }
-
-  async getFilesByFolderId(
-    folderId: FileAttributes['folderId'],
-    userId: FileAttributes['userId'],
-    options: { limit: number; offset: number; sort?: SortParamsFile } = {
-      limit: 20,
-      offset: 0,
-    },
-  ) {
-    const parentFolder = await this.folderUsecases.getFolderByUserId(
-      folderId,
-      userId,
-    );
-
-    if (!parentFolder) {
-      throw new NotFoundException();
-    }
-
-    if (parentFolder.userId !== userId) {
-      throw new ForbiddenException();
-    }
-
-    return this.getFiles(
-      userId,
-      { folderId, status: FileStatus.EXISTS },
-      options,
-    );
   }
 
   getFilesByIds(user: User, fileIds: File['id'][]): Promise<File[]> {
@@ -1101,10 +1066,9 @@ export class FileUseCases {
   }
 
   decrypFileName(file: File): any {
-    const decryptedName = this.cryptoService.decryptName(
-      file.name,
-      file.folderId,
-    );
+    const decryptedName =
+      file.plainName ??
+      this.cryptoService.decryptName(file.name, file.folderId);
 
     if (decryptedName === '') {
       return File.build(file);

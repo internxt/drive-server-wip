@@ -64,6 +64,8 @@ import {
   GetFoldersInSharedFolderResponseDto,
 } from './dto/response/get-folders-in-shared-folder.dto';
 import { GetItemsInSharedFolderQueryDto } from './dto/get-items-in-shared-folder.dto';
+import { Throttle } from '@nestjs/throttler';
+import { CaptchaGuard } from '../auth/captcha.guard';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -281,6 +283,7 @@ export class SharingController {
     return { invites };
   }
 
+  @UseGuards(CaptchaGuard)
   @Post('/invites/send')
   /*   @ApplyLimit({
     limitLabels: [LimitLabels.MaxSharedItemInvites, LimitLabels.MaxSharedItems],

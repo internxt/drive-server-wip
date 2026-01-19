@@ -52,6 +52,7 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   @IsEmail()
+  @MaxLength(100, { message: 'Email must be at most 100 characters long.' })
   @ApiProperty({
     example: 'myaccount@internxt.com',
     description: 'Email of the new account',

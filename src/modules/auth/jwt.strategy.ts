@@ -14,10 +14,6 @@ import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { Tier } from '../feature-limit/domain/tier.domain';
 
-export interface JwtPayload {
-  email: string;
-  bridgeUser: string;
-}
 export interface JwtAuthInfo {
   platform?: string;
   tier?: Tier;

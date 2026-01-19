@@ -461,6 +461,7 @@ describe('FolderUseCases', () => {
       const folder = newFolder({
         attributes: {
           name: 'not encrypted name',
+          plainName: null,
         },
       });
 
@@ -1725,10 +1726,10 @@ describe('FolderUseCases', () => {
     const folderUuid = v4();
 
     it('When folder exists and no plainName, then it should decrypt and return the folder', async () => {
-      const decryptedName = 'Decrypted Name';
       const folder = newFolder({
-        attributes: { uuid: folderUuid, plainName: undefined },
+        attributes: { uuid: folderUuid, plainName: null },
       });
+      const decryptedName = 'Decrypted Name';
 
       jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
       jest

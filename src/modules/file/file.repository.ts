@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
 import {
@@ -96,18 +96,8 @@ export interface FileRepository {
     workspaceId: WorkspaceAttributes['id'],
     statuses: FileStatus[],
   ): Promise<number>;
-  updateByFieldIdAndUserId(
-    fileId: FileAttributes['fileId'],
-    userId: FileAttributes['userId'],
-    update: Partial<File>,
-  ): Promise<File>;
   updateByUuidAndUserId(
     uuid: FileAttributes['uuid'],
-    userId: FileAttributes['userId'],
-    update: Partial<File>,
-  ): Promise<void>;
-  updateManyByFieldIdAndUserId(
-    fileIds: FileAttributes['fileId'][],
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void>;
@@ -126,7 +116,6 @@ export interface FileRepository {
     userId: User['id'],
     fileIds: FileAttributes['fileId'][],
   ): Promise<File[]>;
-  sumExistentFileSizes(userId: FileAttributes['userId']): Promise<number>;
   getFilesByFolderUuid(
     folderUuid: Folder['uuid'],
     status: FileStatus,
@@ -695,41 +684,6 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
-  async updateByFieldIdAndUserId(
-    fileId: FileAttributes['fileId'],
-    userId: FileAttributes['userId'],
-    update: Partial<File>,
-  ): Promise<File> {
-    const file = await this.fileModel.findOne({
-      where: {
-        fileId,
-        userId,
-      },
-    });
-
-    if (!file) {
-      throw new NotFoundException(`File with ID ${fileId} not found`);
-    }
-    file.set(update);
-    await file.save();
-    return this.toDomain(file);
-  }
-
-  async updateManyByFieldIdAndUserId(
-    fileIds: FileAttributes['fileId'][],
-    userId: FileAttributes['userId'],
-    update: Partial<File>,
-  ): Promise<void> {
-    await this.fileModel.update(update, {
-      where: {
-        userId,
-        fileId: {
-          [Op.in]: fileIds,
-        },
-      },
-    });
-  }
-
   async updateByUuidAndUserId(
     uuid: FileAttributes['uuid'],
     userId: FileAttributes['userId'],
@@ -920,27 +874,6 @@ export class SequelizeFileRepository implements FileRepository {
       user: buildUser(model.user || model.workspaceUser?.creator),
     });
     return file;
-  }
-
-  private toModel(domain: File): Partial<FileAttributes> {
-    return domain.toJSON();
-  }
-
-  async sumExistentFileSizes(
-    userId: FileAttributes['userId'],
-  ): Promise<number> {
-    const result = await this.fileModel.findAll({
-      attributes: [[Sequelize.fn(`SUM`, Sequelize.col('size')), 'total']],
-      where: {
-        userId,
-        status: {
-          [Op.ne]: 'DELETED',
-        },
-      },
-      raw: true,
-    });
-
-    return Number(result[0]['total']) as unknown as number;
   }
 
   async sumFileSizeDeltaBetweenDates(
