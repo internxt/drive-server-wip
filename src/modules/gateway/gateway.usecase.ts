@@ -12,6 +12,7 @@ import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { FileUseCases } from '../file/file.usecase';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
 import { JWT_1DAY_EXPIRATION } from '../auth/constants';
@@ -30,6 +31,7 @@ export class GatewayUseCases {
     private readonly cacheManagerService: CacheManagerService,
     private readonly storageNotificationService: StorageNotificationService,
     private readonly featureLimitService: FeatureLimitService,
+    private readonly fileUseCases: FileUseCases,
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
     private readonly folderRepository: SequelizeFolderRepository,
@@ -336,6 +338,22 @@ export class GatewayUseCases {
         error,
       );
     }
+
+    this.fileUseCases
+      .applyUserRetentionPolicy(user.uuid)
+      .then(({ deletedCount }) => {
+        if (deletedCount > 0) {
+          Logger.log(
+            `[GATEWAY/RETENTION] Deleted ${deletedCount} file versions for user ${user.uuid} due to plan change`,
+          );
+        }
+      })
+      .catch((error) => {
+        Logger.error(
+          `[GATEWAY/RETENTION] Error applying retention policy for user ${user.uuid}`,
+          error,
+        );
+      });
   }
 
   async handleFailedPayment(userId: string): Promise<{ success: boolean }> {
