@@ -89,7 +89,7 @@ export class FolderController {
 
   @UseGuards(CustomEndpointThrottleGuard)
   @CustomThrottle({
-    short: { ttl: 60, limit: 80 }
+    long: { ttl: 3600, limit: 30000 }
   })
   @Post('/')
   @ApiOperation({
