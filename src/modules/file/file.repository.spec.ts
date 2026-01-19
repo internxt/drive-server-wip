@@ -14,7 +14,6 @@ import { Op, QueryTypes } from 'sequelize';
 import { v4 } from 'uuid';
 import { UserModel } from '../user/user.model';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
-import { Time } from '../../lib/time';
 
 describe('FileRepository', () => {
   let repository: FileRepository;
