@@ -462,6 +462,10 @@ export class UserController {
     return userCredentials;
   }
 
+  @UseGuards(CustomEndpointThrottleGuard)
+  @CustomThrottle({
+    short: { ttl: 60, limit: 5 },
+  })
   @Get('/refresh')
   @HttpCode(200)
   @ApiOperation({ summary: 'Refresh session token' })
