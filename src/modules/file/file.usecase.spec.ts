@@ -1637,31 +1637,101 @@ describe('FileUseCases', () => {
   });
 
   describe('getUserUsedStorage', () => {
-    it('When called, it should return the user total used space', async () => {
-      const totalUsage = 1000;
+    it('When called, it should return the sum of files and versions usage', async () => {
+      const filesUsage = 1000;
+      const versionsUsage = 500;
+      const expectedTotal = filesUsage + versionsUsage;
+
       jest
         .spyOn(service, 'getUserUsedStorageIncrementally')
-        .mockResolvedValueOnce(totalUsage);
+        .mockResolvedValueOnce(filesUsage);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(versionsUsage);
 
       const result = await service.getUserUsedStorage(userMocked);
-      expect(result).toEqual(totalUsage);
+
+      expect(result).toEqual(expectedTotal);
+      expect(service.getUserUsedStorageIncrementally).toHaveBeenCalledWith(
+        userMocked,
+      );
+      expect(fileVersionRepository.sumExistingSizesByUser).toHaveBeenCalledWith(
+        userMocked.uuid,
+      );
     });
 
-    it('When getUserUsedStorageIncrementally returns null, it should return 0', async () => {
+    it('When user has only files usage, then it returns files usage', async () => {
+      const filesUsage = 1000;
+      const versionsUsage = 0;
+
+      jest
+        .spyOn(service, 'getUserUsedStorageIncrementally')
+        .mockResolvedValueOnce(filesUsage);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(versionsUsage);
+
+      const result = await service.getUserUsedStorage(userMocked);
+
+      expect(result).toEqual(filesUsage);
+    });
+
+    it('When user has only versions usage, then it returns versions usage', async () => {
+      const filesUsage = 0;
+      const versionsUsage = 500;
+
+      jest
+        .spyOn(service, 'getUserUsedStorageIncrementally')
+        .mockResolvedValueOnce(filesUsage);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(versionsUsage);
+
+      const result = await service.getUserUsedStorage(userMocked);
+
+      expect(result).toEqual(versionsUsage);
+    });
+
+    it('When getUserUsedStorageIncrementally returns null, it should treat as 0', async () => {
+      const versionsUsage = 500;
+
       jest
         .spyOn(service, 'getUserUsedStorageIncrementally')
         .mockResolvedValueOnce(null);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(versionsUsage);
 
       const result = await service.getUserUsedStorage(userMocked);
-      expect(result).toEqual(0);
+
+      expect(result).toEqual(versionsUsage);
     });
 
-    it('When getUserUsedStorageIncrementally returns undefined, it should return 0', async () => {
+    it('When getUserUsedStorageIncrementally returns undefined, it should treat as 0', async () => {
+      const versionsUsage = 500;
+
       jest
         .spyOn(service, 'getUserUsedStorageIncrementally')
         .mockResolvedValueOnce(undefined);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(versionsUsage);
 
       const result = await service.getUserUsedStorage(userMocked);
+
+      expect(result).toEqual(versionsUsage);
+    });
+
+    it('When both return null/undefined, it should return 0', async () => {
+      jest
+        .spyOn(service, 'getUserUsedStorageIncrementally')
+        .mockResolvedValueOnce(null);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(0);
+
+      const result = await service.getUserUsedStorage(userMocked);
+
       expect(result).toEqual(0);
     });
   });
@@ -1874,6 +1944,7 @@ describe('FileUseCases', () => {
         FileVersion.build({
           id: v4(),
           fileId: mockFile.uuid,
+          userId: v4(),
           networkFileId: 'network-1',
           size: BigInt(100),
           status: FileVersionStatus.EXISTS,
@@ -1925,6 +1996,7 @@ describe('FileUseCases', () => {
       const mockVersion = FileVersion.build({
         id: versionId,
         fileId: mockFile.uuid,
+        userId: v4(),
         networkFileId: 'network-id',
         size: BigInt(100),
         status: FileVersionStatus.EXISTS,
@@ -1969,6 +2041,7 @@ describe('FileUseCases', () => {
       const mockVersion = FileVersion.build({
         id: v4(),
         fileId: 'different-file-uuid',
+        userId: v4(),
         networkFileId: 'network-id',
         size: BigInt(100),
         status: FileVersionStatus.EXISTS,
@@ -1992,6 +2065,7 @@ describe('FileUseCases', () => {
       const mockVersion = FileVersion.build({
         id: versionId,
         fileId: mockFile.uuid,
+        userId: v4(),
         networkFileId: 'old-network-id',
         size: BigInt(100),
         status: FileVersionStatus.EXISTS,
@@ -2021,6 +2095,7 @@ describe('FileUseCases', () => {
       const mockVersion = FileVersion.build({
         id: versionId,
         fileId: mockFile.uuid,
+        userId: v4(),
         networkFileId: 'old-network-id',
         size: BigInt(100),
         status: FileVersionStatus.EXISTS,
@@ -2083,6 +2158,7 @@ describe('FileUseCases', () => {
       const mockVersion = FileVersion.build({
         id: v4(),
         fileId: 'different-file-uuid',
+        userId: v4(),
         networkFileId: 'network-id',
         size: BigInt(100),
         status: FileVersionStatus.EXISTS,
@@ -2105,6 +2181,7 @@ describe('FileUseCases', () => {
       const mockVersion = FileVersion.build({
         id: v4(),
         fileId: mockFile.uuid,
+        userId: v4(),
         networkFileId: 'network-id',
         size: BigInt(100),
         status: FileVersionStatus.DELETED,
@@ -2259,6 +2336,7 @@ describe('FileUseCases', () => {
       );
       expect(upsertSpy).toHaveBeenCalledWith({
         fileId: mockFile.uuid,
+        userId: userMocked.uuid,
         networkFileId: mockFile.fileId,
         size: mockFile.size,
         status: 'EXISTS',
