@@ -15,14 +15,9 @@ module.exports = {
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE',
     });
-
-    await queryInterface.addIndex(tableName, ['user_id', 'status'], {
-      name: 'file_versions_user_id_status_idx',
-    });
   },
 
   async down(queryInterface) {
-    await queryInterface.removeIndex(tableName, 'file_versions_user_id_status_idx');
     await queryInterface.removeColumn(tableName, 'user_id');
   },
 };
