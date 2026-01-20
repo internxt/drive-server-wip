@@ -387,11 +387,6 @@ export class FileUseCases {
       throw new ForbiddenException('Folder is not yours');
     }
 
-    const cryptoFileName = this.cryptoService.encryptName(
-      newFileDto.plainName,
-      folder.id,
-    );
-
     const exists = await this.fileRepository.findByPlainNameAndFolderId(
       user.id,
       newFileDto.plainName,
@@ -413,7 +408,6 @@ export class FileUseCases {
 
     const newFile = await this.fileRepository.create({
       uuid: v4(),
-      name: cryptoFileName,
       plainName: newFileDto.plainName,
       type: newFileDto.type,
       size: newFileDto.size,

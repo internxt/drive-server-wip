@@ -604,7 +604,7 @@ describe('FileRepository', () => {
     });
 
     it('When creation fails then it should return null', async () => {
-      const fileData = { name: v4() } as any;
+      const fileData = { plainName: v4() } as any;
       jest.spyOn(fileModel, 'create').mockResolvedValue(null);
       const result = await repository.create(fileData);
 
