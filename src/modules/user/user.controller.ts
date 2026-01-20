@@ -1265,7 +1265,7 @@ export class UserController {
 
   @UseGuards(CustomEndpointThrottleGuard)
   @CustomThrottle({
-    short: { ttl: 60, limit: 100 },
+    short: { ttl: 60, limit: 60 },
   })
   @Get('/usage')
   @ApiBearerAuth()
