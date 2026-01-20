@@ -7,12 +7,12 @@ import { RequiredPaginationDto } from '../../../common/dto/basic-pagination.dto'
 export class GetFoldersInFoldersDto extends RequiredPaginationDto {
   @ApiProperty({
     description: 'Field to sort by',
-    enum: ['updatedAt', 'id', 'plainName', 'name', 'uuid'],
+    enum: ['updatedAt', 'id', 'plainName', 'uuid'],
     required: false,
   })
   @IsOptional()
   @ValidateIf((o) => o.order !== undefined)
-  @IsEnum(['updatedAt', 'id', 'plainName', 'name', 'uuid'])
+  @IsEnum(['updatedAt', 'id', 'plainName', 'uuid'])
   sort?: SortableFolderAttributes;
 
   @ApiProperty({

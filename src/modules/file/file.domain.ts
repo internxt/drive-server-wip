@@ -7,7 +7,7 @@ import type { FileDto } from './dto/file.dto';
 
 export type SortableFileAttributes = keyof Pick<
   FileAttributes,
-  'updatedAt' | 'size' | 'id' | 'plainName' | 'name' | 'uuid'
+  'updatedAt' | 'size' | 'id' | 'plainName' | 'uuid'
 >;
 
 export enum FileStatus {
@@ -20,7 +20,7 @@ export interface FileAttributes {
   id: number;
   uuid: string;
   fileId: string;
-  name: string;
+  name?: string;
   type: string;
   size: bigint;
   bucket: string;

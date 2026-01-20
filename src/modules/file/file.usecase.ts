@@ -106,17 +106,13 @@ export class FileUseCases {
     return this.fileRepository.getFilesWithUserByUuuid(uuids, order);
   }
 
-  getByUuidsAndUser(
-    user: User,
-    uuids: FileAttributes['uuid'][],
-  ): Promise<File[]> {
-    return this.fileRepository.findByUuids(uuids, { userId: user.id });
-  }
-
   async getUserUsedStorage(user: User): Promise<number> {
-    const usageCalculation = await this.getUserUsedStorageIncrementally(user);
+    const [filesUsage, versionsUsage] = await Promise.all([
+      this.getUserUsedStorageIncrementally(user),
+      this.fileVersionRepository.sumExistingSizesByUser(user.uuid),
+    ]);
 
-    return usageCalculation || 0;
+    return (filesUsage || 0) + versionsUsage;
   }
 
   async getUserUsedStorageIncrementally(user: User): Promise<number> {
@@ -391,11 +387,6 @@ export class FileUseCases {
       throw new ForbiddenException('Folder is not yours');
     }
 
-    const cryptoFileName = this.cryptoService.encryptName(
-      newFileDto.plainName,
-      folder.id,
-    );
-
     const exists = await this.fileRepository.findByPlainNameAndFolderId(
       user.id,
       newFileDto.plainName,
@@ -407,7 +398,7 @@ export class FileUseCases {
       throw new ConflictException('File already exists');
     }
 
-    const isFileEmpty = newFileDto.size === BigInt(0);
+    const isFileEmpty = BigInt(newFileDto.size) === BigInt(0);
 
     if (isFileEmpty) {
       await this.checkEmptyFilesLimit(user);
@@ -417,7 +408,6 @@ export class FileUseCases {
 
     const newFile = await this.fileRepository.create({
       uuid: v4(),
-      name: cryptoFileName,
       plainName: newFileDto.plainName,
       type: newFileDto.type,
       size: newFileDto.size,
@@ -519,14 +509,11 @@ export class FileUseCases {
       newFileMetadata.plainName ??
       file.plainName ??
       this.cryptoService.decryptName(file.name, file.folderId);
-    const cryptoFileName = newFileMetadata.plainName
-      ? this.cryptoService.encryptName(newFileMetadata.plainName, file.folderId)
-      : file.name;
+
     const type = newFileMetadata.type ?? file.type;
 
     const updatedFile = File.build({
       ...file,
-      name: cryptoFileName,
       plainName,
       type,
     });
@@ -563,34 +550,6 @@ export class FileUseCases {
     status: FileStatus,
   ) {
     return this.fileRepository.getFilesByFolderUuid(folderUuid, status);
-  }
-
-  async getFilesByFolderId(
-    folderId: FileAttributes['folderId'],
-    userId: FileAttributes['userId'],
-    options: { limit: number; offset: number; sort?: SortParamsFile } = {
-      limit: 20,
-      offset: 0,
-    },
-  ) {
-    const parentFolder = await this.folderUsecases.getFolderByUserId(
-      folderId,
-      userId,
-    );
-
-    if (!parentFolder) {
-      throw new NotFoundException();
-    }
-
-    if (parentFolder.userId !== userId) {
-      throw new ForbiddenException();
-    }
-
-    return this.getFiles(
-      userId,
-      { folderId, status: FileStatus.EXISTS },
-      options,
-    );
   }
 
   getFilesByIds(user: User, fileIds: File['id'][]): Promise<File[]> {
@@ -941,6 +900,7 @@ export class FileUseCases {
       await Promise.all([
         this.fileVersionRepository.upsert({
           fileId: file.uuid,
+          userId: user.uuid,
           networkFileId: file.fileId,
           size: file.size,
           status: FileVersionStatus.EXISTS,
@@ -1101,10 +1061,9 @@ export class FileUseCases {
   }
 
   decrypFileName(file: File): any {
-    const decryptedName = this.cryptoService.decryptName(
-      file.name,
-      file.folderId,
-    );
+    const decryptedName =
+      file.plainName ??
+      this.cryptoService.decryptName(file.name, file.folderId);
 
     if (decryptedName === '') {
       return File.build(file);

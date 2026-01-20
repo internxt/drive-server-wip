@@ -668,7 +668,7 @@ describe('FileController', () => {
         offset: validOffset,
         status: FileStatus.EXISTS,
         bucket: 'test-bucket',
-        sort: 'name',
+        sort: 'plainName',
         order: SortOrder.ASC,
         updatedAt: '2023-01-01T00:00:00.000Z',
         lastId,
@@ -694,7 +694,7 @@ describe('FileController', () => {
         expect.objectContaining({
           limit: validLimit,
           offset: validOffset,
-          sort: [['name', 'ASC']],
+          sort: [['plainName', 'ASC']],
           lastId,
         }),
         'test-bucket',
