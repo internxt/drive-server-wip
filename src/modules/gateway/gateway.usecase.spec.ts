@@ -727,7 +727,7 @@ describe('GatewayUseCases', () => {
         });
       });
 
-      it('When updating user storage, then it should call cleanupVersionsOnDisable', async () => {
+      it('When updating user storage, then it should cleanup file versions', async () => {
         jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
         jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
         jest
@@ -744,7 +744,7 @@ describe('GatewayUseCases', () => {
         );
       });
 
-      it('When retention policy deletes versions, then it should log the count', async () => {
+      it('When file versions are deleted, then it should log the count', async () => {
         jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
         jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
         jest
@@ -763,29 +763,25 @@ describe('GatewayUseCases', () => {
         );
       });
 
-      it('When retention policy fails, then it should fail the update', async () => {
+      it('When file version cleanup fails, then it should fail the update', async () => {
         jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
         jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
         jest
           .spyOn(cacheManagerService, 'setUserStorageLimit')
           .mockResolvedValue(undefined);
-        const retentionError = new Error('Retention policy error');
+        const cleanupError = new Error('File version cleanup error');
         jest
           .spyOn(fileUseCases, 'cleanupVersionsOnDisable')
-          .mockRejectedValue(retentionError);
+          .mockRejectedValue(cleanupError);
 
         await expect(
           service.updateUser(user, { newStorageSpaceBytes }),
-        ).rejects.toThrow(retentionError);
+        ).rejects.toThrow(cleanupError);
 
         expect(fileUseCases.cleanupVersionsOnDisable).toHaveBeenCalled();
       });
 
-      it('When no storage update is provided, then it should not call retention policy', async () => {
-        jest
-          .spyOn(fileUseCases, 'cleanupVersionsOnDisable')
-          .mockResolvedValue({ deletedCount: 0 });
-
+      it('When no storage update is provided, then it should not cleanup file versions', async () => {
         await service.updateUser(user, { newStorageSpaceBytes: undefined });
 
         expect(fileUseCases.cleanupVersionsOnDisable).not.toHaveBeenCalled();

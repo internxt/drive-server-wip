@@ -343,7 +343,7 @@ export class GatewayUseCases {
       await this.fileUseCases.cleanupVersionsOnDisable(user.uuid);
     if (deletedCount > 0) {
       Logger.log(
-        `[GATEWAY/RETENTION] Deleted ${deletedCount} file versions for user ${user.uuid} due to plan change`,
+        `[GATEWAY/UPDATE_TIER] Deleted ${deletedCount} file versions for user ${user.uuid} due to tier change`,
       );
     }
   }
