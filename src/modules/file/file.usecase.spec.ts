@@ -1343,6 +1343,7 @@ describe('FileUseCases', () => {
         attributes: {
           ...mockFile,
           plainName: newFileMeta.plainName,
+          name: encryptedName,
         },
       });
 
@@ -1375,6 +1376,7 @@ describe('FileUseCases', () => {
         userMocked.id,
         expect.objectContaining({
           plainName: newFileMeta.plainName,
+          name: encryptedName,
         }),
       );
       const {
