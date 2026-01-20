@@ -20,7 +20,7 @@ export interface FileAttributes {
   id: number;
   uuid: string;
   fileId: string;
-  name?: string;
+  name: string;
   type: string;
   size: bigint;
   bucket: string;
