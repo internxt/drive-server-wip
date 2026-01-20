@@ -119,6 +119,7 @@ describe('BackupUseCase', () => {
 
     it('When backups are activated, then it should return all devices as folders', async () => {
       const mockFolder = newFolder();
+
       jest
         .spyOn(folderUseCases, 'getFoldersByUserId')
         .mockResolvedValue([mockFolder]);
@@ -128,8 +129,14 @@ describe('BackupUseCase', () => {
 
       const result = await backupUseCase.getDevicesAsFolder(userMocked);
 
+      const mockFolderResponse = {
+        //TODO: temporary hotfix remove after mac newer version is released
+        ...newBackupFolder(mockFolder),
+        plain_name: mockFolder.plainName,
+      };
+
       result.forEach((folder) => {
-        expect(folder).toEqual({ ...newBackupFolder(mockFolder) });
+        expect(folder).toEqual(mockFolderResponse);
       });
     });
   });
