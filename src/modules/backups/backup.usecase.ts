@@ -144,7 +144,9 @@ export class BackupUseCase {
     return Promise.all(
       folders.map(async (folder) => ({
         ...(await this.addFolderAsDeviceProperties(user, folder)),
-        plainName: this.cryptoService.decryptName(folder.name, folder.bucket),
+        plainName:
+          folder.plainName ??
+          this.cryptoService.decryptName(folder.name, folder.bucket),
       })),
     );
   }
@@ -327,10 +329,7 @@ export class BackupUseCase {
       user.id,
       {
         bucket: user.backupsBucket,
-        name: this.cryptoService.encryptName(
-          updateDeviceDto.name,
-          user.backupsBucket,
-        ),
+        plainName: updateDeviceDto.name,
         deleted: false,
         removed: false,
       },
@@ -347,14 +346,8 @@ export class BackupUseCase {
     let updatedFolder: Folder;
 
     if (folder) {
-      const encryptedName = this.cryptoService.encryptName(
-        updateDeviceDto.name,
-        folder.bucket,
-      );
-
       updatedFolder = await this.folderRepository.updateOneAndReturn(
         {
-          name: encryptedName,
           plainName: updateDeviceDto.name,
         },
         { userId: user.id, uuid: folder.uuid },

@@ -69,10 +69,12 @@ export class FolderUseCases {
       throw new NotFoundException('Folder not found');
     }
 
-    folder.plainName = this.cryptoService.decryptName(
-      folder.name,
-      folder.parentId,
-    );
+    if (!folder.plainName) {
+      folder.plainName = this.cryptoService.decryptName(
+        folder.name,
+        folder.parentId,
+      );
+    }
 
     return folder;
   }
@@ -883,15 +885,11 @@ export class FolderUseCases {
     }
 
     const plainName =
-      newName ?? this.cryptoService.decryptName(folder.name, folder.parentId);
-
-    const nameEncryptedWithDestination = this.cryptoService.encryptName(
-      plainName,
-      destinationFolder.id,
-    );
+      newName ??
+      folder.plainName ??
+      this.cryptoService.decryptName(folder.name, folder.parentId);
 
     const exists = await this.folderRepository.findByNameAndParentUuid(
-      nameEncryptedWithDestination,
       plainName,
       destinationFolder.uuid,
       false,
@@ -911,7 +909,6 @@ export class FolderUseCases {
     const updateData: Partial<Folder> = {
       parentId: destinationFolder.id,
       parentUuid: destinationFolder.uuid,
-      name: nameEncryptedWithDestination,
       plainName,
       deleted: false,
       deletedAt: null,
@@ -939,13 +936,7 @@ export class FolderUseCases {
       throw new BadRequestException('Invalid folder name');
     }
 
-    const newEncryptedName = this.cryptoService.encryptName(
-      newName,
-      folder.parentId,
-    );
-
     const exists = await this.folderRepository.findByNameAndParentUuid(
-      newEncryptedName,
       newName,
       folder.parentUuid,
       false,
@@ -958,16 +949,14 @@ export class FolderUseCases {
     }
 
     return await this.folderRepository.updateByFolderId(folder.id, {
-      name: newEncryptedName,
       plainName: newName,
     });
   }
 
   decryptFolderName(folder: Folder): Folder {
-    const decryptedName = this.cryptoService.decryptName(
-      folder.name,
-      folder.parentId,
-    );
+    const decryptedName =
+      folder.plainName ??
+      this.cryptoService.decryptName(folder.name, folder.parentId);
 
     if (decryptedName === '') {
       throw new Error('Unable to decrypt folder name');

@@ -27,9 +27,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         // Error propagation should be stopped by adding event listener
         redisStore.on('error', (err) =>
           logger.error(
-            `Error on redis client: error: ${JSON.stringify(
-              err,
-            )}, url: ${redisUrl}`,
+            `Error on redis client: ${err}, url: ${redisUrl}`,
           ),
         );
 
