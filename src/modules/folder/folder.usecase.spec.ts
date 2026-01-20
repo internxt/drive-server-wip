@@ -1231,11 +1231,9 @@ describe('FolderUseCases', () => {
     });
 
     it('When the folder metadata is updated successfully, then it should update and return the updated folder', async () => {
-      const encryptedName = 'encrypted-new-folder-name';
       const mockFolder = newFolder({ owner: userMocked });
       const updatedFolder = newFolder({
         attributes: {
-          name: encryptedName,
           plainName: newFolderMetadata.plainName,
           modificationTime: new Date(),
         },
@@ -1244,7 +1242,6 @@ describe('FolderUseCases', () => {
       jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(mockFolder);
       jest.spyOn(mockFolder, 'isOwnedBy').mockReturnValueOnce(true);
       jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(null);
-      jest.spyOn(cryptoService, 'encryptName').mockReturnValue(encryptedName);
       jest
         .spyOn(folderRepository, 'updateByFolderId')
         .mockResolvedValue(updatedFolder);
@@ -1259,7 +1256,6 @@ describe('FolderUseCases', () => {
         mockFolder.id,
         expect.objectContaining({
           plainName: newFolderMetadata.plainName,
-          name: encryptedName,
         }),
       );
 

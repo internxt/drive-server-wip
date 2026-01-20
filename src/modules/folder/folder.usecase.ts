@@ -359,13 +359,8 @@ export class FolderUseCases {
       throw new ForbiddenException('This folder is not yours');
     }
 
-    const cryptoFileName = this.cryptoService.encryptName(
-      newFolderMetadata.plainName,
-      folder.parentId,
-    );
-
     const folderWithSameNameExists = await this.folderRepository.findOne({
-      name: cryptoFileName,
+      plainName: newFolderMetadata.plainName,
       parentId: folder.parentId,
       deleted: false,
       removed: false,
@@ -381,7 +376,6 @@ export class FolderUseCases {
       folder.id,
       {
         plainName: newFolderMetadata.plainName,
-        name: cryptoFileName,
         modificationTime: new Date(),
       },
     );
@@ -433,15 +427,9 @@ export class FolderUseCases {
       );
     }
 
-    const encryptedFolderName = this.cryptoService.encryptName(
-      newFolderDto.plainName,
-      parentFolder.id,
-    );
-
     const folder = await this.folderRepository.createWithAttributes({
       uuid: v4(),
       userId: user.id,
-      name: encryptedFolderName,
       plainName: newFolderDto.plainName,
       parentId: parentFolder.id,
       parentUuid: parentFolder.uuid,

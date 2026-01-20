@@ -243,7 +243,11 @@ export class FileUseCases {
       throw new NotFoundException('File not found');
     }
 
-    return this.decrypFileName(file);
+    if (!file.plainName) {
+      return this.decrypFileName(file);
+    }
+
+    return file;
   }
 
   async getFileVersions(
@@ -1028,15 +1032,9 @@ export class FileUseCases {
       );
     }
 
-    const destinationEncryptedName = this.cryptoService.encryptName(
-      file.plainName,
-      destinationFolder.id,
-    );
-
     const updateData: Partial<File> = {
       folderId: destinationFolder.id,
       folderUuid: destinationFolder.uuid,
-      name: destinationEncryptedName,
       status: FileStatus.EXISTS,
       plainName: file.plainName,
       type: file.type,
