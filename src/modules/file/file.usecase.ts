@@ -1299,7 +1299,7 @@ export class FileUseCases {
     return this.featureLimitService.getFileVersioningLimits(userUuid);
   }
 
-  async applyUserRetentionPolicy(
+  async cleanupVersionsOnDisable(
     userUuid: string,
     options?: { batchSize?: number },
   ): Promise<{ deletedCount: number }> {

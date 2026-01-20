@@ -339,21 +339,13 @@ export class GatewayUseCases {
       );
     }
 
-    this.fileUseCases
-      .applyUserRetentionPolicy(user.uuid)
-      .then(({ deletedCount }) => {
-        if (deletedCount > 0) {
-          Logger.log(
-            `[GATEWAY/RETENTION] Deleted ${deletedCount} file versions for user ${user.uuid} due to plan change`,
-          );
-        }
-      })
-      .catch((error) => {
-        Logger.error(
-          `[GATEWAY/RETENTION] Error applying retention policy for user ${user.uuid}`,
-          error,
-        );
-      });
+    const { deletedCount } =
+      await this.fileUseCases.cleanupVersionsOnDisable(user.uuid);
+    if (deletedCount > 0) {
+      Logger.log(
+        `[GATEWAY/RETENTION] Deleted ${deletedCount} file versions for user ${user.uuid} due to plan change`,
+      );
+    }
   }
 
   async handleFailedPayment(userId: string): Promise<{ success: boolean }> {

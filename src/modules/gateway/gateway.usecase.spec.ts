@@ -513,7 +513,7 @@ describe('GatewayUseCases', () => {
 
       beforeEach(() => {
         jest
-          .spyOn(fileUseCases, 'applyUserRetentionPolicy')
+          .spyOn(fileUseCases, 'cleanupVersionsOnDisable')
           .mockResolvedValue({ deletedCount: 0 });
       });
 
@@ -727,19 +727,19 @@ describe('GatewayUseCases', () => {
         });
       });
 
-      it('When updating user storage, then it should call applyUserRetentionPolicy', async () => {
+      it('When updating user storage, then it should call cleanupVersionsOnDisable', async () => {
         jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
         jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
         jest
           .spyOn(cacheManagerService, 'setUserStorageLimit')
           .mockResolvedValue(undefined);
         jest
-          .spyOn(fileUseCases, 'applyUserRetentionPolicy')
+          .spyOn(fileUseCases, 'cleanupVersionsOnDisable')
           .mockResolvedValue({ deletedCount: 0 });
 
         await service.updateUser(user, { newStorageSpaceBytes });
 
-        expect(fileUseCases.applyUserRetentionPolicy).toHaveBeenCalledWith(
+        expect(fileUseCases.cleanupVersionsOnDisable).toHaveBeenCalledWith(
           user.uuid,
         );
       });
@@ -751,43 +751,44 @@ describe('GatewayUseCases', () => {
           .spyOn(cacheManagerService, 'setUserStorageLimit')
           .mockResolvedValue(undefined);
         jest
-          .spyOn(fileUseCases, 'applyUserRetentionPolicy')
+          .spyOn(fileUseCases, 'cleanupVersionsOnDisable')
           .mockResolvedValue({ deletedCount: 50 });
 
         await expect(
           service.updateUser(user, { newStorageSpaceBytes }),
         ).resolves.not.toThrow();
 
-        expect(fileUseCases.applyUserRetentionPolicy).toHaveBeenCalledWith(
+        expect(fileUseCases.cleanupVersionsOnDisable).toHaveBeenCalledWith(
           user.uuid,
         );
       });
 
-      it('When retention policy fails, then it should not block the main flow', async () => {
+      it('When retention policy fails, then it should fail the update', async () => {
         jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
         jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
         jest
           .spyOn(cacheManagerService, 'setUserStorageLimit')
           .mockResolvedValue(undefined);
+        const retentionError = new Error('Retention policy error');
         jest
-          .spyOn(fileUseCases, 'applyUserRetentionPolicy')
-          .mockRejectedValue(new Error('Retention policy error'));
+          .spyOn(fileUseCases, 'cleanupVersionsOnDisable')
+          .mockRejectedValue(retentionError);
 
         await expect(
           service.updateUser(user, { newStorageSpaceBytes }),
-        ).resolves.not.toThrow();
+        ).rejects.toThrow(retentionError);
 
-        expect(fileUseCases.applyUserRetentionPolicy).toHaveBeenCalled();
+        expect(fileUseCases.cleanupVersionsOnDisable).toHaveBeenCalled();
       });
 
       it('When no storage update is provided, then it should not call retention policy', async () => {
         jest
-          .spyOn(fileUseCases, 'applyUserRetentionPolicy')
+          .spyOn(fileUseCases, 'cleanupVersionsOnDisable')
           .mockResolvedValue({ deletedCount: 0 });
 
         await service.updateUser(user, { newStorageSpaceBytes: undefined });
 
-        expect(fileUseCases.applyUserRetentionPolicy).not.toHaveBeenCalled();
+        expect(fileUseCases.cleanupVersionsOnDisable).not.toHaveBeenCalled();
       });
     });
 

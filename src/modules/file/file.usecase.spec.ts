@@ -3248,7 +3248,7 @@ describe('FileUseCases', () => {
     });
   });
 
-  describe('applyUserRetentionPolicy', () => {
+  describe('cleanupVersionsOnDisable', () => {
     const userUuid = v4();
 
     it('When versioning is enabled, then it should not delete any versions', async () => {
@@ -3263,7 +3263,7 @@ describe('FileUseCases', () => {
         'deleteUserVersionsBatch',
       );
 
-      const result = await service.applyUserRetentionPolicy(userUuid);
+      const result = await service.cleanupVersionsOnDisable(userUuid);
 
       expect(result).toEqual({ deletedCount: 0 });
       expect(deleteUserVersionsBatchSpy).not.toHaveBeenCalled();
@@ -3282,7 +3282,7 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(50)
         .mockResolvedValueOnce(0);
 
-      const result = await service.applyUserRetentionPolicy(userUuid);
+      const result = await service.cleanupVersionsOnDisable(userUuid);
 
       expect(result).toEqual({ deletedCount: 150 });
       expect(
@@ -3301,7 +3301,7 @@ describe('FileUseCases', () => {
         .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
         .mockResolvedValueOnce(0);
 
-      const result = await service.applyUserRetentionPolicy(userUuid);
+      const result = await service.cleanupVersionsOnDisable(userUuid);
 
       expect(result).toEqual({ deletedCount: 0 });
       expect(
@@ -3323,7 +3323,7 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(25)
         .mockResolvedValueOnce(0);
 
-      const result = await service.applyUserRetentionPolicy(userUuid, {
+      const result = await service.cleanupVersionsOnDisable(userUuid, {
         batchSize: customBatchSize,
       });
 
@@ -3347,7 +3347,7 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(100)
         .mockResolvedValueOnce(30);
 
-      const result = await service.applyUserRetentionPolicy(userUuid);
+      const result = await service.cleanupVersionsOnDisable(userUuid);
 
       expect(result).toEqual({ deletedCount: 330 });
       expect(
@@ -3372,7 +3372,7 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(100)
         .mockResolvedValueOnce(50);
 
-      const result = await service.applyUserRetentionPolicy(userUuid);
+      const result = await service.cleanupVersionsOnDisable(userUuid);
 
       expect(result).toEqual({ deletedCount: 150 });
       expect(delaySpy).toHaveBeenCalledWith(1000);
@@ -3399,7 +3399,7 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(100)
         .mockResolvedValueOnce(0);
 
-      const result = await service.applyUserRetentionPolicy(userUuid);
+      const result = await service.cleanupVersionsOnDisable(userUuid);
 
       expect(result).toEqual({ deletedCount: 100 });
       expect(delaySpy).toHaveBeenCalledWith(1000);
@@ -3429,7 +3429,7 @@ describe('FileUseCases', () => {
         .mockResolvedValueOnce(100)
         .mockResolvedValueOnce(50);
 
-      const result = await service.applyUserRetentionPolicy(userUuid);
+      const result = await service.cleanupVersionsOnDisable(userUuid);
 
       expect(result).toEqual({ deletedCount: 250 });
       expect(delaySpy).toHaveBeenCalledTimes(2);
@@ -3458,7 +3458,7 @@ describe('FileUseCases', () => {
         .mockRejectedValueOnce(new Error('Error'))
         .mockResolvedValueOnce(0);
 
-      await service.applyUserRetentionPolicy(userUuid);
+      await service.cleanupVersionsOnDisable(userUuid);
 
       expect(delaySpy).toHaveBeenCalledTimes(2);
       expect(delaySpy).toHaveBeenNthCalledWith(1, 1000);
