@@ -527,11 +527,10 @@ describe('FolderUseCases', () => {
       attributes: { userId: userMocked.id },
     });
 
-    it('When folder is moved, then the folder is returned with its updated properties', async () => {
+    it('When folder without plainName is moved, then the folder is returned with its updated properties', async () => {
       const expectedFolder = newFolder({
         attributes: {
           ...folder,
-          name: 'newencrypted-' + folder.name,
           parentUuid: destinationFolder.uuid,
           parentId: destinationFolder.parentId,
         },
@@ -553,10 +552,6 @@ describe('FolderUseCases', () => {
         .mockReturnValueOnce(folder.plainName);
 
       jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValueOnce(expectedFolder.name);
-
-      jest
         .spyOn(folderRepository, 'findByNameAndParentUuid')
         .mockResolvedValueOnce(null);
 
@@ -575,7 +570,65 @@ describe('FolderUseCases', () => {
         {
           parentId: destinationFolder.id,
           parentUuid: destinationFolder.uuid,
-          name: expectedFolder.name,
+          plainName: expectedFolder.plainName,
+          deleted: false,
+          deletedAt: null,
+        },
+      );
+    });
+
+    it('When folder with plainName is moved, then the folder is returned with its updated properties', async () => {
+      const plainName = 'Folder Plain Name';
+      const folderWithPlainName = newFolder({
+        attributes: { userId: userMocked.id, plainName },
+      });
+      const expectedFolder = newFolder({
+        attributes: {
+          ...folderWithPlainName,
+          parentUuid: destinationFolder.uuid,
+          parentId: destinationFolder.parentId,
+          plainName,
+        },
+      });
+      const mockParentFolder = newFolder({
+        attributes: { userId: userMocked.id, removed: false },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(folderWithPlainName);
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(mockParentFolder);
+      jest
+        .spyOn(service, 'getFolderByUuid')
+        .mockResolvedValueOnce(destinationFolder);
+      jest.spyOn(cryptoService, 'decryptName');
+
+      jest
+        .spyOn(folderRepository, 'findByNameAndParentUuid')
+        .mockResolvedValueOnce(null);
+
+      jest
+        .spyOn(folderRepository, 'updateByFolderId')
+        .mockResolvedValueOnce(expectedFolder);
+
+      const result = await service.moveFolder(
+        userMocked,
+        folderWithPlainName.uuid,
+        {
+          destinationFolder: destinationFolder.uuid,
+        },
+      );
+
+      expect(result).toEqual(expectedFolder);
+      expect(cryptoService.decryptName).not.toHaveBeenCalled();
+      expect(folderRepository.updateByFolderId).toHaveBeenCalledTimes(1);
+      expect(folderRepository.updateByFolderId).toHaveBeenCalledWith(
+        folderWithPlainName.id,
+        {
+          parentId: destinationFolder.id,
+          parentUuid: destinationFolder.uuid,
           plainName: expectedFolder.plainName,
           deleted: false,
           deletedAt: null,
@@ -760,7 +813,6 @@ describe('FolderUseCases', () => {
       const expectedFolder = newFolder({
         attributes: {
           ...folder,
-          name: 'newencrypted-' + newName,
           plainName: newName,
           parentUuid: destinationFolder.uuid,
           parentId: destinationFolder.id,
@@ -777,10 +829,6 @@ describe('FolderUseCases', () => {
       jest
         .spyOn(service, 'getFolderByUuid')
         .mockResolvedValueOnce(destinationFolder);
-
-      jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValueOnce(expectedFolder.name);
 
       jest
         .spyOn(folderRepository, 'findByNameAndParentUuid')
@@ -802,7 +850,6 @@ describe('FolderUseCases', () => {
         {
           parentId: destinationFolder.id,
           parentUuid: destinationFolder.uuid,
-          name: expectedFolder.name,
           plainName: newName,
           deleted: false,
           deletedAt: null,
@@ -1678,7 +1725,7 @@ describe('FolderUseCases', () => {
   describe('getByUuid', () => {
     const folderUuid = v4();
 
-    it('When folder exists, then it should decrypt and return the folder', async () => {
+    it('When folder exists and no plainName, then it should decrypt and return the folder', async () => {
       const folder = newFolder({
         attributes: { uuid: folderUuid, plainName: null },
       });
@@ -1702,22 +1749,22 @@ describe('FolderUseCases', () => {
       expect(result.plainName).toBe(decryptedName);
     });
 
-    it('When the folder has a plain name, then the plain name is returned', async () => {
+    it('When folder exists and there is a plainName, then it should not decrypt and return the folder', async () => {
+      const plainName = 'Plain Name';
       const folder = newFolder({
-        attributes: { uuid: folderUuid, plainName: 'plain name' },
+        attributes: { uuid: folderUuid, plainName },
       });
 
+      jest.spyOn(cryptoService, 'decryptName');
       jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
-      const decryptSpy = jest.spyOn(cryptoService, 'decryptName');
-
       const result = await service.getByUuid(folderUuid);
 
       expect(folderRepository.findByUuid).toHaveBeenCalledWith(
         folderUuid,
         false,
       );
-      expect(decryptSpy).not.toHaveBeenCalled();
-      expect(result.plainName).toBe('plain name');
+      expect(cryptoService.decryptName).not.toHaveBeenCalled();
+      expect(result.plainName).toBe(plainName);
     });
 
     it('When folder does not exist, then it should throw NotFoundException', async () => {
