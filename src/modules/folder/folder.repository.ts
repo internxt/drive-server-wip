@@ -74,6 +74,7 @@ export interface FolderRepository {
     },
   ): Promise<Folder[]>;
   findByNameAndParentUuid(
+    name: FolderAttributes['name'],
     plainName: FolderAttributes['plainName'],
     parentUuid: FolderAttributes['parentUuid'],
     deleted: FolderAttributes['deleted'],
@@ -394,13 +395,17 @@ export class SequelizeFolderRepository implements FolderRepository {
   }
 
   async findByNameAndParentUuid(
+    name: FolderAttributes['name'],
     plainName: FolderAttributes['plainName'],
     parentUuid: FolderAttributes['parentUuid'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Folder> {
     const folder = await this.folderModel.findOne({
       where: {
-        plainName: { [Op.eq]: plainName },
+        [Op.or]: [
+          { name: { [Op.eq]: name } },
+          { plainName: { [Op.eq]: plainName } },
+        ],
         parentUuid: { [Op.eq]: parentUuid },
         deleted: { [Op.eq]: deleted },
       },
