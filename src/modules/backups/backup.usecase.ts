@@ -142,12 +142,17 @@ export class BackupUseCase {
     });
 
     return Promise.all(
-      folders.map(async (folder) => ({
-        ...(await this.addFolderAsDeviceProperties(user, folder)),
-        plainName:
+      folders.map(async (folder) => {
+        const plainName =
           folder.plainName ??
-          this.cryptoService.decryptName(folder.name, folder.bucket),
-      })),
+          this.cryptoService.decryptName(folder.name, folder.bucket);
+
+        return {
+          ...(await this.addFolderAsDeviceProperties(user, folder)),
+          plainName,
+          plain_name: plainName, //TODO: temporary hotfix remove after mac newer version is released
+        };
+      }),
     );
   }
 
