@@ -24,6 +24,7 @@ import { ConfigService } from '@nestjs/config';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
 import { LimitTypes, LimitLabels } from '../feature-limit/limits.enum';
+import { FileUseCases } from '../file/file.usecase';
 
 describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
@@ -34,6 +35,7 @@ describe('GatewayUseCases', () => {
   let loggerMock: DeepMocked<Logger>;
   let storageNotificationService: StorageNotificationService;
   let featureLimitService: FeatureLimitService;
+  let fileUseCases: FileUseCases;
   let mailerService: MailerService;
   let configService: ConfigService;
   let folderRepository: SequelizeFolderRepository;
@@ -58,6 +60,7 @@ describe('GatewayUseCases', () => {
       StorageNotificationService,
     );
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
+    fileUseCases = module.get<FileUseCases>(FileUseCases);
     mailerService = module.get<MailerService>(MailerService);
     configService = module.get<ConfigService>(ConfigService);
     folderRepository = module.get<SequelizeFolderRepository>(
@@ -507,6 +510,12 @@ describe('GatewayUseCases', () => {
       const user = newUser();
       const newStorageSpaceBytes = 5000000;
       const validTier = newTier();
+
+      beforeEach(() => {
+        jest
+          .spyOn(fileUseCases, 'undoFileVersioning')
+          .mockResolvedValue({ deletedCount: 0 });
+      });
 
       describe('when updating storage without tier', () => {
         it('When updating user storage, then it should update the user storage and keep that new storage limit cached', async () => {

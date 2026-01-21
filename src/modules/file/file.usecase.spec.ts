@@ -53,6 +53,7 @@ import {
   GetFileVersionsAction,
   CreateFileVersionAction,
   RestoreFileVersionAction,
+  UndoFileVersioningAction,
 } from './actions';
 
 const fileId = '6295c99a241bb000083f1c6a';
@@ -78,6 +79,7 @@ describe('FileUseCases', () => {
   let deleteFileVersionAction: DeleteFileVersionAction;
   let createFileVersionAction: CreateFileVersionAction;
   let restoreFileVersionAction: RestoreFileVersionAction;
+  let undoFileVersioningAction: UndoFileVersioningAction;
 
   const userMocked = newUser({
     attributes: {
@@ -121,6 +123,10 @@ describe('FileUseCases', () => {
     restoreFileVersionAction = module.get<RestoreFileVersionAction>(
       RestoreFileVersionAction,
     );
+    undoFileVersioningAction =
+      module.get<UndoFileVersioningAction>(
+        UndoFileVersioningAction,
+      );
   });
 
   afterEach(() => {
@@ -3025,6 +3031,56 @@ describe('FileUseCases', () => {
       await expect(service.getVersioningLimits(userUuid)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('undoFileVersioning', () => {
+    const userUuid = v4();
+
+    it('When versioning is enabled, then should not delete any versions', async () => {
+      jest
+        .spyOn(undoFileVersioningAction, 'execute')
+        .mockResolvedValue({ deletedCount: 0 });
+
+      const result = await service.undoFileVersioning(userUuid);
+
+      expect(undoFileVersioningAction.execute).toHaveBeenCalledWith(
+        userUuid,
+        undefined,
+      );
+      expect(result).toEqual({ deletedCount: 0 });
+    });
+
+    it('When versioning is disabled, then should delete all user versions', async () => {
+      jest
+        .spyOn(undoFileVersioningAction, 'execute')
+        .mockResolvedValue({ deletedCount: 150 });
+
+      const result = await service.undoFileVersioning(userUuid);
+
+      expect(undoFileVersioningAction.execute).toHaveBeenCalledWith(
+        userUuid,
+        undefined,
+      );
+      expect(result).toEqual({ deletedCount: 150 });
+    });
+
+    it('When custom batch size is provided, then should use that batch size', async () => {
+      const customBatchSize = 50;
+
+      jest
+        .spyOn(undoFileVersioningAction, 'execute')
+        .mockResolvedValue({ deletedCount: 75 });
+
+      const result = await service.undoFileVersioning(userUuid, {
+        batchSize: customBatchSize,
+      });
+
+      expect(undoFileVersioningAction.execute).toHaveBeenCalledWith(
+        userUuid,
+        { batchSize: customBatchSize },
+      );
+      expect(result).toEqual({ deletedCount: 75 });
     });
   });
 });

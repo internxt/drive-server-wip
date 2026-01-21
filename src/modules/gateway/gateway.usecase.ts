@@ -20,6 +20,7 @@ import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
 import { Limit } from '../feature-limit/domain/limit.domain';
 import { FeatureNameLimitMap } from './constants';
+import { FileUseCases } from '../file/file.usecase';
 
 @Injectable()
 export class GatewayUseCases {
@@ -30,6 +31,7 @@ export class GatewayUseCases {
     private readonly cacheManagerService: CacheManagerService,
     private readonly storageNotificationService: StorageNotificationService,
     private readonly featureLimitService: FeatureLimitService,
+    private readonly fileUseCases: FileUseCases,
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
     private readonly folderRepository: SequelizeFolderRepository,
@@ -334,6 +336,14 @@ export class GatewayUseCases {
       Logger.error(
         `[GATEWAY/LIMIT_CACHE] Error proactively setting cache for user ${user.uuid} with new limit ${newStorageSpaceBytes}`,
         error,
+      );
+    }
+
+    const { deletedCount } =
+      await this.fileUseCases.undoFileVersioning(user.uuid);
+    if (deletedCount > 0) {
+      Logger.log(
+        `[GATEWAY/UPDATE_TIER] Deleted ${deletedCount} file versions for user ${user.uuid} due to tier change`,
       );
     }
   }
