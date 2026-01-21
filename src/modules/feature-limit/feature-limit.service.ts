@@ -23,6 +23,7 @@ export class FeatureLimitService {
   ): Promise<boolean> {
     const platformLimitLabelsMap: Record<PlatformName, LimitLabels> = {
       [PlatformName.CLI]: LimitLabels.CliAccess,
+      [PlatformName.RCLONE]: LimitLabels.RcloneAccess,
     };
     const limitLabel = platformLimitLabelsMap[platform];
 

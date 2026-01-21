@@ -23,6 +23,7 @@ import { Test } from '@nestjs/testing';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { PlatformName } from '../../common/constants';
+import { ClientEnum } from '../../common/enums/platform.enum';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -401,7 +402,7 @@ describe('AuthController', () => {
     loginAccessDto.publicKey = 'publicKey';
     loginAccessDto.revocateKey = 'revocateKey';
 
-    it('When valid CLI login access details are provided and user can access platform, then it should return successfully', async () => {
+    it('When valid CLI login with new header and user can access platform, then it should return successfully', async () => {
       const eccKey = newKeyServer({ ...loginAccessDto });
       const mockUser = newUser({ attributes: { tierId: v4() } });
       const mockLoginResult = {
@@ -423,7 +424,10 @@ describe('AuthController', () => {
         .spyOn(featureLimitService, 'canUserAccessPlatform')
         .mockResolvedValueOnce(true);
 
-      const result = await authController.cliLoginAccess(loginAccessDto);
+      const result = await authController.cliLoginAccess(
+        loginAccessDto,
+        ClientEnum.Cli,
+      );
 
       expect(userUseCases.loginAccess).toHaveBeenCalledWith({
         ...loginAccessDto,
@@ -442,6 +446,104 @@ describe('AuthController', () => {
         mockUser.uuid,
       );
       expect(result).toEqual(mockLoginResult);
+    });
+
+    it('When valid CLI login with legacy header and user can access platform, then it should return successfully', async () => {
+      const eccKey = newKeyServer({ ...loginAccessDto });
+      const mockUser = newUser({ attributes: { tierId: v4() } });
+      const mockLoginResult = {
+        user: mockUser,
+        token: 'jwt-token',
+        newToken: 'new-jwt-token',
+      } as any;
+
+      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+        ecc: eccKey.toJSON(),
+        kyber: null,
+      });
+
+      jest
+        .spyOn(userUseCases, 'loginAccess')
+        .mockResolvedValueOnce(mockLoginResult);
+
+      jest
+        .spyOn(featureLimitService, 'canUserAccessPlatform')
+        .mockResolvedValueOnce(true);
+
+      const result = await authController.cliLoginAccess(
+        loginAccessDto,
+        ClientEnum.CliLegacy,
+      );
+
+      expect(userUseCases.loginAccess).toHaveBeenCalledWith({
+        ...loginAccessDto,
+        keys: {
+          ecc: {
+            publicKey: eccKey.publicKey,
+            privateKey: eccKey.privateKey,
+            revocationKey: eccKey.revocationKey,
+          },
+          kyber: null,
+        },
+        platform: PlatformName.CLI,
+      });
+      expect(featureLimitService.canUserAccessPlatform).toHaveBeenCalledWith(
+        PlatformName.CLI,
+        mockUser.uuid,
+      );
+      expect(result).toEqual(mockLoginResult);
+    });
+
+    it('When valid Rclone login and user can access platform, then it should return successfully', async () => {
+      const eccKey = newKeyServer({ ...loginAccessDto });
+      const mockUser = newUser({ attributes: { tierId: v4() } });
+      const mockLoginResult = {
+        user: mockUser,
+        token: 'jwt-token',
+        newToken: 'new-jwt-token',
+      } as any;
+
+      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+        ecc: eccKey.toJSON(),
+        kyber: null,
+      });
+
+      jest
+        .spyOn(userUseCases, 'loginAccess')
+        .mockResolvedValueOnce(mockLoginResult);
+
+      jest
+        .spyOn(featureLimitService, 'canUserAccessPlatform')
+        .mockResolvedValueOnce(true);
+
+      const result = await authController.cliLoginAccess(
+        loginAccessDto,
+        ClientEnum.Rclone,
+      );
+
+      expect(userUseCases.loginAccess).toHaveBeenCalledWith({
+        ...loginAccessDto,
+        keys: {
+          ecc: {
+            publicKey: eccKey.publicKey,
+            privateKey: eccKey.privateKey,
+            revocationKey: eccKey.revocationKey,
+          },
+          kyber: null,
+        },
+        platform: PlatformName.RCLONE,
+      });
+      expect(featureLimitService.canUserAccessPlatform).toHaveBeenCalledWith(
+        PlatformName.RCLONE,
+        mockUser.uuid,
+      );
+      expect(result).toEqual(mockLoginResult);
+    });
+
+    it('When unknown client header is provided, then it should throw BadRequestException', async () => {
+      await expect(
+        authController.cliLoginAccess(loginAccessDto, 'unknown-client'),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('When user cannot access CLI platform, then it should throw PaymentRequiredException', async () => {
@@ -467,11 +569,43 @@ describe('AuthController', () => {
         .mockResolvedValueOnce(false);
 
       await expect(
-        authController.cliLoginAccess(loginAccessDto),
+        authController.cliLoginAccess(loginAccessDto, ClientEnum.Cli),
       ).rejects.toThrow(PaymentRequiredException);
 
       expect(featureLimitService.canUserAccessPlatform).toHaveBeenCalledWith(
         PlatformName.CLI,
+        mockUser.uuid,
+      );
+    });
+
+    it('When user cannot access Rclone platform, then it should throw PaymentRequiredException', async () => {
+      const eccKey = newKeyServer({ ...loginAccessDto });
+      const mockUser = newUser({ attributes: { tierId: 'free_id' } });
+      const mockLoginResult = {
+        success: true,
+        user: mockUser,
+        token: 'jwt-token',
+      } as any;
+
+      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+        ecc: eccKey.toJSON(),
+        kyber: null,
+      });
+
+      jest
+        .spyOn(userUseCases, 'loginAccess')
+        .mockResolvedValueOnce(mockLoginResult);
+
+      jest
+        .spyOn(featureLimitService, 'canUserAccessPlatform')
+        .mockResolvedValueOnce(false);
+
+      await expect(
+        authController.cliLoginAccess(loginAccessDto, ClientEnum.Rclone),
+      ).rejects.toThrow(PaymentRequiredException);
+
+      expect(featureLimitService.canUserAccessPlatform).toHaveBeenCalledWith(
+        PlatformName.RCLONE,
         mockUser.uuid,
       );
     });
@@ -511,7 +645,7 @@ describe('AuthController', () => {
         .spyOn(featureLimitService, 'canUserAccessPlatform')
         .mockResolvedValueOnce(true);
 
-      await authController.cliLoginAccess(inputWithKyberKeys);
+      await authController.cliLoginAccess(inputWithKyberKeys, ClientEnum.Cli);
 
       expect(userUseCases.loginAccess).toHaveBeenCalledWith({
         ...inputWithKyberKeys,
