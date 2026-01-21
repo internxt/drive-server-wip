@@ -1,5 +1,5 @@
 import {
-  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -38,7 +38,7 @@ export class DeleteFileVersionAction {
     }
 
     if (version.fileId !== fileUuid) {
-      throw new BadRequestException('Version does not belong to this file');
+      throw new ConflictException('Version does not belong to this file');
     }
 
     await this.fileVersionRepository.updateStatus(

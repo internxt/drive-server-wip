@@ -5,7 +5,7 @@ import { SequelizeFileVersionRepository } from '../file-version.repository';
 import { SequelizeFileRepository } from '../file.repository';
 import { FileVersion, FileVersionStatus } from '../file-version.domain';
 import {
-  BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -132,7 +132,7 @@ describe('DeleteFileVersionAction', () => {
 
       await expect(
         action.execute(userMocked, mockFile.uuid, versionId),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(ConflictException);
     });
   });
 });
