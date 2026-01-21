@@ -59,6 +59,7 @@ import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import { GetFileVersionsAction } from './actions';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -93,6 +94,7 @@ export class FileUseCases {
     private readonly userUsecases: UserUseCases,
     private readonly redisService: RedisService,
     private readonly cacheManagerService: CacheManagerService,
+    private readonly getFileVersionsAction: GetFileVersionsAction,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -250,28 +252,7 @@ export class FileUseCases {
     user: User,
     fileUuid: string,
   ): Promise<FileVersionDto[]> {
-    const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
-
-    if (!file) {
-      throw new NotFoundException('File not found');
-    }
-
-    const [versions, limits] = await Promise.all([
-      this.fileVersionRepository.findAllByFileId(fileUuid),
-      this.featureLimitService.getFileVersioningLimits(user.uuid),
-    ]);
-
-    const { retentionDays } = limits;
-
-    return versions.map((version) => {
-      const expiresAt = new Date(version.createdAt);
-      expiresAt.setDate(expiresAt.getDate() + retentionDays);
-
-      return {
-        ...version.toJSON(),
-        expiresAt,
-      };
-    });
+    return this.getFileVersionsAction.execute(user, fileUuid);
   }
 
   async deleteFileVersion(
