@@ -1945,8 +1945,9 @@ describe('FileUseCases', () => {
 
       jest.spyOn(getFileVersionsAction, 'execute').mockResolvedValue([]);
 
-      await service.getFileVersions(userMocked, mockFile.uuid);
+      const result = await service.getFileVersions(userMocked, mockFile.uuid);
 
+      expect(result).toEqual([]);
       expect(getFileVersionsAction.execute).toHaveBeenCalledWith(
         userMocked,
         mockFile.uuid,

@@ -100,6 +100,30 @@ describe('GetFileVersionsAction', () => {
       );
     });
 
+    it('When file exists but has no versions, then it should return empty array', async () => {
+      const mockFile = newFile();
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest
+        .spyOn(fileVersionRepository, 'findAllByFileId')
+        .mockResolvedValue([]);
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValue(mockLimits);
+
+      const result = await action.execute(userMocked, mockFile.uuid);
+
+      expect(result).toEqual([]);
+      expect(fileRepository.findByUuid).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        {},
+      );
+      expect(fileVersionRepository.findAllByFileId).toHaveBeenCalledWith(
+        mockFile.uuid,
+      );
+    });
+
     it('When file does not exist, then should fail', async () => {
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(null);
 
