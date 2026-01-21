@@ -204,36 +204,6 @@ describe('CreateFileVersionAction', () => {
     });
   });
 
-  describe('When retention policy is disabled', () => {
-    it('then should create version without applying retention', async () => {
-      const mockFile = newFile({
-        attributes: {
-          fileId: 'old-file-id',
-          bucket: 'test-bucket',
-          type: 'pdf',
-          size: BigInt(100),
-        },
-      });
-
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue({
-          enabled: false,
-          maxFileSize: 1000000,
-          retentionDays: 15,
-          maxVersions: 10,
-        });
-      const findAllSpy = jest.spyOn(fileVersionRepository, 'findAllByFileId');
-      jest.spyOn(fileVersionRepository, 'create').mockResolvedValue({} as any);
-      jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
-
-      await action.execute(userMocked, mockFile, 'new-file-id', BigInt(200));
-
-      expect(findAllSpy).not.toHaveBeenCalled();
-      expect(fileVersionRepository.create).toHaveBeenCalled();
-    });
-  });
-
   describe('When versions exist within retention period and under limit', () => {
     it('then should not delete any versions', async () => {
       const mockFile = newFile({

@@ -48,10 +48,6 @@ export class CreateFileVersionAction {
     const limits =
       await this.featureLimitService.getFileVersioningLimits(userUuid);
 
-    if (!limits.enabled) {
-      return;
-    }
-
     const { retentionDays, maxVersions } = limits;
 
     const cutoffDate = Time.daysAgo(retentionDays);
@@ -74,17 +70,9 @@ export class CreateFileVersionAction {
     ];
 
     const remainingCount = versions.length - versionsToDelete.length;
-    if (remainingCount >= maxVersions) {
-      const versionsNotDeleted = versions.filter(
-        (v) => !versionsToDelete.some((vd) => vd.id === v.id),
-      );
-      const oldestVersion = versionsNotDeleted.sort(
-        (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
-      )[0];
-
-      if (oldestVersion) {
-        versionsToDelete.push(oldestVersion);
-      }
+    if (remainingCount === maxVersions) {
+      const oldestVersion = remainingVersions[remainingVersions.length - 1];
+      versionsToDelete.push(oldestVersion);
     }
 
     if (versionsToDelete.length > 0) {
