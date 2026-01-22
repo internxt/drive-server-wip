@@ -49,7 +49,13 @@ module.exports = {
             SELECT 1
             FROM files
             WHERE folder_id = f.id
-            AND deleted = false
+            AND status != 'DELETED'
+          )
+          AND NOT EXISTS (
+            SELECT 1
+            FROM folders child
+            WHERE child.parent_uuid = f.uuid
+            AND child.deleted = false
           )
       )
       UPDATE folders
