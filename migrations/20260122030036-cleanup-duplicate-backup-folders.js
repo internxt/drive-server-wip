@@ -67,6 +67,7 @@ module.exports = {
       FROM folders_to_delete
       WHERE folders.id = folders_to_delete.id
         AND folders.deleted = false
+        AND folders.removed = false
       RETURNING folders.id;
     `;
 
