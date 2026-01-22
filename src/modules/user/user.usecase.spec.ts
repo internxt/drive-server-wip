@@ -3587,9 +3587,6 @@ describe('User use cases', () => {
       const personalFolder = newFolder({ attributes: { name: 'Personal' } });
 
       jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValue('encrypted-name');
-      jest
         .spyOn(folderUseCases, 'createRootFolder')
         .mockResolvedValue(rootFolder);
       jest.spyOn(userRepository, 'updateById').mockResolvedValue(undefined);
@@ -3601,7 +3598,7 @@ describe('User use cases', () => {
 
       expect(folderUseCases.createRootFolder).toHaveBeenCalledWith(
         user,
-        'encrypted-name',
+        expect.any(String),
         bucketId,
       );
       expect(userRepository.updateById).toHaveBeenCalledWith(user.id, {

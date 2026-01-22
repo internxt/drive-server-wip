@@ -50,7 +50,7 @@ import {
 } from '../feature-limit/limits.enum';
 import { FeatureLimitUsecases } from '../feature-limit/feature-limit.usecase';
 import { SequelizeFileVersionRepository } from './file-version.repository';
-import { FileVersion, FileVersionStatus } from './file-version.domain';
+import { FileVersionStatus } from './file-version.domain';
 import { FileVersionDto } from './dto/responses/file-version.dto';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
@@ -368,10 +368,7 @@ export class FileUseCases {
       throw new ForbiddenException('Folder is not yours');
     }
 
-    const cryptoFileName = this.cryptoService.encryptName(
-      newFileDto.plainName,
-      folder.id,
-    );
+    const cryptoFileName = newFileDto.plainName;
 
     const exists = await this.fileRepository.findByPlainNameAndFolderId(
       user.id,
@@ -496,9 +493,7 @@ export class FileUseCases {
       newFileMetadata.plainName ??
       file.plainName ??
       this.cryptoService.decryptName(file.name, file.folderId);
-    const cryptoFileName = newFileMetadata.plainName
-      ? this.cryptoService.encryptName(newFileMetadata.plainName, file.folderId)
-      : file.name;
+    const cryptoFileName = newFileMetadata.plainName || file.name;
     const type = newFileMetadata.type ?? file.type;
 
     const updatedFile = File.build({
@@ -885,7 +880,7 @@ export class FileUseCases {
     if (shouldVersion) {
       await this.applyRetentionPolicy(fileUuid, user.uuid);
 
-      const { fileId, size, modificationTime } = newFileData;
+      const { size, modificationTime } = newFileData;
 
       await Promise.all([
         this.fileVersionRepository.upsert({
@@ -1018,15 +1013,10 @@ export class FileUseCases {
       );
     }
 
-    const destinationEncryptedName = this.cryptoService.encryptName(
-      file.plainName,
-      destinationFolder.id,
-    );
-
     const updateData: Partial<File> = {
       folderId: destinationFolder.id,
       folderUuid: destinationFolder.uuid,
-      name: destinationEncryptedName,
+      name: file.plainName,
       status: FileStatus.EXISTS,
       plainName: file.plainName,
       type: file.type,
