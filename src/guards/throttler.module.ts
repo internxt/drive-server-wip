@@ -1,9 +1,9 @@
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { seconds, ThrottlerModule } from "@nestjs/throttler";
-import { CacheManagerService } from "../modules/cache-manager/cache-manager.service";
-import { Module } from "@nestjs/common";
-import { CustomThrottlerInterceptor } from "./throttler.interceptor";
-import { CacheManagerModule } from "../modules/cache-manager/cache-manager.module";
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { seconds, ThrottlerModule } from '@nestjs/throttler';
+import { CacheManagerService } from '../modules/cache-manager/cache-manager.service';
+import { Module } from '@nestjs/common';
+import { CustomThrottlerInterceptor } from './throttler.interceptor';
+import { CacheManagerModule } from '../modules/cache-manager/cache-manager.module';
 
 @Module({
   imports: [
@@ -19,17 +19,13 @@ import { CacheManagerModule } from "../modules/cache-manager/cache-manager.modul
         throttlers: [
           {
             ttl: seconds(configService.get('users.rateLimit.default.ttl')),
-            limit: configService.get('users.rateLimit.default.limit')
+            limit: configService.get('users.rateLimit.default.limit'),
           },
         ],
       }),
     }),
   ],
-  providers: [
-    CustomThrottlerInterceptor,
-  ],
-  exports: [
-    CustomThrottlerInterceptor,
-  ],
+  providers: [CustomThrottlerInterceptor],
+  exports: [CustomThrottlerInterceptor],
 })
 export class CustomThrottlerModule {}

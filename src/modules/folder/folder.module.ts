@@ -31,10 +31,10 @@ import { CacheManagerModule } from '../cache-manager/cache-manager.module';
   ],
   controllers: [FolderController],
   providers: [
-    SequelizeFolderRepository, 
-    CryptoService, 
+    SequelizeFolderRepository,
+    CryptoService,
     FolderUseCases,
-    CustomEndpointThrottleGuard
+    CustomEndpointThrottleGuard,
   ],
   exports: [FolderUseCases, SequelizeFolderRepository],
 })
