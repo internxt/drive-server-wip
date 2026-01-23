@@ -733,10 +733,9 @@ describe('GatewayUseCases', () => {
 
         it('When user has versioning enabled, then should not delete file versions', async () => {
           const enabledLimits = newVersioningLimits({ enabled: true });
-          jest
+          const getLimitsSpy = jest
             .spyOn(featureLimitService, 'getFileVersioningLimits')
             .mockResolvedValue(enabledLimits);
-
           const undoSpy = jest.spyOn(fileUseCases, 'undoFileVersioning');
 
           jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
@@ -747,19 +746,16 @@ describe('GatewayUseCases', () => {
 
           await service.updateUser(user, { newStorageSpaceBytes });
 
-          expect(
-            featureLimitService.getFileVersioningLimits,
-          ).toHaveBeenCalledWith(user.uuid);
+          expect(getLimitsSpy).toHaveBeenCalledWith(user.uuid);
           expect(undoSpy).not.toHaveBeenCalled();
         });
 
         it('When user has versioning disabled, then should delete all file versions', async () => {
           const disabledLimits = newVersioningLimits({ enabled: false });
-          jest
+          const getLimitsSpy = jest
             .spyOn(featureLimitService, 'getFileVersioningLimits')
             .mockResolvedValue(disabledLimits);
-
-          jest
+          const undoSpy = jest
             .spyOn(fileUseCases, 'undoFileVersioning')
             .mockResolvedValue({ deletedCount: 150 });
 
@@ -771,12 +767,8 @@ describe('GatewayUseCases', () => {
 
           await service.updateUser(user, { newStorageSpaceBytes });
 
-          expect(
-            featureLimitService.getFileVersioningLimits,
-          ).toHaveBeenCalledWith(user.uuid);
-          expect(fileUseCases.undoFileVersioning).toHaveBeenCalledWith(
-            user.uuid,
-          );
+          expect(getLimitsSpy).toHaveBeenCalledWith(user.uuid);
+          expect(undoSpy).toHaveBeenCalledWith(user.uuid);
         });
 
         it('When file versions are deleted, then should log deletion count', async () => {
@@ -784,11 +776,9 @@ describe('GatewayUseCases', () => {
           jest
             .spyOn(featureLimitService, 'getFileVersioningLimits')
             .mockResolvedValue(disabledLimits);
-
           jest
             .spyOn(fileUseCases, 'undoFileVersioning')
             .mockResolvedValue({ deletedCount: 42 });
-
           jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
           jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
           jest
@@ -799,8 +789,9 @@ describe('GatewayUseCases', () => {
 
           await service.updateUser(user, { newStorageSpaceBytes });
 
+          const expectedMessage = 'Deleted 42 file versions';
           expect(logSpy).toHaveBeenCalledWith(
-            expect.stringContaining('Deleted 42 file versions'),
+            expect.stringContaining(expectedMessage),
           );
         });
       });
