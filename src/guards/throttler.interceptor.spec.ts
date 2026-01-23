@@ -34,7 +34,9 @@ describe('CustomThrottlerInterceptor', () => {
 
       await interceptor.intercept(context, next as CallHandler);
 
-      expect((next.handle as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(1);
+      expect(
+        (next.handle as jest.Mock).mock.calls.length,
+      ).toBeGreaterThanOrEqual(1);
       expect(cacheService.increment).not.toHaveBeenCalled();
     });
 
@@ -50,13 +52,21 @@ describe('CustomThrottlerInterceptor', () => {
       const context = tsjest.createMock<ExecutionContext>();
       (context as any).switchToHttp = () => ({ getRequest: () => request });
 
-      (cacheService.increment as jest.Mock).mockResolvedValue({ totalHits: 1, timeToExpire: 1000 });
+      (cacheService.increment as jest.Mock).mockResolvedValue({
+        totalHits: 1,
+        timeToExpire: 1000,
+      });
       const next: Partial<CallHandler> = { handle: jest.fn(() => of('ok')) };
 
       await interceptor.intercept(context, next as CallHandler);
 
-      expect(cacheService.increment).toHaveBeenCalledWith(`rl:${request.ip}`, 30);
-      expect((next.handle as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(1);
+      expect(cacheService.increment).toHaveBeenCalledWith(
+        `rl:${request.ip}`,
+        30,
+      );
+      expect(
+        (next.handle as jest.Mock).mock.calls.length,
+      ).toBeGreaterThanOrEqual(1);
     });
 
     it('When authenticated free-tier user exceeds limit then the request is throttled', async () => {
@@ -75,15 +85,26 @@ describe('CustomThrottlerInterceptor', () => {
         }
       }) as any;
 
-      const request: any = { ip: '1.1.1.1', user: { uuid: 'u123', tierId: freeTierId } };
+      const request: any = {
+        ip: '1.1.1.1',
+        user: { uuid: 'u123', tierId: freeTierId },
+      };
       const context = tsjest.createMock<ExecutionContext>();
       (context as any).switchToHttp = () => ({ getRequest: () => request });
 
-      (cacheService.increment as jest.Mock).mockResolvedValue({ totalHits: 5, timeToExpire: 100 });
+      (cacheService.increment as jest.Mock).mockResolvedValue({
+        totalHits: 5,
+        timeToExpire: 100,
+      });
       const next: Partial<CallHandler> = { handle: jest.fn(() => of('ok')) };
 
-      await expect(interceptor.intercept(context, next as CallHandler)).rejects.toBeInstanceOf(ThrottlerException);
-      expect(cacheService.increment).toHaveBeenCalledWith(`rl:${request.user.uuid}`, 20);
+      await expect(
+        interceptor.intercept(context, next as CallHandler),
+      ).rejects.toBeInstanceOf(ThrottlerException);
+      expect(cacheService.increment).toHaveBeenCalledWith(
+        `rl:${request.user.uuid}`,
+        20,
+      );
     });
   });
 });

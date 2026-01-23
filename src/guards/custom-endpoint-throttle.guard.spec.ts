@@ -19,85 +19,144 @@ describe('CustomThrottleGuard', () => {
 
   describe('canActivate', () => {
     it('When reflector returns no metadata then the guard checks are skipped', async () => {
-        (reflector.get as jest.Mock).mockReturnValue(undefined);
+      (reflector.get as jest.Mock).mockReturnValue(undefined);
+      const context = tsjest.createMock<ExecutionContext>();
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(cacheService.increment).not.toHaveBeenCalled();
+    });
+
+    describe('Applying a single policy', () => {
+      const route = '/login';
+
+      it('When under limit then it allows the request to pass', async () => {
+        const policy = { ttl: 60, limit: 5 };
+        (reflector.get as jest.Mock).mockReturnValue(policy);
+
+        const request: any = {
+          route: { path: route },
+          user: { uuid: 'user-1' },
+          ip: '1.2.3.4',
+        };
+        (cacheService.increment as jest.Mock).mockResolvedValue({
+          totalHits: 1,
+          timeToExpire: 5000,
+        });
         const context = tsjest.createMock<ExecutionContext>();
+        (context as any).switchToHttp = () => ({ getRequest: () => request });
 
         const result = await guard.canActivate(context);
 
         expect(result).toBe(true);
-        expect(cacheService.increment).not.toHaveBeenCalled();
-    });
+        expect(cacheService.increment).toHaveBeenCalledWith(
+          `${request.route.path}:policy0:cet:uid:${request.user.uuid}`,
+          60,
+        );
+      });
 
-    describe('Applying a single policy', () => {
-        const route = '/login';
+      it('When over the limit then the request is throttled', async () => {
+        const policy = { ttl: 60, limit: 1 };
+        (reflector.get as jest.Mock).mockReturnValue(policy);
 
-        it('When under limit then it allows the request to pass', async () => {
-            const policy = { ttl: 60, limit: 5 };
-            (reflector.get as jest.Mock).mockReturnValue(policy);
-
-            const request: any = { route: { path: route }, user: { uuid: 'user-1' }, ip: '1.2.3.4' };
-            (cacheService.increment as jest.Mock).mockResolvedValue({ totalHits: 1, timeToExpire: 5000 });
-            const context = tsjest.createMock<ExecutionContext>();
-            (context as any).switchToHttp = () => ({ getRequest: () => request });
-
-            const result = await guard.canActivate(context);
-
-            expect(result).toBe(true);
-            expect(cacheService.increment).toHaveBeenCalledWith(`${request.route.path}:policy0:cet:uid:${request.user.uuid}`, 60);
+        const request: any = {
+          route: { path: route },
+          user: { uuid: 'user-2' },
+          ip: '2.2.2.2',
+        };
+        (cacheService.increment as jest.Mock).mockResolvedValue({
+          totalHits: 2,
+          timeToExpire: 1000,
         });
+        const context = tsjest.createMock<ExecutionContext>();
+        (context as any).switchToHttp = () => ({ getRequest: () => request });
 
-        it('When over the limit then the request is throttled', async () => {
-            const policy = { ttl: 60, limit: 1 };
-            (reflector.get as jest.Mock).mockReturnValue(policy);
-
-            const request: any = { route: { path: route }, user: { uuid: 'user-2' }, ip: '2.2.2.2' };
-            (cacheService.increment as jest.Mock).mockResolvedValue({ totalHits: 2, timeToExpire: 1000 });
-            const context = tsjest.createMock<ExecutionContext>();
-            (context as any).switchToHttp = () => ({ getRequest: () => request });
-
-            await expect(guard.canActivate(context)).rejects.toBeInstanceOf(ThrottlerException);
-            expect(cacheService.increment).toHaveBeenCalledWith(`${request.route.path}:policy0:cet:uid:${request.user.uuid}`, 60);
-        });
+        await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+          ThrottlerException,
+        );
+        expect(cacheService.increment).toHaveBeenCalledWith(
+          `${request.route.path}:policy0:cet:uid:${request.user.uuid}`,
+          60,
+        );
+      });
     });
 
     describe('Applying multiple policies', () => {
-        const route = '/login';
+      const route = '/login';
 
-        it('When under limits then it allows the request to pass', async () => {
-            const named = { short: { ttl: 60, limit: 5 }, long: { ttl: 3600, limit: 30 } };
-            (reflector.get as jest.Mock).mockReturnValue(named);
-            const request: any = { route: { path: route }, user: null, ip: '9.9.9.9' };
+      it('When under limits then it allows the request to pass', async () => {
+        const named = {
+          short: { ttl: 60, limit: 5 },
+          long: { ttl: 3600, limit: 30 },
+        };
+        (reflector.get as jest.Mock).mockReturnValue(named);
+        const request: any = {
+          route: { path: route },
+          user: null,
+          ip: '9.9.9.9',
+        };
 
-            (cacheService.increment as jest.Mock)
-                .mockResolvedValueOnce({ totalHits: named.short.limit - 1, timeToExpire: 100 })
-                .mockResolvedValueOnce({ totalHits: named.long.limit - 1, timeToExpire: 1000 });
+        (cacheService.increment as jest.Mock)
+          .mockResolvedValueOnce({
+            totalHits: named.short.limit - 1,
+            timeToExpire: 100,
+          })
+          .mockResolvedValueOnce({
+            totalHits: named.long.limit - 1,
+            timeToExpire: 1000,
+          });
 
-            const context = tsjest.createMock<ExecutionContext>();
-            (context as any).switchToHttp = () => ({ getRequest: () => request });
+        const context = tsjest.createMock<ExecutionContext>();
+        (context as any).switchToHttp = () => ({ getRequest: () => request });
 
-            const result = await guard.canActivate(context);
+        const result = await guard.canActivate(context);
 
-            expect(result).toBe(true);
-            expect(cacheService.increment).toHaveBeenCalledWith(`${request.route.path}:short:cet:ip:${request.ip}`, named.short.ttl);
-            expect(cacheService.increment).toHaveBeenCalledWith(`${request.route.path}:long:cet:ip:${request.ip}`, named.long.ttl);
-        });
+        expect(result).toBe(true);
+        expect(cacheService.increment).toHaveBeenCalledWith(
+          `${request.route.path}:short:cet:ip:${request.ip}`,
+          named.short.ttl,
+        );
+        expect(cacheService.increment).toHaveBeenCalledWith(
+          `${request.route.path}:long:cet:ip:${request.ip}`,
+          named.long.ttl,
+        );
+      });
 
-        it('when over the limit then the request is throttled', async () => {
-            const named = { short: { ttl: 60, limit: 1 }, long: { ttl: 3600, limit: 30 } };
-            (reflector.get as jest.Mock).mockReturnValue(named);
-            const request: any = { route: { path: route }, user: null, ip: '11.11.11.11' };
+      it('when over the limit then the request is throttled', async () => {
+        const named = {
+          short: { ttl: 60, limit: 1 },
+          long: { ttl: 3600, limit: 30 },
+        };
+        (reflector.get as jest.Mock).mockReturnValue(named);
+        const request: any = {
+          route: { path: route },
+          user: null,
+          ip: '11.11.11.11',
+        };
 
-            const shortOverTheLimit = named.short.limit + 1;
-            (cacheService.increment as jest.Mock)
-                .mockResolvedValueOnce({ totalHits: shortOverTheLimit, timeToExpire: 10 })
-                .mockResolvedValueOnce({ totalHits: named.long.limit - 1, timeToExpire: 1000 });
+        const shortOverTheLimit = named.short.limit + 1;
+        (cacheService.increment as jest.Mock)
+          .mockResolvedValueOnce({
+            totalHits: shortOverTheLimit,
+            timeToExpire: 10,
+          })
+          .mockResolvedValueOnce({
+            totalHits: named.long.limit - 1,
+            timeToExpire: 1000,
+          });
 
-            const context = tsjest.createMock<ExecutionContext>();
-            (context as any).switchToHttp = () => ({ getRequest: () => request });
+        const context = tsjest.createMock<ExecutionContext>();
+        (context as any).switchToHttp = () => ({ getRequest: () => request });
 
-            await expect(guard.canActivate(context)).rejects.toBeInstanceOf(ThrottlerException);
-            expect(cacheService.increment).toHaveBeenCalledWith(`${request.route.path}:short:cet:ip:${request.ip}`, 60);
-        });
+        await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+          ThrottlerException,
+        );
+        expect(cacheService.increment).toHaveBeenCalledWith(
+          `${request.route.path}:short:cet:ip:${request.ip}`,
+          60,
+        );
+      });
     });
   });
 });

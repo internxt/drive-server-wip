@@ -977,8 +977,8 @@ export class UserController {
   @Throttle({
     default: {
       ttl: 60,
-      limit: 5
-    }
+      limit: 5,
+    },
   })
   @Put('/public-key/:email')
   @UseGuards(CaptchaGuard)
