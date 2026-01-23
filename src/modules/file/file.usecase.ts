@@ -59,7 +59,7 @@ import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
-import { GetFileVersionsAction } from './actions';
+import { DeleteFileVersionAction, GetFileVersionsAction } from './actions';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -95,6 +95,7 @@ export class FileUseCases {
     private readonly redisService: RedisService,
     private readonly cacheManagerService: CacheManagerService,
     private readonly getFileVersionsAction: GetFileVersionsAction,
+    private readonly deleteFileVersionAction: DeleteFileVersionAction,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -260,30 +261,7 @@ export class FileUseCases {
     fileUuid: string,
     versionId: string,
   ): Promise<void> {
-    const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
-
-    if (!file) {
-      throw new NotFoundException('File not found');
-    }
-
-    if (!file.isOwnedBy(user)) {
-      throw new ForbiddenException('You do not own this file');
-    }
-
-    const version = await this.fileVersionRepository.findById(versionId);
-
-    if (!version) {
-      throw new NotFoundException('Version not found');
-    }
-
-    if (version.fileId !== fileUuid) {
-      throw new BadRequestException('Version does not belong to this file');
-    }
-
-    await this.fileVersionRepository.updateStatus(
-      versionId,
-      FileVersionStatus.DELETED,
-    );
+    return this.deleteFileVersionAction.execute(user, fileUuid, versionId);
   }
 
   async restoreFileVersion(
