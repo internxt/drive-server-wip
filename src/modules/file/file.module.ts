@@ -22,7 +22,7 @@ import { RedisService } from '../../externals/redis/redis.service';
 import { TrashModule } from '../trash/trash.module';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
-import { GetFileVersionsAction } from './actions';
+import { DeleteFileVersionAction, GetFileVersionsAction } from './actions';
 
 @Module({
   imports: [
@@ -49,6 +49,7 @@ import { GetFileVersionsAction } from './actions';
     RedisService,
     CustomEndpointThrottleGuard,
     GetFileVersionsAction,
+    DeleteFileVersionAction,
   ],
   exports: [
     FileUseCases,
