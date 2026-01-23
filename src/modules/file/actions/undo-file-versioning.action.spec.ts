@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { InternalServerErrorException } from '@nestjs/common';
 import { createMock } from '@golevelup/ts-jest';
 import { UndoFileVersioningAction } from './undo-file-versioning.action';
 import { SequelizeFileVersionRepository } from '../file-version.repository';
@@ -143,7 +144,7 @@ describe('UndoFileVersioningAction', () => {
       ).toHaveBeenCalledTimes(4);
     });
 
-    it('When a batch fails 3 times, then should skip that batch and continue with next batches', async () => {
+    it('When a batch fails 3 times, then should throw error with partial success info', async () => {
       const delaySpy = jest
         .spyOn(action as any, 'delay')
         .mockResolvedValue(undefined);
@@ -153,19 +154,18 @@ describe('UndoFileVersioningAction', () => {
         .mockResolvedValueOnce(100)
         .mockRejectedValueOnce(new Error('Corrupted data'))
         .mockRejectedValueOnce(new Error('Corrupted data'))
-        .mockRejectedValueOnce(new Error('Corrupted data'))
-        .mockResolvedValueOnce(100)
-        .mockResolvedValueOnce(50);
+        .mockRejectedValueOnce(new Error('Corrupted data'));
 
-      const result = await action.execute(userUuid);
+      await expect(action.execute(userUuid)).rejects.toThrow(
+        InternalServerErrorException,
+      );
 
-      expect(result).toEqual({ deletedCount: 250 });
       expect(delaySpy).toHaveBeenCalledTimes(2);
       expect(delaySpy).toHaveBeenCalledWith(1000);
       expect(delaySpy).toHaveBeenCalledWith(2000);
       expect(
         fileVersionRepository.deleteUserVersionsBatch,
-      ).toHaveBeenCalledTimes(6);
+      ).toHaveBeenCalledTimes(4);
     });
 
     it('When batches fail, then delays should use exponential backoff', async () => {
@@ -177,10 +177,11 @@ describe('UndoFileVersioningAction', () => {
         .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
         .mockRejectedValueOnce(new Error('Error'))
         .mockRejectedValueOnce(new Error('Error'))
-        .mockRejectedValueOnce(new Error('Error'))
-        .mockResolvedValueOnce(0);
+        .mockRejectedValueOnce(new Error('Error'));
 
-      await action.execute(userUuid);
+      await expect(action.execute(userUuid)).rejects.toThrow(
+        InternalServerErrorException,
+      );
 
       expect(delaySpy).toHaveBeenCalledTimes(2);
       expect(delaySpy).toHaveBeenNthCalledWith(1, 1000);

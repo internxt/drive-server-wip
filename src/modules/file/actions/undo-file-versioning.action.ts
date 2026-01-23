@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { SequelizeFileVersionRepository } from '../file-version.repository';
 
 @Injectable()
@@ -33,17 +37,18 @@ export class UndoFileVersioningAction {
           retries++;
           if (retries < maxRetries) {
             Logger.warn(
-              `[FILE_VERSION/CLEANUP] Batch deletion failed, retry ${retries}/${maxRetries} for user ${userUuid}`,
+              `[FILE_VERSION/UNDO] Batch deletion failed, retry ${retries}/${maxRetries} for user ${userUuid}`,
               error,
             );
             await this.delay(1000 * retries);
           } else {
             Logger.error(
-              `[FILE_VERSION/CLEANUP] Batch failed after ${maxRetries} retries, skipping batch for user ${userUuid}`,
+              `[FILE_VERSION/UNDO] Batch deletion failed after ${maxRetries} retries for user ${userUuid}. Successfully deleted ${totalDeleted} versions before failure. Error: ${error.message}`,
               error,
             );
-            processedCount = batchSize;
-            success = true;
+            throw new InternalServerErrorException(
+              `Failed to complete version cleanup. Successfully deleted ${totalDeleted} versions before failure.`,
+            );
           }
         }
       }
