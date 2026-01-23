@@ -3599,6 +3599,7 @@ describe('User use cases', () => {
       expect(folderUseCases.createRootFolder).toHaveBeenCalledWith(
         user,
         expect.any(String),
+        expect.any(String),
         bucketId,
       );
       expect(userRepository.updateById).toHaveBeenCalledWith(user.id, {

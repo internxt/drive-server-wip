@@ -258,6 +258,7 @@ export class FolderUseCases {
   async createRootFolder(
     creator: User,
     name: FolderAttributes['name'],
+    plainName: FolderAttributes['plainName'],
     bucketId: string,
   ): Promise<Folder> {
     const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;
@@ -279,6 +280,7 @@ export class FolderUseCases {
     const folder = await this.folderRepository.create(
       user.id,
       name,
+      plainName,
       bucketId,
       null,
       '03-aes',

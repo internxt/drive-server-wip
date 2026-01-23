@@ -366,6 +366,7 @@ export class UserUseCases {
     const rootFolder = await this.folderUseCases.createRootFolder(
       user,
       rootFolderName,
+      rootFolderName,
       bucketId,
     );
 
