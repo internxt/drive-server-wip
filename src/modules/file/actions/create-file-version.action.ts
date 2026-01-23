@@ -71,7 +71,7 @@ export class CreateFileVersionAction {
 
     const remainingCount = versions.length - versionsToDelete.length;
     if (remainingCount === maxVersions) {
-      const oldestVersion = remainingVersions[remainingVersions.length - 1];
+      const oldestVersion = remainingVersions.at(-1);
       versionsToDelete.push(oldestVersion);
     }
 
