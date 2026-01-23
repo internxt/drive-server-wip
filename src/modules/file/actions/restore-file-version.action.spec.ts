@@ -6,7 +6,7 @@ import { SequelizeFileRepository } from '../file.repository';
 import { FileVersion, FileVersionStatus } from '../file-version.domain';
 import {
   BadRequestException,
-  ForbiddenException,
+  ConflictException,
   NotFoundException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
@@ -129,16 +129,6 @@ describe('RestoreFileVersionAction', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When user does not own file, then should fail', async () => {
-      const mockFile = newFile({ attributes: { userId: 999 } });
-
-      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
-
-      await expect(
-        action.execute(userMocked, mockFile.uuid, v4()),
-      ).rejects.toThrow(ForbiddenException);
-    });
-
     it('When version does not exist, then should fail', async () => {
       const mockFile = newFile({ attributes: { userId: userMocked.id } });
 
@@ -171,7 +161,7 @@ describe('RestoreFileVersionAction', () => {
 
       await expect(
         action.execute(userMocked, mockFile.uuid, versionId),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(ConflictException);
     });
 
     it('When trying to restore a deleted version, then should fail', async () => {

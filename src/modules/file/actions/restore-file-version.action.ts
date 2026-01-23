@@ -1,6 +1,6 @@
 import {
   BadRequestException,
-  ForbiddenException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -28,10 +28,6 @@ export class RestoreFileVersionAction {
       throw new NotFoundException('File not found');
     }
 
-    if (!file.isOwnedBy(user)) {
-      throw new ForbiddenException('You do not own this file');
-    }
-
     const versionToRestore =
       await this.fileVersionRepository.findById(versionId);
 
@@ -40,7 +36,7 @@ export class RestoreFileVersionAction {
     }
 
     if (versionToRestore.fileId !== fileUuid) {
-      throw new BadRequestException('Version does not belong to this file');
+      throw new ConflictException('Version does not belong to this file');
     }
 
     if (versionToRestore.status !== FileVersionStatus.EXISTS) {
