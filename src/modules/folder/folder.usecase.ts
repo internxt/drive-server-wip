@@ -202,7 +202,8 @@ export class FolderUseCases {
   ): Promise<Folder> {
     const folder = await this.folderRepository.findById(folderId, deleted);
 
-    return folder ? this.decryptFolderName(folder) : null;
+    if (!folder.plainName) return this.decryptFolderName(folder);
+    else return folder;
   }
 
   async isFolderInsideFolder(
