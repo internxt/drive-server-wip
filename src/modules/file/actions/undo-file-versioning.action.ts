@@ -1,25 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SequelizeFileVersionRepository } from '../file-version.repository';
-import { FeatureLimitService } from '../../feature-limit/feature-limit.service';
 
 @Injectable()
 export class UndoFileVersioningAction {
   constructor(
     private readonly fileVersionRepository: SequelizeFileVersionRepository,
-    private readonly featureLimitService: FeatureLimitService,
   ) {}
 
   async execute(
     userUuid: string,
     options?: { batchSize?: number },
   ): Promise<{ deletedCount: number }> {
-    const limits =
-      await this.featureLimitService.getFileVersioningLimits(userUuid);
-
-    if (limits.enabled) {
-      return { deletedCount: 0 };
-    }
-
     const batchSize = options?.batchSize ?? 100;
     const maxRetries = 3;
     let totalDeleted = 0;

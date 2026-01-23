@@ -2,14 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { UndoFileVersioningAction } from './undo-file-versioning.action';
 import { SequelizeFileVersionRepository } from '../file-version.repository';
-import { FeatureLimitService } from '../../feature-limit/feature-limit.service';
 import { v4 } from 'uuid';
-import { newVersioningLimits } from '../../../../test/fixtures';
 
 describe('UndoFileVersioningAction', () => {
   let action: UndoFileVersioningAction;
   let fileVersionRepository: SequelizeFileVersionRepository;
-  let featureLimitService: FeatureLimitService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -18,10 +15,6 @@ describe('UndoFileVersioningAction', () => {
         {
           provide: SequelizeFileVersionRepository,
           useValue: createMock<SequelizeFileVersionRepository>(),
-        },
-        {
-          provide: FeatureLimitService,
-          useValue: createMock<FeatureLimitService>(),
         },
       ],
     }).compile();
@@ -32,7 +25,6 @@ describe('UndoFileVersioningAction', () => {
     fileVersionRepository = module.get<SequelizeFileVersionRepository>(
       SequelizeFileVersionRepository,
     );
-    featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
   });
 
   afterEach(() => {
@@ -46,31 +38,7 @@ describe('UndoFileVersioningAction', () => {
   describe('execute', () => {
     const userUuid = v4();
 
-    it('When versioning is enabled, then should not delete any versions', async () => {
-      const enabledLimits = newVersioningLimits({ enabled: true });
-
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(enabledLimits);
-
-      const deleteUserVersionsBatchSpy = jest.spyOn(
-        fileVersionRepository,
-        'deleteUserVersionsBatch',
-      );
-
-      const result = await action.execute(userUuid);
-
-      expect(result).toEqual({ deletedCount: 0 });
-      expect(deleteUserVersionsBatchSpy).not.toHaveBeenCalled();
-    });
-
     it('When versioning is disabled, then should delete all user versions', async () => {
-      const disabledLimits = newVersioningLimits({ enabled: false });
-
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(disabledLimits);
-
       jest
         .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
         .mockResolvedValueOnce(100)
@@ -86,12 +54,6 @@ describe('UndoFileVersioningAction', () => {
     });
 
     it('When versioning is disabled and user has no versions, then should return zero deleted', async () => {
-      const disabledLimits = newVersioningLimits({ enabled: false });
-
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(disabledLimits);
-
       jest
         .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
         .mockResolvedValueOnce(0);
@@ -105,12 +67,7 @@ describe('UndoFileVersioningAction', () => {
     });
 
     it('When custom batch size is provided, then should use that batch size', async () => {
-      const disabledLimits = newVersioningLimits({ enabled: false });
       const customBatchSize = 50;
-
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(disabledLimits);
 
       jest
         .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
@@ -129,12 +86,6 @@ describe('UndoFileVersioningAction', () => {
     });
 
     it('When deleting in batches, then should continue until batch returns less than batch size', async () => {
-      const disabledLimits = newVersioningLimits({ enabled: false });
-
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(disabledLimits);
-
       jest
         .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
         .mockResolvedValueOnce(100)
@@ -151,12 +102,6 @@ describe('UndoFileVersioningAction', () => {
     });
 
     it('When a batch fails once, then should retry and succeed', async () => {
-      const disabledLimits = newVersioningLimits({ enabled: false });
-
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(disabledLimits);
-
       const delaySpy = jest
         .spyOn(action as any, 'delay')
         .mockResolvedValue(undefined);
@@ -177,12 +122,6 @@ describe('UndoFileVersioningAction', () => {
     });
 
     it('When a batch fails twice, then should retry twice and succeed on third attempt', async () => {
-      const disabledLimits = newVersioningLimits({ enabled: false });
-
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(disabledLimits);
-
       const delaySpy = jest
         .spyOn(action as any, 'delay')
         .mockResolvedValue(undefined);
@@ -205,12 +144,6 @@ describe('UndoFileVersioningAction', () => {
     });
 
     it('When a batch fails 3 times, then should skip that batch and continue with next batches', async () => {
-      const disabledLimits = newVersioningLimits({ enabled: false });
-
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(disabledLimits);
-
       const delaySpy = jest
         .spyOn(action as any, 'delay')
         .mockResolvedValue(undefined);
@@ -236,12 +169,6 @@ describe('UndoFileVersioningAction', () => {
     });
 
     it('When batches fail, then delays should use exponential backoff', async () => {
-      const disabledLimits = newVersioningLimits({ enabled: false });
-
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(disabledLimits);
-
       const delaySpy = jest
         .spyOn(action as any, 'delay')
         .mockResolvedValue(undefined);
