@@ -368,12 +368,18 @@ describe('CacheManagerService', () => {
 
       jest.spyOn(Date, 'now').mockReturnValue(now);
       jest.spyOn(cacheManager, 'get').mockResolvedValue(null);
-      const setSpy = jest.spyOn(cacheManager, 'set').mockResolvedValue(undefined as any);
+      const setSpy = jest
+        .spyOn(cacheManager, 'set')
+        .mockResolvedValue(undefined as any);
 
       const result = await cacheManagerService.increment(key, ttlSeconds);
 
       expect(cacheManager.get).toHaveBeenCalledWith(key);
-      expect(setSpy).toHaveBeenCalledWith(key, { hits: 1, expiresAt: now + ttlMs }, ttlMs);
+      expect(setSpy).toHaveBeenCalledWith(
+        key,
+        { hits: 1, expiresAt: now + ttlMs },
+        ttlMs,
+      );
       expect(result.totalHits).toBe(1);
       expect(result.timeToExpire).toBe(ttlMs);
     });
@@ -386,12 +392,18 @@ describe('CacheManagerService', () => {
 
       jest.spyOn(Date, 'now').mockReturnValue(now);
       jest.spyOn(cacheManager, 'get').mockResolvedValue(existing as any);
-      const setSpy = jest.spyOn(cacheManager, 'set').mockResolvedValue(undefined as any);
+      const setSpy = jest
+        .spyOn(cacheManager, 'set')
+        .mockResolvedValue(undefined as any);
 
       const result = await cacheManagerService.increment(key, ttlSeconds);
       const expectedNewHits = existing.hits + 1;
-  
-      expect(setSpy).toHaveBeenCalledWith(key, { hits: expectedNewHits, expiresAt }, expiresAt - now);
+
+      expect(setSpy).toHaveBeenCalledWith(
+        key,
+        { hits: expectedNewHits, expiresAt },
+        expiresAt - now,
+      );
       expect(result.totalHits).toBe(expectedNewHits);
       expect(result.timeToExpire).toBe(expiresAt - now);
     });
@@ -404,16 +416,22 @@ describe('CacheManagerService', () => {
 
       jest.spyOn(Date, 'now').mockReturnValue(now);
       jest.spyOn(cacheManager, 'get').mockResolvedValue(existing as any);
-      const setSpy = jest.spyOn(cacheManager, 'set').mockResolvedValue(undefined as any);
+      const setSpy = jest
+        .spyOn(cacheManager, 'set')
+        .mockResolvedValue(undefined as any);
 
       const result = await cacheManagerService.increment(key, ttlSeconds);
-      const expectedNewHits = 1
+      const expectedNewHits = 1;
       const expectedTimeToExpire = ttlSeconds * 1000;
-    
-      expect(setSpy).toHaveBeenCalledWith(key, { 
-        hits: expectedNewHits, 
-        expiresAt: now + expectedTimeToExpire 
-      }, expectedTimeToExpire);
+
+      expect(setSpy).toHaveBeenCalledWith(
+        key,
+        {
+          hits: expectedNewHits,
+          expiresAt: now + expectedTimeToExpire,
+        },
+        expectedTimeToExpire,
+      );
       expect(result.totalHits).toBe(expectedNewHits);
       expect(result.timeToExpire).toBe(expectedTimeToExpire);
     });

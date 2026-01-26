@@ -50,7 +50,7 @@ import { CaptchaService } from '../../externals/captcha/captcha.service';
     SequelizeSharingRepository,
     SequelizeUserReferralsRepository,
     PaymentsService,
-    CaptchaService
+    CaptchaService,
   ],
   exports: [SharingService, SequelizeSharingRepository, SequelizeModule],
 })
