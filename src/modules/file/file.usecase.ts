@@ -50,7 +50,7 @@ import {
 } from '../feature-limit/limits.enum';
 import { FeatureLimitUsecases } from '../feature-limit/feature-limit.usecase';
 import { SequelizeFileVersionRepository } from './file-version.repository';
-import { FileVersion, FileVersionStatus } from './file-version.domain';
+import { FileVersionStatus } from './file-version.domain';
 import { FileVersionDto } from './dto/responses/file-version.dto';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
@@ -863,7 +863,7 @@ export class FileUseCases {
     if (shouldVersion) {
       await this.applyRetentionPolicy(fileUuid, user.uuid);
 
-      const { fileId, size, modificationTime } = newFileData;
+      const { size, modificationTime } = newFileData;
 
       await Promise.all([
         this.fileVersionRepository.upsert({

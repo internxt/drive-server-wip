@@ -20,7 +20,6 @@ import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
-import { ConfigService } from '@nestjs/config';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
 import { LimitTypes, LimitLabels } from '../feature-limit/limits.enum';
@@ -35,7 +34,6 @@ describe('GatewayUseCases', () => {
   let storageNotificationService: StorageNotificationService;
   let featureLimitService: FeatureLimitService;
   let mailerService: MailerService;
-  let configService: ConfigService;
   let folderRepository: SequelizeFolderRepository;
   let limitsRepository: SequelizeFeatureLimitsRepository;
   beforeEach(async () => {
@@ -59,7 +57,6 @@ describe('GatewayUseCases', () => {
     );
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
     mailerService = module.get<MailerService>(MailerService);
-    configService = module.get<ConfigService>(ConfigService);
     folderRepository = module.get<SequelizeFolderRepository>(
       SequelizeFolderRepository,
     );
