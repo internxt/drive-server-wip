@@ -1110,12 +1110,16 @@ export class UserUseCases {
       return;
     }
 
-    const shouldUpdateKeys = privateKeys && Object.keys(privateKeys).length > 0;
+    if (!privateKeys) {
+      throw new BadRequestException(
+        'Private keys are required if the account is not being reset',
+      );
+    }
+
+    const shouldUpdateKeys = Object.keys(privateKeys).length > 0;
 
     if (!shouldUpdateKeys) {
-      throw new BadRequestException(
-        'Keys are required if the account is not being reset',
-      );
+      throw new BadRequestException('Private keys cannot be empty');
     }
 
     if (publicKeys) {
