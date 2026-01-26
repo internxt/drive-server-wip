@@ -91,6 +91,9 @@ describe('RestoreFileVersionAction', () => {
         .spyOn(fileVersionRepository, 'updateStatusBatch')
         .mockResolvedValue(undefined);
       jest
+        .spyOn(fileVersionRepository, 'delete')
+        .mockResolvedValue(undefined);
+      jest
         .spyOn(fileRepository, 'updateByUuidAndUserId')
         .mockResolvedValue(undefined);
 
@@ -106,9 +109,10 @@ describe('RestoreFileVersionAction', () => {
         mockFile.uuid,
       );
       expect(fileVersionRepository.updateStatusBatch).toHaveBeenCalledWith(
-        [newerVersion.id, versionId],
+        [newerVersion.id],
         FileVersionStatus.DELETED,
       );
+      expect(fileVersionRepository.delete).toHaveBeenCalledWith(versionId);
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
         mockFile.uuid,
         userMocked.id,
@@ -215,15 +219,19 @@ describe('RestoreFileVersionAction', () => {
         .spyOn(fileVersionRepository, 'updateStatusBatch')
         .mockResolvedValue(undefined);
       jest
+        .spyOn(fileVersionRepository, 'delete')
+        .mockResolvedValue(undefined);
+      jest
         .spyOn(fileRepository, 'updateByUuidAndUserId')
         .mockResolvedValue(undefined);
 
       await action.execute(userMocked, mockFile.uuid, versionId);
 
       expect(fileVersionRepository.updateStatusBatch).toHaveBeenCalledWith(
-        [versionId],
+        [],
         FileVersionStatus.DELETED,
       );
+      expect(fileVersionRepository.delete).toHaveBeenCalledWith(versionId);
     });
   });
 });

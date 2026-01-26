@@ -52,16 +52,12 @@ export class RestoreFileVersionAction {
         v.status === FileVersionStatus.EXISTS,
     );
 
-    const idsToDelete = [
-      ...newerVersions.map((v) => v.id),
-      versionToRestore.id,
-    ];
-
     await Promise.all([
       this.fileVersionRepository.updateStatusBatch(
-        idsToDelete,
+        newerVersions.map((v) => v.id),
         FileVersionStatus.DELETED,
       ),
+      this.fileVersionRepository.delete(versionToRestore.id),
       this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
         fileId: versionToRestore.networkFileId,
         size: versionToRestore.size,
