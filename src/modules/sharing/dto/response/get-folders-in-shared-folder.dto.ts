@@ -5,7 +5,7 @@ import { NetworkCredentialsDto, SharingOwnerInfoDto } from './shared-base.dto';
 import { FileDto } from '../../../file/dto/responses/file.dto';
 import { FolderDto } from '../../../folder/dto/responses/folder.dto';
 
-export class ParentFolderDto {
+class ParentFolderDto {
   @ApiProperty({
     description: 'UUID of the parent folder',
     example: '123e4567-e89b-12d3-a456-426614174000',
@@ -21,7 +21,7 @@ export class ParentFolderDto {
   name: Folder['plainName'] | null;
 }
 
-export class SharedFolderResponseBaseDto {
+class SharedFolderResponseBaseDto {
   @ApiProperty({
     description: 'Network credentials for accessing the folder',
     type: NetworkCredentialsDto,

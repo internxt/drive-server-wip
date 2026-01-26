@@ -10,7 +10,7 @@ import { UserModel } from './user.model';
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 
-export interface UserRepository {
+interface UserRepository {
   findById(id: number): Promise<User | null>;
   findByUuid(uuid: User['uuid']): Promise<User | null>;
   findByUuids(uuid: User['uuid'][]): Promise<User[]>;

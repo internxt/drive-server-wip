@@ -542,18 +542,6 @@ export const newWorkspaceItemUser = (params?: {
   return workspaceItemUser;
 };
 
-export function generateBase64PrivateKeyStub(): string {
-  const { privateKey } = generateKeyPairSync('rsa', {
-    modulusLength: 4096,
-  });
-  const stringPrivateKey = privateKey.export({
-    format: 'pem',
-    type: 'pkcs1',
-  }) as string;
-  const base64privateKey = Buffer.from(stringPrivateKey).toString('base64');
-  return base64privateKey;
-}
-
 export const newNotificationToken = (
   params: { attributes: Partial<UserNotificationTokenAttributes> } = null,
 ): UserNotificationTokens => {
@@ -780,7 +768,7 @@ export const newFileVersion = (params?: {
   return fileVersion;
 };
 
-export type VersioningLimits = {
+type VersioningLimits = {
   enabled: boolean;
   maxFileSize: number;
   retentionDays: number;

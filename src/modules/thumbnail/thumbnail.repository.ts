@@ -5,7 +5,7 @@ import { Thumbnail } from './thumbnail.domain';
 import { FileAttributes } from '../file/file.domain';
 import { ThumbnailAttributes } from './thumbnail.attributes';
 
-export interface ThumbnailRepository {
+interface ThumbnailRepository {
   findById(id: Thumbnail['id']): Promise<Thumbnail | null>;
   findByFileUuid(fileUuid: FileAttributes['uuid']): Promise<Thumbnail | null>;
   findAll(where?: Partial<ThumbnailAttributes>): Promise<Thumbnail[]>;

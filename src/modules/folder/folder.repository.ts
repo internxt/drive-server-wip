@@ -42,7 +42,7 @@ function mapSnakeCaseToCamelCase(data) {
 
 type FindInTreeResponse = Pick<Folder, 'parentId' | 'id' | 'plainName'>;
 
-export interface FolderRepository {
+interface FolderRepository {
   createWithAttributes(
     newFolder: Omit<FolderAttributes, 'id'>,
   ): Promise<Folder>;

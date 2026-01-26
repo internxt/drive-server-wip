@@ -12,7 +12,7 @@ export interface CustomThrottleOptions {
  * - single policy: { ttl, limit }
  * - named policies: { short: { ttl, limit }, long: { ttl, limit } }
  */
-export type CustomThrottleArg =
+type CustomThrottleArg =
   | CustomThrottleOptions
   | Record<string, CustomThrottleOptions>;
 
