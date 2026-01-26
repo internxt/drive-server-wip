@@ -1087,6 +1087,10 @@ export class UserUseCases {
 
     const user = await this.userRepository.findByUuid(userUuid);
 
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     if (withReset) {
       await this.userRepository.updateByUuid(userUuid, {
         mnemonic,
