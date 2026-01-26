@@ -361,7 +361,7 @@ export class FolderUseCases {
     }
 
     const folderWithSameNameExists = await this.folderRepository.findOne({
-      name: newFolderMetadata.plainName,
+      plainName: newFolderMetadata.plainName,
       parentId: folder.parentId,
       deleted: false,
       removed: false,
