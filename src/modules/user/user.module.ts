@@ -102,7 +102,7 @@ import { CaptchaService } from '../../externals/captcha/captcha.service';
     NewsletterService,
     AvatarService,
     MailerService,
-    CaptchaService
+    CaptchaService,
   ],
   exports: [
     UserUseCases,

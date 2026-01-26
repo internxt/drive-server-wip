@@ -20,7 +20,10 @@ export class CustomEndpointThrottleGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const raw = this.reflector.get<any>(CUSTOM_ENDPOINT_THROTTLE_KEY, context.getHandler());
+    const raw = this.reflector.get<any>(
+      CUSTOM_ENDPOINT_THROTTLE_KEY,
+      context.getHandler(),
+    );
 
     // If no custom throttle metadata, do not block (this guard should be applied
     // only where needed). Returning true lets other guards run.
@@ -28,20 +31,29 @@ export class CustomEndpointThrottleGuard implements CanActivate {
 
     const policies: Array<CustomThrottleOptions & { key?: string }> = [];
 
-    if (typeof raw === 'object' && (raw as any).ttl === undefined && (raw as any).limit === undefined) {
+    if (
+      typeof raw === 'object' &&
+      (raw as any).ttl === undefined &&
+      (raw as any).limit === undefined
+    ) {
       // named policies object: { short: { ttl, limit }, long: { ttl, limit } }
       const entries = Object.entries(raw) as [string, CustomThrottleOptions][];
       for (const [name, val] of entries) {
         policies.push({ ...(val as CustomThrottleOptions), key: name });
       }
     } else {
-      policies.push({ ...(raw as CustomThrottleOptions), key: (raw as any).key ?? 'policy0' });
+      policies.push({
+        ...(raw as CustomThrottleOptions),
+        key: (raw as any).key ?? 'policy0',
+      });
     }
 
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    const identifierBase = user?.uuid ? `cet:uid:${user.uuid}` : `cet:ip:${request.ip}`;
+    const identifierBase = user?.uuid
+      ? `cet:uid:${user.uuid}`
+      : `cet:ip:${request.ip}`;
     const route = request.route?.path ?? request.originalUrl ?? 'unknown';
 
     // Apply all policies. If any policy is violated, throw.

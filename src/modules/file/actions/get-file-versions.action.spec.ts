@@ -7,7 +7,11 @@ import { FeatureLimitService } from '../../feature-limit/feature-limit.service';
 import { FileVersion, FileVersionStatus } from '../file-version.domain';
 import { NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
-import { newFile, newUser, newVersioningLimits } from '../../../../test/fixtures';
+import {
+  newFile,
+  newUser,
+  newVersioningLimits,
+} from '../../../../test/fixtures';
 
 describe('GetFileVersionsAction', () => {
   let action: GetFileVersionsAction;
