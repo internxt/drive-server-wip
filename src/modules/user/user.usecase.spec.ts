@@ -2825,7 +2825,9 @@ describe('User use cases', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('When publicKeys are not provided and not resetting, then it should throw', async () => {
+    it('When publicKeys are not provided and not resetting, then it should succeed without validation', async () => {
+      jest.spyOn(keyServerUseCases, 'getPublicKeys');
+
       const credentialsWithoutPublicKeys = {
         mnemonic: mockCredentials.mnemonic,
         password: mockCredentials.password,
@@ -2833,12 +2835,20 @@ describe('User use cases', () => {
         privateKeys: mockCredentials.privateKeys,
       };
 
-      await expect(
-        userUseCases.updateCredentials(
-          mockUser.uuid,
-          credentialsWithoutPublicKeys,
-        ),
-      ).rejects.toThrow(BadRequestException);
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        credentialsWithoutPublicKeys,
+      );
+
+      expect(keyServerUseCases.getPublicKeys).not.toHaveBeenCalled();
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalled();
     });
 
     it('When publicKeys are not provided but resetting account, then it should succeed', async () => {

@@ -1085,19 +1085,34 @@ export class UserUseCases {
     const { mnemonic, password, salt, privateKeys, publicKeys } =
       newCredentials;
 
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    if (withReset) {
+      await this.userRepository.updateByUuid(userUuid, {
+        mnemonic,
+        password: this.cryptoService.decryptText(password),
+        hKey: this.cryptoService.decryptText(salt),
+      });
+
+      await this.keyServerRepository.deleteByUserId(user.id);
+      await this.resetUser(user, {
+        deleteFiles: true,
+        deleteFolders: true,
+        deleteShares: true,
+        deleteWorkspaces: true,
+        deleteBackups: true,
+      });
+
+      return;
+    }
+
     const shouldUpdateKeys = privateKeys && Object.keys(privateKeys).length > 0;
 
-    if (!withReset && !shouldUpdateKeys) {
+    if (!shouldUpdateKeys) {
       throw new BadRequestException(
         'Keys are required if the account is not being reset',
       );
     }
-
-    if (!withReset && !publicKeys) {
-      throw new BadRequestException('Invalid keys');
-    }
-
-    const user = await this.userRepository.findByUuid(userUuid);
 
     if (publicKeys) {
       const existingKeys = await this.keyServerUseCases.getPublicKeys(user.id);
@@ -1112,14 +1127,12 @@ export class UserUseCases {
       }
     }
 
-    if (shouldUpdateKeys) {
-      for (const [version, privateKey] of Object.entries(privateKeys)) {
-        await this.keyServerUseCases.updateByUserAndEncryptVersion(
-          user.id,
-          version as UserKeysEncryptVersions,
-          { privateKey },
-        );
-      }
+    for (const [version, privateKey] of Object.entries(privateKeys)) {
+      await this.keyServerUseCases.updateByUserAndEncryptVersion(
+        user.id,
+        version as UserKeysEncryptVersions,
+        { privateKey },
+      );
     }
 
     await this.userRepository.updateByUuid(userUuid, {
@@ -1127,17 +1140,6 @@ export class UserUseCases {
       password: this.cryptoService.decryptText(password),
       hKey: this.cryptoService.decryptText(salt),
     });
-
-    if (withReset) {
-      await this.keyServerRepository.deleteByUserId(user.id);
-      await this.resetUser(user, {
-        deleteFiles: true,
-        deleteFolders: true,
-        deleteShares: true,
-        deleteWorkspaces: true,
-        deleteBackups: true,
-      });
-    }
   }
 
   async recoverAccountLegacy(
