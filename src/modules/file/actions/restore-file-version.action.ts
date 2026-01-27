@@ -67,6 +67,7 @@ export class RestoreFileVersionAction {
 
     file.fileId = versionToRestore.networkFileId;
     file.size = versionToRestore.size;
+    file.updatedAt = new Date();
 
     return file;
   }
