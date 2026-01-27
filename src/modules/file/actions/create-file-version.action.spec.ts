@@ -200,9 +200,29 @@ describe('CreateFileVersionAction', () => {
 
       await action.execute(userMocked, mockFile, 'new-file-id', BigInt(200));
 
+      const oldestVersionId = existingVersions[0].id;
+
       expect(fileVersionRepository.updateStatusBatch).toHaveBeenCalledWith(
-        [existingVersions[0].id],
+        [oldestVersionId],
         FileVersionStatus.DELETED,
+      );
+
+      expect(fileVersionRepository.create).toHaveBeenCalledWith({
+        fileId: mockFile.uuid,
+        userId: userMocked.uuid,
+        networkFileId: mockFile.fileId,
+        size: mockFile.size,
+        status: FileVersionStatus.EXISTS,
+      });
+
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        expect.objectContaining({
+          fileId: 'new-file-id',
+          size: BigInt(200),
+          updatedAt: expect.any(Date),
+        }),
       );
     });
   });
@@ -262,7 +282,24 @@ describe('CreateFileVersionAction', () => {
       await action.execute(userMocked, mockFile, 'new-file-id', BigInt(200));
 
       expect(updateStatusBatchSpy).not.toHaveBeenCalled();
-      expect(fileVersionRepository.create).toHaveBeenCalled();
+
+      expect(fileVersionRepository.create).toHaveBeenCalledWith({
+        fileId: mockFile.uuid,
+        userId: userMocked.uuid,
+        networkFileId: mockFile.fileId,
+        size: mockFile.size,
+        status: FileVersionStatus.EXISTS,
+      });
+
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        expect.objectContaining({
+          fileId: 'new-file-id',
+          size: BigInt(200),
+          updatedAt: expect.any(Date),
+        }),
+      );
     });
   });
 
@@ -317,6 +354,24 @@ describe('CreateFileVersionAction', () => {
       expect(fileVersionRepository.updateStatusBatch).toHaveBeenCalledWith(
         expect.arrayContaining(['version-10', 'version-11']),
         FileVersionStatus.DELETED,
+      );
+
+      expect(fileVersionRepository.create).toHaveBeenCalledWith({
+        fileId: mockFile.uuid,
+        userId: userMocked.uuid,
+        networkFileId: mockFile.fileId,
+        size: mockFile.size,
+        status: FileVersionStatus.EXISTS,
+      });
+
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        expect.objectContaining({
+          fileId: 'new-file-id',
+          size: BigInt(200),
+          updatedAt: expect.any(Date),
+        }),
       );
     });
   });
