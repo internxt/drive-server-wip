@@ -108,6 +108,8 @@ import { PaymentRequiredException } from '../feature-limit/exceptions/payment-re
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
 import { CaptchaGuard } from '../auth/captcha.guard';
+import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
+import { CustomThrottle } from '../../guards/custom-endpoint-throttle.decorator';
 
 @ApiTags('User')
 @Controller('users')
@@ -460,6 +462,10 @@ export class UserController {
     return userCredentials;
   }
 
+  @UseGuards(CustomEndpointThrottleGuard)
+  @CustomThrottle({
+    short: { ttl: 60, limit: 5 },
+  })
   @Get('/refresh')
   @HttpCode(200)
   @ApiOperation({ summary: 'Refresh session token' })
@@ -971,8 +977,8 @@ export class UserController {
   @Throttle({
     default: {
       ttl: 60,
-      limit: 5
-    }
+      limit: 5,
+    },
   })
   @Put('/public-key/:email')
   @UseGuards(CaptchaGuard)
@@ -1257,6 +1263,10 @@ export class UserController {
     }
   }
 
+  @UseGuards(CustomEndpointThrottleGuard)
+  @CustomThrottle({
+    short: { ttl: 60, limit: 60 },
+  })
   @Get('/usage')
   @ApiBearerAuth()
   @ApiOperation({

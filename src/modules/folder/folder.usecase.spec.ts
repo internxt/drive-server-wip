@@ -461,6 +461,7 @@ describe('FolderUseCases', () => {
       const folder = newFolder({
         attributes: {
           name: 'not encrypted name',
+          plainName: null,
         },
       });
 
@@ -1678,7 +1679,9 @@ describe('FolderUseCases', () => {
     const folderUuid = v4();
 
     it('When folder exists, then it should decrypt and return the folder', async () => {
-      const folder = newFolder({ attributes: { uuid: folderUuid } });
+      const folder = newFolder({
+        attributes: { uuid: folderUuid, plainName: null },
+      });
       const decryptedName = 'Decrypted Name';
 
       jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
@@ -1697,6 +1700,24 @@ describe('FolderUseCases', () => {
         folder.parentId,
       );
       expect(result.plainName).toBe(decryptedName);
+    });
+
+    it('When the folder has a plain name, then the plain name is returned', async () => {
+      const folder = newFolder({
+        attributes: { uuid: folderUuid, plainName: 'plain name' },
+      });
+
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      const decryptSpy = jest.spyOn(cryptoService, 'decryptName');
+
+      const result = await service.getByUuid(folderUuid);
+
+      expect(folderRepository.findByUuid).toHaveBeenCalledWith(
+        folderUuid,
+        false,
+      );
+      expect(decryptSpy).not.toHaveBeenCalled();
+      expect(result.plainName).toBe('plain name');
     });
 
     it('When folder does not exist, then it should throw NotFoundException', async () => {

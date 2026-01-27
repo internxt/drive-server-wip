@@ -59,6 +59,7 @@ import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import { DeleteFileVersionAction, GetFileVersionsAction } from './actions';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -93,6 +94,8 @@ export class FileUseCases {
     private readonly userUsecases: UserUseCases,
     private readonly redisService: RedisService,
     private readonly cacheManagerService: CacheManagerService,
+    private readonly getFileVersionsAction: GetFileVersionsAction,
+    private readonly deleteFileVersionAction: DeleteFileVersionAction,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -107,9 +110,12 @@ export class FileUseCases {
   }
 
   async getUserUsedStorage(user: User): Promise<number> {
-    const usageCalculation = await this.getUserUsedStorageIncrementally(user);
+    const [filesUsage, versionsUsage] = await Promise.all([
+      this.getUserUsedStorageIncrementally(user),
+      this.fileVersionRepository.sumExistingSizesByUser(user.uuid),
+    ]);
 
-    return usageCalculation || 0;
+    return (filesUsage || 0) + versionsUsage;
   }
 
   async getUserUsedStorageIncrementally(user: User): Promise<number> {
@@ -247,28 +253,7 @@ export class FileUseCases {
     user: User,
     fileUuid: string,
   ): Promise<FileVersionDto[]> {
-    const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
-
-    if (!file) {
-      throw new NotFoundException('File not found');
-    }
-
-    const [versions, limits] = await Promise.all([
-      this.fileVersionRepository.findAllByFileId(fileUuid),
-      this.featureLimitService.getFileVersioningLimits(user.uuid),
-    ]);
-
-    const { retentionDays } = limits;
-
-    return versions.map((version) => {
-      const expiresAt = new Date(version.createdAt);
-      expiresAt.setDate(expiresAt.getDate() + retentionDays);
-
-      return {
-        ...version.toJSON(),
-        expiresAt,
-      };
-    });
+    return this.getFileVersionsAction.execute(user, fileUuid);
   }
 
   async deleteFileVersion(
@@ -276,30 +261,7 @@ export class FileUseCases {
     fileUuid: string,
     versionId: string,
   ): Promise<void> {
-    const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
-
-    if (!file) {
-      throw new NotFoundException('File not found');
-    }
-
-    if (!file.isOwnedBy(user)) {
-      throw new ForbiddenException('You do not own this file');
-    }
-
-    const version = await this.fileVersionRepository.findById(versionId);
-
-    if (!version) {
-      throw new NotFoundException('Version not found');
-    }
-
-    if (version.fileId !== fileUuid) {
-      throw new BadRequestException('Version does not belong to this file');
-    }
-
-    await this.fileVersionRepository.updateStatus(
-      versionId,
-      FileVersionStatus.DELETED,
-    );
+    return this.deleteFileVersionAction.execute(user, fileUuid, versionId);
   }
 
   async restoreFileVersion(
@@ -400,7 +362,7 @@ export class FileUseCases {
       throw new ConflictException('File already exists');
     }
 
-    const isFileEmpty = newFileDto.size === BigInt(0);
+    const isFileEmpty = BigInt(newFileDto.size) === BigInt(0);
 
     if (isFileEmpty) {
       await this.checkEmptyFilesLimit(user);
@@ -906,6 +868,7 @@ export class FileUseCases {
       await Promise.all([
         this.fileVersionRepository.upsert({
           fileId: file.uuid,
+          userId: user.uuid,
           networkFileId: file.fileId,
           size: file.size,
           status: FileVersionStatus.EXISTS,
@@ -1066,10 +1029,9 @@ export class FileUseCases {
   }
 
   decrypFileName(file: File): any {
-    const decryptedName = this.cryptoService.decryptName(
-      file.name,
-      file.folderId,
-    );
+    const decryptedName =
+      file.plainName ??
+      this.cryptoService.decryptName(file.name, file.folderId);
 
     if (decryptedName === '') {
       return File.build(file);

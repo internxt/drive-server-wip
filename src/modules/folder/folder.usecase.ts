@@ -69,10 +69,9 @@ export class FolderUseCases {
       throw new NotFoundException('Folder not found');
     }
 
-    folder.plainName = this.cryptoService.decryptName(
-      folder.name,
-      folder.parentId,
-    );
+    folder.plainName =
+      folder.plainName ??
+      this.cryptoService.decryptName(folder.name, folder.parentId);
 
     return folder;
   }
@@ -964,10 +963,9 @@ export class FolderUseCases {
   }
 
   decryptFolderName(folder: Folder): Folder {
-    const decryptedName = this.cryptoService.decryptName(
-      folder.name,
-      folder.parentId,
-    );
+    const decryptedName =
+      folder.plainName ??
+      this.cryptoService.decryptName(folder.name, folder.parentId);
 
     if (decryptedName === '') {
       throw new Error('Unable to decrypt folder name');

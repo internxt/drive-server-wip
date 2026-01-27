@@ -307,4 +307,133 @@ describe('CacheManagerService', () => {
       });
     });
   });
+
+  describe('getRecord', () => {
+    const key = 'throttle:some:key';
+
+    it('When entry exists and not expired then returns a record succesfully', async () => {
+      const now = 1_600_000_000_000;
+      const expirationTTL = 5_000;
+      const expiresAt = now + expirationTTL;
+      const entry = { hits: 3, expiresAt };
+
+      jest.spyOn(Date, 'now').mockReturnValue(now);
+      jest.spyOn(cacheManager, 'get').mockResolvedValue(entry as any);
+
+      const result = await cacheManagerService.getRecord(key);
+
+      expect(cacheManager.get).toHaveBeenCalledWith(key);
+      expect(result).toEqual({
+        totalHits: 3,
+        timeToExpire: expirationTTL,
+        isBlocked: false,
+        timeToBlockExpire: 0,
+      });
+    });
+
+    it('When entry exists but expired then returns record with time to expire set to 0', async () => {
+      const now = 1_600_000_010_000;
+      const expiresAt = now - 1_000;
+      const entry = { hits: 2, expiresAt };
+
+      jest.spyOn(Date, 'now').mockReturnValue(now);
+      jest.spyOn(cacheManager, 'get').mockResolvedValue(entry as any);
+
+      const result = await cacheManagerService.getRecord(key);
+
+      expect(result).toEqual({
+        totalHits: 2,
+        timeToExpire: 0,
+        isBlocked: false,
+        timeToBlockExpire: 0,
+      });
+    });
+
+    it('When cache returns null then returns undefined', async () => {
+      jest.spyOn(cacheManager, 'get').mockResolvedValue(null);
+
+      const result = await cacheManagerService.getRecord(key);
+
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('increment', () => {
+    const key = 'throttle:some:key';
+
+    it('When there is no existing entry then it sets hits=1 and ttl equals requested ttl (ms)', async () => {
+      const now = 1_600_000_020_000;
+      const ttlSeconds = 60;
+      const ttlMs = ttlSeconds * 1000;
+
+      jest.spyOn(Date, 'now').mockReturnValue(now);
+      jest.spyOn(cacheManager, 'get').mockResolvedValue(null);
+      const setSpy = jest
+        .spyOn(cacheManager, 'set')
+        .mockResolvedValue(undefined as any);
+
+      const result = await cacheManagerService.increment(key, ttlSeconds);
+
+      expect(cacheManager.get).toHaveBeenCalledWith(key);
+      expect(setSpy).toHaveBeenCalledWith(
+        key,
+        { hits: 1, expiresAt: now + ttlMs },
+        ttlMs,
+      );
+      expect(result.totalHits).toBe(1);
+      expect(result.timeToExpire).toBe(ttlMs);
+    });
+
+    it('When existing entry present and not expired then it increments hits and preserves the expiration time', async () => {
+      const now = 1_600_000_030_000;
+      const expiresAt = now + 3_000;
+      const existing = { hits: 2, expiresAt };
+      const ttlSeconds = 10;
+
+      jest.spyOn(Date, 'now').mockReturnValue(now);
+      jest.spyOn(cacheManager, 'get').mockResolvedValue(existing as any);
+      const setSpy = jest
+        .spyOn(cacheManager, 'set')
+        .mockResolvedValue(undefined as any);
+
+      const result = await cacheManagerService.increment(key, ttlSeconds);
+      const expectedNewHits = existing.hits + 1;
+
+      expect(setSpy).toHaveBeenCalledWith(
+        key,
+        { hits: expectedNewHits, expiresAt },
+        expiresAt - now,
+      );
+      expect(result.totalHits).toBe(expectedNewHits);
+      expect(result.timeToExpire).toBe(expiresAt - now);
+    });
+
+    it('When existing entry expired then it sets hits=1 and ttl equals requested ttl (ms)', async () => {
+      const now = 1_600_000_040_000;
+      const expiresAt = now - 500;
+      const existing = { hits: 5, expiresAt };
+      const ttlSeconds = 30;
+
+      jest.spyOn(Date, 'now').mockReturnValue(now);
+      jest.spyOn(cacheManager, 'get').mockResolvedValue(existing as any);
+      const setSpy = jest
+        .spyOn(cacheManager, 'set')
+        .mockResolvedValue(undefined as any);
+
+      const result = await cacheManagerService.increment(key, ttlSeconds);
+      const expectedNewHits = 1;
+      const expectedTimeToExpire = ttlSeconds * 1000;
+
+      expect(setSpy).toHaveBeenCalledWith(
+        key,
+        {
+          hits: expectedNewHits,
+          expiresAt: now + expectedTimeToExpire,
+        },
+        expectedTimeToExpire,
+      );
+      expect(result.totalHits).toBe(expectedNewHits);
+      expect(result.timeToExpire).toBe(expectedTimeToExpire);
+    });
+  });
 });
