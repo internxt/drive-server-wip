@@ -792,6 +792,7 @@ export class FolderController {
       user,
       folderPath,
     );
+
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }
