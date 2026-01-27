@@ -2,7 +2,6 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Op } from 'sequelize';
 import { InactiveUsersEmailTask } from './inactive-users-email.task';
 import { SequelizeUserRepository } from '../../user/user.repository';
 import { MailerService } from '../../../externals/mailer/mailer.service';

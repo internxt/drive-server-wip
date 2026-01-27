@@ -47,7 +47,7 @@ export class WorkspaceAttributesDto implements WorkspaceAttributes {
   updatedAt: Date;
 }
 
-export class WorkspaceUserToJSONDTO {
+class WorkspaceUserToJSONDTO {
   @ApiProperty()
   id: string;
 

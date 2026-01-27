@@ -5,9 +5,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
-  MaxLength,
   Min,
-  ValidateIf,
 } from 'class-validator';
 import { ValidateFileIdWithSize } from '../../../common/validators/file-id-size.validator';
 

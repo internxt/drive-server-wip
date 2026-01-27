@@ -1,4 +1,4 @@
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { createMock } from '@golevelup/ts-jest';
 import { TestingModule, Test } from '@nestjs/testing';
 import { PaymentRequiredException } from './exceptions/payment-required.exception';
 import { FeatureLimitUsecases } from './feature-limit.usecase';

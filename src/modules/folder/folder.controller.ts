@@ -70,7 +70,7 @@ import { GetFoldersQueryDto } from './dto/get-folders.dto';
 import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
 import { CustomThrottle } from '../../guards/custom-endpoint-throttle.decorator';
 
-export class BadRequestWrongFolderIdException extends BadRequestException {
+class BadRequestWrongFolderIdException extends BadRequestException {
   constructor() {
     super('Folder id should be a number and higher than 0');
 

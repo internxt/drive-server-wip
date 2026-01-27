@@ -1,11 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { Op } from 'sequelize';
 import { JobName, INACTIVE_USERS_EMAIL_CONFIG } from '../constants';
 import { SequelizeUserRepository } from '../../user/user.repository';
 import { MailerService } from '../../../externals/mailer/mailer.service';
 import { RedisService } from '../../../externals/redis/redis.service';
-import { User } from '../../user/user.domain';
 import { ConfigService } from '@nestjs/config';
 import { SequelizeFeatureLimitsRepository } from '../../feature-limit/feature-limit.repository';
 import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../../feature-limit/limits.enum';

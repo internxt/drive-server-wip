@@ -2,7 +2,6 @@ import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { seconds, ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { FileModule } from './modules/file/file.module';
 import { TrashModule } from './modules/trash/trash.module';

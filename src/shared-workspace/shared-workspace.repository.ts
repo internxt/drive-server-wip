@@ -52,7 +52,7 @@ export class FriendInvitationModel
   accepted: boolean;
 }
 
-export interface SharedWorkspaceRepository {
+interface SharedWorkspaceRepository {
   updateByHostAndGuest(
     host: FriendInvitationAttributes['host'],
     guest: FriendInvitationAttributes['guestEmail'],

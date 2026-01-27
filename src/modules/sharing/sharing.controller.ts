@@ -64,7 +64,6 @@ import {
   GetFoldersInSharedFolderResponseDto,
 } from './dto/response/get-folders-in-shared-folder.dto';
 import { GetItemsInSharedFolderQueryDto } from './dto/get-items-in-shared-folder.dto';
-import { Throttle } from '@nestjs/throttler';
 import { CaptchaGuard } from '../auth/captcha.guard';
 
 @ApiTags('Sharing')

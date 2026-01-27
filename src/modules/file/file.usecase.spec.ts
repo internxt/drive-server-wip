@@ -44,7 +44,6 @@ import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { Tier } from '../feature-limit/domain/tier.domain';
 import { LimitLabels, LimitTypes } from '../feature-limit/limits.enum';
 import { RedisService } from '../../externals/redis/redis.service';
-import { UserUseCases } from '../user/user.usecase';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { TrashItemType } from '../trash/trash.attributes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';

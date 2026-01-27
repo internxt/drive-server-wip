@@ -4160,7 +4160,6 @@ describe('User use cases', () => {
 
   describe('checkAndNotifyStorageThreshold', () => {
     const mockUser = newUser({ attributes: { email: 'test@internxt.com' } });
-    const NOTIFY_THRESHOLD = 80;
     const MAX_EMAILS_PER_MONTH = 2;
 
     it('When usage is below threshold, then should not send email', async () => {
