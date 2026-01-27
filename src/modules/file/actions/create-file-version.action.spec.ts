@@ -352,7 +352,7 @@ describe('CreateFileVersionAction', () => {
       await action.execute(userMocked, mockFile, 'new-file-id', BigInt(200));
 
       expect(fileVersionRepository.updateStatusBatch).toHaveBeenCalledWith(
-        expect.arrayContaining(['version-10', 'version-11']),
+        expect.arrayContaining(['version-9', 'version-10', 'version-11']),
         FileVersionStatus.DELETED,
       );
 
