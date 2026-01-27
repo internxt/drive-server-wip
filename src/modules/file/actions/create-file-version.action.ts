@@ -62,6 +62,7 @@ export class CreateFileVersionAction {
       .filter((version) => version.createdAt >= cutoffDate)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
+    const versionsToKeep = remainingVersions.slice(0, maxVersions);
     const versionsToDeleteByCount = remainingVersions.slice(maxVersions);
 
     const versionsToDelete = [
@@ -69,8 +70,8 @@ export class CreateFileVersionAction {
       ...versionsToDeleteByCount,
     ];
 
-    if (remainingVersions.length === maxVersions) {
-      const oldestVersion = remainingVersions.at(-1);
+    if (versionsToKeep.length === maxVersions) {
+      const oldestVersion = versionsToKeep.at(-1);
       versionsToDelete.push(oldestVersion);
     }
 
