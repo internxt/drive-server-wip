@@ -43,15 +43,18 @@ describe('UndoFileVersioningAction', () => {
       jest
         .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
         .mockResolvedValueOnce(100)
-        .mockResolvedValueOnce(50)
-        .mockResolvedValueOnce(0);
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(50);
 
       const result = await action.execute(userUuid);
 
-      expect(result).toEqual({ deletedCount: 150 });
+      expect(result).toEqual({ deletedCount: 250 });
       expect(
         fileVersionRepository.deleteUserVersionsBatch,
       ).toHaveBeenCalledWith(userUuid, 100);
+      expect(
+        fileVersionRepository.deleteUserVersionsBatch,
+      ).toHaveBeenCalledTimes(3);
     });
 
     it('When versioning is disabled and user has no versions, then should return zero deleted', async () => {

@@ -3040,7 +3040,7 @@ describe('FileUseCases', () => {
     it('When versioning is enabled, then should not delete any versions', async () => {
       jest
         .spyOn(undoFileVersioningAction, 'execute')
-        .mockResolvedValue({ deletedCount: 150 });
+        .mockResolvedValue({ deletedCount: 0 });
 
       const result = await service.undoFileVersioning(userUuid);
 
@@ -3048,7 +3048,7 @@ describe('FileUseCases', () => {
         userUuid,
         undefined,
       );
-      expect(result).toEqual({ deletedCount: 150 });
+      expect(result).toEqual({ deletedCount: 0 });
     });
 
     it('When custom batch size is provided, then should use that batch size', async () => {
