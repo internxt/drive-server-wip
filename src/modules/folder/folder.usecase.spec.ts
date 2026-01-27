@@ -9,6 +9,7 @@ import {
   NotAcceptableException,
   NotFoundException,
   UnprocessableEntityException,
+  RequestTimeoutException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
 import { Folder, FolderOptions } from './folder.domain';
@@ -1407,6 +1408,29 @@ describe('FolderUseCases', () => {
       expect(
         service.getFolderMetadataByPath(userMocked, folderPath),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When get folder metadata by path times out, then it should throw RequestTimeoutException', async () => {
+      const folderPath = '/folder1/folder2';
+      jest.spyOn(service, 'getFolderByUserId').mockResolvedValue(newFolder());
+      jest
+        .spyOn(folderRepository, 'getFolderByPath')
+        .mockRejectedValue(new Error('Query timed out'));
+
+      await expect(
+        service.getFolderMetadataByPath(userMocked, folderPath),
+      ).rejects.toThrow(RequestTimeoutException);
+    });
+
+    it('When get folder metadata by path throws generic error, then it should rethrow it', async () => {
+      const folderPath = '/folder1/folder2';
+      const error = new Error('Generic error');
+      jest.spyOn(service, 'getFolderByUserId').mockResolvedValue(newFolder());
+      jest.spyOn(folderRepository, 'getFolderByPath').mockRejectedValue(error);
+
+      await expect(
+        service.getFolderMetadataByPath(userMocked, folderPath),
+      ).rejects.toThrow(error);
     });
   });
 

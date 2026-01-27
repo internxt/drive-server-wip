@@ -1179,14 +1179,31 @@ export class SequelizeFolderRepository implements FolderRepository {
     path: string,
     rootFolderUuid: Folder['uuid'],
   ): Promise<Folder | null> {
-    const [[folder]] = await this.folderModel.sequelize.query(
-      'SELECT * FROM get_folder_by_path (:userId, :path, :rootFolderUuid)',
-      {
-        replacements: { userId, path, rootFolderUuid },
-      },
-    );
+    try {
+      return await this.folderModel.sequelize.transaction(
+        async (transaction) => {
+          await this.folderModel.sequelize.query(
+            "SET LOCAL statement_timeout = '8s'",
+            { transaction },
+          );
 
-    return (folder as Folder) ?? null;
+          const [[folder]] = await this.folderModel.sequelize.query(
+            'SELECT * FROM get_folder_by_path (:userId, :path, :rootFolderUuid)',
+            {
+              replacements: { userId, path, rootFolderUuid },
+              transaction,
+            },
+          );
+
+          return (folder as Folder) ?? null;
+        },
+      );
+    } catch (error) {
+      if (error.original?.code === '57014') {
+        throw new Error('Query timed out');
+      }
+      throw error;
+    }
   }
 
   private toDomain(model: FolderModel): Folder {
