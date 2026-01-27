@@ -891,6 +891,7 @@ export class UserController {
           ...(shouldResetAccount
             ? undefined
             : { privateKeys: body.privateKeys }),
+          publicKeys: body.publicKeys,
         },
         shouldResetAccount,
       );
