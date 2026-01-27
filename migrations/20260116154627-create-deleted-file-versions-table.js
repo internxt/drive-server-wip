@@ -10,21 +10,17 @@ module.exports = {
         allowNull: false,
         primaryKey: true,
       },
-      file_id: {
-        type: Sequelize.UUID,
-        allowNull: true,
-      },
       network_file_id: {
         type: Sequelize.STRING,
-        allowNull: true,
+        allowNull: false,
       },
       size: {
         type: Sequelize.BIGINT,
-        allowNull: true,
+        allowNull: false,
       },
       processed: {
         type: Sequelize.BOOLEAN,
-        allowNull: true,
+        allowNull: false,
         defaultValue: false,
       },
       created_at: {
@@ -41,7 +37,7 @@ module.exports = {
       },
       enqueued: {
         type: Sequelize.BOOLEAN,
-        allowNull: true,
+        allowNull: false,
         defaultValue: false,
       },
       enqueued_at: {

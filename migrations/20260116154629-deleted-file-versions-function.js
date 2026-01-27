@@ -9,11 +9,13 @@ module.exports = {
       LANGUAGE plpgsql
       AS $function$
       BEGIN
-          IF OLD.status != 'DELETED' AND NEW.status = 'DELETED' THEN
+          IF OLD.status != 'DELETED' AND NEW.status = 'DELETED'
+             AND NEW.network_file_id IS NOT NULL
+             AND NEW.size IS NOT NULL
+             AND NEW.size > 0 THEN
             IF NOT EXISTS (SELECT 1 FROM deleted_file_versions WHERE file_version_id = NEW.id) THEN
                 INSERT INTO deleted_file_versions (
                   file_version_id,
-                  file_id,
                   network_file_id,
                   size,
                   processed,
@@ -22,7 +24,6 @@ module.exports = {
                   updated_at
                 ) VALUES (
                   NEW.id,
-                  NEW.file_id,
                   NEW.network_file_id,
                   NEW.size,
                   false,
