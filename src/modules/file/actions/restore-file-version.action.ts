@@ -52,22 +52,25 @@ export class RestoreFileVersionAction {
         v.status === FileVersionStatus.EXISTS,
     );
 
+    const updatedAt = new Date();
+
+    await this.fileVersionRepository.updateStatusBatch(
+      newerVersions.map((v) => v.id),
+      FileVersionStatus.DELETED,
+    );
+
     await Promise.all([
-      this.fileVersionRepository.updateStatusBatch(
-        newerVersions.map((v) => v.id),
-        FileVersionStatus.DELETED,
-      ),
       this.fileVersionRepository.delete(versionToRestore.id),
       this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
         fileId: versionToRestore.networkFileId,
         size: versionToRestore.size,
-        updatedAt: new Date(),
+        updatedAt,
       }),
     ]);
 
     file.fileId = versionToRestore.networkFileId;
     file.size = versionToRestore.size;
-    file.updatedAt = new Date();
+    file.updatedAt = updatedAt;
 
     return file;
   }

@@ -3,7 +3,6 @@ import { createMock } from '@golevelup/ts-jest';
 import { FileUseCases, VersionableFileExtension } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import { SequelizeFileVersionRepository } from './file-version.repository';
-import { FileVersion, FileVersionStatus } from './file-version.domain';
 import {
   BadRequestException,
   ConflictException,
