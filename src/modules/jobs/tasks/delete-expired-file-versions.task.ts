@@ -4,6 +4,7 @@ import { JobName } from '../constants';
 import { RedisService } from '../../../externals/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import { DeleteExpiredFileVersionsAction } from '../../file/actions';
+import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
 
 @Injectable()
 export class DeleteExpiredFileVersionsTask {
@@ -12,6 +13,7 @@ export class DeleteExpiredFileVersionsTask {
   private readonly lockKey = 'job:delete-expired-file-versions';
 
   constructor(
+    private readonly jobExecutionRepository: SequelizeJobExecutionRepository,
     private readonly deleteExpiredFileVersionsAction: DeleteExpiredFileVersionsAction,
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
@@ -64,20 +66,35 @@ export class DeleteExpiredFileVersionsTask {
   }
 
   private async processExpiredVersions(): Promise<void> {
-    const startTime = Date.now();
+    const startedJob = await this.jobExecutionRepository.startJob(
+      JobName.EXPIRED_FILE_VERSIONS_CLEANUP,
+    );
+
+    this.logger.log(
+      `[${startedJob.id}] Starting expired file versions cleanup job`,
+    );
 
     try {
       const result = await this.deleteExpiredFileVersionsAction.execute();
 
-      const duration = Date.now() - startTime;
+      const completedJob = await this.jobExecutionRepository.markAsCompleted(
+        startedJob.id,
+        {
+          deletedCount: result.deletedCount,
+        },
+      );
+
       this.logger.log(
-        `Expired file versions cleanup completed: ${result.deletedCount} versions deleted in ${duration}ms`,
+        `[${startedJob.id}] Cleanup completed at ${completedJob?.completedAt}: ${result.deletedCount} versions deleted`,
       );
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const errorMessage = error.message;
       this.logger.error(
-        `Error during expired versions cleanup after ${duration}ms: ${error.message}`,
+        `[${startedJob.id}] Error while executing expired file versions cleanup: ${errorMessage}`,
       );
+      await this.jobExecutionRepository.markAsFailed(startedJob.id, {
+        errorMessage,
+      });
       throw error;
     }
   }

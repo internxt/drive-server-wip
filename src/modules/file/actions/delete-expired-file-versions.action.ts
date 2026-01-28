@@ -17,11 +17,6 @@ export class DeleteExpiredFileVersionsAction {
     let totalDeleted = 0;
 
     for await (const versionIds of this.yieldExpiredVersionIds(batchSize)) {
-      if (versionIds.length === 0) {
-        this.logger.log('No more expired versions to process');
-        break;
-      }
-
       this.logger.log(
         `Found ${versionIds.length} expired versions to mark as DELETED`,
       );
@@ -51,7 +46,10 @@ export class DeleteExpiredFileVersionsAction {
         );
 
       resultCount = versionIds.length;
-      yield versionIds;
+
+      if (resultCount > 0) {
+        yield versionIds;
+      }
     } while (resultCount === batchSize);
   }
 }
