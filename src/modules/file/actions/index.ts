@@ -3,3 +3,4 @@ export * from './delete-file-version.action';
 export * from './create-file-version.action';
 export * from './restore-file-version.action';
 export * from './undo-file-versioning.action';
+export * from './delete-expired-file-versions.action';

@@ -13,6 +13,7 @@ import { InactiveUsersEmailTask } from './tasks/inactive-users-email.task';
 import { MailerModule } from '../../externals/mailer/mailer.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { SecurityModule } from '../security/security.module';
+import { DeleteExpiredFileVersionsTask } from './tasks/delete-expired-file-versions.task';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { SecurityModule } from '../security/security.module';
     SequelizeJobExecutionRepository,
     RetroActiveDeleteItemsCleanupTask,
     InactiveUsersEmailTask,
+    DeleteExpiredFileVersionsTask,
   ],
 })
 export class JobsModule {}

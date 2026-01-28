@@ -23,6 +23,7 @@ export interface FileVersionRepository {
   deleteAllByFileId(fileId: string): Promise<void>;
   deleteUserVersionsBatch(userId: string, limit: number): Promise<number>;
   sumExistingSizesByUser(userId: string): Promise<number>;
+  findExpiredVersionIdsByTierLimits(limit: number): Promise<string[]>;
 }
 
 @Injectable()
@@ -155,5 +156,47 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
     });
 
     return Number(result[0]?.['total']) || 0;
+  }
+
+  async findExpiredVersionIdsByTierLimits(limit: number): Promise<string[]> {
+    const query = `
+      WITH retention_config AS (
+        SELECT
+          fv.id as version_id,
+          fv.user_id,
+          fv.created_at,
+          COALESCE(
+            (SELECT l.value::integer
+             FROM user_overridden_limits uol
+             JOIN limits l ON uol.limit_id = l.id
+             WHERE uol.user_id = u.uuid AND l.label = 'file-version-retention-days'),
+            (SELECT l.value::integer
+             FROM tiers_limits tl
+             JOIN limits l ON tl.limit_id = l.id
+             WHERE tl.tier_id = u.tier_id AND l.label = 'file-version-retention-days'),
+            0
+          ) as retention_days
+        FROM file_versions fv
+        JOIN users u ON fv.user_id = u.uuid
+        WHERE fv.status = 'EXISTS'
+      )
+      SELECT version_id
+      FROM retention_config
+      WHERE
+        retention_days > 0
+        AND created_at < NOW() - (retention_days || ' days')::INTERVAL
+      ORDER BY version_id ASC
+      LIMIT :limit
+    `;
+
+    const results = await this.model.sequelize.query<{ version_id: string }>(
+      query,
+      {
+        replacements: { limit },
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    return results.map((r) => r.version_id);
   }
 }
