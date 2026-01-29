@@ -283,7 +283,15 @@ export class FileUseCases {
     return this.fileRepository.findByUuids(uuids);
   }
 
-  async createFile(user: User, newFileDto: CreateFileDto, tier?) {
+  async createFile(
+    user: User,
+    newFileDto: CreateFileDto,
+    tier?,
+    workspaceOptions?: {
+      workspace: Workspace;
+      memberId: string;
+    },
+  ) {
     const [hadFilesBeforeUpload, folder] = await Promise.all([
       this.hasUploadedFiles(user),
       this.folderUsecases.getByUuid(newFileDto.folderUuid),
@@ -318,7 +326,14 @@ export class FileUseCases {
     const isFileEmpty = BigInt(newFileDto.size) === BigInt(0);
 
     if (isFileEmpty) {
-      await this.checkEmptyFilesLimit(user);
+      if (workspaceOptions) {
+        await this.checkWorkspaceEmptyFilesLimit(
+          workspaceOptions.memberId,
+          workspaceOptions.workspace,
+        );
+      } else {
+        await this.checkEmptyFilesLimit(user);
+      }
     }
 
     const newFileId = isFileEmpty ? null : newFileDto.fileId;

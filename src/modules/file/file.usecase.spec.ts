@@ -1053,6 +1053,224 @@ describe('FileUseCases', () => {
       });
     });
 
+    describe('Empty files creation in workspace', () => {
+      it('When creating empty file with workspace options, then it should check workspace limit', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const workspaceOwner = newUser();
+        const workspace = newWorkspace({
+          attributes: { ownerId: workspaceOwner.uuid },
+        });
+        const emptyFileDto: CreateFileDto = {
+          ...newFileDto,
+          size: BigInt(0),
+        };
+        const workspaceOptions = {
+          workspace,
+          memberId: userMocked.uuid,
+        };
+
+        const mockLimit = newFeatureLimit({
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+          value: '1000',
+        });
+
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+        jest
+          .spyOn(userUsecases, 'findByUuid')
+          .mockResolvedValue(workspaceOwner);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountInWorkspaceByMember')
+          .mockResolvedValue(5);
+
+        const createdFile = newFile({
+          attributes: {
+            ...emptyFileDto,
+            id: 1,
+            folderId: folder.id,
+            folderUuid: folder.uuid,
+            userId: userMocked.id,
+            uuid: v4(),
+            status: FileStatus.EXISTS,
+          },
+        });
+
+        jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+
+        const result = await service.createFile(
+          userMocked,
+          emptyFileDto,
+          undefined,
+          workspaceOptions,
+        );
+
+        expect(result).toEqual(createdFile);
+        expect(
+          fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+        ).toHaveBeenCalledWith(userMocked.uuid, workspace.id);
+        expect(
+          fileRepository.getZeroSizeFilesCountByUser,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('When creating empty file with workspace options and limit is reached, then it should throw', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const workspaceOwner = newUser();
+        const workspace = newWorkspace({
+          attributes: { ownerId: workspaceOwner.uuid },
+        });
+        const emptyFileDto: CreateFileDto = {
+          ...newFileDto,
+          size: BigInt(0),
+        };
+        const workspaceOptions = {
+          workspace,
+          memberId: userMocked.uuid,
+        };
+
+        const mockLimit = newFeatureLimit({
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+          value: '1000',
+        });
+
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+        jest
+          .spyOn(userUsecases, 'findByUuid')
+          .mockResolvedValue(workspaceOwner);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountInWorkspaceByMember')
+          .mockResolvedValue(1000);
+
+        await expect(
+          service.createFile(
+            userMocked,
+            emptyFileDto,
+            undefined,
+            workspaceOptions,
+          ),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(
+          fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+        ).toHaveBeenCalledWith(userMocked.uuid, workspace.id);
+        expect(
+          fileRepository.getZeroSizeFilesCountByUser,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('When creating empty file without workspace options, then it should check individual limit', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const emptyFileDto: CreateFileDto = {
+          ...newFileDto,
+          size: BigInt(0),
+        };
+
+        const mockLimit = newFeatureLimit({
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+          value: '1000',
+        });
+
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+          .mockResolvedValue(5);
+
+        const createdFile = newFile({
+          attributes: {
+            ...emptyFileDto,
+            id: 1,
+            folderId: folder.id,
+            folderUuid: folder.uuid,
+            userId: userMocked.id,
+            uuid: v4(),
+            status: FileStatus.EXISTS,
+          },
+        });
+
+        jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+
+        const result = await service.createFile(userMocked, emptyFileDto);
+
+        expect(result).toEqual(createdFile);
+        expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+          LimitLabels.MaxZeroSizeFiles,
+          userMocked,
+        );
+        expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
+          userMocked.id,
+        );
+        expect(
+          fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('When creating non-empty file with workspace options, then it should not check limits', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const workspace = newWorkspace();
+        const fileDto: CreateFileDto = {
+          ...newFileDto,
+          size: BigInt(1024),
+        };
+        const workspaceOptions = {
+          workspace,
+          memberId: userMocked.uuid,
+        };
+
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+
+        const createdFile = newFile({
+          attributes: {
+            ...fileDto,
+            id: 1,
+            folderId: folder.id,
+            folderUuid: folder.uuid,
+            userId: userMocked.id,
+            uuid: v4(),
+            status: FileStatus.EXISTS,
+          },
+        });
+
+        jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+
+        await service.createFile(
+          userMocked,
+          fileDto,
+          undefined,
+          workspaceOptions,
+        );
+
+        expect(
+          fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+        ).not.toHaveBeenCalled();
+        expect(
+          fileRepository.getZeroSizeFilesCountByUser,
+        ).not.toHaveBeenCalled();
+      });
+    });
+
     describe('first upload email functionality', () => {
       it('When user has no previous files, then should send first upload email', async () => {
         const folder = newFolder({ attributes: { userId: userMocked.id } });

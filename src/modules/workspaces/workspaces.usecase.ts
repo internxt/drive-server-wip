@@ -881,15 +881,6 @@ export class WorkspacesUsecases {
 
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
-    const isFileEmpty = BigInt(createFileDto.size) === BigInt(0);
-
-    if (isFileEmpty) {
-      await this.fileUseCases.checkWorkspaceEmptyFilesLimit(
-        workspaceUser.memberId,
-        workspace,
-      );
-    }
-
     const parentFolder = await this.workspaceRepository.getItemBy({
       workspaceId,
       itemId: createFileDto.folderUuid,
@@ -919,9 +910,12 @@ export class WorkspacesUsecases {
       networkUser,
       {
         ...createFileDto,
-        fileId: isFileEmpty ? null : createFileDto.fileId,
       },
       tier,
+      {
+        workspace,
+        memberId: workspaceUser.memberId,
+      },
     );
 
     const createdItemFile = await this.workspaceRepository.createItem({
