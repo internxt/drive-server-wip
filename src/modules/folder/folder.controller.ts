@@ -89,7 +89,7 @@ export class FolderController {
 
   @UseGuards(CustomEndpointThrottleGuard)
   @CustomThrottle({
-    long: { ttl: 3600, limit: 30000 }
+    long: { ttl: 3600, limit: 30000 },
   })
   @Post('/')
   @ApiOperation({
@@ -792,6 +792,7 @@ export class FolderController {
       user,
       folderPath,
     );
+
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }

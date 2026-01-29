@@ -20,6 +20,7 @@ export interface FileVersionRepository {
   findById(id: string): Promise<FileVersion | null>;
   updateStatus(id: string, status: FileVersionStatus): Promise<void>;
   updateStatusBatch(ids: string[], status: FileVersionStatus): Promise<void>;
+  delete(id: string): Promise<void>;
   deleteAllByFileId(fileId: string): Promise<void>;
   deleteUserVersionsBatch(userId: string, limit: number): Promise<number>;
   sumExistingSizesByUser(userId: string): Promise<number>;
@@ -103,6 +104,12 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
         where: { id: ids },
       },
     );
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.model.destroy({
+      where: { id },
+    });
   }
 
   async deleteAllByFileId(fileId: string): Promise<void> {

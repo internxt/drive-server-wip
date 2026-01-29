@@ -1,9 +1,14 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { CacheManagerService } from "../modules/cache-manager/cache-manager.service";
-import { Observable } from "rxjs";
-import { ThrottlerException } from "@nestjs/throttler";
-import { User } from "src/modules/user/user.domain";
+import {
+  CallHandler,
+  ExecutionContext,
+  Injectable,
+  NestInterceptor,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { CacheManagerService } from '../modules/cache-manager/cache-manager.service';
+import { Observable } from 'rxjs';
+import { ThrottlerException } from '@nestjs/throttler';
+import { User } from 'src/modules/user/user.domain';
 import { Reflector } from '@nestjs/core';
 import { CUSTOM_ENDPOINT_THROTTLE_KEY } from './custom-endpoint-throttle.decorator';
 
@@ -19,25 +24,30 @@ export class CustomThrottlerInterceptor implements NestInterceptor {
     if (!user) {
       return {
         ttl: this.configService.get<number>('users.rateLimit.anonymous.ttl'),
-        limit: this.configService.get<number>('users.rateLimit.anonymous.limit')
+        limit: this.configService.get<number>(
+          'users.rateLimit.anonymous.limit',
+        ),
       };
     }
     if (user.tierId === this.configService.get<string>('users.freeTierId')) {
       return {
         ttl: this.configService.get<number>('users.rateLimit.free.ttl'),
-        limit: this.configService.get<number>('users.rateLimit.free.limit')
-      }
+        limit: this.configService.get<number>('users.rateLimit.free.limit'),
+      };
     }
     return {
       ttl: this.configService.get<number>('users.rateLimit.paid.ttl'),
-      limit: this.configService.get<number>('users.rateLimit.paid.limit')
-    }
+      limit: this.configService.get<number>('users.rateLimit.paid.limit'),
+    };
   }
 
-  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
+  async intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Promise<Observable<any>> {
     const request = context.switchToHttp().getRequest();
 
-    // Interceptors run before guards, so we must check metadata and 
+    // Interceptors run before guards, so we must check metadata and
     // bypass the global interceptor when custom throttle is present.
     const hasCustom =
       this.reflector.get(CUSTOM_ENDPOINT_THROTTLE_KEY, context.getHandler()) ||
@@ -49,7 +59,7 @@ export class CustomThrottlerInterceptor implements NestInterceptor {
     const user = request.user as User | null;
     let key = `rl:${request.ip}`;
     if (user && user.uuid) {
-      key = `rl:${user.uuid}`
+      key = `rl:${user.uuid}`;
     }
 
     const { ttl, limit } = this.getRateLimit(user);

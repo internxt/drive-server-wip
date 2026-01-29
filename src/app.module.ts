@@ -156,12 +156,12 @@ import { CustomThrottlerModule } from './guards/throttler.module';
     },
     {
       provide: APP_GUARD,
-      useClass: AuthGuard
+      useClass: AuthGuard,
     },
     {
       provide: APP_GUARD,
-      useClass: CustomThrottlerGuard
-    }
+      useClass: CustomThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

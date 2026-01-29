@@ -8,6 +8,7 @@ export enum LimitLabels {
   FileVersionRetentionDays = 'file-version-retention-days',
   FileVersionMaxNumber = 'file-version-max-number',
   MaxZeroSizeFiles = 'max-zero-size-files',
+  RcloneAccess = 'rclone-access',
 }
 
 export enum LimitTypes {

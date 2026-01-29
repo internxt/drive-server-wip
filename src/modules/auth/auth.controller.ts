@@ -44,9 +44,11 @@ import { LoginAccessResponseDto } from './dto/responses/login-access-response.dt
 import { LoginResponseDto } from './dto/responses/login-response.dto';
 import { JwtToken } from './decorators/get-jwt.decorator';
 import { AuthUsecases } from './auth.usecase';
-import { PlatformName } from '../../common/constants';
+import { ClientToPlatformMap } from '../../common/constants';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import { Client } from '../../common/decorators/client.decorator';
+import { ClientEnum } from '../../common/enums/platform.enum';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -268,22 +270,31 @@ export class AuthController {
   @Post('/cli/login/access')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'CLI platform login access',
+    summary: 'CLI/Rclone platform login access',
   })
   @ApiOkResponse({
-    description: 'CLI user successfully accessed their account',
+    description: 'User successfully accessed their account via CLI or Rclone',
     type: LoginAccessResponseDto,
   })
   @ApiPaymentRequiredResponse({
-    description: 'This user current tier does not allow CLI access',
+    description: 'This user current tier does not allow CLI/Rclone access',
   })
   @Public()
   async cliLoginAccess(
     @Body() body: LoginAccessDto,
+    @Client() client: string,
   ): Promise<LoginAccessResponseDto> {
+    const platform = ClientToPlatformMap[client as ClientEnum];
+
+    if (!platform) {
+      throw new BadRequestException(
+        `Invalid client header '${client}' for this endpoint`,
+      );
+    }
+
     this.logger.log(
-      { email: body.email, category: 'CLI-LOGIN-ACCESS' },
-      'Attempting CLI login',
+      { email: body.email, category: 'CLI-LOGIN-ACCESS', client, platform },
+      'Attempting platform login',
     );
     try {
       const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(body.keys, {
@@ -295,29 +306,29 @@ export class AuthController {
       const result = await this.userUseCases.loginAccess({
         ...body,
         keys: { kyber, ecc },
-        platform: PlatformName.CLI,
+        platform,
       });
 
       const canUserAccess =
         await this.featureLimitService.canUserAccessPlatform(
-          PlatformName.CLI,
+          platform,
           result.user.uuid,
         );
 
       if (!canUserAccess)
         throw new PaymentRequiredException(
-          'CLI access not allowed for this user tier',
+          `${platform} access not allowed for this user tier`,
         );
 
       this.logger.log(
-        { email: body.email, category: 'CLI-LOGIN-ACCESS' },
-        'Successful CLI login',
+        { email: body.email, category: 'CLI-LOGIN-ACCESS', platform },
+        'Successful platform login',
       );
       return result;
     } catch (error) {
       this.logger.error(
-        { email: body.email, category: 'CLI-LOGIN-ACCESS', error },
-        'Failed CLI login attempt',
+        { email: body.email, category: 'CLI-LOGIN-ACCESS', client, error },
+        'Failed platform login attempt',
       );
       throw error;
     }

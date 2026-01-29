@@ -3,7 +3,6 @@ import { createMock } from '@golevelup/ts-jest';
 import { FileUseCases, VersionableFileExtension } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import { SequelizeFileVersionRepository } from './file-version.repository';
-import { FileVersion, FileVersionStatus } from './file-version.domain';
 import {
   BadRequestException,
   ConflictException,
@@ -1968,8 +1967,9 @@ describe('FileUseCases', () => {
 
       jest.spyOn(getFileVersionsAction, 'execute').mockResolvedValue([]);
 
-      await service.getFileVersions(userMocked, mockFile.uuid);
+      const result = await service.getFileVersions(userMocked, mockFile.uuid);
 
+      expect(result).toEqual([]);
       expect(getFileVersionsAction.execute).toHaveBeenCalledWith(
         userMocked,
         mockFile.uuid,
@@ -1988,63 +1988,22 @@ describe('FileUseCases', () => {
   });
 
   describe('deleteFileVersion', () => {
-    it('When file and version exist, then should delete version', async () => {
+    it('When deletion fails, then error is propagated', async () => {
       const mockFile = newFile({ attributes: { userId: userMocked.id } });
       const versionId = v4();
+      const error = new NotFoundException('File not found');
 
-      jest
-        .spyOn(deleteFileVersionAction, 'execute')
-        .mockResolvedValue(undefined);
+      jest.spyOn(deleteFileVersionAction, 'execute').mockRejectedValue(error);
 
-      await service.deleteFileVersion(userMocked, mockFile.uuid, versionId);
+      await expect(
+        service.deleteFileVersion(userMocked, mockFile.uuid, versionId),
+      ).rejects.toThrow(NotFoundException);
 
       expect(deleteFileVersionAction.execute).toHaveBeenCalledWith(
         userMocked,
         mockFile.uuid,
         versionId,
       );
-    });
-
-    it('When file does not exist, then should fail', async () => {
-      const error = new NotFoundException('File not found');
-
-      jest.spyOn(deleteFileVersionAction, 'execute').mockRejectedValue(error);
-
-      await expect(
-        service.deleteFileVersion(userMocked, 'non-existent-uuid', v4()),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('When user does not own file, then should fail', async () => {
-      const error = new ForbiddenException('You do not own this file');
-
-      jest.spyOn(deleteFileVersionAction, 'execute').mockRejectedValue(error);
-
-      await expect(
-        service.deleteFileVersion(userMocked, v4(), v4()),
-      ).rejects.toThrow(ForbiddenException);
-    });
-
-    it('When version does not exist, then should fail', async () => {
-      const error = new NotFoundException('Version not found');
-
-      jest.spyOn(deleteFileVersionAction, 'execute').mockRejectedValue(error);
-
-      await expect(
-        service.deleteFileVersion(userMocked, v4(), v4()),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('When version does not belong to file, then should fail', async () => {
-      const error = new BadRequestException(
-        'Version does not belong to this file',
-      );
-
-      jest.spyOn(deleteFileVersionAction, 'execute').mockRejectedValue(error);
-
-      await expect(
-        service.deleteFileVersion(userMocked, v4(), v4()),
-      ).rejects.toThrow(BadRequestException);
     });
   });
 

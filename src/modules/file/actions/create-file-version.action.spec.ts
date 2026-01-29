@@ -5,6 +5,7 @@ import { SequelizeFileVersionRepository } from '../file-version.repository';
 import { FeatureLimitService } from '../../feature-limit/feature-limit.service';
 import { newFile, newUser } from '../../../../test/fixtures';
 import { FileVersion, FileVersionStatus } from '../file-version.domain';
+import dayjs from 'dayjs';
 
 describe('CreateFileVersionAction', () => {
   let action: CreateFileVersionAction;
@@ -162,8 +163,10 @@ describe('CreateFileVersionAction', () => {
         },
       });
 
-      const oldDate = new Date();
-      oldDate.setDate(oldDate.getDate() - 20);
+      const retentionDays = 15;
+      const oldVersionDate = dayjs()
+        .subtract(retentionDays + 1, 'day')
+        .toDate();
 
       const existingVersions = [
         FileVersion.build({
@@ -173,8 +176,8 @@ describe('CreateFileVersionAction', () => {
           networkFileId: 'network-1',
           size: BigInt(50),
           status: FileVersionStatus.EXISTS,
-          createdAt: oldDate,
-          updatedAt: oldDate,
+          createdAt: oldVersionDate,
+          updatedAt: oldVersionDate,
         }),
       ];
 
@@ -183,7 +186,7 @@ describe('CreateFileVersionAction', () => {
         .mockResolvedValue({
           enabled: true,
           maxFileSize: 1000000,
-          retentionDays: 15,
+          retentionDays,
           maxVersions: 10,
         });
       jest
@@ -197,40 +200,30 @@ describe('CreateFileVersionAction', () => {
 
       await action.execute(userMocked, mockFile, 'new-file-id', BigInt(200));
 
+      const oldestVersionId = existingVersions[0].id;
+
       expect(fileVersionRepository.updateStatusBatch).toHaveBeenCalledWith(
-        ['version-1'],
+        [oldestVersionId],
         FileVersionStatus.DELETED,
       );
-    });
-  });
 
-  describe('When retention policy is disabled', () => {
-    it('then should create version without applying retention', async () => {
-      const mockFile = newFile({
-        attributes: {
-          fileId: 'old-file-id',
-          bucket: 'test-bucket',
-          type: 'pdf',
-          size: BigInt(100),
-        },
+      expect(fileVersionRepository.create).toHaveBeenCalledWith({
+        fileId: mockFile.uuid,
+        userId: userMocked.uuid,
+        networkFileId: mockFile.fileId,
+        size: mockFile.size,
+        status: FileVersionStatus.EXISTS,
       });
 
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue({
-          enabled: false,
-          maxFileSize: 1000000,
-          retentionDays: 15,
-          maxVersions: 10,
-        });
-      const findAllSpy = jest.spyOn(fileVersionRepository, 'findAllByFileId');
-      jest.spyOn(fileVersionRepository, 'create').mockResolvedValue({} as any);
-      jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
-
-      await action.execute(userMocked, mockFile, 'new-file-id', BigInt(200));
-
-      expect(findAllSpy).not.toHaveBeenCalled();
-      expect(fileVersionRepository.create).toHaveBeenCalled();
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        expect.objectContaining({
+          fileId: 'new-file-id',
+          size: BigInt(200),
+          updatedAt: expect.any(Date),
+        }),
+      );
     });
   });
 
@@ -245,7 +238,7 @@ describe('CreateFileVersionAction', () => {
         },
       });
 
-      const now = new Date();
+      const now = dayjs().toDate();
       const existingVersions = [
         FileVersion.build({
           id: 'version-1',
@@ -254,7 +247,7 @@ describe('CreateFileVersionAction', () => {
           networkFileId: 'network-1',
           size: BigInt(50),
           status: FileVersionStatus.EXISTS,
-          createdAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+          createdAt: dayjs().subtract(5, 'day').toDate(),
           updatedAt: now,
         }),
         FileVersion.build({
@@ -264,7 +257,7 @@ describe('CreateFileVersionAction', () => {
           networkFileId: 'network-2',
           size: BigInt(50),
           status: FileVersionStatus.EXISTS,
-          createdAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+          createdAt: dayjs().subtract(10, 'day').toDate(),
           updatedAt: now,
         }),
       ];
@@ -289,7 +282,24 @@ describe('CreateFileVersionAction', () => {
       await action.execute(userMocked, mockFile, 'new-file-id', BigInt(200));
 
       expect(updateStatusBatchSpy).not.toHaveBeenCalled();
-      expect(fileVersionRepository.create).toHaveBeenCalled();
+
+      expect(fileVersionRepository.create).toHaveBeenCalledWith({
+        fileId: mockFile.uuid,
+        userId: userMocked.uuid,
+        networkFileId: mockFile.fileId,
+        size: mockFile.size,
+        status: FileVersionStatus.EXISTS,
+      });
+
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        expect.objectContaining({
+          fileId: 'new-file-id',
+          size: BigInt(200),
+          updatedAt: expect.any(Date),
+        }),
+      );
     });
   });
 
@@ -304,21 +314,23 @@ describe('CreateFileVersionAction', () => {
         },
       });
 
-      const now = new Date();
-      const existingVersions = Array.from({ length: 12 }, (_, i) => {
-        const date = new Date(now);
-        date.setHours(date.getHours() - i);
-        return FileVersion.build({
-          id: `version-${i}`,
-          fileId: mockFile.uuid,
-          userId: userMocked.uuid,
-          networkFileId: `network-${i}`,
-          size: BigInt(50),
-          status: FileVersionStatus.EXISTS,
-          createdAt: date,
-          updatedAt: date,
-        });
-      });
+      const maxVersions = 10;
+      const existingVersions = Array.from(
+        { length: maxVersions + 2 },
+        (_, i) => {
+          const date = dayjs().subtract(i, 'hour').toDate();
+          return FileVersion.build({
+            id: `version-${i}`,
+            fileId: mockFile.uuid,
+            userId: userMocked.uuid,
+            networkFileId: `network-${i}`,
+            size: BigInt(50),
+            status: FileVersionStatus.EXISTS,
+            createdAt: date,
+            updatedAt: date,
+          });
+        },
+      );
 
       jest
         .spyOn(featureLimitService, 'getFileVersioningLimits')
@@ -326,7 +338,7 @@ describe('CreateFileVersionAction', () => {
           enabled: true,
           maxFileSize: 1000000,
           retentionDays: 15,
-          maxVersions: 10,
+          maxVersions,
         });
       jest
         .spyOn(fileVersionRepository, 'findAllByFileId')
@@ -340,8 +352,26 @@ describe('CreateFileVersionAction', () => {
       await action.execute(userMocked, mockFile, 'new-file-id', BigInt(200));
 
       expect(fileVersionRepository.updateStatusBatch).toHaveBeenCalledWith(
-        expect.arrayContaining(['version-10', 'version-11']),
+        expect.arrayContaining(['version-9', 'version-10', 'version-11']),
         FileVersionStatus.DELETED,
+      );
+
+      expect(fileVersionRepository.create).toHaveBeenCalledWith({
+        fileId: mockFile.uuid,
+        userId: userMocked.uuid,
+        networkFileId: mockFile.fileId,
+        size: mockFile.size,
+        status: FileVersionStatus.EXISTS,
+      });
+
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        expect.objectContaining({
+          fileId: 'new-file-id',
+          size: BigInt(200),
+          updatedAt: expect.any(Date),
+        }),
       );
     });
   });

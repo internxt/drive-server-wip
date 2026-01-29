@@ -5,7 +5,7 @@ import { SequelizeFileVersionRepository } from '../file-version.repository';
 import { SequelizeFileRepository } from '../file.repository';
 import { FileVersion, FileVersionStatus } from '../file-version.domain';
 import {
-  BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -67,8 +67,12 @@ describe('DeleteFileVersionAction', () => {
       });
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
-      jest.spyOn(fileVersionRepository, 'findById').mockResolvedValue(mockVersion);
-      jest.spyOn(fileVersionRepository, 'updateStatus').mockResolvedValue(undefined);
+      jest
+        .spyOn(fileVersionRepository, 'findById')
+        .mockResolvedValue(mockVersion);
+      jest
+        .spyOn(fileVersionRepository, 'updateStatus')
+        .mockResolvedValue(undefined);
 
       await action.execute(userMocked, mockFile.uuid, versionId);
 
@@ -128,11 +132,13 @@ describe('DeleteFileVersionAction', () => {
       });
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
-      jest.spyOn(fileVersionRepository, 'findById').mockResolvedValue(mockVersion);
+      jest
+        .spyOn(fileVersionRepository, 'findById')
+        .mockResolvedValue(mockVersion);
 
       await expect(
         action.execute(userMocked, mockFile.uuid, versionId),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(ConflictException);
     });
   });
 });

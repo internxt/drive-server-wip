@@ -2,6 +2,7 @@ import {
   Inject,
   UnauthorizedException,
   Logger,
+  HttpException,
   Injectable,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -90,6 +91,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
       return [user, authInfo];
     } catch (err) {
       if (err instanceof UnauthorizedException) {
+        throw err;
+      }
+
+      if (!(err instanceof HttpException)) {
         throw err;
       }
 

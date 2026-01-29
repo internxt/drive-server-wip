@@ -7,7 +7,11 @@ import { FeatureLimitService } from '../../feature-limit/feature-limit.service';
 import { FileVersion, FileVersionStatus } from '../file-version.domain';
 import { NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
-import { newFile, newUser, newVersioningLimits } from '../../../../test/fixtures';
+import {
+  newFile,
+  newUser,
+  newVersioningLimits,
+} from '../../../../test/fixtures';
 
 describe('GetFileVersionsAction', () => {
   let action: GetFileVersionsAction;
@@ -90,6 +94,30 @@ describe('GetFileVersionsAction', () => {
 
       expect(result[0].expiresAt).toEqual(expectedExpiresAt);
       expect(result[0].id).toEqual(mockVersions[0].id);
+      expect(fileRepository.findByUuid).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        {},
+      );
+      expect(fileVersionRepository.findAllByFileId).toHaveBeenCalledWith(
+        mockFile.uuid,
+      );
+    });
+
+    it('When file exists but has no versions, then it should return empty array', async () => {
+      const mockFile = newFile();
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest
+        .spyOn(fileVersionRepository, 'findAllByFileId')
+        .mockResolvedValue([]);
+      jest
+        .spyOn(featureLimitService, 'getFileVersioningLimits')
+        .mockResolvedValue(mockLimits);
+
+      const result = await action.execute(userMocked, mockFile.uuid);
+
+      expect(result).toEqual([]);
       expect(fileRepository.findByUuid).toHaveBeenCalledWith(
         mockFile.uuid,
         userMocked.id,
