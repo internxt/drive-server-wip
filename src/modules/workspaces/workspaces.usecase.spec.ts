@@ -2717,9 +2717,6 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValueOnce(workspaceUser);
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
       jest
-        .spyOn(fileUseCases, 'checkWorkspaceEmptyFilesLimit')
-        .mockResolvedValue(undefined);
-      jest
         .spyOn(workspaceRepository, 'getItemBy')
         .mockResolvedValue(folderItem);
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue({} as any);
@@ -2730,11 +2727,15 @@ describe('WorkspacesUsecases', () => {
 
       const result = await service.createFile(user, workspace.id, emptyFileDto);
 
-      expect(fileUseCases.checkWorkspaceEmptyFilesLimit).toHaveBeenCalledWith(
-        workspaceUser.memberId,
-        workspace,
+      expect(fileUseCases.createFile).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ size: BigInt(0) }),
+        undefined,
+        {
+          workspace,
+          memberId: workspaceUser.memberId,
+        },
       );
-      expect(fileUseCases.createFile).toHaveBeenCalled();
       expect(result).toEqual({ ...createdFile, item: createdItemFile });
     });
 
@@ -2749,6 +2750,7 @@ describe('WorkspacesUsecases', () => {
         workspaceId: workspace.id,
         member: user,
       });
+      const folderItem = newWorkspaceItemUser({ createdBy: user.uuid });
       const emptyFileDto = {
         ...createFileDto,
         size: BigInt(0),
@@ -2759,7 +2761,11 @@ describe('WorkspacesUsecases', () => {
         .mockResolvedValueOnce(workspaceUser);
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
       jest
-        .spyOn(fileUseCases, 'checkWorkspaceEmptyFilesLimit')
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(folderItem);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue({} as any);
+      jest
+        .spyOn(fileUseCases, 'createFile')
         .mockRejectedValue(
           new BadRequestException(
             'You can not have more empty files in this workspace',
@@ -2771,7 +2777,58 @@ describe('WorkspacesUsecases', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('When creating non-empty file in workspace, then it should NOT call empty file check', async () => {
+    it('When creating empty file in workspace, then it should pass workspace options to fileUseCases.createFile', async () => {
+      const user = newUser();
+      const fileSize = 0;
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        attributes: {
+          spaceLimit: 10240,
+          driveUsage: 0,
+          rootFolderId: createFileDto.folderUuid,
+        },
+        workspaceId: workspace.id,
+        member: user,
+      });
+      const folderItem = newWorkspaceItemUser({ createdBy: user.uuid });
+      const createdFile = newFile({ owner: user });
+      const createdItemFile = newWorkspaceItemUser({
+        createdBy: user.uuid,
+        itemType: WorkspaceItemType.File,
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(folderItem);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue({} as any);
+      const createFileSpy = jest
+        .spyOn(fileUseCases, 'createFile')
+        .mockResolvedValue(createdFile);
+      jest
+        .spyOn(workspaceRepository, 'createItem')
+        .mockResolvedValue(createdItemFile);
+
+      await service.createFile(user, workspace.id, {
+        ...createFileDto,
+        size: BigInt(fileSize),
+      });
+
+      expect(createFileSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ size: BigInt(fileSize) }),
+        undefined,
+        {
+          workspace,
+          memberId: workspaceUser.memberId,
+        },
+      );
+    });
+
+    it('When creating non-empty file in workspace, then it should pass workspace options to fileUseCases.createFile', async () => {
       const user = newUser();
       const fileSize = 2000;
       const workspace = newWorkspace();
@@ -2798,21 +2855,27 @@ describe('WorkspacesUsecases', () => {
         .spyOn(workspaceRepository, 'getItemBy')
         .mockResolvedValue(folderItem);
       jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue({} as any);
-      jest.spyOn(fileUseCases, 'createFile').mockResolvedValue(createdFile);
+      const createFileSpy = jest
+        .spyOn(fileUseCases, 'createFile')
+        .mockResolvedValue(createdFile);
       jest
         .spyOn(workspaceRepository, 'createItem')
         .mockResolvedValue(createdItemFile);
-      const checkWorkspaceEmptyFilesLimitSpy = jest.spyOn(
-        fileUseCases,
-        'checkWorkspaceEmptyFilesLimit',
-      );
 
       await service.createFile(user, workspace.id, {
         ...createFileDto,
         size: BigInt(fileSize),
       });
 
-      expect(checkWorkspaceEmptyFilesLimitSpy).not.toHaveBeenCalled();
+      expect(createFileSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ size: BigInt(fileSize) }),
+        undefined,
+        {
+          workspace,
+          memberId: workspaceUser.memberId,
+        },
+      );
     });
   });
 
