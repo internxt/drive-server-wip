@@ -39,6 +39,29 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
 
       const requestId = request.id;
 
+      if (this.isQueryTimeoutError(exception)) {
+        this.logger.warn(
+          {
+            path: request.url,
+            method: request.method,
+            errorType: 'QUERY_TIMEOUT',
+            user: { uuid: request?.user?.uuid },
+            error: { message: exception.message },
+          },
+          'QUERY_TIMEOUT',
+        );
+
+        return httpAdapter.reply(
+          response,
+          {
+            statusCode: HttpStatus.REQUEST_TIMEOUT,
+            message: 'Request timed out',
+            requestId,
+          },
+          HttpStatus.REQUEST_TIMEOUT,
+        );
+      }
+
       if (this.isDatabaseConnectionError(exception)) {
         this.logDatabaseConnectionError(exception, request);
 
@@ -106,6 +129,13 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
     ];
 
     return connectionErrorNames.includes(exception?.name);
+  }
+
+  private isQueryTimeoutError(exception: any): boolean {
+    return (
+      exception?.message === 'Query timed out' ||
+      exception?.original?.code === '57014'
+    );
   }
 
   private logDatabaseConnectionError(exception: any, request) {
