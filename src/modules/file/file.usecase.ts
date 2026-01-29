@@ -63,6 +63,7 @@ import {
   GetFileVersionsAction,
   CreateFileVersionAction,
   RestoreFileVersionAction,
+  UndoFileVersioningAction,
 } from './actions';
 
 export enum VersionableFileExtension {
@@ -102,6 +103,7 @@ export class FileUseCases {
     private readonly deleteFileVersionAction: DeleteFileVersionAction,
     private readonly createFileVersionAction: CreateFileVersionAction,
     private readonly restoreFileVersionAction: RestoreFileVersionAction,
+    private readonly undoFileVersioningAction: UndoFileVersioningAction,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -1143,5 +1145,12 @@ export class FileUseCases {
     maxVersions: number;
   }> {
     return this.featureLimitService.getFileVersioningLimits(userUuid);
+  }
+
+  async undoFileVersioning(
+    userUuid: string,
+    options?: { batchSize?: number },
+  ): Promise<{ deletedCount: number }> {
+    return this.undoFileVersioningAction.execute(userUuid, options);
   }
 }
