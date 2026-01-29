@@ -25,6 +25,7 @@ import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { FuzzySearchModule } from '../fuzzy-search/fuzzy-search.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { WorkspaceLogModel } from './models/workspace-logs.model';
+import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { WorkspaceLogModel } from './models/workspace-logs.model';
     HttpClientModule,
     FuzzySearchModule,
     NotificationModule,
+    forwardRef(() => FeatureLimitModule),
   ],
   controllers: [WorkspacesController],
   providers: [

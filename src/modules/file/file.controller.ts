@@ -58,6 +58,8 @@ import { RequestLoggerInterceptor } from '../../middlewares/requests-logger.inte
 import { Version } from '../../common/decorators/version.decorator';
 import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
 import { CustomThrottle } from '../../guards/custom-endpoint-throttle.decorator';
+import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.decorator';
+import { Workspace } from '../workspaces/domains/workspaces.domain';
 
 @ApiTags('File')
 @Controller('files')
@@ -263,12 +265,19 @@ export class FileController {
     @Body() fileData: ReplaceFileDto,
     @Client() clientId: string,
     @Requester() requester: User,
+    @WorkspaceDecorator() workspace?: Workspace,
   ): Promise<FileDto> {
     try {
       const file = await this.fileUseCases.replaceFile(
         user,
         fileUuid,
         fileData,
+        workspace
+          ? {
+              workspace,
+              memberId: requester.uuid,
+            }
+          : null,
       );
 
       this.storageNotificationService.fileUpdated({

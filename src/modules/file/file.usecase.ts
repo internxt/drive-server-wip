@@ -48,9 +48,8 @@ import {
   PLAN_FREE_INDIVIDUAL_TIER_LABEL,
   LimitLabels,
 } from '../feature-limit/limits.enum';
-import { FeatureLimitUsecases } from '../feature-limit/feature-limit.usecase';
 import { SequelizeFileVersionRepository } from './file-version.repository';
-import { FileVersion, FileVersionStatus } from './file-version.domain';
+import { FileVersionStatus } from './file-version.domain';
 import { FileVersionDto } from './dto/responses/file-version.dto';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
@@ -64,6 +63,7 @@ import {
   GetFileVersionsAction,
   CreateFileVersionAction,
 } from './actions';
+import { Workspace } from '../workspaces/domains/workspaces.domain';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -93,7 +93,6 @@ export class FileUseCases {
     private readonly usageService: UsageService,
     private readonly mailerService: MailerService,
     private readonly featureLimitService: FeatureLimitService,
-    private readonly featureLimitUsecases: FeatureLimitUsecases,
     @Inject(forwardRef(() => UserUseCases))
     private readonly userUsecases: UserUseCases,
     private readonly redisService: RedisService,
@@ -335,7 +334,15 @@ export class FileUseCases {
     return this.fileRepository.findByUuids(uuids);
   }
 
-  async createFile(user: User, newFileDto: CreateFileDto, tier?) {
+  async createFile(
+    user: User,
+    newFileDto: CreateFileDto,
+    tier?,
+    workspaceOptions?: {
+      workspace: Workspace;
+      memberId: string;
+    },
+  ) {
     const [hadFilesBeforeUpload, folder] = await Promise.all([
       this.hasUploadedFiles(user),
       this.folderUsecases.getByUuid(newFileDto.folderUuid),
@@ -370,7 +377,14 @@ export class FileUseCases {
     const isFileEmpty = BigInt(newFileDto.size) === BigInt(0);
 
     if (isFileEmpty) {
-      await this.checkEmptyFilesLimit(user);
+      if (workspaceOptions) {
+        await this.checkWorkspaceEmptyFilesLimit(
+          workspaceOptions.memberId,
+          workspaceOptions.workspace,
+        );
+      } else {
+        await this.checkEmptyFilesLimit(user);
+      }
     }
 
     const newFileId = isFileEmpty ? null : newFileDto.fileId;
@@ -449,6 +463,16 @@ export class FileUseCases {
     if (limit.shouldLimitBeEnforced({ currentCount: emptyFilesCount })) {
       throw new BadRequestException('You can not have more empty files');
     }
+  }
+
+  async getZeroSizeFilesInWorkspaceByMember(
+    memberId: string,
+    workspaceId: string,
+  ) {
+    return this.fileRepository.getZeroSizeFilesCountInWorkspaceByMember(
+      memberId,
+      workspaceId,
+    );
   }
 
   async updateFileMetaData(
@@ -840,6 +864,10 @@ export class FileUseCases {
     user: User,
     fileUuid: File['fileId'],
     newFileData: ReplaceFileDto,
+    workspaceOptions?: {
+      workspace: Workspace;
+      memberId: string;
+    },
   ): Promise<FileDto> {
     const file = await this.fileRepository.findByUuid(fileUuid, user.id);
 
@@ -854,7 +882,14 @@ export class FileUseCases {
     const isFileEmpty = newFileData.size === BigInt(0);
 
     if (isFileEmpty) {
-      await this.checkEmptyFilesLimit(user);
+      if (!workspaceOptions) {
+        await this.checkEmptyFilesLimit(user);
+      } else {
+        await this.checkWorkspaceEmptyFilesLimit(
+          workspaceOptions.memberId,
+          workspaceOptions.workspace,
+        );
+      }
     }
 
     const newFileId = isFileEmpty ? null : newFileData.fileId;
@@ -927,6 +962,33 @@ export class FileUseCases {
       fileId: newFileId,
       size,
     };
+  }
+
+  async checkWorkspaceEmptyFilesLimit(memberId: string, workspace: Workspace) {
+    const workspaceOwner = await this.userUsecases.findByUuid(
+      workspace.ownerId,
+    );
+
+    const [maxZeroSizeFilesLimit, zeroSizeFilesCount] = await Promise.all([
+      this.featureLimitService.getUserLimitByLabel(
+        LimitLabels.MaxZeroSizeFiles,
+        workspaceOwner,
+      ),
+      this.fileRepository.getZeroSizeFilesCountInWorkspaceByMember(
+        memberId,
+        workspace.id,
+      ),
+    ]);
+
+    if (
+      maxZeroSizeFilesLimit.shouldLimitBeEnforced({
+        currentCount: zeroSizeFilesCount,
+      })
+    ) {
+      throw new BadRequestException(
+        'You can not have more empty files in this workspace',
+      );
+    }
   }
 
   async deleteUserTrashedFilesBatch(
