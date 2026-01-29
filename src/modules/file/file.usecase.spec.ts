@@ -1481,10 +1481,10 @@ describe('FileUseCases', () => {
 
   describe('checkWorkspaceEmptyFilesLimit', () => {
     it('When workspace owner limit is enforced, then it should throw', async () => {
-      const workspaceNetworkUser = newUser();
+      const workspaceOwner = newUser();
       const member = newUser();
       const workspace = newWorkspace({
-        attributes: { workspaceUserId: workspaceNetworkUser.uuid },
+        attributes: { ownerId: workspaceOwner.uuid },
       });
       const mockLimit = newFeatureLimit({
         value: '10',
@@ -1492,9 +1492,7 @@ describe('FileUseCases', () => {
         type: LimitTypes.Counter,
       });
 
-      jest
-        .spyOn(userUsecases, 'findByUuid')
-        .mockResolvedValue(workspaceNetworkUser);
+      jest.spyOn(userUsecases, 'findByUuid').mockResolvedValue(workspaceOwner);
       jest
         .spyOn(featureLimitService, 'getUserLimitByLabel')
         .mockResolvedValue(mockLimit);
@@ -1508,10 +1506,10 @@ describe('FileUseCases', () => {
     });
 
     it('When workspace owner limit is NOT enforced, then it should not throw', async () => {
-      const workspaceNetworkUser = newUser();
+      const workspaceOwner = newUser();
       const member = newUser();
       const workspace = newWorkspace({
-        attributes: { ownerId: workspaceNetworkUser.uuid },
+        attributes: { ownerId: workspaceOwner.uuid },
       });
       const mockLimit = newFeatureLimit({
         value: '1000',
@@ -1519,9 +1517,7 @@ describe('FileUseCases', () => {
         type: LimitTypes.Counter,
       });
 
-      jest
-        .spyOn(userUsecases, 'findByUuid')
-        .mockResolvedValue(workspaceNetworkUser);
+      jest.spyOn(userUsecases, 'findByUuid').mockResolvedValue(workspaceOwner);
       jest
         .spyOn(featureLimitService, 'getUserLimitByLabel')
         .mockResolvedValue(mockLimit);
@@ -1533,12 +1529,10 @@ describe('FileUseCases', () => {
         service.checkWorkspaceEmptyFilesLimit(member.uuid, workspace),
       ).resolves.not.toThrow();
 
-      expect(userUsecases.findByUuid).toHaveBeenCalledWith(
-        workspace.workspaceUserId,
-      );
+      expect(userUsecases.findByUuid).toHaveBeenCalledWith(workspace.ownerId);
       expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
         LimitLabels.MaxZeroSizeFiles,
-        workspaceNetworkUser,
+        workspaceOwner,
       );
       expect(
         fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
