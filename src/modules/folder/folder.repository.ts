@@ -1183,7 +1183,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       return await this.folderModel.sequelize.transaction(
         async (transaction) => {
           await this.folderModel.sequelize.query(
-            "SET LOCAL statement_timeout = '8s'",
+            "SET LOCAL statement_timeout = '3s'",
             { transaction },
           );
 
