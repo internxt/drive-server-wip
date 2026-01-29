@@ -26,6 +26,7 @@ import {
   DeleteFileVersionAction,
   GetFileVersionsAction,
   CreateFileVersionAction,
+  RestoreFileVersionAction,
 } from './actions';
 
 @Module({
@@ -55,6 +56,7 @@ import {
     GetFileVersionsAction,
     DeleteFileVersionAction,
     CreateFileVersionAction,
+    RestoreFileVersionAction,
   ],
   exports: [
     FileUseCases,
