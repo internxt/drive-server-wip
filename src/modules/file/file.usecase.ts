@@ -914,14 +914,14 @@ export class FileUseCases {
   }
 
   async checkWorkspaceEmptyFilesLimit(memberId: string, workspace: Workspace) {
-    const workspaceNetworkUser = await this.userUsecases.findByUuid(
-      workspace.workspaceUserId,
+    const workspaceOwner = await this.userUsecases.findByUuid(
+      workspace.ownerId,
     );
 
     const [maxZeroSizeFilesLimit, zeroSizeFilesCount] = await Promise.all([
       this.featureLimitService.getUserLimitByLabel(
         LimitLabels.MaxZeroSizeFiles,
-        workspaceNetworkUser,
+        workspaceOwner,
       ),
       this.fileRepository.getZeroSizeFilesCountInWorkspaceByMember(
         memberId,
