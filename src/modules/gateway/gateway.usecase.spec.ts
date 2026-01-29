@@ -10,6 +10,7 @@ import {
   newTier,
   newFolder,
   newFeatureLimit,
+  newVersioningLimits,
 } from '../../../test/fixtures';
 import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
@@ -24,6 +25,7 @@ import { ConfigService } from '@nestjs/config';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
 import { LimitTypes, LimitLabels } from '../feature-limit/limits.enum';
+import { FileUseCases } from '../file/file.usecase';
 
 describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
@@ -34,6 +36,7 @@ describe('GatewayUseCases', () => {
   let loggerMock: DeepMocked<Logger>;
   let storageNotificationService: StorageNotificationService;
   let featureLimitService: FeatureLimitService;
+  let fileUseCases: FileUseCases;
   let mailerService: MailerService;
   let configService: ConfigService;
   let folderRepository: SequelizeFolderRepository;
@@ -58,6 +61,7 @@ describe('GatewayUseCases', () => {
       StorageNotificationService,
     );
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
+    fileUseCases = module.get<FileUseCases>(FileUseCases);
     mailerService = module.get<MailerService>(MailerService);
     configService = module.get<ConfigService>(ConfigService);
     folderRepository = module.get<SequelizeFolderRepository>(
@@ -508,6 +512,16 @@ describe('GatewayUseCases', () => {
       const newStorageSpaceBytes = 5000000;
       const validTier = newTier();
 
+      beforeEach(() => {
+        jest
+          .spyOn(featureLimitService, 'getFileVersioningLimits')
+          .mockResolvedValue(newVersioningLimits({ enabled: false }));
+
+        jest
+          .spyOn(fileUseCases, 'undoFileVersioning')
+          .mockResolvedValue({ deletedCount: 0 });
+      });
+
       describe('when updating storage without tier', () => {
         it('When updating user storage, then it should update the user storage and keep that new storage limit cached', async () => {
           jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
@@ -715,6 +729,70 @@ describe('GatewayUseCases', () => {
 
           expect(user.tierId).toBe(differentTierId);
           expect(user.tierId).not.toBe(originalTierId);
+        });
+
+        it('When user has versioning enabled, then should not delete file versions', async () => {
+          const enabledLimits = newVersioningLimits({ enabled: true });
+          const getLimitsSpy = jest
+            .spyOn(featureLimitService, 'getFileVersioningLimits')
+            .mockResolvedValue(enabledLimits);
+          const undoSpy = jest.spyOn(fileUseCases, 'undoFileVersioning');
+
+          jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
+          jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
+          jest
+            .spyOn(cacheManagerService, 'setUserStorageLimit')
+            .mockResolvedValue(undefined);
+
+          await service.updateUser(user, { newStorageSpaceBytes });
+
+          expect(getLimitsSpy).toHaveBeenCalledWith(user.uuid);
+          expect(undoSpy).not.toHaveBeenCalled();
+        });
+
+        it('When user has versioning disabled, then should delete all file versions', async () => {
+          const disabledLimits = newVersioningLimits({ enabled: false });
+          const getLimitsSpy = jest
+            .spyOn(featureLimitService, 'getFileVersioningLimits')
+            .mockResolvedValue(disabledLimits);
+          const undoSpy = jest
+            .spyOn(fileUseCases, 'undoFileVersioning')
+            .mockResolvedValue({ deletedCount: 150 });
+
+          jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
+          jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
+          jest
+            .spyOn(cacheManagerService, 'setUserStorageLimit')
+            .mockResolvedValue(undefined);
+
+          await service.updateUser(user, { newStorageSpaceBytes });
+
+          expect(getLimitsSpy).toHaveBeenCalledWith(user.uuid);
+          expect(undoSpy).toHaveBeenCalledWith(user.uuid);
+        });
+
+        it('When file versions are deleted, then should log deletion count', async () => {
+          const disabledLimits = newVersioningLimits({ enabled: false });
+          jest
+            .spyOn(featureLimitService, 'getFileVersioningLimits')
+            .mockResolvedValue(disabledLimits);
+          jest
+            .spyOn(fileUseCases, 'undoFileVersioning')
+            .mockResolvedValue({ deletedCount: 42 });
+          jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
+          jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
+          jest
+            .spyOn(cacheManagerService, 'setUserStorageLimit')
+            .mockResolvedValue(undefined);
+
+          const logSpy = jest.spyOn(Logger, 'log');
+
+          await service.updateUser(user, { newStorageSpaceBytes });
+
+          const expectedMessage = 'Deleted 42 file versions';
+          expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining(expectedMessage),
+          );
         });
       });
     });
