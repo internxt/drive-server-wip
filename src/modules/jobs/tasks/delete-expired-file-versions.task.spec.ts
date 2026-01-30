@@ -7,6 +7,7 @@ import { RedisService } from '../../../externals/redis/redis.service';
 import { DeleteExpiredFileVersionsAction } from '../../file/actions';
 import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
 import { JobExecutionModel } from '../models/job-execution.model';
+import { JobName } from '../constants';
 
 describe('DeleteExpiredFileVersionsTask', () => {
   let task: DeleteExpiredFileVersionsTask;
@@ -34,124 +35,44 @@ describe('DeleteExpiredFileVersionsTask', () => {
     expect(task).toBeDefined();
   });
 
-  describe('scheduleExpiredVersionsCleanup', () => {
+  describe('scheduleExpiredFileVersionsCleanup', () => {
     it('When executeCronjobs is false, then it should not execute the job', async () => {
       configService.get.mockReturnValue(false);
+      const startJobSpy = jest.spyOn(task, 'startJob');
 
-      const processExpiredVersionsSpy = jest.spyOn(
-        task as any,
-        'processExpiredVersions',
-      );
-
-      await task.scheduleExpiredVersionsCleanup();
+      await task.scheduleCleanup();
 
       expect(configService.get).toHaveBeenCalledWith('executeCronjobs', false);
-      expect(processExpiredVersionsSpy).not.toHaveBeenCalled();
+      expect(startJobSpy).not.toHaveBeenCalled();
       expect(redisService.tryAcquireLock).not.toHaveBeenCalled();
     });
 
     it('When lock cannot be acquired, then it should not start the job', async () => {
       configService.get.mockReturnValue(true);
       redisService.tryAcquireLock.mockResolvedValue(false);
+      const startJobSpy = jest.spyOn(task, 'startJob');
 
-      const processExpiredVersionsSpy = jest.spyOn(
-        task as any,
-        'processExpiredVersions',
-      );
-
-      await task.scheduleExpiredVersionsCleanup();
+      await task.scheduleCleanup();
 
       expect(redisService.tryAcquireLock).toHaveBeenCalledWith(
-        'job:delete-expired-file-versions',
+        'cleanup:deleted-file-versions',
         60 * 60 * 1000,
       );
-      expect(processExpiredVersionsSpy).not.toHaveBeenCalled();
+      expect(startJobSpy).not.toHaveBeenCalled();
     });
 
-    it('When job completes successfully, then it should release lock', async () => {
-      const mockStartedJob: JobExecutionModel = {
-        id: 'job-123',
-        startedAt: new Date('2026-01-27T10:00:00Z'),
-      } as JobExecutionModel;
-
-      const mockCompletedJob: JobExecutionModel = {
-        id: 'job-123',
-        completedAt: new Date('2026-01-27T10:30:00Z'),
-      } as JobExecutionModel;
-
+    it('When lock is acquired, then it should start the job', async () => {
       configService.get.mockReturnValue(true);
       redisService.tryAcquireLock.mockResolvedValue(true);
-      redisService.releaseLock.mockResolvedValue(true);
-      jobExecutionRepository.startJob.mockResolvedValue(mockStartedJob);
-      jobExecutionRepository.markAsCompleted.mockResolvedValue(mockCompletedJob);
-      deleteExpiredFileVersionsAction.execute.mockResolvedValue({
-        deletedCount: 100,
-      });
+      const startJobSpy = jest.spyOn(task, 'startJob');
 
-      await task.scheduleExpiredVersionsCleanup();
+      await task.scheduleCleanup();
 
-      expect(redisService.tryAcquireLock).toHaveBeenCalled();
-      expect(deleteExpiredFileVersionsAction.execute).toHaveBeenCalledWith();
-      expect(redisService.releaseLock).toHaveBeenCalledWith(
-        'job:delete-expired-file-versions',
-      );
-    });
-
-    it('When error occurs, then it should still release lock in finally block', async () => {
-      const mockStartedJob: JobExecutionModel = {
-        id: 'job-123',
-        startedAt: new Date('2026-01-27T10:00:00Z'),
-      } as JobExecutionModel;
-
-      const errorMessage = 'Database connection failed';
-      const error = new Error(errorMessage);
-      configService.get.mockReturnValue(true);
-      redisService.tryAcquireLock.mockResolvedValue(true);
-      redisService.releaseLock.mockResolvedValue(true);
-      jobExecutionRepository.startJob.mockResolvedValue(mockStartedJob);
-      deleteExpiredFileVersionsAction.execute.mockRejectedValue(error);
-
-      await task.scheduleExpiredVersionsCleanup();
-
-      expect(deleteExpiredFileVersionsAction.execute).toHaveBeenCalled();
-      expect(jobExecutionRepository.markAsFailed).toHaveBeenCalledWith(
-        mockStartedJob.id,
-        { errorMessage },
-      );
-      expect(redisService.releaseLock).toHaveBeenCalledWith(
-        'job:delete-expired-file-versions',
-      );
-    });
-
-    it('When lock is not released, then it should log warning', async () => {
-      const mockStartedJob: JobExecutionModel = {
-        id: 'job-123',
-        startedAt: new Date('2026-01-27T10:00:00Z'),
-      } as JobExecutionModel;
-
-      const mockCompletedJob: JobExecutionModel = {
-        id: 'job-123',
-        completedAt: new Date('2026-01-27T10:30:00Z'),
-      } as JobExecutionModel;
-
-      configService.get.mockReturnValue(true);
-      redisService.tryAcquireLock.mockResolvedValue(true);
-      redisService.releaseLock.mockResolvedValue(false);
-      jobExecutionRepository.startJob.mockResolvedValue(mockStartedJob);
-      jobExecutionRepository.markAsCompleted.mockResolvedValue(mockCompletedJob);
-      deleteExpiredFileVersionsAction.execute.mockResolvedValue({
-        deletedCount: 50,
-      });
-
-      await task.scheduleExpiredVersionsCleanup();
-
-      expect(redisService.releaseLock).toHaveBeenCalledWith(
-        'job:delete-expired-file-versions',
-      );
+      expect(startJobSpy).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe('processExpiredVersions', () => {
+  describe('deleteExpiredFileVersions', () => {
     const mockStartedJob: JobExecutionModel = {
       id: 'job-123',
       startedAt: new Date('2026-01-27T10:00:00Z'),
@@ -163,19 +84,19 @@ describe('DeleteExpiredFileVersionsTask', () => {
     } as JobExecutionModel;
 
     beforeEach(() => {
-      configService.get.mockReturnValue(true);
-      redisService.tryAcquireLock.mockResolvedValue(true);
-      redisService.releaseLock.mockResolvedValue(true);
-      jobExecutionRepository.startJob.mockResolvedValue(mockStartedJob);
-      jobExecutionRepository.markAsCompleted.mockResolvedValue(mockCompletedJob);
+      jest.spyOn(task, 'initializeJobExecution').mockResolvedValue({
+        lastCompletedJob: null,
+        startedJob: mockStartedJob,
+      });
     });
 
     it('When no expired versions exist, then it should complete with zero deletions', async () => {
       deleteExpiredFileVersionsAction.execute.mockResolvedValue({
         deletedCount: 0,
       });
+      jobExecutionRepository.markAsCompleted.mockResolvedValue(mockCompletedJob);
 
-      await task.scheduleExpiredVersionsCleanup();
+      await task.startJob();
 
       expect(deleteExpiredFileVersionsAction.execute).toHaveBeenCalledWith();
       expect(jobExecutionRepository.markAsCompleted).toHaveBeenCalledWith(
@@ -188,8 +109,9 @@ describe('DeleteExpiredFileVersionsTask', () => {
       deleteExpiredFileVersionsAction.execute.mockResolvedValue({
         deletedCount: 250,
       });
+      jobExecutionRepository.markAsCompleted.mockResolvedValue(mockCompletedJob);
 
-      await task.scheduleExpiredVersionsCleanup();
+      await task.startJob();
 
       expect(deleteExpiredFileVersionsAction.execute).toHaveBeenCalledWith();
       expect(jobExecutionRepository.markAsCompleted).toHaveBeenCalledWith(
@@ -198,27 +120,27 @@ describe('DeleteExpiredFileVersionsTask', () => {
       );
     });
 
-    it('When deletion fails, then it should throw error', async () => {
+    it('When deletion fails, then it should mark job as failed and throw error', async () => {
       const errorMessage = 'Repository error';
       const error = new Error(errorMessage);
       deleteExpiredFileVersionsAction.execute.mockRejectedValue(error);
 
-      await task.scheduleExpiredVersionsCleanup();
+      await expect(task.startJob()).rejects.toThrow(error);
 
       expect(deleteExpiredFileVersionsAction.execute).toHaveBeenCalled();
       expect(jobExecutionRepository.markAsFailed).toHaveBeenCalledWith(
         mockStartedJob.id,
         { errorMessage },
       );
-      expect(redisService.releaseLock).toHaveBeenCalled();
     });
 
     it('When processing large batch, then it should handle it successfully', async () => {
       deleteExpiredFileVersionsAction.execute.mockResolvedValue({
         deletedCount: 10000,
       });
+      jobExecutionRepository.markAsCompleted.mockResolvedValue(mockCompletedJob);
 
-      await task.scheduleExpiredVersionsCleanup();
+      await task.startJob();
 
       expect(deleteExpiredFileVersionsAction.execute).toHaveBeenCalledWith();
       expect(jobExecutionRepository.markAsCompleted).toHaveBeenCalledWith(
@@ -228,44 +150,66 @@ describe('DeleteExpiredFileVersionsTask', () => {
     });
   });
 
-  describe('runJob', () => {
-    it('When called directly, then it should execute the cleanup', async () => {
-      const mockStartedJob: JobExecutionModel = {
+  describe('initializeJobExecution', () => {
+    const mockJobMetadata = { myJobData: 'value' };
+
+    it('When last completed job is available, then it should return lastCompletedJob and startedJob', async () => {
+      const lastCompletedJob: JobExecutionModel = {
+        id: 'job-122',
+        completedAt: new Date('2026-01-26T09:00:00Z'),
+      } as JobExecutionModel;
+
+      const newJob: JobExecutionModel = {
         id: 'job-123',
         startedAt: new Date('2026-01-27T10:00:00Z'),
       } as JobExecutionModel;
 
-      const mockCompletedJob: JobExecutionModel = {
-        id: 'job-123',
-        completedAt: new Date('2026-01-27T10:30:00Z'),
-      } as JobExecutionModel;
+      jest
+        .spyOn(jobExecutionRepository, 'getLastSuccessful')
+        .mockResolvedValue(lastCompletedJob);
+      jest.spyOn(jobExecutionRepository, 'startJob').mockResolvedValue(newJob);
 
-      redisService.tryAcquireLock.mockResolvedValue(true);
-      redisService.releaseLock.mockResolvedValue(true);
-      jobExecutionRepository.startJob.mockResolvedValue(mockStartedJob);
-      jobExecutionRepository.markAsCompleted.mockResolvedValue(mockCompletedJob);
-      deleteExpiredFileVersionsAction.execute.mockResolvedValue({
-        deletedCount: 75,
+      const result = await task.initializeJobExecution(mockJobMetadata);
+
+      expect(result).toEqual({
+        lastCompletedJob,
+        startedJob: newJob,
       });
 
-      await task.runJob();
-
-      expect(redisService.tryAcquireLock).toHaveBeenCalledWith(
-        'job:delete-expired-file-versions',
-        60 * 60 * 1000,
+      expect(jobExecutionRepository.getLastSuccessful).toHaveBeenCalledWith(
+        JobName.EXPIRED_FILE_VERSIONS_CLEANUP,
       );
-      expect(deleteExpiredFileVersionsAction.execute).toHaveBeenCalled();
-      expect(redisService.releaseLock).toHaveBeenCalled();
+      expect(jobExecutionRepository.startJob).toHaveBeenCalledWith(
+        JobName.EXPIRED_FILE_VERSIONS_CLEANUP,
+        mockJobMetadata,
+      );
     });
 
-    it('When lock cannot be acquired in runJob, then it should skip execution', async () => {
-      redisService.tryAcquireLock.mockResolvedValue(false);
+    it('When no previous completed job is available, then it should return null for lastCompletedJob', async () => {
+      const newJob: JobExecutionModel = {
+        id: 'job-123',
+        startedAt: new Date('2026-01-27T10:00:00Z'),
+      } as JobExecutionModel;
 
-      await task.runJob();
+      jest
+        .spyOn(jobExecutionRepository, 'getLastSuccessful')
+        .mockResolvedValue(null);
+      jest.spyOn(jobExecutionRepository, 'startJob').mockResolvedValue(newJob);
 
-      expect(redisService.tryAcquireLock).toHaveBeenCalled();
-      expect(deleteExpiredFileVersionsAction.execute).not.toHaveBeenCalled();
-      expect(redisService.releaseLock).toHaveBeenCalled();
+      const result = await task.initializeJobExecution();
+
+      expect(result).toEqual({
+        lastCompletedJob: null,
+        startedJob: newJob,
+      });
+
+      expect(jobExecutionRepository.getLastSuccessful).toHaveBeenCalledWith(
+        JobName.EXPIRED_FILE_VERSIONS_CLEANUP,
+      );
+      expect(jobExecutionRepository.startJob).toHaveBeenCalledWith(
+        JobName.EXPIRED_FILE_VERSIONS_CLEANUP,
+        undefined,
+      );
     });
   });
 });

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { JobName } from '../constants';
 import { RedisService } from '../../../externals/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
@@ -9,8 +9,8 @@ import { SequelizeJobExecutionRepository } from '../repositories/job-execution.r
 @Injectable()
 export class DeleteExpiredFileVersionsTask {
   private readonly logger = new Logger(DeleteExpiredFileVersionsTask.name);
-  private readonly lockTtl = 60 * 60 * 1000; // 1 hour
-  private readonly lockKey = 'job:delete-expired-file-versions';
+  private readonly lockTll = 60 * 60 * 1000; // 1 hour
+  private readonly lockKey = 'cleanup:deleted-file-versions';
 
   constructor(
     private readonly jobExecutionRepository: SequelizeJobExecutionRepository,
@@ -19,8 +19,10 @@ export class DeleteExpiredFileVersionsTask {
     private readonly configService: ConfigService,
   ) {}
 
-  @Cron('0 3 * * *', { name: JobName.EXPIRED_FILE_VERSIONS_CLEANUP })
-  async scheduleExpiredVersionsCleanup() {
+  @Cron(CronExpression.EVERY_30_MINUTES, {
+    name: JobName.EXPIRED_FILE_VERSIONS_CLEANUP,
+  })
+  async scheduleCleanup() {
     const shouldExecuteCronjobs = this.configService.get<boolean>(
       'executeCronjobs',
       false,
@@ -30,48 +32,44 @@ export class DeleteExpiredFileVersionsTask {
       return;
     }
 
-    await this.runJob();
-  }
-
-  async runJob() {
-    this.logger.log('Starting expired file versions cleanup job');
-
     try {
-      const lockAcquired = await this.redisService.tryAcquireLock(
+      const acquired = await this.redisService.tryAcquireLock(
         this.lockKey,
-        this.lockTtl,
+        this.lockTll,
       );
 
-      if (!lockAcquired) {
-        this.logger.warn(
+      if (!acquired) {
+        this.logger.log(
           'Lock already acquired by another instance, skipping...',
         );
         return;
       }
 
-      this.logger.log('Lock acquired! Starting job execution');
-      await this.processExpiredVersions();
+      this.logger.log('Lock acquired! Starting expired file versions cleanup job');
+      await this.startJob();
     } catch (error) {
       this.logger.error(
-        `Expired file versions cleanup job failed: ${error.message}`,
+        `Expired file versions cleanup job could not be setup. error: ${JSON.stringify({
+          timestamp: new Date().toISOString(),
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        })}`,
       );
-    } finally {
-      const released = await this.redisService.releaseLock(this.lockKey);
-      if (released) {
-        this.logger.log('Lock released successfully');
-      } else {
-        this.logger.warn('Lock was not released (may have expired)');
-      }
     }
   }
 
-  private async processExpiredVersions(): Promise<void> {
-    const startedJob = await this.jobExecutionRepository.startJob(
-      JobName.EXPIRED_FILE_VERSIONS_CLEANUP,
-    );
+  async startJob() {
+    const { lastCompletedJob, startedJob } =
+      await this.initializeJobExecution();
+
+    const jobId = startedJob.id;
+    const lastRun = lastCompletedJob
+      ? `(last completed: ${lastCompletedJob.completedAt})`
+      : '(first run)';
 
     this.logger.log(
-      `[${startedJob.id}] Starting expired file versions cleanup job`,
+      `[${jobId}] Starting expired file versions cleanup job ${lastRun}`,
     );
 
     try {
@@ -85,17 +83,31 @@ export class DeleteExpiredFileVersionsTask {
       );
 
       this.logger.log(
-        `[${startedJob.id}] Cleanup completed at ${completedJob?.completedAt}: ${result.deletedCount} versions deleted`,
+        `[${jobId}] Cleanup completed at ${completedJob?.completedAt}: ${result.deletedCount} versions deleted`,
       );
     } catch (error) {
       const errorMessage = error.message;
       this.logger.error(
-        `[${startedJob.id}] Error while executing expired file versions cleanup: ${errorMessage}`,
+        `[${jobId}] Error while executing expired file versions cleanup: ${errorMessage}`,
       );
       await this.jobExecutionRepository.markAsFailed(startedJob.id, {
         errorMessage,
       });
       throw error;
     }
+  }
+
+  async initializeJobExecution(jobMetadata?: Record<string, any>) {
+    const lastCompletedJob =
+      await this.jobExecutionRepository.getLastSuccessful(
+        JobName.EXPIRED_FILE_VERSIONS_CLEANUP,
+      );
+
+    const startedJob = await this.jobExecutionRepository.startJob(
+      JobName.EXPIRED_FILE_VERSIONS_CLEANUP,
+      jobMetadata,
+    );
+
+    return { lastCompletedJob, startedJob };
   }
 }
