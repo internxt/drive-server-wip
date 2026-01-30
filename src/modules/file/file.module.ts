@@ -28,6 +28,7 @@ import {
   CreateFileVersionAction,
   RestoreFileVersionAction,
   UndoFileVersioningAction,
+  DeleteExpiredFileVersionsAction,
 } from './actions';
 
 @Module({
@@ -59,12 +60,14 @@ import {
     CreateFileVersionAction,
     RestoreFileVersionAction,
     UndoFileVersioningAction,
+    DeleteExpiredFileVersionsAction,
   ],
   exports: [
     FileUseCases,
     SequelizeModule,
     SequelizeFileRepository,
     SequelizeFileVersionRepository,
+    DeleteExpiredFileVersionsAction,
   ],
 })
 export class FileModule {}
