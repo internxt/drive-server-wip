@@ -9,7 +9,7 @@ import { SequelizeJobExecutionRepository } from '../repositories/job-execution.r
 @Injectable()
 export class DeleteExpiredFileVersionsTask {
   private readonly logger = new Logger(DeleteExpiredFileVersionsTask.name);
-  private readonly lockTll = 60 * 60 * 1000; // 1 hour
+  private readonly lockTll = 60 * 1000; // 1 minute
   private readonly lockKey = 'cleanup:deleted-file-versions';
 
   constructor(

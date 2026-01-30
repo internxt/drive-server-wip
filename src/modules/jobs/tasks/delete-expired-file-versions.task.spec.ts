@@ -56,7 +56,7 @@ describe('DeleteExpiredFileVersionsTask', () => {
 
       expect(redisService.tryAcquireLock).toHaveBeenCalledWith(
         'cleanup:deleted-file-versions',
-        60 * 60 * 1000,
+        60 * 1000,
       );
       expect(startJobSpy).not.toHaveBeenCalled();
     });
