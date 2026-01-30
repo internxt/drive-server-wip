@@ -305,9 +305,7 @@ export class AuthController {
     const platform = ClientToPlatformMap[client as ClientEnum];
 
     if (!platform) {
-      throw new BadRequestException(
-        `Invalid client header '${client}' for this endpoint`,
-      );
+      platform = ClientEnum.Rclone;
     }
 
     this.logger.log(
