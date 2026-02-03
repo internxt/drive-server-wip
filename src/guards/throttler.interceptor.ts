@@ -46,6 +46,7 @@ export class CustomThrottlerInterceptor implements NestInterceptor {
     next: CallHandler,
   ): Promise<Observable<any>> {
     const request = context.switchToHttp().getRequest();
+    const response = context.switchToHttp().getResponse();
 
     // Interceptors run before guards, so we must check metadata and
     // bypass the global interceptor when custom throttle is present.
@@ -65,6 +66,15 @@ export class CustomThrottlerInterceptor implements NestInterceptor {
     const { ttl, limit } = this.getRateLimit(user);
 
     const record = await this.cacheService.increment(key, ttl);
+
+    if (ttl && limit) {
+      const remaining = Math.max(0, limit - record.totalHits);
+      const resetTime = record.timeToExpire;
+
+      response.setHeader('x-ratelimit-limit', limit);
+      response.setHeader('x-ratelimit-remaining', remaining);
+      response.setHeader('x-ratelimit-reset', resetTime);
+    }
 
     if (record.totalHits > limit) {
       throw new ThrottlerException();
