@@ -206,6 +206,13 @@ export class FolderUseCases {
     return folder ? this.decryptFolderName(folder) : null;
   }
 
+  async getFolderByIdNoDecryption(
+    folderId: FolderAttributes['id'],
+    { deleted }: FolderOptions = { deleted: false },
+  ): Promise<Folder | null> {
+    return this.folderRepository.findById(folderId, deleted);
+  }
+
   async isFolderInsideFolder(
     parentId: FolderAttributes['id'],
     folderId: FolderAttributes['id'],
