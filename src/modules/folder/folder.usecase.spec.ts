@@ -474,6 +474,34 @@ describe('FolderUseCases', () => {
     });
   });
 
+  describe('getFolderByIdNoDecryption()', () => {
+    it('When folder exists, then it returns the folder without decrypting the name', async () => {
+      const folder = newFolder({
+        attributes: {
+          name: 'encrypted-name',
+          plainName: null,
+        },
+      });
+
+      jest.spyOn(folderRepository, 'findById').mockResolvedValue(folder);
+      const decryptSpy = jest.spyOn(cryptoService, 'decryptName');
+
+      const result = await service.getFolderByIdNoDecryption(folder.id);
+
+      expect(result).toEqual(folder);
+      expect(result.name).toBe('encrypted-name');
+      expect(decryptSpy).not.toHaveBeenCalled();
+    });
+
+    it('When folder does not exist, then it returns null', async () => {
+      jest.spyOn(folderRepository, 'findById').mockResolvedValue(null);
+
+      const result = await service.getFolderByIdNoDecryption(12345);
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe('get folder size', () => {
     const folder = newFolder();
 
