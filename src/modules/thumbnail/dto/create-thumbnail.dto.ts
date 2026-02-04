@@ -73,10 +73,12 @@ export class CreateThumbnailDto {
   @ApiProperty({
     description: 'The bucket id where the file is stored',
     example: 'my-bucket',
+    deprecated: true,
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  bucketId: string;
+  bucketId?: string;
 
   @ApiProperty({
     description: 'The id of file in the bucket',

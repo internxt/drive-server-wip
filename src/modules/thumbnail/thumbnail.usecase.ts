@@ -34,6 +34,7 @@ export class ThumbnailUseCases {
         'You do not have permission to modify this file',
       );
     }
+    const bucketId = file.bucket;
     const existingThumbnail = await this.thumbnailRepository.findByFileUuid(
       file.uuid,
     );
@@ -41,7 +42,7 @@ export class ThumbnailUseCases {
       try {
         await this.network.deleteFile(
           user,
-          thumbnail.bucketId,
+          existingThumbnail.bucketId,
           existingThumbnail.bucketFile,
         );
       } catch (error) {
@@ -49,15 +50,19 @@ export class ThumbnailUseCases {
           `[THUMBNAIL/CREATE] Error deleting existent thumbnail. Error: ${error.message}`,
         );
       }
-      await this.thumbnailRepository.update(thumbnail, {
-        id: existingThumbnail.id,
-        fileUuid: existingThumbnail.fileUuid,
-      });
+      await this.thumbnailRepository.update(
+        { ...thumbnail, bucketId },
+        {
+          id: existingThumbnail.id,
+          fileUuid: existingThumbnail.fileUuid,
+        }
+      );
       return this.thumbnailRepository.findByFileUuid(file.uuid);
     }
 
     const newThumbnailObject = {
       ...thumbnail,
+      bucketId,
       fileId: file.id,
       fileUuid: file.uuid,
       createdAt: new Date(),

@@ -27,6 +27,7 @@ describe('ThumbnailUseCases', () => {
     id: 1,
     fileId: 123456,
     fileUuid: fileUuid,
+    bucketId: 'oldBucketId',
     bucketFile: 'existingBucketFile',
   } as any;
 
@@ -57,6 +58,7 @@ describe('ThumbnailUseCases', () => {
         id: 123456,
         uuid: fileUuid,
         userId: userMocked.id,
+        bucket: 'fileBucketId',
       } as any);
     });
 
@@ -74,6 +76,7 @@ describe('ThumbnailUseCases', () => {
       expect(thumbnailRepository.findByFileUuid).toHaveBeenCalledWith(fileUuid);
       expect(thumbnailRepository.create).toHaveBeenCalledWith({
         ...createThumbnailDto,
+        bucketId: 'fileBucketId',
         fileId: 123456,
         fileUuid: fileUuid,
         createdAt: expect.any(Date),
@@ -101,11 +104,11 @@ describe('ThumbnailUseCases', () => {
 
       expect(networkService.deleteFile).toHaveBeenCalledWith(
         userMocked,
-        createThumbnailDto.bucketId,
+        existingThumbnail.bucketId,
         existingThumbnail.bucketFile,
       );
       expect(thumbnailRepository.update).toHaveBeenCalledWith(
-        createThumbnailDto,
+        { ...createThumbnailDto, bucketId: 'fileBucketId' },
         {
           id: existingThumbnail.id,
           fileUuid: existingThumbnail.fileUuid,
@@ -140,13 +143,75 @@ describe('ThumbnailUseCases', () => {
         expect.stringContaining('Error deleting existent thumbnail'),
       );
       expect(thumbnailRepository.update).toHaveBeenCalledWith(
-        createThumbnailDto,
+        { ...createThumbnailDto, bucketId: 'fileBucketId' },
         {
           id: existingThumbnail.id,
           fileUuid: existingThumbnail.fileUuid,
         },
       );
       expect(result).toEqual(existingThumbnail);
+    });
+
+    it('When file bucket differs from DTO bucket, it should use file bucket for thumbnail', async () => {
+      const dtoWithDifferentBucket = {
+        ...createThumbnailDto,
+        bucketId: 'dtoBucketId',
+      };
+
+      jest.spyOn(thumbnailRepository, 'findByFileUuid').mockResolvedValue(null);
+      jest
+        .spyOn(thumbnailRepository, 'create')
+        .mockResolvedValue(existingThumbnail);
+
+      await thumbnailUseCases.createThumbnail(
+        userMocked,
+        dtoWithDifferentBucket,
+      );
+
+      expect(thumbnailRepository.create).toHaveBeenCalledWith({
+        ...dtoWithDifferentBucket,
+        bucketId: 'fileBucketId',
+        fileId: 123456,
+        fileUuid: fileUuid,
+        createdAt: expect.any(Date),
+        updatedAt: expect.any(Date),
+      });
+    });
+
+    it('When existing thumbnail has different bucket than file, it should delete from old bucket and update with file bucket', async () => {
+      const dtoWithDifferentBucket = {
+        ...createThumbnailDto,
+        bucketId: 'dtoBucketId',
+      };
+
+      jest
+        .spyOn(thumbnailRepository, 'findByFileUuid')
+        .mockResolvedValue(existingThumbnail);
+      jest.spyOn(networkService, 'deleteFile').mockResolvedValue(undefined);
+      jest
+        .spyOn(thumbnailRepository, 'update')
+        .mockResolvedValue(existingThumbnail);
+      jest
+        .spyOn(thumbnailRepository, 'findByFileUuid')
+        .mockResolvedValue(existingThumbnail);
+
+      await thumbnailUseCases.createThumbnail(
+        userMocked,
+        dtoWithDifferentBucket,
+      );
+
+      expect(networkService.deleteFile).toHaveBeenCalledWith(
+        userMocked,
+        existingThumbnail.bucketId,
+        existingThumbnail.bucketFile,
+      );
+      expect(thumbnailRepository.update).toHaveBeenCalledWith(
+        { ...dtoWithDifferentBucket, bucketId: 'fileBucketId' },
+        {
+          id: existingThumbnail.id,
+          fileUuid: existingThumbnail.fileUuid,
+        },
+      );
     });
 
     it('When an error occurs while creating a new thumbnail, it should handle the error', async () => {
@@ -193,6 +258,7 @@ describe('ThumbnailUseCases', () => {
 
       expect(thumbnailRepository.create).toHaveBeenCalledWith({
         ...createThumbnailDto,
+        bucketId: 'fileBucketId',
         fileId: 123456,
         fileUuid: fileUuid,
         createdAt: expect.any(Date),
