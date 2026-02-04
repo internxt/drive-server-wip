@@ -71,9 +71,9 @@ export class CustomThrottlerInterceptor implements NestInterceptor {
       const remaining = Math.max(0, limit - record.totalHits);
       const resetTime = record.timeToExpire;
 
-      response.setHeader('x-ratelimit-limit', limit);
-      response.setHeader('x-ratelimit-remaining', remaining);
-      response.setHeader('x-ratelimit-reset', resetTime);
+      response.setHeader('x-internxt-ratelimit-limit', limit);
+      response.setHeader('x-internxt-ratelimit-remaining', remaining);
+      response.setHeader('x-internxt-ratelimit-reset', resetTime);
     }
 
     if (record.totalHits > limit) {

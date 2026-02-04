@@ -68,13 +68,16 @@ describe('CustomThrottlerInterceptor', () => {
         `rl:${request.ip}`,
         30,
       );
-      expect(response.setHeader).toHaveBeenCalledWith('x-ratelimit-limit', 10);
       expect(response.setHeader).toHaveBeenCalledWith(
-        'x-ratelimit-remaining',
+        'x-internxt-ratelimit-limit',
+        10,
+      );
+      expect(response.setHeader).toHaveBeenCalledWith(
+        'x-internxt-ratelimit-remaining',
         9,
       );
       expect(response.setHeader).toHaveBeenCalledWith(
-        'x-ratelimit-reset',
+        'x-internxt-ratelimit-reset',
         1000,
       );
       expect(
@@ -122,12 +125,18 @@ describe('CustomThrottlerInterceptor', () => {
         `rl:${request.user.uuid}`,
         20,
       );
-      expect(response.setHeader).toHaveBeenCalledWith('x-ratelimit-limit', 1);
       expect(response.setHeader).toHaveBeenCalledWith(
-        'x-ratelimit-remaining',
+        'x-internxt-ratelimit-limit',
+        1,
+      );
+      expect(response.setHeader).toHaveBeenCalledWith(
+        'x-internxt-ratelimit-remaining',
         0,
       );
-      expect(response.setHeader).toHaveBeenCalledWith('x-ratelimit-reset', 100);
+      expect(response.setHeader).toHaveBeenCalledWith(
+        'x-internxt-ratelimit-reset',
+        100,
+      );
     });
   });
 });
