@@ -49,8 +49,12 @@ describe('CustomThrottlerInterceptor', () => {
       }) as any;
 
       const request: any = { ip: '10.0.0.1', user: null };
+      const response: any = { setHeader: jest.fn() };
       const context = tsjest.createMock<ExecutionContext>();
-      (context as any).switchToHttp = () => ({ getRequest: () => request });
+      (context as any).switchToHttp = () => ({
+        getRequest: () => request,
+        getResponse: () => response,
+      });
 
       (cacheService.increment as jest.Mock).mockResolvedValue({
         totalHits: 1,
@@ -63,6 +67,18 @@ describe('CustomThrottlerInterceptor', () => {
       expect(cacheService.increment).toHaveBeenCalledWith(
         `rl:${request.ip}`,
         30,
+      );
+      expect(response.setHeader).toHaveBeenCalledWith(
+        'x-internxt-ratelimit-limit',
+        10,
+      );
+      expect(response.setHeader).toHaveBeenCalledWith(
+        'x-internxt-ratelimit-remaining',
+        9,
+      );
+      expect(response.setHeader).toHaveBeenCalledWith(
+        'x-internxt-ratelimit-reset',
+        1000,
       );
       expect(
         (next.handle as jest.Mock).mock.calls.length,
@@ -89,8 +105,12 @@ describe('CustomThrottlerInterceptor', () => {
         ip: '1.1.1.1',
         user: { uuid: 'u123', tierId: freeTierId },
       };
+      const response: any = { setHeader: jest.fn() };
       const context = tsjest.createMock<ExecutionContext>();
-      (context as any).switchToHttp = () => ({ getRequest: () => request });
+      (context as any).switchToHttp = () => ({
+        getRequest: () => request,
+        getResponse: () => response,
+      });
 
       (cacheService.increment as jest.Mock).mockResolvedValue({
         totalHits: 5,
@@ -104,6 +124,18 @@ describe('CustomThrottlerInterceptor', () => {
       expect(cacheService.increment).toHaveBeenCalledWith(
         `rl:${request.user.uuid}`,
         20,
+      );
+      expect(response.setHeader).toHaveBeenCalledWith(
+        'x-internxt-ratelimit-limit',
+        1,
+      );
+      expect(response.setHeader).toHaveBeenCalledWith(
+        'x-internxt-ratelimit-remaining',
+        0,
+      );
+      expect(response.setHeader).toHaveBeenCalledWith(
+        'x-internxt-ratelimit-reset',
+        100,
       );
     });
   });
