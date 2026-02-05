@@ -14,6 +14,13 @@ module.exports = {
     console.info(`Batch size: ${BATCH_SIZE} duplicate folders per batch`);
     console.info('Starting cleanup of duplicate folders...');
 
+    console.info('Creating supporting index...');
+    await queryInterface.sequelize.query(`
+      CREATE INDEX CONCURRENTLY IF NOT EXISTS folders_parentuuid_plainname_not_deleted_support_index
+      ON folders (parent_uuid, plain_name)
+      WHERE deleted = false AND removed = false;
+    `);
+
     const renameQuery = `
       WITH duplicate_groups AS (
         SELECT parent_uuid, plain_name, MIN(id) as id_to_keep
@@ -78,7 +85,16 @@ module.exports = {
     console.info('\n=== Cleanup Complete ===');
     console.info(`Total batches processed: ${batchCount}`);
     console.info(`Total folders renamed: ${totalRenamed}`);
+
+    console.info('Dropping supporting index...');
+    await queryInterface.sequelize.query(`
+      DROP INDEX CONCURRENTLY IF EXISTS folders_parentuuid_plainname_not_deleted_support_index;
+    `);
   },
 
-  down: async () => {},
+  down: async (queryInterface) => {
+    await queryInterface.sequelize.query(`
+      DROP INDEX CONCURRENTLY IF EXISTS folders_parentuuid_plainname_not_deleted_support_index;
+    `);
+  },
 };
