@@ -2,7 +2,7 @@
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const MAX_ATTEMPTS = 10;
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 10;
 const SLEEP_TIME_MS = 1000;
 
 module.exports = {
