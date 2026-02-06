@@ -42,16 +42,16 @@ describe('UndoFileVersioningAction', () => {
     it('When versioning is disabled, then should delete all user versions', async () => {
       jest
         .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
-        .mockResolvedValueOnce(100)
-        .mockResolvedValueOnce(100)
-        .mockResolvedValueOnce(50);
+        .mockResolvedValueOnce(1000)
+        .mockResolvedValueOnce(1000)
+        .mockResolvedValueOnce(500);
 
       const result = await action.execute(userUuid);
 
-      expect(result).toEqual({ deletedCount: 250 });
+      expect(result).toEqual({ deletedCount: 2500 });
       expect(
         fileVersionRepository.deleteUserVersionsBatch,
-      ).toHaveBeenCalledWith(userUuid, 100);
+      ).toHaveBeenCalledWith(userUuid, 1000);
       expect(
         fileVersionRepository.deleteUserVersionsBatch,
       ).toHaveBeenCalledTimes(3);
@@ -92,14 +92,14 @@ describe('UndoFileVersioningAction', () => {
     it('When deleting in batches, then should continue until batch returns less than batch size', async () => {
       jest
         .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
-        .mockResolvedValueOnce(100)
-        .mockResolvedValueOnce(100)
-        .mockResolvedValueOnce(100)
-        .mockResolvedValueOnce(30);
+        .mockResolvedValueOnce(1000)
+        .mockResolvedValueOnce(1000)
+        .mockResolvedValueOnce(1000)
+        .mockResolvedValueOnce(300);
 
       const result = await action.execute(userUuid);
 
-      expect(result).toEqual({ deletedCount: 330 });
+      expect(result).toEqual({ deletedCount: 3300 });
       expect(
         fileVersionRepository.deleteUserVersionsBatch,
       ).toHaveBeenCalledTimes(4);
@@ -113,12 +113,12 @@ describe('UndoFileVersioningAction', () => {
       jest
         .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
         .mockRejectedValueOnce(new Error('Timeout'))
-        .mockResolvedValueOnce(100)
-        .mockResolvedValueOnce(50);
+        .mockResolvedValueOnce(1000)
+        .mockResolvedValueOnce(500);
 
       const result = await action.execute(userUuid);
 
-      expect(result).toEqual({ deletedCount: 150 });
+      expect(result).toEqual({ deletedCount: 1500 });
       expect(delaySpy).toHaveBeenCalledWith(1000);
       expect(
         fileVersionRepository.deleteUserVersionsBatch,
@@ -134,12 +134,12 @@ describe('UndoFileVersioningAction', () => {
         .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
         .mockRejectedValueOnce(new Error('Lock timeout'))
         .mockRejectedValueOnce(new Error('Lock timeout'))
-        .mockResolvedValueOnce(100)
-        .mockResolvedValueOnce(0);
+        .mockResolvedValueOnce(1000)
+        .mockResolvedValueOnce(500);
 
       const result = await action.execute(userUuid);
 
-      expect(result).toEqual({ deletedCount: 100 });
+      expect(result).toEqual({ deletedCount: 1500 });
       expect(delaySpy).toHaveBeenCalledWith(1000);
       expect(delaySpy).toHaveBeenCalledWith(2000);
       expect(
@@ -154,7 +154,7 @@ describe('UndoFileVersioningAction', () => {
 
       jest
         .spyOn(fileVersionRepository, 'deleteUserVersionsBatch')
-        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(1000)
         .mockRejectedValueOnce(new Error('Corrupted data'))
         .mockRejectedValueOnce(new Error('Corrupted data'))
         .mockRejectedValueOnce(new Error('Corrupted data'));
@@ -189,6 +189,95 @@ describe('UndoFileVersioningAction', () => {
       expect(delaySpy).toHaveBeenCalledTimes(2);
       expect(delaySpy).toHaveBeenNthCalledWith(1, 1000);
       expect(delaySpy).toHaveBeenNthCalledWith(2, 2000);
+    });
+
+    it('When limits are provided, then should delete versions exceeding limits', async () => {
+      const limits = {
+        retentionDays: 30,
+        maxVersions: 5,
+      };
+
+      jest
+        .spyOn(fileVersionRepository, 'deleteUserVersionsByLimits')
+        .mockResolvedValueOnce(1000)
+        .mockResolvedValueOnce(1000)
+        .mockResolvedValueOnce(500);
+
+      const result = await action.execute(userUuid, { limits });
+
+      expect(result).toEqual({ deletedCount: 2500 });
+      expect(
+        fileVersionRepository.deleteUserVersionsByLimits,
+      ).toHaveBeenCalledWith(userUuid, 30, 5, 1000);
+      expect(
+        fileVersionRepository.deleteUserVersionsByLimits,
+      ).toHaveBeenCalledTimes(3);
+    });
+
+    it('When limits are provided with custom batch size, then should use custom batch size', async () => {
+      const limits = {
+        retentionDays: 60,
+        maxVersions: 10,
+      };
+      const customBatchSize = 500;
+
+      jest
+        .spyOn(fileVersionRepository, 'deleteUserVersionsByLimits')
+        .mockResolvedValueOnce(500)
+        .mockResolvedValueOnce(200);
+
+      const result = await action.execute(userUuid, {
+        limits,
+        batchSize: customBatchSize,
+      });
+
+      expect(result).toEqual({ deletedCount: 700 });
+      expect(
+        fileVersionRepository.deleteUserVersionsByLimits,
+      ).toHaveBeenCalledWith(userUuid, 60, 10, customBatchSize);
+    });
+
+    it('When limits are provided and batch fails, then should retry', async () => {
+      const limits = {
+        retentionDays: 30,
+        maxVersions: 5,
+      };
+
+      const delaySpy = jest
+        .spyOn(action as any, 'delay')
+        .mockResolvedValue(undefined);
+
+      jest
+        .spyOn(fileVersionRepository, 'deleteUserVersionsByLimits')
+        .mockRejectedValueOnce(new Error('Timeout'))
+        .mockResolvedValueOnce(1000)
+        .mockResolvedValueOnce(500);
+
+      const result = await action.execute(userUuid, { limits });
+
+      expect(result).toEqual({ deletedCount: 1500 });
+      expect(delaySpy).toHaveBeenCalledWith(1000);
+      expect(
+        fileVersionRepository.deleteUserVersionsByLimits,
+      ).toHaveBeenCalledTimes(3);
+    });
+
+    it('When limits are provided and user has no versions to delete, then should return zero', async () => {
+      const limits = {
+        retentionDays: 30,
+        maxVersions: 5,
+      };
+
+      jest
+        .spyOn(fileVersionRepository, 'deleteUserVersionsByLimits')
+        .mockResolvedValueOnce(0);
+
+      const result = await action.execute(userUuid, { limits });
+
+      expect(result).toEqual({ deletedCount: 0 });
+      expect(
+        fileVersionRepository.deleteUserVersionsByLimits,
+      ).toHaveBeenCalledTimes(1);
     });
   });
 });

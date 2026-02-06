@@ -23,6 +23,12 @@ export interface FileVersionRepository {
   delete(id: string): Promise<void>;
   deleteAllByFileId(fileId: string): Promise<void>;
   deleteUserVersionsBatch(userId: string, limit: number): Promise<number>;
+  deleteUserVersionsByLimits(
+    userId: string,
+    retentionDays: number,
+    maxVersions: number,
+    limit: number,
+  ): Promise<number>;
   sumExistingSizesByUser(userId: string): Promise<number>;
   findExpiredVersionIdsByTierLimits(limit: number): Promise<string[]>;
 }
@@ -141,6 +147,58 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
       {
         replacements: {
           userId,
+          limit,
+          deletedStatus: FileVersionStatus.DELETED,
+          existsStatus: FileVersionStatus.EXISTS,
+        },
+        type: QueryTypes.UPDATE,
+      },
+    );
+
+    return result[1];
+  }
+
+  async deleteUserVersionsByLimits(
+    userId: string,
+    retentionDays: number,
+    maxVersions: number,
+    limit: number,
+  ): Promise<number> {
+    const query = `
+      WITH ranked_versions AS (
+        SELECT
+          fv.id as version_id,
+          fv.file_id,
+          fv.created_at,
+          ROW_NUMBER() OVER (
+            PARTITION BY fv.file_id
+            ORDER BY fv.created_at DESC
+          ) as version_rank
+        FROM file_versions fv
+        WHERE fv.user_id = :userId
+          AND fv.status = :existsStatus
+      )
+      UPDATE file_versions
+      SET status = :deletedStatus, updated_at = NOW()
+      WHERE id IN (
+        SELECT version_id
+        FROM ranked_versions
+        WHERE
+          (:maxVersions > 0 AND version_rank > :maxVersions)
+          OR
+          (:retentionDays > 0 AND created_at < NOW() - (:retentionDays || ' days')::INTERVAL)
+        ORDER BY version_id ASC
+        LIMIT :limit
+      )
+    `;
+
+    const result = await this.model.sequelize.query(
+      query,
+      {
+        replacements: {
+          userId,
+          retentionDays,
+          maxVersions,
           limit,
           deletedStatus: FileVersionStatus.DELETED,
           existsStatus: FileVersionStatus.EXISTS,

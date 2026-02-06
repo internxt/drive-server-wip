@@ -2996,36 +2996,39 @@ describe('FileUseCases', () => {
   describe('undoFileVersioning', () => {
     const userUuid = v4();
 
-    it('When versioning is enabled, then should not delete any versions', async () => {
+    it('When called, then should delete all user versions with default batch size', async () => {
       jest
         .spyOn(undoFileVersioningAction, 'execute')
-        .mockResolvedValue({ deletedCount: 0 });
+        .mockResolvedValue({ deletedCount: 250 });
 
       const result = await service.undoFileVersioning(userUuid);
 
-      expect(undoFileVersioningAction.execute).toHaveBeenCalledWith(
-        userUuid,
-        undefined,
-      );
-      expect(result).toEqual({ deletedCount: 0 });
+      expect(undoFileVersioningAction.execute).toHaveBeenCalledWith(userUuid, {
+        batchSize: 1000,
+      });
+      expect(result).toEqual({ deletedCount: 250 });
     });
+  });
 
-    it('When custom batch size is provided, then should use that batch size', async () => {
-      const customBatchSize = 50;
+  describe('partialUndoFileVersioning', () => {
+    const userUuid = v4();
+    const limits = {
+      retentionDays: 30,
+      maxVersions: 5,
+    };
 
+    it('When called with limits, then should delete versions exceeding limits', async () => {
       jest
         .spyOn(undoFileVersioningAction, 'execute')
-        .mockResolvedValue({ deletedCount: 75 });
+        .mockResolvedValue({ deletedCount: 150 });
 
-      const result = await service.undoFileVersioning(userUuid, {
-        batchSize: customBatchSize,
+      const result = await service.partialUndoFileVersioning(userUuid, limits);
+
+      expect(undoFileVersioningAction.execute).toHaveBeenCalledWith(userUuid, {
+        batchSize: 1000,
+        limits,
       });
-
-      expect(undoFileVersioningAction.execute).toHaveBeenCalledWith(
-        userUuid,
-        { batchSize: customBatchSize },
-      );
-      expect(result).toEqual({ deletedCount: 75 });
+      expect(result).toEqual({ deletedCount: 150 });
     });
   });
 });

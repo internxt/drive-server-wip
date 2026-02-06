@@ -342,12 +342,23 @@ export class GatewayUseCases {
     const limits =
       await this.featureLimitService.getFileVersioningLimits(user.uuid);
 
-    if (!limits.enabled) {
+    if (limits.enabled) {
+      const { deletedCount } =
+        await this.fileUseCases.partialUndoFileVersioning(user.uuid, {
+          retentionDays: limits.retentionDays,
+          maxVersions: limits.maxVersions,
+        });
+      if (deletedCount > 0) {
+        Logger.log(
+          `[GATEWAY/UPDATE_TIER] Adjusted ${deletedCount} file versions to tier limits for user ${user.uuid} due to tier change`,
+        );
+      }
+    } else {
       const { deletedCount } =
         await this.fileUseCases.undoFileVersioning(user.uuid);
       if (deletedCount > 0) {
         Logger.log(
-          `[GATEWAY/UPDATE_TIER] Deleted ${deletedCount} file versions for user ${user.uuid} due to tier change`,
+          `[GATEWAY/UPDATE_TIER] Deleted ${deletedCount} file versions (full cleanup) for user ${user.uuid} due to tier change`,
         );
       }
     }

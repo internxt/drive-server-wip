@@ -5,6 +5,14 @@ import {
 } from '@nestjs/common';
 import { SequelizeFileVersionRepository } from '../file-version.repository';
 
+export interface UndoOptions {
+  batchSize?: number;
+  limits?: {
+    retentionDays: number;
+    maxVersions: number;
+  };
+}
+
 @Injectable()
 export class UndoFileVersioningAction {
   constructor(
@@ -13,9 +21,52 @@ export class UndoFileVersioningAction {
 
   async execute(
     userUuid: string,
-    options?: { batchSize?: number },
+    options?: UndoOptions,
   ): Promise<{ deletedCount: number }> {
-    const batchSize = options?.batchSize ?? 100;
+    const batchSize = options?.batchSize ?? 1000;
+
+    if (!options?.limits) {
+      return this.executeUndo(userUuid, batchSize);
+    }
+
+    return this.executePartialUndo(
+      userUuid,
+      batchSize,
+      options.limits.retentionDays,
+      options.limits.maxVersions,
+    );
+  }
+
+  private async executeUndo(
+    userUuid: string,
+    batchSize: number,
+  ): Promise<{ deletedCount: number }> {
+    return this.processBatchesWithRetry(userUuid, batchSize, () =>
+      this.fileVersionRepository.deleteUserVersionsBatch(userUuid, batchSize),
+    );
+  }
+
+  private async executePartialUndo(
+    userUuid: string,
+    batchSize: number,
+    retentionDays: number,
+    maxVersions: number,
+  ): Promise<{ deletedCount: number }> {
+    return this.processBatchesWithRetry(userUuid, batchSize, () =>
+      this.fileVersionRepository.deleteUserVersionsByLimits(
+        userUuid,
+        retentionDays,
+        maxVersions,
+        batchSize,
+      ),
+    );
+  }
+
+  private async processBatchesWithRetry(
+    userUuid: string,
+    batchSize: number,
+    deleteFn: () => Promise<number>,
+  ): Promise<{ deletedCount: number }> {
     const maxRetries = 3;
     let totalDeleted = 0;
     let processedCount: number;
@@ -26,11 +77,7 @@ export class UndoFileVersioningAction {
 
       while (!success && retries < maxRetries) {
         try {
-          processedCount =
-            await this.fileVersionRepository.deleteUserVersionsBatch(
-              userUuid,
-              batchSize,
-            );
+          processedCount = await deleteFn();
           totalDeleted += processedCount;
           success = true;
         } catch (error) {
