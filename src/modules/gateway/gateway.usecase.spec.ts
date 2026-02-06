@@ -731,12 +731,15 @@ describe('GatewayUseCases', () => {
           expect(user.tierId).not.toBe(originalTierId);
         });
 
-        it('When user has versioning enabled, then should not delete file versions', async () => {
+        it('When user has versioning enabled, then should call partial undo', async () => {
           const enabledLimits = newVersioningLimits({ enabled: true });
           const getLimitsSpy = jest
             .spyOn(featureLimitService, 'getFileVersioningLimits')
             .mockResolvedValue(enabledLimits);
           const undoSpy = jest.spyOn(fileUseCases, 'undoFileVersioning');
+          const partialUndoSpy = jest
+            .spyOn(fileUseCases, 'partialUndoFileVersioning')
+            .mockResolvedValue({ deletedCount: 0 });
 
           jest.spyOn(userUseCases, 'updateUserStorage').mockResolvedValue();
           jest.spyOn(cacheManagerService, 'expireLimit').mockResolvedValue();
@@ -748,6 +751,10 @@ describe('GatewayUseCases', () => {
 
           expect(getLimitsSpy).toHaveBeenCalledWith(user.uuid);
           expect(undoSpy).not.toHaveBeenCalled();
+          expect(partialUndoSpy).toHaveBeenCalledWith(user.uuid, {
+            retentionDays: enabledLimits.retentionDays,
+            maxVersions: enabledLimits.maxVersions,
+          });
         });
 
         it('When user has versioning disabled, then should delete all file versions', async () => {

@@ -1149,8 +1149,19 @@ export class FileUseCases {
 
   async undoFileVersioning(
     userUuid: string,
-    options?: { batchSize?: number },
   ): Promise<{ deletedCount: number }> {
-    return this.undoFileVersioningAction.execute(userUuid, options);
+    return this.undoFileVersioningAction.execute(userUuid, {
+      batchSize: 1000,
+    });
+  }
+
+  async partialUndoFileVersioning(
+    userUuid: string,
+    limits: { retentionDays: number; maxVersions: number },
+  ): Promise<{ deletedCount: number }> {
+    return this.undoFileVersioningAction.execute(userUuid, {
+      batchSize: 1000,
+      limits,
+    });
   }
 }
