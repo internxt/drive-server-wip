@@ -51,9 +51,17 @@ export class CustomEndpointThrottleGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
+    let ip = request.headers['cf-connecting-ip'];
+    if (Array.isArray(ip)) {
+      ip = ip[0];
+    }
+    if (!ip) {
+      ip = request.ip;
+    }
+
     const identifierBase = user?.uuid
       ? `cet:uid:${user.uuid}`
-      : `cet:ip:${request.ip}`;
+      : `cet:ip:${ip}`;
     const route = request.route?.path ?? request.originalUrl ?? 'unknown';
 
     // Apply all policies. If any policy is violated, throw.
