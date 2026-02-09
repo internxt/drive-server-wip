@@ -1,8 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ThrottlerException } from '@nestjs/throttler';
 import jwt from 'jsonwebtoken';
@@ -28,7 +24,7 @@ export class CustomEndpointThrottleGuard implements CanActivate {
       const decoded: any = jwt.decode(token);
       return decoded?.uuid || decoded?.payload?.uuid;
     } catch {
-      return null; 
+      return null;
     }
   }
 
@@ -62,7 +58,6 @@ export class CustomEndpointThrottleGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-    const user = request.user;
 
     let ip = request.headers['cf-connecting-ip'];
     if (Array.isArray(ip)) {
@@ -74,9 +69,7 @@ export class CustomEndpointThrottleGuard implements CanActivate {
 
     const userId = request.user?.uuid || this.decodeAuthIfPresent(request);
 
-    const identifierBase = userId
-      ? `cet:uid:${user.uuid}`
-      : `cet:ip:${ip}`;
+    const identifierBase = userId ? `cet:uid:${userId}` : `cet:ip:${ip}`;
     const route = request.route?.path ?? request.originalUrl ?? 'unknown';
 
     // Apply all policies. If any policy is violated, throw.
