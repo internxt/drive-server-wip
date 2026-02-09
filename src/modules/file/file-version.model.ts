@@ -57,6 +57,10 @@ export class FileVersionModel extends Model implements FileVersionAttributes {
 
   @Default(Sequelize.fn('NOW'))
   @Column
+  modificationTime: Date;
+
+  @Default(Sequelize.fn('NOW'))
+  @Column
   createdAt: Date;
 
   @Default(Sequelize.fn('NOW'))
