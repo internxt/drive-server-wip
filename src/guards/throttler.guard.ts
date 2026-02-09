@@ -3,9 +3,13 @@ import { ThrottlerGuard as BaseThrottlerGuard } from '@nestjs/throttler';
 @Injectable()
 export class ThrottlerGuard extends BaseThrottlerGuard {
   protected async getTracker(req: Record<string, any>): Promise<string> {
-    const trackedIp = req.ips.length ? req.ips[0] : req.ip;
-    // setting app.set('trust proxy', true); makes Express check x-forwarded-for header
-    return trackedIp;
+    const cfIp = req.headers['cf-connecting-ip'];
+    console.log('cfIP', cfIp);
+
+    if (cfIp) {
+      return Array.isArray(cfIp) ? cfIp[0] : cfIp;
+    }
+    return req.ips.length ? req.ips[0] : req.ip;
   }
 }
 
@@ -13,6 +17,12 @@ export class ThrottlerGuard extends BaseThrottlerGuard {
 export class CustomThrottlerGuard extends ThrottlerGuard {
   protected async getTracker(req: any): Promise<string> {
     const userId = req.user?.uuid;
-    return userId ? `rl:${userId}` : `rl:${req.ip}`;
+
+    if (userId) {
+      return `rl:${userId}`;
+    }
+
+    const ip = await super.getTracker(req);
+    return `rl:${ip}`;
   }
 }
