@@ -88,7 +88,7 @@ describe('CreateFileVersionAction', () => {
         networkFileId: mockFile.fileId,
         size: mockFile.size,
         status: FileVersionStatus.EXISTS,
-        modificationTime: mockFile.updatedAt,
+        sourceLastUpdatedAt: mockFile.updatedAt,
       });
 
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
@@ -177,7 +177,7 @@ describe('CreateFileVersionAction', () => {
           networkFileId: 'network-1',
           size: BigInt(50),
           status: FileVersionStatus.EXISTS,
-          modificationTime: oldVersionDate,
+          sourceLastUpdatedAt: oldVersionDate,
           createdAt: oldVersionDate,
           updatedAt: oldVersionDate,
         }),
@@ -215,7 +215,7 @@ describe('CreateFileVersionAction', () => {
         networkFileId: mockFile.fileId,
         size: mockFile.size,
         status: FileVersionStatus.EXISTS,
-        modificationTime: mockFile.updatedAt,
+        sourceLastUpdatedAt: mockFile.updatedAt,
       });
 
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
@@ -250,7 +250,7 @@ describe('CreateFileVersionAction', () => {
           networkFileId: 'network-1',
           size: BigInt(50),
           status: FileVersionStatus.EXISTS,
-          modificationTime: dayjs().subtract(5, 'day').toDate(),
+          sourceLastUpdatedAt: dayjs().subtract(5, 'day').toDate(),
           createdAt: dayjs().subtract(5, 'day').toDate(),
           updatedAt: now,
         }),
@@ -261,7 +261,7 @@ describe('CreateFileVersionAction', () => {
           networkFileId: 'network-2',
           size: BigInt(50),
           status: FileVersionStatus.EXISTS,
-          modificationTime: dayjs().subtract(10, 'day').toDate(),
+          sourceLastUpdatedAt: dayjs().subtract(10, 'day').toDate(),
           createdAt: dayjs().subtract(10, 'day').toDate(),
           updatedAt: now,
         }),
@@ -294,7 +294,7 @@ describe('CreateFileVersionAction', () => {
         networkFileId: mockFile.fileId,
         size: mockFile.size,
         status: FileVersionStatus.EXISTS,
-        modificationTime: mockFile.updatedAt,
+        sourceLastUpdatedAt: mockFile.updatedAt,
       });
 
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
@@ -332,7 +332,7 @@ describe('CreateFileVersionAction', () => {
             networkFileId: `network-${i}`,
             size: BigInt(50),
             status: FileVersionStatus.EXISTS,
-            modificationTime: date,
+            sourceLastUpdatedAt: date,
             createdAt: date,
             updatedAt: date,
           });
@@ -369,7 +369,7 @@ describe('CreateFileVersionAction', () => {
         networkFileId: mockFile.fileId,
         size: mockFile.size,
         status: FileVersionStatus.EXISTS,
-        modificationTime: mockFile.updatedAt,
+        sourceLastUpdatedAt: mockFile.updatedAt,
       });
 
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(

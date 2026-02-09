@@ -18,9 +18,9 @@ export class FileVersionDto {
   status: FileVersionStatus;
 
   @ApiProperty({
-    description: 'Date when the file was last modified before this version was created',
+    description: 'Date when the source file was last updated before this version was created',
   })
-  modificationTime: Date;
+  sourceLastUpdatedAt: Date;
 
   @ApiProperty()
   createdAt: Date;

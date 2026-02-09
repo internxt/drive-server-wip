@@ -67,7 +67,7 @@ describe('RestoreFileVersionAction', () => {
         status: FileVersionStatus.EXISTS,
         createdAt: olderDate,
         updatedAt: olderDate,
-        modificationTime: olderDate,
+        sourceLastUpdatedAt: olderDate,
       });
 
       const newerVersion = FileVersion.build({
@@ -79,7 +79,7 @@ describe('RestoreFileVersionAction', () => {
         status: FileVersionStatus.EXISTS,
         createdAt: newerDate,
         updatedAt: newerDate,
-        modificationTime: olderDate,
+        sourceLastUpdatedAt: olderDate,
       });
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
@@ -158,7 +158,7 @@ describe('RestoreFileVersionAction', () => {
         status: FileVersionStatus.EXISTS,
         createdAt: new Date(),
         updatedAt: new Date(),
-        modificationTime: new Date(),
+        sourceLastUpdatedAt: new Date(),
       });
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
@@ -183,7 +183,7 @@ describe('RestoreFileVersionAction', () => {
         status: FileVersionStatus.DELETED,
         createdAt: new Date(),
         updatedAt: new Date(),
-        modificationTime: new Date(),
+        sourceLastUpdatedAt: new Date(),
       });
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
@@ -210,7 +210,7 @@ describe('RestoreFileVersionAction', () => {
         status: FileVersionStatus.EXISTS,
         createdAt: oldestDate,
         updatedAt: oldestDate,
-        modificationTime: oldestDate,
+        sourceLastUpdatedAt: oldestDate,
       });
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);

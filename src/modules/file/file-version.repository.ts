@@ -47,7 +47,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
       networkFileId: version.networkFileId,
       size: version.size,
       status: version.status || FileVersionStatus.EXISTS,
-      modificationTime: version.modificationTime,
+      sourceLastUpdatedAt: version.sourceLastUpdatedAt,
     });
 
     return FileVersion.build(createdVersion.toJSON());
@@ -61,7 +61,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status || FileVersionStatus.EXISTS,
-        modificationTime: version.modificationTime,
+        sourceLastUpdatedAt: version.sourceLastUpdatedAt,
         updatedAt: new Date(),
       },
       {
