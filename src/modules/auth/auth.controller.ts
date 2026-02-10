@@ -5,7 +5,6 @@ import {
   Post,
   Logger,
   NotFoundException,
-  UseGuards,
   Get,
   HttpStatus,
   ConflictException,
@@ -27,7 +26,7 @@ import { Public } from './decorators/public.decorator';
 import { User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
-import { ThrottlerGuard } from '../../guards/throttler.guard';
+import { Throttle, seconds } from '@nestjs/throttler';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { LoginDto } from './dto/login-dto';
 import { LoginAccessDto } from './dto/login-access.dto';
@@ -49,8 +48,6 @@ import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { Client } from '../../common/decorators/client.decorator';
 import { ClientEnum } from '../../common/enums/platform.enum';
-import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
-import { CustomThrottle } from '../../guards/custom-endpoint-throttle.decorator';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -65,10 +62,7 @@ export class AuthController {
     private readonly featureLimitService: FeatureLimitService,
   ) {}
 
-  @UseGuards(CustomEndpointThrottleGuard)
-  @CustomThrottle({
-    short: { ttl: 60, limit: 10 },
-  })
+  @Throttle({ short: { ttl: seconds(60), limit: 10 } })
   @Post('/login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -113,10 +107,7 @@ export class AuthController {
     }
   }
 
-  @UseGuards(CustomEndpointThrottleGuard)
-  @CustomThrottle({
-    short: { ttl: 60, limit: 10 },
-  })
+  @Throttle({ short: { ttl: seconds(60), limit: 10 } })
   @Post('/login/access')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -157,10 +148,7 @@ export class AuthController {
     }
   }
 
-  @UseGuards(CustomEndpointThrottleGuard)
-  @CustomThrottle({
-    short: { ttl: 60, limit: 5 },
-  })
+  @Throttle({ short: { ttl: seconds(60), limit: 5 } })
   @Get('/logout')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
@@ -280,11 +268,7 @@ export class AuthController {
     return this.userUseCases.areCredentialsCorrect(user, hashedPassword);
   }
 
-  @UseGuards(CustomEndpointThrottleGuard)
-  @CustomThrottle({
-    short: { ttl: 60, limit: 10 },
-  })
-  @UseGuards(ThrottlerGuard)
+  @Throttle({ short: { ttl: seconds(60), limit: 10 } })
   @Post('/cli/login/access')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

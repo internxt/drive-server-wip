@@ -124,9 +124,11 @@ export class CacheManagerService {
 
   async increment(
     key: string,
-    ttlSeconds: number,
+    ttlMs: number,
+    limit: number = Infinity,
+    blockDurationMs: number = 0,
+    _throttlerName?: string,
   ): Promise<ThrottlerStorageRecord> {
-    const ttlMs = ttlSeconds * 1000;
     const now = Date.now();
 
     const existing = await this.cacheManager.get<{
@@ -147,11 +149,16 @@ export class CacheManagerService {
 
     await this.cacheManager.set(key, { hits, expiresAt }, remainingTtl);
 
+    const isBlocked = hits > limit;
+    const timeToBlockExpire = isBlocked
+      ? Math.max(0, blockDurationMs - (now - expiresAt + ttlMs))
+      : 0;
+
     const record: ThrottlerStorageRecord = {
       totalHits: hits,
       timeToExpire: remainingTtl,
-      isBlocked: false,
-      timeToBlockExpire: 0,
+      isBlocked,
+      timeToBlockExpire,
     };
     return record;
   }

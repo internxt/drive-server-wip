@@ -48,7 +48,6 @@ import {
 } from './user.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
-import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import {
   RecoverAccountDto,
@@ -65,7 +64,7 @@ import {
 import getEnv from '../../config/configuration';
 import { v4, validate } from 'uuid';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import { Throttle } from '@nestjs/throttler';
+import { Throttle, seconds } from '@nestjs/throttler';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
 import { SharingService } from '../sharing/sharing.service';
@@ -108,8 +107,6 @@ import { PaymentRequiredException } from '../feature-limit/exceptions/payment-re
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
 import { CaptchaGuard } from '../auth/captcha.guard';
-import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
-import { CustomThrottle } from '../../guards/custom-endpoint-throttle.decorator';
 
 @ApiTags('User')
 @Controller('users')
@@ -127,10 +124,9 @@ export class UserController {
     private readonly klaviyoService: KlaviyoTrackingService,
   ) {}
 
-  @UseGuards(ThrottlerGuard)
   @Throttle({
     long: {
-      ttl: 3600,
+      ttl: seconds(3600),
       limit: 5,
     },
   })
@@ -231,10 +227,9 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
   @Throttle({
     long: {
-      ttl: 3600,
+      ttl: seconds(3600),
       limit: 5,
     },
   })
@@ -291,10 +286,10 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard, CaptchaGuard)
+  @UseGuards(CaptchaGuard)
   @Throttle({
     long: {
-      ttl: 3600,
+      ttl: seconds(3600),
       limit: 5,
     },
   })
@@ -462,10 +457,9 @@ export class UserController {
     return userCredentials;
   }
 
-  @UseGuards(CustomEndpointThrottleGuard)
-  @CustomThrottle({
-    short: { ttl: 60, limit: 2 },
-    long: { ttl: 1800, limit: 5 }
+  @Throttle({
+    short: { ttl: seconds(60), limit: 2 },
+    long: { ttl: seconds(1800), limit: 5 },
   })
   @Get('/refresh')
   @HttpCode(200)
@@ -484,7 +478,6 @@ export class UserController {
     return userCredentials;
   }
 
-  @UseGuards(ThrottlerGuard)
   @Get('/cli/refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -611,7 +604,7 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard, CaptchaGuard)
+  @UseGuards(CaptchaGuard)
   @Post('/recover-account')
   @HttpCode(200)
   @ApiOperation({
@@ -641,7 +634,7 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard, CaptchaGuard)
+  @UseGuards(CaptchaGuard)
   @Post('/unblock-account')
   @HttpCode(200)
   @ApiOperation({
@@ -670,7 +663,6 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
   @Put('/unblock-account')
   @HttpCode(200)
   @ApiOperation({
@@ -733,7 +725,6 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
   @Put('/recover-account')
   @HttpCode(200)
   @ApiOperation({
@@ -823,7 +814,6 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
   @Put('/recover-account-v2')
   @HttpCode(200)
   @ApiOperation({
@@ -922,7 +912,6 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
   @Put('/legacy-recover-account')
   @Public()
   @ApiOperation({
@@ -977,7 +966,7 @@ export class UserController {
 
   @Throttle({
     default: {
-      ttl: 60,
+      ttl: seconds(60),
       limit: 5,
     },
   })
@@ -1009,7 +998,7 @@ export class UserController {
   }
 
   @HttpCode(201)
-  @UseGuards(ThrottlerGuard, CaptchaGuard)
+  @UseGuards(CaptchaGuard)
   @Post('/attempt-change-email')
   async createAttemptChangeEmail(
     @UserDecorator() user: User,
@@ -1050,7 +1039,6 @@ export class UserController {
     return await this.userUseCases.isAttemptChangeEmailExpired(id);
   }
 
-  @UseGuards(ThrottlerGuard)
   @Get('/meet-token/beta')
   @HttpCode(200)
   @ApiOperation({
@@ -1089,7 +1077,6 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
   @Get('/meet-token/anon')
   @HttpCode(200)
   @ApiOperation({
@@ -1110,7 +1097,6 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
   @Post('/notification-token')
   @HttpCode(201)
   @ApiBearerAuth()
@@ -1137,7 +1123,6 @@ export class UserController {
   }
 
   @Post('/email-verification')
-  @UseGuards(ThrottlerGuard)
   @ApiOperation({
     summary: 'Verify user email',
   })
@@ -1232,7 +1217,6 @@ export class UserController {
   }
 
   @Post('/deactivation/confirm')
-  @UseGuards(ThrottlerGuard)
   @ApiBearerAuth()
   @AuditLog({
     action: AuditAction.AccountDeactivated,
@@ -1264,10 +1248,7 @@ export class UserController {
     }
   }
 
-  @UseGuards(CustomEndpointThrottleGuard)
-  @CustomThrottle({
-    short: { ttl: 60, limit: 60 },
-  })
+  @Throttle({ short: { ttl: seconds(60), limit: 60 } })
   @Get('/usage')
   @ApiBearerAuth()
   @ApiOperation({
@@ -1329,7 +1310,7 @@ export class UserController {
   @Get('/generate-mnemonic')
   @Throttle({
     long: {
-      ttl: 3600,
+      ttl: seconds(3600),
       limit: 5,
     },
   })

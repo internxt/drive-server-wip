@@ -14,7 +14,6 @@ import {
   Post,
   Put,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -67,8 +66,7 @@ import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { GetFilesInFoldersDto } from './dto/get-files-in-folder.dto';
 import { GetFoldersInFoldersDto } from './dto/get-folders-in-folder.dto';
 import { GetFoldersQueryDto } from './dto/get-folders.dto';
-import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
-import { CustomThrottle } from '../../guards/custom-endpoint-throttle.decorator';
+import { Throttle, seconds } from '@nestjs/throttler';
 
 export class BadRequestWrongFolderIdException extends BadRequestException {
   constructor() {
@@ -87,10 +85,7 @@ export class FolderController {
     private readonly storageNotificationService: StorageNotificationService,
   ) {}
 
-  @UseGuards(CustomEndpointThrottleGuard)
-  @CustomThrottle({
-    long: { ttl: 3600, limit: 30000 },
-  })
+  @Throttle({ long: { ttl: seconds(3600), limit: 30000 } })
   @Post('/')
   @ApiOperation({
     summary: 'Create Folder',
@@ -486,10 +481,7 @@ export class FolderController {
     };
   }
 
-  @UseGuards(CustomEndpointThrottleGuard)
-  @CustomThrottle({
-    short: { ttl: 60, limit: 60 },
-  })
+  @Throttle({ short: { ttl: seconds(60), limit: 60 } })
   @Get('/')
   @ApiOkResponse({ isArray: true, type: FolderDto })
   async getFolders(
@@ -771,10 +763,7 @@ export class FolderController {
     return folderDto;
   }
 
-  @UseGuards(CustomEndpointThrottleGuard)
-  @CustomThrottle({
-    short: { ttl: 60, limit: 30 },
-  })
+  @Throttle({ short: { ttl: seconds(60), limit: 30 } })
   @Get('/meta')
   async getFolderMetaByPath(
     @UserDecorator() user: User,

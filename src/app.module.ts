@@ -32,7 +32,6 @@ import { getClientIdFromHeaders } from './common/decorators/client.decorator';
 import { CustomThrottlerGuard } from './guards/throttler.guard';
 import { AuthGuard } from './modules/auth/auth.guard';
 import { CustomThrottlerModule } from './guards/throttler.module';
-import { CustomEndpointThrottleGuard } from './guards/custom-endpoint-throttle.guard';
 import { CacheManagerModule } from './modules/cache-manager/cache-manager.module';
 
 @Module({
@@ -159,10 +158,6 @@ import { CacheManagerModule } from './modules/cache-manager/cache-manager.module
     {
       provide: APP_GUARD,
       useClass: CustomThrottlerGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: CustomEndpointThrottleGuard
     },
     {
       provide: APP_GUARD,

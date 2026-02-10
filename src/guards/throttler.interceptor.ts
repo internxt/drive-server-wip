@@ -10,7 +10,10 @@ import { Observable } from 'rxjs';
 import { ThrottlerException } from '@nestjs/throttler';
 import { User } from 'src/modules/user/user.domain';
 import { Reflector } from '@nestjs/core';
-import { CUSTOM_ENDPOINT_THROTTLE_KEY } from './custom-endpoint-throttle.decorator';
+import { getClientIp, setRateLimitHeaders } from './throttler-utils';
+
+const THROTTLER_LIMIT_KEY = 'THROTTLER:LIMIT';
+const THROTTLER_NAMES = ['default', 'short', 'long'];
 
 @Injectable()
 export class CustomThrottlerInterceptor implements NestInterceptor {
@@ -48,32 +51,36 @@ export class CustomThrottlerInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
 
-    // Interceptors run before guards, so we must check metadata and
-    // bypass the global interceptor when custom throttle is present.
-    const hasCustom =
-      this.reflector.get(CUSTOM_ENDPOINT_THROTTLE_KEY, context.getHandler()) ||
-      this.reflector.get(CUSTOM_ENDPOINT_THROTTLE_KEY, context.getClass());
+    // Bypass tier-based throttling when the route has an explicit @Throttle() override
+    const hasThrottleOverride = THROTTLER_NAMES.some((name) =>
+      this.reflector.getAllAndOverride(THROTTLER_LIMIT_KEY + name, [
+        context.getHandler(),
+        context.getClass(),
+      ]),
+    );
 
-    if (hasCustom) {
+    if (hasThrottleOverride) {
       return next.handle();
     }
+
     const user = request.user as User | null;
-    let key = `rl:${request.ip}`;
-    if (user && user.uuid) {
+    const ip = getClientIp(request);
+    let key = `rl:${ip}`;
+    if (user?.uuid) {
       key = `rl:${user.uuid}`;
     }
 
     const { ttl, limit } = this.getRateLimit(user);
 
-    const record = await this.cacheService.increment(key, ttl);
+    const record = await this.cacheService.increment(key, ttl * 1000);
 
     if (ttl && limit) {
-      const remaining = Math.max(0, limit - record.totalHits);
-      const resetTime = record.timeToExpire;
-
-      response.setHeader('x-internxt-ratelimit-limit', limit);
-      response.setHeader('x-internxt-ratelimit-remaining', remaining);
-      response.setHeader('x-internxt-ratelimit-reset', resetTime);
+      setRateLimitHeaders(
+        response,
+        limit,
+        record.totalHits,
+        record.timeToExpire,
+      );
     }
 
     if (record.totalHits > limit) {

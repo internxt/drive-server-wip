@@ -18,9 +18,12 @@ import { CacheManagerModule } from '../modules/cache-manager/cache-manager.modul
         storage: customStorage,
         throttlers: [
           {
+            name: 'default',
             ttl: seconds(configService.get('users.rateLimit.default.ttl')),
             limit: configService.get('users.rateLimit.default.limit'),
           },
+          { name: 'short', ttl: seconds(60), limit: 999999 },
+          { name: 'long', ttl: seconds(3600), limit: 999999 },
         ],
       }),
     }),

@@ -27,8 +27,8 @@ describe('CustomThrottlerInterceptor', () => {
   });
 
   describe('intercept', () => {
-    it('When handler or class has custom throttle metadata then bypasses global throttling', async () => {
-      (reflector.get as jest.Mock).mockReturnValue(true);
+    it('When handler or class has @Throttle() metadata then bypasses global throttling', async () => {
+      (reflector.getAllAndOverride as jest.Mock).mockReturnValue(true);
       const context = tsjest.createMock<ExecutionContext>();
       const next: Partial<CallHandler> = { handle: jest.fn(() => of('ok')) };
 
@@ -41,15 +41,20 @@ describe('CustomThrottlerInterceptor', () => {
     });
 
     it('When anonymous request under limit then increments by ip and allows', async () => {
-      (reflector.get as jest.Mock).mockReturnValue(undefined);
+      (reflector.getAllAndOverride as jest.Mock).mockReturnValue(undefined);
       configService.get = jest.fn((key: string) => {
         if (key === 'users.rateLimit.anonymous.ttl') return 30;
         if (key === 'users.rateLimit.anonymous.limit') return 10;
         return undefined;
       }) as any;
 
-      const request: any = { ip: '10.0.0.1', user: null };
-      const response: any = { setHeader: jest.fn() };
+      const request: any = {
+        ip: '10.0.0.1',
+        user: null,
+        headers: {},
+        ips: [],
+      };
+      const response: any = { header: jest.fn() };
       const context = tsjest.createMock<ExecutionContext>();
       (context as any).switchToHttp = () => ({
         getRequest: () => request,
@@ -66,19 +71,22 @@ describe('CustomThrottlerInterceptor', () => {
 
       expect(cacheService.increment).toHaveBeenCalledWith(
         `rl:${request.ip}`,
-        30,
+        30000,
       );
-      expect(response.setHeader).toHaveBeenCalledWith(
+      expect(response.header).toHaveBeenCalledWith('X-RateLimit-Limit', 10);
+      expect(response.header).toHaveBeenCalledWith('X-RateLimit-Remaining', 9);
+      expect(response.header).toHaveBeenCalledWith('X-RateLimit-Reset', 1);
+      expect(response.header).toHaveBeenCalledWith(
         'x-internxt-ratelimit-limit',
         10,
       );
-      expect(response.setHeader).toHaveBeenCalledWith(
+      expect(response.header).toHaveBeenCalledWith(
         'x-internxt-ratelimit-remaining',
         9,
       );
-      expect(response.setHeader).toHaveBeenCalledWith(
+      expect(response.header).toHaveBeenCalledWith(
         'x-internxt-ratelimit-reset',
-        1000,
+        1,
       );
       expect(
         (next.handle as jest.Mock).mock.calls.length,
@@ -86,7 +94,7 @@ describe('CustomThrottlerInterceptor', () => {
     });
 
     it('When authenticated free-tier user exceeds limit then the request is throttled', async () => {
-      (reflector.get as jest.Mock).mockReturnValue(undefined);
+      (reflector.getAllAndOverride as jest.Mock).mockReturnValue(undefined);
       const freeTierId = 'free-tier';
       configService.get = jest.fn((key: string) => {
         switch (key) {
@@ -104,8 +112,10 @@ describe('CustomThrottlerInterceptor', () => {
       const request: any = {
         ip: '1.1.1.1',
         user: { uuid: 'u123', tierId: freeTierId },
+        headers: {},
+        ips: [],
       };
-      const response: any = { setHeader: jest.fn() };
+      const response: any = { header: jest.fn() };
       const context = tsjest.createMock<ExecutionContext>();
       (context as any).switchToHttp = () => ({
         getRequest: () => request,
@@ -123,19 +133,54 @@ describe('CustomThrottlerInterceptor', () => {
       ).rejects.toBeInstanceOf(ThrottlerException);
       expect(cacheService.increment).toHaveBeenCalledWith(
         `rl:${request.user.uuid}`,
-        20,
+        20000,
       );
-      expect(response.setHeader).toHaveBeenCalledWith(
+      expect(response.header).toHaveBeenCalledWith(
         'x-internxt-ratelimit-limit',
         1,
       );
-      expect(response.setHeader).toHaveBeenCalledWith(
+      expect(response.header).toHaveBeenCalledWith(
         'x-internxt-ratelimit-remaining',
         0,
       );
-      expect(response.setHeader).toHaveBeenCalledWith(
+      expect(response.header).toHaveBeenCalledWith(
         'x-internxt-ratelimit-reset',
-        100,
+        1,
+      );
+    });
+
+    it('When cf-connecting-ip header is present then uses it for key', async () => {
+      (reflector.getAllAndOverride as jest.Mock).mockReturnValue(undefined);
+      configService.get = jest.fn((key: string) => {
+        if (key === 'users.rateLimit.anonymous.ttl') return 30;
+        if (key === 'users.rateLimit.anonymous.limit') return 10;
+        return undefined;
+      }) as any;
+
+      const request: any = {
+        ip: '10.0.0.1',
+        user: null,
+        headers: { 'cf-connecting-ip': '203.0.113.5' },
+        ips: [],
+      };
+      const response: any = { header: jest.fn() };
+      const context = tsjest.createMock<ExecutionContext>();
+      (context as any).switchToHttp = () => ({
+        getRequest: () => request,
+        getResponse: () => response,
+      });
+
+      (cacheService.increment as jest.Mock).mockResolvedValue({
+        totalHits: 1,
+        timeToExpire: 1000,
+      });
+      const next: Partial<CallHandler> = { handle: jest.fn(() => of('ok')) };
+
+      await interceptor.intercept(context, next as CallHandler);
+
+      expect(cacheService.increment).toHaveBeenCalledWith(
+        'rl:203.0.113.5',
+        30000,
       );
     });
   });

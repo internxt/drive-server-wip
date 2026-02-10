@@ -56,8 +56,7 @@ import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { RequestLoggerInterceptor } from '../../middlewares/requests-logger.interceptor';
 import { Version } from '../../common/decorators/version.decorator';
-import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
-import { CustomThrottle } from '../../guards/custom-endpoint-throttle.decorator';
+import { Throttle, seconds } from '@nestjs/throttler';
 
 @ApiTags('File')
 @Controller('files')
@@ -347,10 +346,7 @@ export class FileController {
     return result;
   }
 
-  @UseGuards(CustomEndpointThrottleGuard)
-  @CustomThrottle({
-    short: { ttl: 60, limit: 100 },
-  })
+  @Throttle({ short: { ttl: seconds(60), limit: 100 } })
   @Get('/')
   @ApiOkResponse({ isArray: true, type: FileDto })
   async getFiles(
@@ -455,10 +451,7 @@ export class FileController {
     return files;
   }
 
-  @UseGuards(CustomEndpointThrottleGuard)
-  @CustomThrottle({
-    short: { ttl: 60, limit: 100 },
-  })
+  @Throttle({ short: { ttl: seconds(60), limit: 100 } })
   @Get('/meta')
   @ApiOkResponse({ type: FileDto })
   async getFileMetaByPath(
