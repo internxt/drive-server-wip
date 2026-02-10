@@ -464,7 +464,8 @@ export class UserController {
 
   @UseGuards(CustomEndpointThrottleGuard)
   @CustomThrottle({
-    short: { ttl: 60, limit: 5 },
+    short: { ttl: 60, limit: 2 },
+    long: { ttl: 1800, limit: 5 }
   })
   @Get('/refresh')
   @HttpCode(200)
