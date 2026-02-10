@@ -4,6 +4,7 @@ import { Reflector } from '@nestjs/core';
 import { CustomEndpointThrottleGuard } from './custom-endpoint-throttle.guard';
 import { CacheManagerService } from '../modules/cache-manager/cache-manager.service';
 import { ThrottlerException } from '@nestjs/throttler';
+import jwt from 'jsonwebtoken';
 
 describe('CustomThrottleGuard', () => {
   let guard: CustomEndpointThrottleGuard;
@@ -38,6 +39,7 @@ describe('CustomThrottleGuard', () => {
         const request: any = {
           route: { path: route },
           user: { uuid: 'user-1' },
+          headers: {},
           ip: '1.2.3.4',
         };
         (cacheService.increment as jest.Mock).mockResolvedValue({
@@ -63,6 +65,7 @@ describe('CustomThrottleGuard', () => {
         const request: any = {
           route: { path: route },
           user: { uuid: 'user-2' },
+          headers: {},
           ip: '2.2.2.2',
         };
         (cacheService.increment as jest.Mock).mockResolvedValue({
@@ -82,6 +85,64 @@ describe('CustomThrottleGuard', () => {
       });
     });
 
+    describe('When request.user is undefined but authorization header is present', () => {
+      const route = '/some-route';
+
+      it('When under limit then it throttles using the decoded token identity', async () => {
+        const policy = { ttl: 60, limit: 5 };
+        (reflector.get as jest.Mock).mockReturnValue(policy);
+
+        const token = jwt.sign({ uuid: 'token-user-1' }, 'secret');
+
+        const request: any = {
+          route: { path: route },
+          headers: { authorization: `Bearer ${token}` },
+          ip: '5.5.5.5',
+        };
+        (cacheService.increment as jest.Mock).mockResolvedValue({
+          totalHits: 1,
+          timeToExpire: 5000,
+        });
+        const context = tsjest.createMock<ExecutionContext>();
+        (context as any).switchToHttp = () => ({ getRequest: () => request });
+
+        const result = await guard.canActivate(context);
+
+        expect(result).toBe(true);
+        expect(cacheService.increment).toHaveBeenCalledWith(
+          `${route}:policy0:cet:uid:token-user-1`,
+          60,
+        );
+      });
+
+      it('When over the limit then the request is throttled', async () => {
+        const policy = { ttl: 60, limit: 1 };
+        (reflector.get as jest.Mock).mockReturnValue(policy);
+
+        const token = jwt.sign({ uuid: 'token-user-2' }, 'secret');
+
+        const request: any = {
+          route: { path: route },
+          headers: { authorization: `Bearer ${token}` },
+          ip: '5.5.5.5',
+        };
+        (cacheService.increment as jest.Mock).mockResolvedValue({
+          totalHits: 2,
+          timeToExpire: 1000,
+        });
+        const context = tsjest.createMock<ExecutionContext>();
+        (context as any).switchToHttp = () => ({ getRequest: () => request });
+
+        await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+          ThrottlerException,
+        );
+        expect(cacheService.increment).toHaveBeenCalledWith(
+          `${route}:policy0:cet:uid:token-user-2`,
+          60,
+        );
+      });
+    });
+
     describe('Applying multiple policies', () => {
       const route = '/login';
 
@@ -94,6 +155,7 @@ describe('CustomThrottleGuard', () => {
         const request: any = {
           route: { path: route },
           user: null,
+          headers: {},
           ip: '9.9.9.9',
         };
 
@@ -132,6 +194,7 @@ describe('CustomThrottleGuard', () => {
         const request: any = {
           route: { path: route },
           user: null,
+          headers: {},
           ip: '11.11.11.11',
         };
 
