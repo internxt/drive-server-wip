@@ -317,6 +317,9 @@ export class GatewayUseCases {
       user.tierId = newTierId;
     }
 
+    Logger.log(
+      `[GATEWAY/UPDATE_TIER] Validating storage update for user ${user.uuid}: newStorageSpaceBytes=${newStorageSpaceBytes}`,
+    );
     if (!newStorageSpaceBytes) {
       return;
     }
@@ -341,6 +344,10 @@ export class GatewayUseCases {
 
     const limits =
       await this.featureLimitService.getFileVersioningLimits(user.uuid);
+
+    Logger.log(
+      `[GATEWAY/UPDATE_TIER] Starting file versioning validation for user ${user.uuid}: enabled=${limits.enabled}, retentionDays=${limits.retentionDays}, maxVersions=${limits.maxVersions}`,
+    );
 
     if (limits.enabled) {
       const { deletedCount } =

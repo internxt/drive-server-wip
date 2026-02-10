@@ -1,11 +1,7 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  Inject,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ThrottlerException } from '@nestjs/throttler';
+import jwt from 'jsonwebtoken';
 import { CacheManagerService } from '../modules/cache-manager/cache-manager.service';
 import {
   CUSTOM_ENDPOINT_THROTTLE_KEY,
@@ -18,6 +14,19 @@ export class CustomEndpointThrottleGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly cacheService: CacheManagerService,
   ) {}
+
+  private decodeAuthIfPresent(request: any): string | null {
+    if (!request.headers.authorization) {
+      return null;
+    }
+    try {
+      const token = request.headers.authorization.split(' ')[1];
+      const decoded: any = jwt.decode(token);
+      return decoded?.uuid || decoded?.payload?.uuid;
+    } catch {
+      return null;
+    }
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const raw = this.reflector.get<any>(
@@ -49,7 +58,6 @@ export class CustomEndpointThrottleGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-    const user = request.user;
 
     let ip = request.headers['cf-connecting-ip'];
     if (Array.isArray(ip)) {
@@ -59,9 +67,9 @@ export class CustomEndpointThrottleGuard implements CanActivate {
       ip = request.ip;
     }
 
-    const identifierBase = user?.uuid
-      ? `cet:uid:${user.uuid}`
-      : `cet:ip:${ip}`;
+    const userId = request.user?.uuid || this.decodeAuthIfPresent(request);
+
+    const identifierBase = userId ? `cet:uid:${userId}` : `cet:ip:${ip}`;
     const route = request.route?.path ?? request.originalUrl ?? 'unknown';
 
     // Apply all policies. If any policy is violated, throw.
