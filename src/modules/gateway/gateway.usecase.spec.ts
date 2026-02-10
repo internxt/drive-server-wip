@@ -514,7 +514,7 @@ describe('GatewayUseCases', () => {
 
       beforeEach(() => {
         jest
-          .spyOn(featureLimitService, 'getFileVersioningLimits')
+          .spyOn(featureLimitService, 'getFileVersioningLimitsByTier')
           .mockResolvedValue(newVersioningLimits({ enabled: false }));
 
         jest
@@ -734,7 +734,7 @@ describe('GatewayUseCases', () => {
         it('When user has versioning enabled, then should call partial undo', async () => {
           const enabledLimits = newVersioningLimits({ enabled: true });
           const getLimitsSpy = jest
-            .spyOn(featureLimitService, 'getFileVersioningLimits')
+            .spyOn(featureLimitService, 'getFileVersioningLimitsByTier')
             .mockResolvedValue(enabledLimits);
           const undoSpy = jest.spyOn(fileUseCases, 'undoFileVersioning');
           const partialUndoSpy = jest
@@ -749,7 +749,7 @@ describe('GatewayUseCases', () => {
 
           await service.updateUser(user, { newStorageSpaceBytes });
 
-          expect(getLimitsSpy).toHaveBeenCalledWith(user.uuid);
+          expect(getLimitsSpy).toHaveBeenCalledWith(user.uuid, user.tierId);
           expect(undoSpy).not.toHaveBeenCalled();
           expect(partialUndoSpy).toHaveBeenCalledWith(user.uuid, {
             retentionDays: enabledLimits.retentionDays,
@@ -760,7 +760,7 @@ describe('GatewayUseCases', () => {
         it('When user has versioning disabled, then should delete all file versions', async () => {
           const disabledLimits = newVersioningLimits({ enabled: false });
           const getLimitsSpy = jest
-            .spyOn(featureLimitService, 'getFileVersioningLimits')
+            .spyOn(featureLimitService, 'getFileVersioningLimitsByTier')
             .mockResolvedValue(disabledLimits);
           const undoSpy = jest
             .spyOn(fileUseCases, 'undoFileVersioning')
@@ -774,14 +774,14 @@ describe('GatewayUseCases', () => {
 
           await service.updateUser(user, { newStorageSpaceBytes });
 
-          expect(getLimitsSpy).toHaveBeenCalledWith(user.uuid);
+          expect(getLimitsSpy).toHaveBeenCalledWith(user.uuid, user.tierId);
           expect(undoSpy).toHaveBeenCalledWith(user.uuid);
         });
 
         it('When file versions are deleted, then should log deletion count', async () => {
           const disabledLimits = newVersioningLimits({ enabled: false });
           jest
-            .spyOn(featureLimitService, 'getFileVersioningLimits')
+            .spyOn(featureLimitService, 'getFileVersioningLimitsByTier')
             .mockResolvedValue(disabledLimits);
           jest
             .spyOn(fileUseCases, 'undoFileVersioning')
