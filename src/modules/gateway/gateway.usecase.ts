@@ -343,7 +343,10 @@ export class GatewayUseCases {
     }
 
     const limits =
-      await this.featureLimitService.getFileVersioningLimits(user.uuid);
+      await this.featureLimitService.getFileVersioningLimitsByTier(
+        user.uuid,
+        user.tierId,
+      );
 
     Logger.log(
       `[GATEWAY/UPDATE_TIER] Starting file versioning validation for user ${user.uuid}: enabled=${limits.enabled}, retentionDays=${limits.retentionDays}, maxVersions=${limits.maxVersions}`,
