@@ -62,7 +62,7 @@ describe('DeleteFileVersionAction', () => {
         networkFileId: 'network-id',
         size: BigInt(100),
         status: FileVersionStatus.EXISTS,
-        sourceLastUpdatedAt: new Date(),
+        modificationTime: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -128,7 +128,7 @@ describe('DeleteFileVersionAction', () => {
         networkFileId: 'network-id',
         size: BigInt(100),
         status: FileVersionStatus.EXISTS,
-        sourceLastUpdatedAt: new Date(),
+        modificationTime: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
       });

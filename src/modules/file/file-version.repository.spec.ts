@@ -33,7 +33,7 @@ describe('SequelizeFileVersionRepository', () => {
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
-        sourceLastUpdatedAt: version.sourceLastUpdatedAt,
+        modificationTime: version.modificationTime,
       });
 
       expect(result).toBeInstanceOf(FileVersion);
@@ -43,7 +43,7 @@ describe('SequelizeFileVersionRepository', () => {
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
-        sourceLastUpdatedAt: version.sourceLastUpdatedAt,
+        modificationTime: version.modificationTime,
       });
     });
 
@@ -60,7 +60,7 @@ describe('SequelizeFileVersionRepository', () => {
         userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
-        sourceLastUpdatedAt: version.sourceLastUpdatedAt,
+        modificationTime: version.modificationTime,
       } as any);
 
       expect(fileVersionModel.create).toHaveBeenCalledWith(
@@ -86,7 +86,7 @@ describe('SequelizeFileVersionRepository', () => {
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
-        sourceLastUpdatedAt: version.sourceLastUpdatedAt,
+        modificationTime: version.modificationTime,
       });
 
       expect(result.status).toBe(FileVersionStatus.DELETED);
@@ -107,7 +107,7 @@ describe('SequelizeFileVersionRepository', () => {
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
-        sourceLastUpdatedAt: version.sourceLastUpdatedAt,
+        modificationTime: version.modificationTime,
       });
 
       expect(result.size).toBe(largeSize);
@@ -222,7 +222,7 @@ describe('SequelizeFileVersionRepository', () => {
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
-        sourceLastUpdatedAt: version.sourceLastUpdatedAt,
+        modificationTime: version.modificationTime,
       });
 
       expect(result).toBeInstanceOf(FileVersion);
@@ -250,7 +250,7 @@ describe('SequelizeFileVersionRepository', () => {
         fileId: version.fileId,
         networkFileId: version.networkFileId,
         size: version.size,
-        sourceLastUpdatedAt: version.sourceLastUpdatedAt,
+        modificationTime: version.modificationTime,
       } as any);
 
       expect(fileVersionModel.upsert).toHaveBeenCalledWith(

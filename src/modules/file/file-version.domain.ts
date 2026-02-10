@@ -10,7 +10,7 @@ export interface FileVersionAttributes {
   networkFileId: string;
   size: bigint;
   status: FileVersionStatus;
-  sourceLastUpdatedAt: Date;
+  modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,7 +22,7 @@ export class FileVersion implements FileVersionAttributes {
   networkFileId: string;
   size: bigint;
   status: FileVersionStatus;
-  sourceLastUpdatedAt: Date;
+  modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
 
@@ -33,7 +33,7 @@ export class FileVersion implements FileVersionAttributes {
     this.networkFileId = attributes.networkFileId;
     this.size = attributes.size;
     this.status = attributes.status;
-    this.sourceLastUpdatedAt = attributes.sourceLastUpdatedAt;
+    this.modificationTime = attributes.modificationTime;
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;
   }
@@ -58,7 +58,7 @@ export class FileVersion implements FileVersionAttributes {
       networkFileId: this.networkFileId,
       size: this.size,
       status: this.status,
-      sourceLastUpdatedAt: this.sourceLastUpdatedAt,
+      modificationTime: this.modificationTime,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };
