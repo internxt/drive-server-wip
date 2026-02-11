@@ -13,7 +13,6 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { TrashModule } from '../trash/trash.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
-import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 
 @Module({
@@ -34,7 +33,6 @@ import { CacheManagerModule } from '../cache-manager/cache-manager.module';
     SequelizeFolderRepository,
     CryptoService,
     FolderUseCases,
-    CustomEndpointThrottleGuard,
   ],
   exports: [FolderUseCases, SequelizeFolderRepository],
 })
