@@ -55,7 +55,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalInterceptors(new NewRelicInterceptor());
-  
+
   app.use(helmet());
 
   if (!config.isProduction) {

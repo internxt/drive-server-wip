@@ -19,7 +19,13 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
     const request = ctx.getRequest();
     const response = ctx.getResponse();
 
+    const requestId = request.id;
+
     try {
+      if (requestId) {
+        response.setHeader('x-request-id', requestId);
+      }
+
       //  Errors thrown intentionally by the application
       if (exception instanceof HttpException) {
         const status = exception.getStatus
@@ -37,11 +43,10 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
         return httpAdapter.reply(response, message, status);
       }
 
-      const requestId = request.id;
-
       if (this.isQueryTimeoutError(exception)) {
         this.logger.warn(
           {
+            requestId,
             path: request.url,
             method: request.method,
             errorType: 'QUERY_TIMEOUT',
@@ -63,7 +68,7 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
       }
 
       if (this.isDatabaseConnectionError(exception)) {
-        this.logDatabaseConnectionError(exception, request);
+        this.logDatabaseConnectionError(exception, request, requestId);
 
         return httpAdapter.reply(
           response,
@@ -76,7 +81,7 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
         );
       }
 
-      this.logUnexpectedError(exception, request);
+      this.logUnexpectedError(exception, request, requestId);
 
       return httpAdapter.reply(
         response,
@@ -89,6 +94,7 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
       );
     } catch (error) {
       const errorDetails = {
+        requestId,
         user: {
           email: request?.user?.email,
           uuid: request?.user?.uuid,
@@ -138,8 +144,13 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
     );
   }
 
-  private logDatabaseConnectionError(exception: any, request) {
+  private logDatabaseConnectionError(
+    exception: any,
+    request: any,
+    requestId?: string,
+  ) {
     const errorResponse = {
+      requestId,
       name: exception.name,
       path: request.url,
       errorType: 'DATABASE_CONNECTION_ERROR',
@@ -155,7 +166,7 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
     this.logger.error(errorResponse, 'DATABASE_CONNECTION_ERROR');
   }
 
-  logUnexpectedError(exception: any, request) {
+  logUnexpectedError(exception: any, request: any, requestId?: string) {
     let errorSubtype = '';
     if (exception instanceof SequelizeError) {
       errorSubtype = 'DATABASE';
@@ -168,6 +179,7 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
       : 'UNEXPECTED_ERROR';
 
     const errorResponse = {
+      requestId,
       name: exception.name,
       path: request.url,
       errorType: errorCategory,
