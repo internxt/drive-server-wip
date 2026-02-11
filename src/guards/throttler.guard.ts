@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ThrottlerGuard as BaseThrottlerGuard } from '@nestjs/throttler';
 import { ThrottlerRequest } from '@nestjs/throttler/dist/throttler.guard.interface';
-import { decodeUserUuidFromAuth, getClientIp } from './throttler-utils';
+import {
+  decodeUserUuidFromAuth,
+  getClientIp,
+  setRateLimitHeaders,
+} from './throttler-utils';
 
 const THROTTLER_LIMIT_KEY = 'THROTTLER:LIMIT';
-const THROTTLER_NAMES = ['default', 'short', 'long'];
 
 @Injectable()
 export class CustomThrottlerGuard extends BaseThrottlerGuard {
@@ -23,19 +26,6 @@ export class CustomThrottlerGuard extends BaseThrottlerGuard {
     return `rl:${ip}`;
   }
 
-  private hasThrottleOverride(context: any): boolean {
-    const handler = context.getHandler();
-    const classRef = context.getClass();
-    return THROTTLER_NAMES.some(
-      (name) =>
-        name !== 'default' &&
-        this.reflector.getAllAndOverride(THROTTLER_LIMIT_KEY + name, [
-          handler,
-          classRef,
-        ]) !== undefined,
-    );
-  }
-
   protected async handleRequest(
     requestProps: ThrottlerRequest,
   ): Promise<boolean> {
@@ -49,20 +39,14 @@ export class CustomThrottlerGuard extends BaseThrottlerGuard {
       generateKey,
     } = requestProps;
 
-    if (throttler.name === 'default') {
-      if (this.hasThrottleOverride(context)) {
-        return true;
-      }
-    } else {
-      const handler = context.getHandler();
-      const classRef = context.getClass();
-      const routeLimit = this.reflector.getAllAndOverride<number>(
-        THROTTLER_LIMIT_KEY + throttler.name,
-        [handler, classRef],
-      );
-      if (routeLimit === undefined) {
-        return true;
-      }
+    const handler = context.getHandler();
+    const classRef = context.getClass();
+    const routeLimit = this.reflector.getAllAndOverride<number>(
+      THROTTLER_LIMIT_KEY + throttler.name,
+      [handler, classRef],
+    );
+    if (routeLimit === undefined) {
+      return true;
     }
 
     const { req, res } = this.getRequestResponse(context);
@@ -78,15 +62,7 @@ export class CustomThrottlerGuard extends BaseThrottlerGuard {
         throttler.name,
       );
 
-    const remaining = Math.max(0, limit - totalHits);
-    const timeToExpireInSeconds = Math.ceil(timeToExpire / 1000);
-
-    res.header('X-RateLimit-Limit', limit);
-    res.header('X-RateLimit-Remaining', remaining);
-    res.header('X-RateLimit-Reset', timeToExpireInSeconds);
-    res.header('x-internxt-ratelimit-limit', limit);
-    res.header('x-internxt-ratelimit-remaining', remaining);
-    res.header('x-internxt-ratelimit-reset', timeToExpireInSeconds);
+    setRateLimitHeaders(res, limit, totalHits, timeToExpire);
 
     if (isBlocked) {
       res.header('Retry-After', timeToBlockExpire);
