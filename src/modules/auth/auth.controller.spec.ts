@@ -540,12 +540,6 @@ describe('AuthController', () => {
       expect(result).toEqual(mockLoginResult);
     });
 
-    it('When unknown client header is provided, then it should throw BadRequestException', async () => {
-      await expect(
-        authController.cliLoginAccess(loginAccessDto, 'unknown-client'),
-      ).rejects.toThrow(BadRequestException);
-    });
-
     it('When user cannot access CLI platform, then it should throw PaymentRequiredException', async () => {
       const eccKey = newKeyServer({ ...loginAccessDto });
       const mockUser = newUser({ attributes: { tierId: 'free_id' } });

@@ -50,7 +50,6 @@ import {
 } from '../feature-limit/limits.enum';
 import { FeatureLimitUsecases } from '../feature-limit/feature-limit.usecase';
 import { SequelizeFileVersionRepository } from './file-version.repository';
-import { FileVersionStatus } from './file-version.domain';
 import { FileVersionDto } from './dto/responses/file-version.dto';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
@@ -59,7 +58,13 @@ import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
-import { DeleteFileVersionAction, GetFileVersionsAction } from './actions';
+import {
+  DeleteFileVersionAction,
+  GetFileVersionsAction,
+  CreateFileVersionAction,
+  RestoreFileVersionAction,
+  UndoFileVersioningAction,
+} from './actions';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -96,6 +101,9 @@ export class FileUseCases {
     private readonly cacheManagerService: CacheManagerService,
     private readonly getFileVersionsAction: GetFileVersionsAction,
     private readonly deleteFileVersionAction: DeleteFileVersionAction,
+    private readonly createFileVersionAction: CreateFileVersionAction,
+    private readonly restoreFileVersionAction: RestoreFileVersionAction,
+    private readonly undoFileVersioningAction: UndoFileVersioningAction,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -269,61 +277,7 @@ export class FileUseCases {
     fileUuid: string,
     versionId: string,
   ): Promise<File> {
-    const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
-
-    if (!file) {
-      throw new NotFoundException('File not found');
-    }
-
-    if (!file.isOwnedBy(user)) {
-      throw new ForbiddenException('You do not own this file');
-    }
-
-    const versionToRestore =
-      await this.fileVersionRepository.findById(versionId);
-
-    if (!versionToRestore) {
-      throw new NotFoundException('Version not found');
-    }
-
-    if (versionToRestore.fileId !== fileUuid) {
-      throw new BadRequestException('Version does not belong to this file');
-    }
-
-    if (versionToRestore.status !== FileVersionStatus.EXISTS) {
-      throw new BadRequestException('Cannot restore a deleted version');
-    }
-
-    const allVersions =
-      await this.fileVersionRepository.findAllByFileId(fileUuid);
-
-    const newerVersions = allVersions.filter(
-      (v) =>
-        v.createdAt > versionToRestore.createdAt &&
-        v.status === FileVersionStatus.EXISTS,
-    );
-
-    const idsToDelete = [
-      ...newerVersions.map((v) => v.id),
-      versionToRestore.id,
-    ];
-
-    await Promise.all([
-      this.fileVersionRepository.updateStatusBatch(
-        idsToDelete,
-        FileVersionStatus.DELETED,
-      ),
-      this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
-        fileId: versionToRestore.networkFileId,
-        size: versionToRestore.size,
-        updatedAt: new Date(),
-      }),
-    ]);
-
-    file.fileId = versionToRestore.networkFileId;
-    file.size = versionToRestore.size;
-
-    return file;
+    return this.restoreFileVersionAction.execute(user, fileUuid, versionId);
   }
 
   getByUuids(uuids: File['uuid'][]): Promise<File[]> {
@@ -861,25 +815,15 @@ export class FileUseCases {
     );
 
     if (shouldVersion) {
-      await this.applyRetentionPolicy(fileUuid, user.uuid);
-
       const { size, modificationTime } = newFileData;
 
-      await Promise.all([
-        this.fileVersionRepository.upsert({
-          fileId: file.uuid,
-          userId: user.uuid,
-          networkFileId: file.fileId,
-          size: file.size,
-          status: FileVersionStatus.EXISTS,
-        }),
-        this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
-          fileId: newFileId,
-          size,
-          updatedAt: new Date(),
-          ...(modificationTime ? { modificationTime } : null),
-        }),
-      ]);
+      await this.createFileVersionAction.execute(
+        user,
+        file,
+        newFileId,
+        size,
+        modificationTime,
+      );
 
       return {
         ...file.toJSON(),
@@ -1194,61 +1138,6 @@ export class FileUseCases {
     return { versionable: true, limits };
   }
 
-  private async applyRetentionPolicy(
-    fileUuid: string,
-    userUuid: string,
-  ): Promise<void> {
-    const limits =
-      await this.featureLimitService.getFileVersioningLimits(userUuid);
-
-    if (!limits.enabled) {
-      return;
-    }
-
-    const { retentionDays, maxVersions } = limits;
-
-    const cutoffDate = Time.daysAgo(retentionDays);
-
-    const versions = await this.fileVersionRepository.findAllByFileId(fileUuid);
-
-    const versionsToDeleteByAge = versions.filter(
-      (version) => version.createdAt < cutoffDate,
-    );
-
-    const remainingVersions = versions
-      .filter((version) => version.createdAt >= cutoffDate)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    const versionsToDeleteByCount = remainingVersions.slice(maxVersions);
-
-    const versionsToDelete = [
-      ...versionsToDeleteByAge,
-      ...versionsToDeleteByCount,
-    ];
-
-    const remainingCount = versions.length - versionsToDelete.length;
-    if (remainingCount >= maxVersions) {
-      const versionsNotDeleted = versions.filter(
-        (v) => !versionsToDelete.some((vd) => vd.id === v.id),
-      );
-      const oldestVersion = versionsNotDeleted.sort(
-        (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
-      )[0];
-
-      if (oldestVersion) {
-        versionsToDelete.push(oldestVersion);
-      }
-    }
-
-    if (versionsToDelete.length > 0) {
-      const idsToDelete = versionsToDelete.map((v) => v.id);
-      await this.fileVersionRepository.updateStatusBatch(
-        idsToDelete,
-        FileVersionStatus.DELETED,
-      );
-    }
-  }
-
   async getVersioningLimits(userUuid: string): Promise<{
     enabled: boolean;
     maxFileSize: number;
@@ -1256,5 +1145,23 @@ export class FileUseCases {
     maxVersions: number;
   }> {
     return this.featureLimitService.getFileVersioningLimits(userUuid);
+  }
+
+  async undoFileVersioning(
+    userUuid: string,
+  ): Promise<{ deletedCount: number }> {
+    return this.undoFileVersioningAction.execute(userUuid, {
+      batchSize: 1000,
+    });
+  }
+
+  async partialUndoFileVersioning(
+    userUuid: string,
+    limits: { retentionDays: number; maxVersions: number },
+  ): Promise<{ deletedCount: number }> {
+    return this.undoFileVersioningAction.execute(userUuid, {
+      batchSize: 1000,
+      limits,
+    });
   }
 }

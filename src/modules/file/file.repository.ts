@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { withQueryTimeout } from '../../lib/query-timeout';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
 import {
@@ -938,48 +939,55 @@ export class SequelizeFileRepository implements FileRepository {
     userId: FileAttributes['userId'],
     sinceDate: Date,
   ): Promise<number> {
-    const result = await this.fileModel.findAll({
-      attributes: [
-        [
-          Sequelize.literal(`
-          SUM(
-            CASE      
-              WHEN status != 'DELETED' THEN size
-              
-              -- Files created BEFORE the period but deleted DURING the period
-              WHEN status = 'DELETED' AND created_at < $sinceDate THEN -size
+    return withQueryTimeout(
+      this.fileModel.sequelize,
+      8000,
+      async (transaction) => {
+        const result = await this.fileModel.findAll({
+          attributes: [
+            [
+              Sequelize.literal(`
+            SUM(
+              CASE
+                WHEN status != 'DELETED' THEN size
 
-              -- Files created and deleted DURING the period does not affect delta
-              ELSE 0
-            END
-          )
-        `),
-          'total',
-        ],
-      ],
-      where: {
-        userId,
-        [Op.or]: [
-          {
-            status: { [Op.ne]: FileStatus.DELETED },
-            createdAt: {
-              [Op.gte]: sinceDate,
-            },
-          },
-          {
-            status: FileStatus.DELETED,
-            updatedAt: {
-              [Op.gte]: sinceDate,
-            },
-          },
-        ],
-      },
-      bind: {
-        sinceDate,
-      },
-      raw: true,
-    });
+                -- Files created BEFORE the period but deleted DURING the period
+                WHEN status = 'DELETED' AND created_at < $sinceDate THEN -size
 
-    return Number(result[0]['total']) || 0;
+                -- Files created and deleted DURING the period does not affect delta
+                ELSE 0
+              END
+            )
+          `),
+              'total',
+            ],
+          ],
+          where: {
+            userId,
+            [Op.or]: [
+              {
+                status: { [Op.ne]: FileStatus.DELETED },
+                createdAt: {
+                  [Op.gte]: sinceDate,
+                },
+              },
+              {
+                status: FileStatus.DELETED,
+                updatedAt: {
+                  [Op.gte]: sinceDate,
+                },
+              },
+            ],
+          },
+          bind: {
+            sinceDate,
+          },
+          raw: true,
+          transaction,
+        });
+
+        return Number(result[0]['total']) || 0;
+      },
+    );
   }
 }

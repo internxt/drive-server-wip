@@ -154,6 +154,61 @@ describe('HttpGlobalExceptionFilter', () => {
       );
     });
 
+    it('When a query timeout error is sent, it should respond with 408 Request Timeout', () => {
+      const mockUser = newUser();
+      const mockException = new Error('Query timed out');
+      const requestId = v4();
+      const mockHost = createMockArgumentsHost(
+        '/test-url',
+        'GET',
+        mockUser,
+        {},
+        requestId,
+      );
+
+      filter.catch(mockException, mockHost);
+
+      expect(loggerMock.warn).toHaveBeenCalled();
+      expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          statusCode: HttpStatus.REQUEST_TIMEOUT,
+          message: 'Request timed out',
+          requestId,
+        }),
+        HttpStatus.REQUEST_TIMEOUT,
+      );
+    });
+
+    it('When a postgres cancellation error (57014) is sent, it should respond with 408 Request Timeout', () => {
+      const mockUser = newUser();
+      const mockException = {
+        original: { code: '57014' },
+        message: 'canceling statement due to statement timeout',
+      };
+      const requestId = v4();
+      const mockHost = createMockArgumentsHost(
+        '/test-url',
+        'GET',
+        mockUser,
+        {},
+        requestId,
+      );
+
+      filter.catch(mockException, mockHost);
+
+      expect(loggerMock.warn).toHaveBeenCalled();
+      expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          statusCode: HttpStatus.REQUEST_TIMEOUT,
+          message: 'Request timed out',
+          requestId,
+        }),
+        HttpStatus.REQUEST_TIMEOUT,
+      );
+    });
+
     it('When request does not contain user, it should be able to handle it gracefully', () => {
       const mockException = new Error('Unexpected error');
       const mockHost = createMockArgumentsHost('/test-url', 'GET', null);

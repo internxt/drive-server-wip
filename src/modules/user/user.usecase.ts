@@ -1668,7 +1668,9 @@ export class UserUseCases {
   }
 
   async getOrCreateUserRootFolderAndBucket(user: User) {
-    const rootFolder = await this.folderUseCases.getFolder(user.rootFolderId);
+    const rootFolder = await this.folderUseCases.getFolderByIdNoDecryption(
+      user.rootFolderId,
+    );
 
     if (rootFolder) {
       return rootFolder;

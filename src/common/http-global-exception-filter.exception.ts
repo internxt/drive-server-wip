@@ -39,6 +39,43 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
 
       const requestId = request.id;
 
+      if (this.isQueryTimeoutError(exception)) {
+        this.logger.warn(
+          {
+            path: request.url,
+            method: request.method,
+            errorType: 'QUERY_TIMEOUT',
+            user: { uuid: request?.user?.uuid },
+            error: { message: exception.message },
+          },
+          'QUERY_TIMEOUT',
+        );
+
+        return httpAdapter.reply(
+          response,
+          {
+            statusCode: HttpStatus.REQUEST_TIMEOUT,
+            message: 'Request timed out',
+            requestId,
+          },
+          HttpStatus.REQUEST_TIMEOUT,
+        );
+      }
+
+      if (this.isDatabaseConnectionError(exception)) {
+        this.logDatabaseConnectionError(exception, request);
+
+        return httpAdapter.reply(
+          response,
+          {
+            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+            message: 'Service temporarily unavailable',
+            requestId,
+          },
+          HttpStatus.SERVICE_UNAVAILABLE,
+        );
+      }
+
       this.logUnexpectedError(exception, request);
 
       return httpAdapter.reply(
@@ -81,6 +118,41 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
       typeof err === 'object' &&
       'message' in err
     );
+  }
+
+  private isDatabaseConnectionError(exception: any): boolean {
+    const connectionErrorNames = [
+      'SequelizeConnectionAcquireTimeoutError',
+      'SequelizeConnectionError',
+      'SequelizeConnectionRefusedError',
+      'SequelizeConnectionTimedOutError',
+    ];
+
+    return connectionErrorNames.includes(exception?.name);
+  }
+
+  private isQueryTimeoutError(exception: any): boolean {
+    return (
+      exception?.message === 'Query timed out' ||
+      exception?.original?.code === '57014'
+    );
+  }
+
+  private logDatabaseConnectionError(exception: any, request) {
+    const errorResponse = {
+      name: exception.name,
+      path: request.url,
+      errorType: 'DATABASE_CONNECTION_ERROR',
+      method: request.method,
+      user: {
+        uuid: request?.user?.uuid,
+      },
+      error: {
+        message: exception.message,
+      },
+    };
+
+    this.logger.error(errorResponse, 'DATABASE_CONNECTION_ERROR');
   }
 
   logUnexpectedError(exception: any, request) {

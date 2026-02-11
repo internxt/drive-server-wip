@@ -4,6 +4,7 @@ import { UsageModel } from './usage.model';
 import { Usage, UsageType } from './usage.domain';
 import { Op, QueryTypes } from 'sequelize';
 import { Time } from '../../lib/time';
+import { withQueryTimeout } from '../../lib/query-timeout';
 
 @Injectable()
 export class SequelizeUsageRepository {
@@ -39,54 +40,62 @@ export class SequelizeUsageRepository {
     const yesterday = Time.startOf(Time.dateWithTimeAdded(-1, 'day'), 'day');
     const periodFormatted = Time.formatAsDateOnly(yesterday);
 
-    const selectResult = await this.usageModel.sequelize.query(
-      `
-      SELECT
-          uuid_generate_v4() as id,
-          u.uuid AS user_id,
-          COALESCE(
-          SUM(CASE
-            WHEN f.status != 'DELETED' OR (f.status = 'DELETED' AND f.updated_at >= :currentDate) THEN f.size
-          	ELSE 0
-          END), 0) AS delta,
-          :yesterday AS period,
-          'daily' AS type
-      FROM
-          users u
-      LEFT JOIN public.files f ON u.id = f.user_id AND f.created_at < :currentDate
-      WHERE
-          u.uuid = :userUuid
-      GROUP BY
-          u.uuid
-      `,
-      {
-        replacements: {
-          userUuid,
-          currentDate: currentDate.toISOString(),
-          yesterday: periodFormatted,
-        },
-        type: QueryTypes.SELECT,
+    return withQueryTimeout(
+      this.usageModel.sequelize,
+      8000,
+      async (transaction) => {
+        const selectResult = await this.usageModel.sequelize.query(
+          `
+        SELECT
+            uuid_generate_v4() as id,
+            u.uuid AS user_id,
+            COALESCE(
+            SUM(CASE
+              WHEN f.status != 'DELETED' OR (f.status = 'DELETED' AND f.updated_at >= :currentDate) THEN f.size
+            	ELSE 0
+            END), 0) AS delta,
+            :yesterday AS period,
+            'daily' AS type
+        FROM
+            users u
+        LEFT JOIN public.files f ON u.id = f.user_id AND f.created_at < :currentDate
+        WHERE
+            u.uuid = :userUuid
+        GROUP BY
+            u.uuid
+        `,
+          {
+            replacements: {
+              userUuid,
+              currentDate: currentDate.toISOString(),
+              yesterday: periodFormatted,
+            },
+            type: QueryTypes.SELECT,
+            transaction,
+          },
+        );
+
+        const data = selectResult[0] as any;
+
+        const [newUsage] = await this.usageModel.findOrCreate({
+          where: {
+            userId: data.user_id,
+            type: data.type,
+            period: periodFormatted,
+          },
+          defaults: {
+            id: data.id,
+            userId: data.user_id,
+            delta: data.delta,
+            period: periodFormatted,
+            type: data.type,
+          },
+          transaction,
+        });
+
+        return newUsage ? this.toDomain(newUsage) : null;
       },
     );
-
-    const data = selectResult[0] as any;
-
-    const [newUsage] = await this.usageModel.findOrCreate({
-      where: {
-        userId: data.user_id,
-        type: data.type,
-        period: periodFormatted,
-      },
-      defaults: {
-        id: data.id,
-        userId: data.user_id,
-        delta: data.delta,
-        period: periodFormatted,
-        type: data.type,
-      },
-    });
-
-    return newUsage ? this.toDomain(newUsage) : null;
   }
 
   public async calculateAggregatedUsage(userUuid: string): Promise<number> {
@@ -141,16 +150,23 @@ export class SequelizeUsageRepository {
       FROM combined_deltas;
     `;
 
-    const result = (await this.usageModel.sequelize.query(query, {
-      replacements: { userUuid },
-      type: QueryTypes.SELECT,
-    })) as unknown as [
-      {
-        calculated_total: number;
-      }[],
-    ];
+    return withQueryTimeout(
+      this.usageModel.sequelize,
+      8000,
+      async (transaction) => {
+        const result = (await this.usageModel.sequelize.query(query, {
+          replacements: { userUuid },
+          type: QueryTypes.SELECT,
+          transaction,
+        })) as unknown as [
+          {
+            calculated_total: number;
+          }[],
+        ];
 
-    return Number((result[0] as any).calculated_total);
+        return Number((result[0] as any).calculated_total);
+      },
+    );
   }
 
   toDomain(model: UsageModel): Usage {

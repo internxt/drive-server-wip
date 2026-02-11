@@ -2055,18 +2055,24 @@ describe('User use cases', () => {
     };
 
     it('When root folder exists, then it should return the folder without creating a new one', async () => {
-      jest.spyOn(folderUseCases, 'getFolder').mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(folderUseCases, 'getFolderByIdNoDecryption')
+        .mockResolvedValueOnce(rootFolder);
 
       const result =
         await userUseCases.getOrCreateUserRootFolderAndBucket(user);
 
-      expect(folderUseCases.getFolder).toHaveBeenCalledWith(user.rootFolderId);
+      expect(folderUseCases.getFolderByIdNoDecryption).toHaveBeenCalledWith(
+        user.rootFolderId,
+      );
       expect(bridgeService.createBucket).not.toHaveBeenCalled();
       expect(result).toEqual(rootFolder);
     });
 
     it('When root folder does not exist, then it should create a new bucket and folder', async () => {
-      jest.spyOn(folderUseCases, 'getFolder').mockResolvedValueOnce(null);
+      jest
+        .spyOn(folderUseCases, 'getFolderByIdNoDecryption')
+        .mockResolvedValueOnce(null);
 
       jest.spyOn(bridgeService, 'createBucket').mockResolvedValueOnce(bucket);
       jest
@@ -2076,7 +2082,9 @@ describe('User use cases', () => {
       const result =
         await userUseCases.getOrCreateUserRootFolderAndBucket(user);
 
-      expect(folderUseCases.getFolder).toHaveBeenCalledWith(user.rootFolderId);
+      expect(folderUseCases.getFolderByIdNoDecryption).toHaveBeenCalledWith(
+        user.rootFolderId,
+      );
       expect(bridgeService.createBucket).toHaveBeenCalledWith(
         user.username,
         user.userId,
