@@ -16,6 +16,7 @@ import {
   Patch,
   HttpException,
   InternalServerErrorException,
+  ParseEnumPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -32,7 +33,7 @@ import { SharingService } from './sharing.service';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { CreateInviteDto } from './dto/create-invite.dto';
-import { Sharing, SharingInvite, SharingRole } from './sharing.domain';
+import { Sharing, SharingInvite, SharingItemType, SharingRole } from './sharing.domain';
 import { UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { Folder } from '../folder/folder.domain';
@@ -64,6 +65,8 @@ import {
   GetFoldersInSharedFolderResponseDto,
 } from './dto/response/get-folders-in-shared-folder.dto';
 import { GetItemsInSharedFolderQueryDto } from './dto/get-items-in-shared-folder.dto';
+import { Throttle } from '@nestjs/throttler';
+import { CaptchaGuard } from '../auth/captcha.guard';
 
 @ApiTags('Sharing')
 @Controller('sharings')
@@ -281,6 +284,7 @@ export class SharingController {
     return { invites };
   }
 
+  @UseGuards(CaptchaGuard)
   @Post('/invites/send')
   /*   @ApplyLimit({
     limitLabels: [LimitLabels.MaxSharedItemInvites, LimitLabels.MaxSharedItems],
@@ -536,8 +540,8 @@ export class SharingController {
   @WorkspacesInBehalfGuard()
   removeSharing(
     @UserDecorator() user: User,
-    @Param('itemType') itemType: Sharing['itemType'],
-    @Param('itemId') itemId: Sharing['itemId'],
+    @Param('itemType', new ParseEnumPipe(SharingItemType)) itemType: Sharing['itemType'],
+    @Param('itemId', ParseUUIDPipe) itemId: Sharing['itemId'],
   ) {
     return this.sharingService.removeSharing(user, itemId, itemType);
   }

@@ -7,6 +7,7 @@ import {
   Logger,
   NotAcceptableException,
   NotFoundException,
+  RequestTimeoutException,
   UnprocessableEntityException,
   forwardRef,
 } from '@nestjs/common';
@@ -69,10 +70,9 @@ export class FolderUseCases {
       throw new NotFoundException('Folder not found');
     }
 
-    folder.plainName = this.cryptoService.decryptName(
-      folder.name,
-      folder.parentId,
-    );
+    folder.plainName =
+      folder.plainName ??
+      this.cryptoService.decryptName(folder.name, folder.parentId);
 
     return folder;
   }
@@ -206,6 +206,13 @@ export class FolderUseCases {
     return folder ? this.decryptFolderName(folder) : null;
   }
 
+  async getFolderByIdNoDecryption(
+    folderId: FolderAttributes['id'],
+    { deleted }: FolderOptions = { deleted: false },
+  ): Promise<Folder | null> {
+    return this.folderRepository.findById(folderId, deleted);
+  }
+
   async isFolderInsideFolder(
     parentId: FolderAttributes['id'],
     folderId: FolderAttributes['id'],
@@ -334,7 +341,7 @@ export class FolderUseCases {
   }
 
   async createFolderDevice(user: User, folderData: Partial<FolderAttributes>) {
-    if (!folderData.name || !folderData.bucket) {
+    if (!folderData.plainName || !folderData.bucket) {
       throw new BadRequestException('Folder name and bucket are required');
     }
     return this.folderRepository.createFolder(user.id, folderData);
@@ -964,10 +971,9 @@ export class FolderUseCases {
   }
 
   decryptFolderName(folder: Folder): Folder {
-    const decryptedName = this.cryptoService.decryptName(
-      folder.name,
-      folder.parentId,
-    );
+    const decryptedName =
+      folder.plainName ??
+      this.cryptoService.decryptName(folder.name, folder.parentId);
 
     if (decryptedName === '') {
       throw new Error('Unable to decrypt folder name');
@@ -1029,11 +1035,18 @@ export class FolderUseCases {
       throw new NotFoundException('Root Folder not found');
     }
 
-    return this.folderRepository.getFolderByPath(
-      user.id,
-      path,
-      rootFolder.uuid,
-    );
+    try {
+      return await this.folderRepository.getFolderByPath(
+        user.id,
+        path,
+        rootFolder.uuid,
+      );
+    } catch (error) {
+      if (error.message === 'Query timed out') {
+        throw new RequestTimeoutException('Folder metadata search timed out');
+      }
+      throw error;
+    }
   }
 
   async updateByFolderIdAndForceUpdatedAt(

@@ -1,10 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { FolderUseCases, SortParamsFolder } from './folder.usecase';
-import {
-  SequelizeFolderRepository,
-  FolderRepository,
-} from './folder.repository';
+import { SequelizeFolderRepository } from './folder.repository';
 import {
   BadRequestException,
   ConflictException,
@@ -12,6 +9,7 @@ import {
   NotAcceptableException,
   NotFoundException,
   UnprocessableEntityException,
+  RequestTimeoutException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
 import { Folder, FolderOptions } from './folder.domain';
@@ -40,7 +38,7 @@ const user = newUser();
 
 describe('FolderUseCases', () => {
   let service: FolderUseCases;
-  let folderRepository: FolderRepository;
+  let folderRepository: SequelizeFolderRepository;
   let cryptoService: CryptoService;
   let sharingService: SharingService;
   let fileUsecases: FileUseCases;
@@ -86,7 +84,9 @@ describe('FolderUseCases', () => {
       .compile();
 
     service = module.get<FolderUseCases>(FolderUseCases);
-    folderRepository = module.get<FolderRepository>(SequelizeFolderRepository);
+    folderRepository = module.get<SequelizeFolderRepository>(
+      SequelizeFolderRepository,
+    );
     cryptoService = module.get<CryptoService>(CryptoService);
     sharingService = module.get<SharingService>(SharingService);
     fileUsecases = module.get<FileUseCases>(FileUseCases);
@@ -462,6 +462,7 @@ describe('FolderUseCases', () => {
       const folder = newFolder({
         attributes: {
           name: 'not encrypted name',
+          plainName: null,
         },
       });
 
@@ -470,6 +471,34 @@ describe('FolderUseCases', () => {
       expect(() => service.decryptFolderName(folder)).toThrow(
         'Unable to decrypt folder name',
       );
+    });
+  });
+
+  describe('getFolderByIdNoDecryption()', () => {
+    it('When folder exists, then it returns the folder without decrypting the name', async () => {
+      const folder = newFolder({
+        attributes: {
+          name: 'encrypted-name',
+          plainName: null,
+        },
+      });
+
+      jest.spyOn(folderRepository, 'findById').mockResolvedValue(folder);
+      const decryptSpy = jest.spyOn(cryptoService, 'decryptName');
+
+      const result = await service.getFolderByIdNoDecryption(folder.id);
+
+      expect(result).toEqual(folder);
+      expect(result.name).toBe('encrypted-name');
+      expect(decryptSpy).not.toHaveBeenCalled();
+    });
+
+    it('When folder does not exist, then it returns null', async () => {
+      jest.spyOn(folderRepository, 'findById').mockResolvedValue(null);
+
+      const result = await service.getFolderByIdNoDecryption(12345);
+
+      expect(result).toBeNull();
     });
   });
 
@@ -1408,6 +1437,29 @@ describe('FolderUseCases', () => {
         service.getFolderMetadataByPath(userMocked, folderPath),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('When get folder metadata by path times out, then it should throw RequestTimeoutException', async () => {
+      const folderPath = '/folder1/folder2';
+      jest.spyOn(service, 'getFolderByUserId').mockResolvedValue(newFolder());
+      jest
+        .spyOn(folderRepository, 'getFolderByPath')
+        .mockRejectedValue(new Error('Query timed out'));
+
+      await expect(
+        service.getFolderMetadataByPath(userMocked, folderPath),
+      ).rejects.toThrow(RequestTimeoutException);
+    });
+
+    it('When get folder metadata by path throws generic error, then it should rethrow it', async () => {
+      const folderPath = '/folder1/folder2';
+      const error = new Error('Generic error');
+      jest.spyOn(service, 'getFolderByUserId').mockResolvedValue(newFolder());
+      jest.spyOn(folderRepository, 'getFolderByPath').mockRejectedValue(error);
+
+      await expect(
+        service.getFolderMetadataByPath(userMocked, folderPath),
+      ).rejects.toThrow(error);
+    });
   });
 
   describe('getWorkspacesFoldersUpdatedAfter', () => {
@@ -1679,7 +1731,9 @@ describe('FolderUseCases', () => {
     const folderUuid = v4();
 
     it('When folder exists, then it should decrypt and return the folder', async () => {
-      const folder = newFolder({ attributes: { uuid: folderUuid } });
+      const folder = newFolder({
+        attributes: { uuid: folderUuid, plainName: null },
+      });
       const decryptedName = 'Decrypted Name';
 
       jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
@@ -1698,6 +1752,24 @@ describe('FolderUseCases', () => {
         folder.parentId,
       );
       expect(result.plainName).toBe(decryptedName);
+    });
+
+    it('When the folder has a plain name, then the plain name is returned', async () => {
+      const folder = newFolder({
+        attributes: { uuid: folderUuid, plainName: 'plain name' },
+      });
+
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+      const decryptSpy = jest.spyOn(cryptoService, 'decryptName');
+
+      const result = await service.getByUuid(folderUuid);
+
+      expect(folderRepository.findByUuid).toHaveBeenCalledWith(
+        folderUuid,
+        false,
+      );
+      expect(decryptSpy).not.toHaveBeenCalled();
+      expect(result.plainName).toBe('plain name');
     });
 
     it('When folder does not exist, then it should throw NotFoundException', async () => {
@@ -2064,6 +2136,46 @@ describe('FolderUseCases', () => {
         uuidSort,
       );
       expect(result).toEqual(folders);
+    });
+  });
+  describe('createFolderDevice', () => {
+    it('When plain name is not given, then it should throw an error', async () => {
+      const mockFolderData: Partial<FolderAttributes> = {
+        bucket: 'mock bucket',
+      };
+      await expect(
+        service.createFolderDevice(userMocked, mockFolderData),
+      ).rejects.toThrow(BadRequestException);
+      expect(folderRepository.createFolder).not.toHaveBeenCalled();
+    });
+
+    it('When bucket is not given, then it should throw an error', async () => {
+      const mockFolderData: Partial<FolderAttributes> = {
+        plainName: 'mock plain name',
+      };
+
+      await expect(
+        service.createFolderDevice(userMocked, mockFolderData),
+      ).rejects.toThrow(BadRequestException);
+      expect(folderRepository.createFolder).not.toHaveBeenCalled();
+    });
+
+    it('When both plain name and bucket are given, then it should create a folder', async () => {
+      const mockFolder = newFolder();
+      const mockFolderData: Partial<FolderAttributes> = {
+        plainName: 'mock plain name',
+        bucket: 'mock bucket',
+      };
+      jest
+        .spyOn(folderRepository, 'createFolder')
+        .mockResolvedValue(mockFolder);
+      const result = await service.createFolderDevice(
+        userMocked,
+        mockFolderData,
+      );
+
+      expect(result).toBe(mockFolder);
+      expect(folderRepository.createFolder).toHaveBeenCalledTimes(1);
     });
   });
 });

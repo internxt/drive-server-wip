@@ -23,6 +23,7 @@ import { AppSumoModule } from '../app-sumo/app-sumo.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { HttpClientModule } from '../../externals/http/http.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { CaptchaService } from '../../externals/captcha/captcha.service';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
     SequelizeSharingRepository,
     SequelizeUserReferralsRepository,
     PaymentsService,
+    CaptchaService,
   ],
   exports: [SharingService, SequelizeSharingRepository, SequelizeModule],
 })

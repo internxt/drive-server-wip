@@ -10,7 +10,7 @@ import {
 import { FileAttributes, FileStatus } from './file.domain';
 import { FileModel } from './file.model';
 import { FileRepository, SequelizeFileRepository } from './file.repository';
-import { Op, QueryTypes, Sequelize } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import { v4 } from 'uuid';
 import { UserModel } from '../user/user.model';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
@@ -678,51 +678,6 @@ describe('FileRepository', () => {
     });
   });
 
-  describe('sumExistentFileSizes', () => {
-    const userId = 123;
-
-    it('When called with valid userId, then it should return the sum of file sizes that are not deleted', async () => {
-      const totalSize = 5000;
-      const sizesSum = [{ total: totalSize }];
-
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(sizesSum as any);
-
-      const result = await repository.sumExistentFileSizes(userId);
-
-      expect(fileModel.findAll).toHaveBeenCalledWith({
-        attributes: [[Sequelize.fn(`SUM`, Sequelize.col('size')), 'total']],
-        where: {
-          userId,
-          status: {
-            [Op.ne]: 'DELETED',
-          },
-        },
-        raw: true,
-      });
-      expect(result).toEqual(totalSize);
-    });
-
-    it('When no files are found or total size is null, then it should return 0', async () => {
-      const sizesSum = [{ total: null }];
-
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(sizesSum as any);
-
-      const result = await repository.sumExistentFileSizes(userId);
-
-      expect(fileModel.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            userId,
-            status: {
-              [Op.ne]: 'DELETED',
-            },
-          },
-        }),
-      );
-      expect(result).toEqual(0);
-    });
-  });
-
   describe('deleteFilesByUser ', () => {
     it('When files are deleted successfully, then it should call update with correct parameters', async () => {
       const user = newUser();
@@ -982,6 +937,19 @@ describe('FileRepository', () => {
     const userId = 123;
     const sinceDate = Time.now('2024-01-01');
 
+    let mockTransaction: Record<string, unknown>;
+
+    beforeEach(() => {
+      mockTransaction = {};
+      Object.defineProperty(fileModel, 'sequelize', {
+        value: {
+          query: jest.fn(),
+          transaction: jest.fn((cb) => cb(mockTransaction)),
+        },
+        configurable: true,
+      });
+    });
+
     it('When files have size delta, then it should return the total delta', async () => {
       const totalDelta = 1500;
       const result = [{ total: totalDelta }];
@@ -1002,6 +970,7 @@ describe('FileRepository', () => {
             sinceDate,
           },
           raw: true,
+          transaction: mockTransaction,
         }),
       );
       expect(response).toBe(totalDelta);

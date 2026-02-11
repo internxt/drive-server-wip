@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { withQueryTimeout } from '../../lib/query-timeout';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   FindOptions,
@@ -1179,14 +1180,21 @@ export class SequelizeFolderRepository implements FolderRepository {
     path: string,
     rootFolderUuid: Folder['uuid'],
   ): Promise<Folder | null> {
-    const [[folder]] = await this.folderModel.sequelize.query(
-      'SELECT * FROM get_folder_by_path (:userId, :path, :rootFolderUuid)',
-      {
-        replacements: { userId, path, rootFolderUuid },
+    return withQueryTimeout(
+      this.folderModel.sequelize,
+      3000,
+      async (transaction) => {
+        const [[folder]] = await this.folderModel.sequelize.query(
+          'SELECT * FROM get_folder_by_path (:userId, :path, :rootFolderUuid)',
+          {
+            replacements: { userId, path, rootFolderUuid },
+            transaction,
+          },
+        );
+
+        return (folder as Folder) ?? null;
       },
     );
-
-    return (folder as Folder) ?? null;
   }
 
   private toDomain(model: FolderModel): Folder {

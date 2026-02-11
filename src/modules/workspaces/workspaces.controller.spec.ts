@@ -786,7 +786,7 @@ describe('Workspace Controller', () => {
       const workspaceId = v4();
       const offset = 1;
       const limit = 50;
-      const sort = 'name';
+      const sort = 'plainName';
       const order = 'ASC';
 
       await workspacesController.getUserTrashedItems(
@@ -797,7 +797,7 @@ describe('Workspace Controller', () => {
           offset,
         },
         WorkspaceItemType.File,
-        'name',
+        'plainName',
         'ASC',
       );
 

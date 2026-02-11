@@ -5,7 +5,7 @@ import type { FolderAttributes } from './folder.attributes';
 
 export type SortableFolderAttributes = keyof Pick<
   FolderAttributes,
-  'id' | 'name' | 'plainName' | 'updatedAt' | 'uuid'
+  'id' | 'plainName' | 'updatedAt' | 'uuid'
 >;
 
 export enum FolderStatus {

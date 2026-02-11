@@ -7,6 +7,6 @@ module.exports = {
   },
 
   async down (queryInterface, Sequelize) {
-    await queryInterface.sequelize.query(`CREATE INDEX CONCURRENTLY ${indexName} ON ${tableName} (modification_time);`);
+    await queryInterface.sequelize.query(`CREATE INDEX CONCURRENTLY files_modification_time_index ON files (modification_time);`);
   }
 };

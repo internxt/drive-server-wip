@@ -2,6 +2,7 @@ import {
   Inject,
   UnauthorizedException,
   Logger,
+  HttpException,
   Injectable,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -14,10 +15,6 @@ import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { Tier } from '../feature-limit/domain/tier.domain';
 
-export interface JwtPayload {
-  email: string;
-  bridgeUser: string;
-}
 export interface JwtAuthInfo {
   platform?: string;
   tier?: Tier;
@@ -94,6 +91,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
       return [user, authInfo];
     } catch (err) {
       if (err instanceof UnauthorizedException) {
+        throw err;
+      }
+
+      if (!(err instanceof HttpException)) {
         throw err;
       }
 

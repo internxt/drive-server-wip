@@ -3,7 +3,6 @@ import { createMock } from '@golevelup/ts-jest';
 import { FileUseCases, VersionableFileExtension } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import { SequelizeFileVersionRepository } from './file-version.repository';
-import { FileVersion, FileVersionStatus } from './file-version.domain';
 import {
   BadRequestException,
   ConflictException,
@@ -48,6 +47,13 @@ import { UserUseCases } from '../user/user.usecase';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { TrashItemType } from '../trash/trash.attributes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import {
+  DeleteFileVersionAction,
+  GetFileVersionsAction,
+  CreateFileVersionAction,
+  RestoreFileVersionAction,
+  UndoFileVersioningAction,
+} from './actions';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -68,6 +74,11 @@ describe('FileUseCases', () => {
   let redisService: RedisService;
   let trashUsecases: TrashUseCases;
   let cacheManagerService: CacheManagerService;
+  let getFileVersionsAction: GetFileVersionsAction;
+  let deleteFileVersionAction: DeleteFileVersionAction;
+  let createFileVersionAction: CreateFileVersionAction;
+  let restoreFileVersionAction: RestoreFileVersionAction;
+  let undoFileVersioningAction: UndoFileVersioningAction;
 
   const userMocked = newUser({
     attributes: {
@@ -99,6 +110,22 @@ describe('FileUseCases', () => {
     redisService = module.get<RedisService>(RedisService);
     trashUsecases = module.get<TrashUseCases>(TrashUseCases);
     cacheManagerService = module.get<CacheManagerService>(CacheManagerService);
+    getFileVersionsAction = module.get<GetFileVersionsAction>(
+      GetFileVersionsAction,
+    );
+    deleteFileVersionAction = module.get<DeleteFileVersionAction>(
+      DeleteFileVersionAction,
+    );
+    createFileVersionAction = module.get<CreateFileVersionAction>(
+      CreateFileVersionAction,
+    );
+    restoreFileVersionAction = module.get<RestoreFileVersionAction>(
+      RestoreFileVersionAction,
+    );
+    undoFileVersioningAction =
+      module.get<UndoFileVersioningAction>(
+        UndoFileVersioningAction,
+      );
   });
 
   afterEach(() => {
@@ -371,6 +398,7 @@ describe('FileUseCases', () => {
         ...fileAttributes,
         name: encryptedName,
         folderId,
+        plainName: null,
       };
 
       const decryptedName = 'decryptedName';
@@ -389,6 +417,22 @@ describe('FileUseCases', () => {
           ...file,
           name: decryptedName,
           plainName: decryptedName,
+        }),
+      );
+    });
+
+    it('When the file has a plain name, then the plain name is returned', () => {
+      const file = File.build({
+        ...fileAttributes,
+        plainName: 'plain name',
+      });
+
+      const result = service.decrypFileName(file);
+      expect(result).toEqual(
+        File.build({
+          ...file,
+          name: 'plain name',
+          plainName: 'plain name',
         }),
       );
     });
@@ -1620,31 +1664,101 @@ describe('FileUseCases', () => {
   });
 
   describe('getUserUsedStorage', () => {
-    it('When called, it should return the user total used space', async () => {
-      const totalUsage = 1000;
+    it('When called, it should return the sum of files and versions usage', async () => {
+      const filesUsage = 1000;
+      const versionsUsage = 500;
+      const expectedTotal = filesUsage + versionsUsage;
+
       jest
         .spyOn(service, 'getUserUsedStorageIncrementally')
-        .mockResolvedValueOnce(totalUsage);
+        .mockResolvedValueOnce(filesUsage);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(versionsUsage);
 
       const result = await service.getUserUsedStorage(userMocked);
-      expect(result).toEqual(totalUsage);
+
+      expect(result).toEqual(expectedTotal);
+      expect(service.getUserUsedStorageIncrementally).toHaveBeenCalledWith(
+        userMocked,
+      );
+      expect(fileVersionRepository.sumExistingSizesByUser).toHaveBeenCalledWith(
+        userMocked.uuid,
+      );
     });
 
-    it('When getUserUsedStorageIncrementally returns null, it should return 0', async () => {
+    it('When user has only files usage, then it returns files usage', async () => {
+      const filesUsage = 1000;
+      const versionsUsage = 0;
+
+      jest
+        .spyOn(service, 'getUserUsedStorageIncrementally')
+        .mockResolvedValueOnce(filesUsage);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(versionsUsage);
+
+      const result = await service.getUserUsedStorage(userMocked);
+
+      expect(result).toEqual(filesUsage);
+    });
+
+    it('When user has only versions usage, then it returns versions usage', async () => {
+      const filesUsage = 0;
+      const versionsUsage = 500;
+
+      jest
+        .spyOn(service, 'getUserUsedStorageIncrementally')
+        .mockResolvedValueOnce(filesUsage);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(versionsUsage);
+
+      const result = await service.getUserUsedStorage(userMocked);
+
+      expect(result).toEqual(versionsUsage);
+    });
+
+    it('When getUserUsedStorageIncrementally returns null, it should treat as 0', async () => {
+      const versionsUsage = 500;
+
       jest
         .spyOn(service, 'getUserUsedStorageIncrementally')
         .mockResolvedValueOnce(null);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(versionsUsage);
 
       const result = await service.getUserUsedStorage(userMocked);
-      expect(result).toEqual(0);
+
+      expect(result).toEqual(versionsUsage);
     });
 
-    it('When getUserUsedStorageIncrementally returns undefined, it should return 0', async () => {
+    it('When getUserUsedStorageIncrementally returns undefined, it should treat as 0', async () => {
+      const versionsUsage = 500;
+
       jest
         .spyOn(service, 'getUserUsedStorageIncrementally')
         .mockResolvedValueOnce(undefined);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(versionsUsage);
 
       const result = await service.getUserUsedStorage(userMocked);
+
+      expect(result).toEqual(versionsUsage);
+    });
+
+    it('When both return null/undefined, it should return 0', async () => {
+      jest
+        .spyOn(service, 'getUserUsedStorageIncrementally')
+        .mockResolvedValueOnce(null);
+      jest
+        .spyOn(fileVersionRepository, 'sumExistingSizesByUser')
+        .mockResolvedValueOnce(0);
+
+      const result = await service.getUserUsedStorage(userMocked);
+
       expect(result).toEqual(0);
     });
   });
@@ -1826,7 +1940,12 @@ describe('FileUseCases', () => {
 
       const result = await service.getFileMetadata(userMocked, mockFile.uuid);
 
-      expect(result).toEqual(mockFile);
+      expect(result).toEqual(
+        File.build({
+          ...mockFile,
+          name: mockFile.plainName,
+        }),
+      );
       expect(fileRepository.findByUuid).toHaveBeenCalledWith(
         mockFile.uuid,
         userMocked.id,
@@ -1843,52 +1962,24 @@ describe('FileUseCases', () => {
   });
 
   describe('getFileVersions', () => {
-    const mockLimits = newVersioningLimits({ retentionDays: 30 });
-
-    it('When file exists, then it should return versions with expiresAt', async () => {
+    it('When file exists, then it should return file versions', async () => {
       const mockFile = newFile();
-      const createdAt = new Date('2025-01-01');
-      const mockVersions = [
-        FileVersion.build({
-          id: v4(),
-          fileId: mockFile.uuid,
-          networkFileId: 'network-1',
-          size: BigInt(100),
-          status: FileVersionStatus.EXISTS,
-          createdAt,
-          updatedAt: new Date(),
-        }),
-      ];
 
-      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
-      jest
-        .spyOn(fileVersionRepository, 'findAllByFileId')
-        .mockResolvedValue(mockVersions);
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(mockLimits);
+      jest.spyOn(getFileVersionsAction, 'execute').mockResolvedValue([]);
 
       const result = await service.getFileVersions(userMocked, mockFile.uuid);
 
-      const expectedExpiresAt = new Date(createdAt);
-      expectedExpiresAt.setDate(
-        expectedExpiresAt.getDate() + mockLimits.retentionDays,
-      );
-
-      expect(result[0].expiresAt).toEqual(expectedExpiresAt);
-      expect(result[0].id).toEqual(mockVersions[0].id);
-      expect(fileRepository.findByUuid).toHaveBeenCalledWith(
-        mockFile.uuid,
-        userMocked.id,
-        {},
-      );
-      expect(fileVersionRepository.findAllByFileId).toHaveBeenCalledWith(
+      expect(result).toEqual([]);
+      expect(getFileVersionsAction.execute).toHaveBeenCalledWith(
+        userMocked,
         mockFile.uuid,
       );
     });
 
-    it('When file does not exist, then it should throw NotFoundException', async () => {
-      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(null);
+    it('When file does not exist, then should fail', async () => {
+      const error = new NotFoundException('File not found');
+
+      jest.spyOn(getFileVersionsAction, 'execute').mockRejectedValue(error);
 
       await expect(
         service.getFileVersions(userMocked, 'non-existent-uuid'),
@@ -1897,98 +1988,22 @@ describe('FileUseCases', () => {
   });
 
   describe('deleteFileVersion', () => {
-    it('When file and version exist, then it should delete the version', async () => {
+    it('When deletion fails, then error is propagated', async () => {
       const mockFile = newFile({ attributes: { userId: userMocked.id } });
       const versionId = v4();
-      const mockVersion = FileVersion.build({
-        id: versionId,
-        fileId: mockFile.uuid,
-        networkFileId: 'network-id',
-        size: BigInt(100),
-        status: FileVersionStatus.EXISTS,
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date(),
-      });
+      const error = new NotFoundException('File not found');
 
-      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
-      jest
-        .spyOn(fileVersionRepository, 'findById')
-        .mockResolvedValue(mockVersion);
-      jest.spyOn(fileVersionRepository, 'updateStatus').mockResolvedValue();
+      jest.spyOn(deleteFileVersionAction, 'execute').mockRejectedValue(error);
 
-      await service.deleteFileVersion(userMocked, mockFile.uuid, versionId);
+      await expect(
+        service.deleteFileVersion(userMocked, mockFile.uuid, versionId),
+      ).rejects.toThrow(NotFoundException);
 
-      expect(fileVersionRepository.updateStatus).toHaveBeenCalledWith(
+      expect(deleteFileVersionAction.execute).toHaveBeenCalledWith(
+        userMocked,
+        mockFile.uuid,
         versionId,
-        FileVersionStatus.DELETED,
       );
-    });
-
-    it('When file does not exist, then it should throw NotFoundException', async () => {
-      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(null);
-
-      await expect(
-        service.deleteFileVersion(userMocked, 'non-existent-uuid', v4()),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('When version does not exist, then it should throw NotFoundException', async () => {
-      const mockFile = newFile({ attributes: { userId: userMocked.id } });
-      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
-      jest.spyOn(fileVersionRepository, 'findById').mockResolvedValue(null);
-
-      await expect(
-        service.deleteFileVersion(userMocked, mockFile.uuid, v4()),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('When version does not belong to file, then it should throw BadRequestException', async () => {
-      const mockFile = newFile({ attributes: { userId: userMocked.id } });
-      const mockVersion = FileVersion.build({
-        id: v4(),
-        fileId: 'different-file-uuid',
-        networkFileId: 'network-id',
-        size: BigInt(100),
-        status: FileVersionStatus.EXISTS,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
-      jest
-        .spyOn(fileVersionRepository, 'findById')
-        .mockResolvedValue(mockVersion);
-
-      await expect(
-        service.deleteFileVersion(userMocked, mockFile.uuid, mockVersion.id),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('When deleting a version, then file should not be modified', async () => {
-      const mockFile = newFile({ attributes: { userId: userMocked.id } });
-      const versionId = v4();
-      const mockVersion = FileVersion.build({
-        id: versionId,
-        fileId: mockFile.uuid,
-        networkFileId: 'old-network-id',
-        size: BigInt(100),
-        status: FileVersionStatus.EXISTS,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
-      jest
-        .spyOn(fileVersionRepository, 'findById')
-        .mockResolvedValue(mockVersion);
-      jest.spyOn(fileVersionRepository, 'updateStatus').mockResolvedValue();
-      const updateFileSpy = jest
-        .spyOn(fileRepository, 'updateByUuidAndUserId')
-        .mockResolvedValue();
-
-      await service.deleteFileVersion(userMocked, mockFile.uuid, versionId);
-
-      expect(updateFileSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -1996,27 +2011,10 @@ describe('FileUseCases', () => {
     it('When file and version exist, then it should restore the version', async () => {
       const mockFile = newFile({ attributes: { userId: userMocked.id } });
       const versionId = v4();
-      const mockVersion = FileVersion.build({
-        id: versionId,
-        fileId: mockFile.uuid,
-        networkFileId: 'old-network-id',
-        size: BigInt(100),
-        status: FileVersionStatus.EXISTS,
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date(),
-      });
 
-      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
       jest
-        .spyOn(fileVersionRepository, 'findById')
-        .mockResolvedValue(mockVersion);
-      jest
-        .spyOn(fileVersionRepository, 'findAllByFileId')
-        .mockResolvedValue([mockVersion]);
-      jest
-        .spyOn(fileVersionRepository, 'updateStatusBatch')
-        .mockResolvedValue();
-      jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
+        .spyOn(restoreFileVersionAction, 'execute')
+        .mockResolvedValue(mockFile);
 
       const result = await service.restoreFileVersion(
         userMocked,
@@ -2024,79 +2022,66 @@ describe('FileUseCases', () => {
         versionId,
       );
 
-      expect(result.uuid).toEqual(mockFile.uuid);
-      expect(result.fileId).toEqual(mockVersion.networkFileId);
-      expect(result.size).toEqual(mockVersion.size);
-      expect(fileVersionRepository.updateStatusBatch).toHaveBeenCalled();
-      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+      expect(restoreFileVersionAction.execute).toHaveBeenCalledWith(
+        userMocked,
         mockFile.uuid,
-        userMocked.id,
-        expect.objectContaining({
-          fileId: mockVersion.networkFileId,
-          size: mockVersion.size,
-        }),
+        versionId,
       );
+      expect(result).toBe(mockFile);
     });
 
     it('When file does not exist, then it should throw NotFoundException', async () => {
-      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(null);
+      const versionId = v4();
+
+      jest
+        .spyOn(restoreFileVersionAction, 'execute')
+        .mockRejectedValue(new NotFoundException('File not found'));
 
       await expect(
-        service.restoreFileVersion(userMocked, 'non-existent-uuid', v4()),
+        service.restoreFileVersion(userMocked, 'non-existent-uuid', versionId),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('When version does not exist, then it should throw NotFoundException', async () => {
       const mockFile = newFile({ attributes: { userId: userMocked.id } });
-      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
-      jest.spyOn(fileVersionRepository, 'findById').mockResolvedValue(null);
+      const versionId = v4();
+
+      jest
+        .spyOn(restoreFileVersionAction, 'execute')
+        .mockRejectedValue(new NotFoundException('Version not found'));
 
       await expect(
-        service.restoreFileVersion(userMocked, mockFile.uuid, v4()),
+        service.restoreFileVersion(userMocked, mockFile.uuid, versionId),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('When version does not belong to file, then it should throw BadRequestException', async () => {
       const mockFile = newFile({ attributes: { userId: userMocked.id } });
-      const mockVersion = FileVersion.build({
-        id: v4(),
-        fileId: 'different-file-uuid',
-        networkFileId: 'network-id',
-        size: BigInt(100),
-        status: FileVersionStatus.EXISTS,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+      const versionId = v4();
 
-      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
       jest
-        .spyOn(fileVersionRepository, 'findById')
-        .mockResolvedValue(mockVersion);
+        .spyOn(restoreFileVersionAction, 'execute')
+        .mockRejectedValue(
+          new BadRequestException('Version does not belong to this file'),
+        );
 
       await expect(
-        service.restoreFileVersion(userMocked, mockFile.uuid, mockVersion.id),
+        service.restoreFileVersion(userMocked, mockFile.uuid, versionId),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('When version is deleted, then it should throw BadRequestException', async () => {
       const mockFile = newFile({ attributes: { userId: userMocked.id } });
-      const mockVersion = FileVersion.build({
-        id: v4(),
-        fileId: mockFile.uuid,
-        networkFileId: 'network-id',
-        size: BigInt(100),
-        status: FileVersionStatus.DELETED,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+      const versionId = v4();
 
-      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
       jest
-        .spyOn(fileVersionRepository, 'findById')
-        .mockResolvedValue(mockVersion);
+        .spyOn(restoreFileVersionAction, 'execute')
+        .mockRejectedValue(
+          new BadRequestException('Cannot restore a deleted version'),
+        );
 
       await expect(
-        service.restoreFileVersion(userMocked, mockFile.uuid, mockVersion.id),
+        service.restoreFileVersion(userMocked, mockFile.uuid, versionId),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -2216,13 +2201,9 @@ describe('FileUseCases', () => {
       jest
         .spyOn(service, 'isFileVersionable')
         .mockResolvedValue({ versionable: true, limits: null });
-      const applyRetentionSpy = jest
-        .spyOn(service as any, 'applyRetentionPolicy')
+      const createVersionSpy = jest
+        .spyOn(createFileVersionAction, 'execute')
         .mockResolvedValue(undefined);
-      const upsertSpy = jest
-        .spyOn(fileVersionRepository, 'upsert')
-        .mockResolvedValue({} as any);
-      jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
       const deleteFileSpy = jest.spyOn(bridgeService, 'deleteFile');
 
       const result = await service.replaceFile(
@@ -2231,17 +2212,13 @@ describe('FileUseCases', () => {
         replaceData,
       );
 
-      expect(applyRetentionSpy).toHaveBeenCalledWith(
-        mockFile.uuid,
-        userMocked.uuid,
+      expect(createVersionSpy).toHaveBeenCalledWith(
+        userMocked,
+        mockFile,
+        replaceData.fileId,
+        replaceData.size,
+        undefined,
       );
-      expect(upsertSpy).toHaveBeenCalledWith({
-        fileId: mockFile.uuid,
-        networkFileId: mockFile.fileId,
-        size: mockFile.size,
-        status: 'EXISTS',
-      });
-      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalled();
       expect(deleteFileSpy).not.toHaveBeenCalled();
       expect(result).toEqual({
         ...mockFile.toJSON(),
@@ -2267,18 +2244,13 @@ describe('FileUseCases', () => {
       jest
         .spyOn(service, 'isFileVersionable')
         .mockResolvedValue({ versionable: false, limits: null });
-      const applyRetentionSpy = jest.spyOn(
-        service as any,
-        'applyRetentionPolicy',
-      );
-      const upsertSpy = jest.spyOn(fileVersionRepository, 'upsert');
+      const createVersionSpy = jest.spyOn(createFileVersionAction, 'execute');
       jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
       jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
 
       await service.replaceFile(userMocked, mockFile.uuid, replaceData);
 
-      expect(applyRetentionSpy).not.toHaveBeenCalled();
-      expect(upsertSpy).not.toHaveBeenCalled();
+      expect(createVersionSpy).not.toHaveBeenCalled();
       expect(bridgeService.deleteFile).toHaveBeenCalledWith(
         userMocked,
         mockFile.bucket,
@@ -2303,18 +2275,13 @@ describe('FileUseCases', () => {
       jest
         .spyOn(service, 'isFileVersionable')
         .mockResolvedValue({ versionable: false, limits: null });
-      const applyRetentionSpy = jest.spyOn(
-        service as any,
-        'applyRetentionPolicy',
-      );
-      const upsertSpy = jest.spyOn(fileVersionRepository, 'upsert');
+      const createVersionSpy = jest.spyOn(createFileVersionAction, 'execute');
       jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
       jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
 
       await service.replaceFile(userMocked, mockFile.uuid, replaceData);
 
-      expect(applyRetentionSpy).not.toHaveBeenCalled();
-      expect(upsertSpy).not.toHaveBeenCalled();
+      expect(createVersionSpy).not.toHaveBeenCalled();
       expect(bridgeService.deleteFile).toHaveBeenCalledWith(
         userMocked,
         mockFile.bucket,
@@ -2995,128 +2962,6 @@ describe('FileUseCases', () => {
     });
   });
 
-  describe('applyRetentionPolicy', () => {
-    const userUuid = 'user-uuid';
-    const premiumLimits = {
-      enabled: true,
-      maxFileSize: 100 * 1024 * 1024,
-      retentionDays: 30,
-      maxVersions: 10,
-    };
-
-    it('When versioning is disabled, then it returns early', async () => {
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue({ ...premiumLimits, enabled: false });
-
-      const findAllByFileIdSpy = jest.spyOn(
-        fileVersionRepository,
-        'findAllByFileId',
-      );
-
-      await service['applyRetentionPolicy']('file-uuid', userUuid);
-
-      expect(findAllByFileIdSpy).not.toHaveBeenCalled();
-    });
-
-    it('When no versions exist, then no versions are deleted', async () => {
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(premiumLimits);
-
-      jest
-        .spyOn(fileVersionRepository, 'findAllByFileId')
-        .mockResolvedValue([]);
-
-      const updateStatusBatchSpy = jest
-        .spyOn(fileVersionRepository, 'updateStatusBatch')
-        .mockResolvedValue(undefined);
-
-      await service['applyRetentionPolicy']('file-uuid', userUuid);
-
-      expect(updateStatusBatchSpy).not.toHaveBeenCalled();
-    });
-
-    it('When versions exist within retention period and under limit, then no versions are deleted', async () => {
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(premiumLimits);
-
-      const mockVersions = [
-        {
-          id: '1',
-          createdAt: new Date(),
-          status: 'EXISTS',
-        },
-        {
-          id: '2',
-          createdAt: new Date(),
-          status: 'EXISTS',
-        },
-      ];
-
-      jest
-        .spyOn(fileVersionRepository, 'findAllByFileId')
-        .mockResolvedValue(mockVersions as any);
-
-      const updateStatusBatchSpy = jest
-        .spyOn(fileVersionRepository, 'updateStatusBatch')
-        .mockResolvedValue(undefined);
-
-      await service['applyRetentionPolicy']('file-uuid', userUuid);
-
-      expect(updateStatusBatchSpy).not.toHaveBeenCalled();
-    });
-
-    it('When limit is reached with recent versions, then oldest is deleted', async () => {
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(premiumLimits);
-
-      const mockVersions = Array.from({ length: 10 }, (_, i) => ({
-        id: `${i + 1}`,
-        createdAt: new Date(Date.now() - i * 1000),
-        status: 'EXISTS',
-      }));
-
-      jest
-        .spyOn(fileVersionRepository, 'findAllByFileId')
-        .mockResolvedValue(mockVersions as any);
-
-      const updateStatusBatchSpy = jest
-        .spyOn(fileVersionRepository, 'updateStatusBatch')
-        .mockResolvedValue(undefined);
-
-      await service['applyRetentionPolicy']('file-uuid', userUuid);
-
-      expect(updateStatusBatchSpy).toHaveBeenCalledWith(['10'], 'DELETED');
-    });
-
-    it('When versions exceed limit, then excess versions are deleted', async () => {
-      jest
-        .spyOn(featureLimitService, 'getFileVersioningLimits')
-        .mockResolvedValue(premiumLimits);
-
-      const now = new Date();
-      const mockVersions = Array.from({ length: 12 }, (_, i) => ({
-        id: `${i + 1}`,
-        createdAt: new Date(now.getTime() - i * 24 * 60 * 60 * 1000),
-        status: 'EXISTS',
-      }));
-
-      jest
-        .spyOn(fileVersionRepository, 'findAllByFileId')
-        .mockResolvedValue(mockVersions as any);
-      const updateStatusBatchSpy = jest
-        .spyOn(fileVersionRepository, 'updateStatusBatch')
-        .mockResolvedValue(undefined);
-
-      await service['applyRetentionPolicy']('file-uuid', userUuid);
-
-      expect(updateStatusBatchSpy).toHaveBeenCalled();
-    });
-  });
-
   describe('getVersioningLimits', () => {
     it('When called with a valid user id, then the versioning limits are returned', async () => {
       const userUuid = v4();
@@ -3145,6 +2990,45 @@ describe('FileUseCases', () => {
       await expect(service.getVersioningLimits(userUuid)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('undoFileVersioning', () => {
+    const userUuid = v4();
+
+    it('When called, then should delete all user versions with default batch size', async () => {
+      jest
+        .spyOn(undoFileVersioningAction, 'execute')
+        .mockResolvedValue({ deletedCount: 250 });
+
+      const result = await service.undoFileVersioning(userUuid);
+
+      expect(undoFileVersioningAction.execute).toHaveBeenCalledWith(userUuid, {
+        batchSize: 1000,
+      });
+      expect(result).toEqual({ deletedCount: 250 });
+    });
+  });
+
+  describe('partialUndoFileVersioning', () => {
+    const userUuid = v4();
+    const limits = {
+      retentionDays: 30,
+      maxVersions: 5,
+    };
+
+    it('When called with limits, then should delete versions exceeding limits', async () => {
+      jest
+        .spyOn(undoFileVersioningAction, 'execute')
+        .mockResolvedValue({ deletedCount: 150 });
+
+      const result = await service.partialUndoFileVersioning(userUuid, limits);
+
+      expect(undoFileVersioningAction.execute).toHaveBeenCalledWith(userUuid, {
+        batchSize: 1000,
+        limits,
+      });
+      expect(result).toEqual({ deletedCount: 150 });
     });
   });
 });

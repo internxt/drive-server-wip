@@ -107,6 +107,9 @@ import { PlatformName } from '../../common/constants';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
+import { CaptchaGuard } from '../auth/captcha.guard';
+import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
+import { CustomThrottle } from '../../guards/custom-endpoint-throttle.decorator';
 
 @ApiTags('User')
 @Controller('users')
@@ -288,7 +291,7 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ThrottlerGuard, CaptchaGuard)
   @Throttle({
     long: {
       ttl: 3600,
@@ -459,6 +462,11 @@ export class UserController {
     return userCredentials;
   }
 
+  @UseGuards(CustomEndpointThrottleGuard)
+  @CustomThrottle({
+    short: { ttl: 60, limit: 2 },
+    long: { ttl: 1800, limit: 5 }
+  })
   @Get('/refresh')
   @HttpCode(200)
   @ApiOperation({ summary: 'Refresh session token' })
@@ -603,7 +611,7 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ThrottlerGuard, CaptchaGuard)
   @Post('/recover-account')
   @HttpCode(200)
   @ApiOperation({
@@ -633,7 +641,7 @@ export class UserController {
     }
   }
 
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ThrottlerGuard, CaptchaGuard)
   @Post('/unblock-account')
   @HttpCode(200)
   @ApiOperation({
@@ -967,8 +975,14 @@ export class UserController {
     return { publicKey: keys.ecc, keys };
   }
 
+  @Throttle({
+    default: {
+      ttl: 60,
+      limit: 5,
+    },
+  })
   @Put('/public-key/:email')
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(CaptchaGuard)
   @UseInterceptors(TimingConsistencyInterceptor)
   @TimingConsistency({ minimumResponseTimeMs: 900 })
   @HttpCode(200)
@@ -995,7 +1009,7 @@ export class UserController {
   }
 
   @HttpCode(201)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ThrottlerGuard, CaptchaGuard)
   @Post('/attempt-change-email')
   async createAttemptChangeEmail(
     @UserDecorator() user: User,
@@ -1112,6 +1126,7 @@ export class UserController {
   }
 
   @Post('/email-verification/send')
+  @UseGuards(CaptchaGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Send account verification email',
@@ -1249,6 +1264,10 @@ export class UserController {
     }
   }
 
+  @UseGuards(CustomEndpointThrottleGuard)
+  @CustomThrottle({
+    short: { ttl: 60, limit: 60 },
+  })
   @Get('/usage')
   @ApiBearerAuth()
   @ApiOperation({

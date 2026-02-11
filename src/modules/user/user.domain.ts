@@ -166,5 +166,4 @@ export interface UserReferralAttributes {
 
 export enum AccountTokenAction {
   Unblock = 'unblock-account',
-  Recover = 'recover-account',
 }
