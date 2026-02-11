@@ -29,10 +29,7 @@ import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter
 import { JobsModule } from './modules/jobs/jobs.module';
 import { v4 } from 'uuid';
 import { getClientIdFromHeaders } from './common/decorators/client.decorator';
-import { CustomThrottlerGuard } from './guards/throttler.guard';
 import { AuthGuard } from './modules/auth/auth.guard';
-import { CustomThrottlerModule } from './guards/throttler.module';
-import { CustomEndpointThrottleGuard } from './guards/custom-endpoint-throttle.guard';
 import { CacheManagerModule } from './modules/cache-manager/cache-manager.module';
 
 @Module({
@@ -126,7 +123,6 @@ import { CacheManagerModule } from './modules/cache-manager/cache-manager.module
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
-    CustomThrottlerModule,
     JobsModule,
     NotificationModule,
     NotificationsModule,
@@ -155,14 +151,6 @@ import { CacheManagerModule } from './modules/cache-manager/cache-manager.module
     {
       provide: APP_FILTER,
       useClass: HttpGlobalExceptionFilter,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: CustomThrottlerGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: CustomEndpointThrottleGuard
     },
     {
       provide: APP_GUARD,

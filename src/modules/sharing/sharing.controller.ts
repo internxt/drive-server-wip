@@ -48,7 +48,6 @@ import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateSharingDto } from './dto/create-sharing.dto';
 import { ChangeSharingType } from './dto/change-sharing-type.dto';
-import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
 import { UuidDto } from '../../common/dto/uuid.dto';
 import { WorkspaceResourcesAction } from '../workspaces/guards/workspaces-resources-in-behalf.types';
@@ -65,7 +64,6 @@ import {
   GetFoldersInSharedFolderResponseDto,
 } from './dto/response/get-folders-in-shared-folder.dto';
 import { GetItemsInSharedFolderQueryDto } from './dto/get-items-in-shared-folder.dto';
-import { Throttle } from '@nestjs/throttler';
 import { CaptchaGuard } from '../auth/captcha.guard';
 
 @ApiTags('Sharing')
@@ -302,7 +300,6 @@ export class SharingController {
     return this.sharingService.createInvite(user, createInviteDto);
   }
 
-  @UseGuards(ThrottlerGuard)
   @Get('/invites/:id/validate')
   @Public()
   @ApiParam({
@@ -931,7 +928,6 @@ export class SharingController {
     return { message: 'User removed from shared folder' };
   }
 
-  @UseGuards(ThrottlerGuard)
   @Public()
   @Get('public/:id/folder/size')
   async getPublicSharingFolderSize(@Param() param: UuidDto) {
@@ -942,7 +938,6 @@ export class SharingController {
 
   @Get('public/domains')
   @Public()
-  @UseGuards(ThrottlerGuard)
   async getPublicSharingDomains() {
     return { list: getEnv().apis.share.url.split(',') };
   }

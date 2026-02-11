@@ -6,17 +6,11 @@ import { v4 } from 'uuid';
 import { AppModule } from '../../src/app.module';
 import { TransformInterceptor } from '../../src/lib/transform.interceptor';
 import { AuthGuard } from '../../src/modules/auth/auth.guard';
-import { ThrottlerGuard } from '../../src/guards/throttler.guard';
 import { BridgeService } from '../../src/externals/bridge/bridge.service';
 import { MailerService } from '../../src/externals/mailer/mailer.service';
 import { NewsletterService } from '../../src/externals/newsletter';
 import { NotificationListener } from '../../src/externals/notifications/listeners/notification.listener';
 
-class MockThrottlerGuard {
-  canActivate() {
-    return true;
-  }
-}
 
 class MockBridgeService {
   async createUser() {
@@ -72,8 +66,6 @@ export async function createTestApp(
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
   })
-    .overrideGuard(ThrottlerGuard)
-    .useClass(MockThrottlerGuard)
     .overrideProvider(BridgeService)
     .useClass(MockBridgeService)
     .overrideProvider(MailerService)

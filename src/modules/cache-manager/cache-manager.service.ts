@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { ThrottlerStorageRecord } from '@nestjs/throttler/dist/throttler-storage-record.interface';
 
 @Injectable()
 export class CacheManagerService {
@@ -100,59 +99,5 @@ export class CacheManagerService {
 
   async deleteUserAvatar(userUuid: string) {
     return this.cacheManager.del(`${this.AVATAR_KEY_PREFIX}${userUuid}`);
-  }
-
-  async getRecord(key: string): Promise<ThrottlerStorageRecord | undefined> {
-    const entry = await this.cacheManager.get<{
-      hits: number;
-      expiresAt: number;
-    }>(key);
-
-    if (entry && typeof entry.hits === 'number') {
-      const now = Date.now();
-      const timeToExpire = entry.expiresAt > now ? entry.expiresAt - now : 0;
-      const record: ThrottlerStorageRecord = {
-        totalHits: entry.hits,
-        timeToExpire,
-        isBlocked: false,
-        timeToBlockExpire: 0,
-      };
-      return record;
-    }
-    return undefined;
-  }
-
-  async increment(
-    key: string,
-    ttlSeconds: number,
-  ): Promise<ThrottlerStorageRecord> {
-    const ttlMs = ttlSeconds * 1000;
-    const now = Date.now();
-
-    const existing = await this.cacheManager.get<{
-      hits: number;
-      expiresAt: number;
-    }>(key);
-
-    let hits = 1;
-    let expiresAt = now + ttlMs;
-    const existingAndNotExpired = existing && existing.expiresAt > now;
-
-    if (existingAndNotExpired) {
-      hits = existing.hits + 1;
-      expiresAt = existing.expiresAt;
-    }
-
-    const remainingTtl = Math.max(0, expiresAt - now);
-
-    await this.cacheManager.set(key, { hits, expiresAt }, remainingTtl);
-
-    const record: ThrottlerStorageRecord = {
-      totalHits: hits,
-      timeToExpire: remainingTtl,
-      isBlocked: false,
-      timeToBlockExpire: 0,
-    };
-    return record;
   }
 }
