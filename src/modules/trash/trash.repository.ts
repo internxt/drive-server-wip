@@ -11,6 +11,7 @@ interface TrashRepository {
   deleteByItemIds(itemIds: string[], itemType: TrashItemType): Promise<void>;
   deleteByUserId(userId: number, limit?: number): Promise<number>;
   findByItemIds(itemIds: string[], itemType: TrashItemType): Promise<Trash[]>;
+  findExpiredItems(limit: number): Promise<Trash[]>;
 }
 
 @Injectable()
@@ -86,5 +87,25 @@ export class SequelizeTrashRepository implements TrashRepository {
     });
 
     return result;
+  }
+
+  async findExpiredItems(limit: number): Promise<Trash[]> {
+    const results = await this.model.findAll({
+      where: {
+        caducityDate: {
+          [Op.lte]: new Date(),
+        },
+      },
+      limit,
+    });
+
+    return results.map((result) =>
+      Trash.build({
+        itemId: result.itemId,
+        itemType: result.itemType,
+        caducityDate: result.caducityDate,
+        userId: result.userId,
+      }),
+    );
   }
 }
