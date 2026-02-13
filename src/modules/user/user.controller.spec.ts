@@ -1348,6 +1348,7 @@ describe('User Controller', () => {
           mnemonic: mockRecoverAccountNoKeys.mnemonic,
           password: mockRecoverAccountNoKeys.password,
           salt: mockRecoverAccountNoKeys.salt,
+          publicKeys: undefined,
         },
         true,
       );
@@ -1369,6 +1370,7 @@ describe('User Controller', () => {
           password: mockRecoverAccountDto.password,
           salt: mockRecoverAccountDto.salt,
           privateKeys: mockRecoverAccountDto.privateKeys,
+          publicKeys: undefined,
         },
         false,
       );
@@ -1404,6 +1406,7 @@ describe('User Controller', () => {
           password: mockRecoverAccountDto.password,
           salt: mockRecoverAccountDto.salt,
           privateKeys: mockRecoverAccountDto.privateKeys,
+          publicKeys: undefined,
         },
         false,
       );
@@ -1437,6 +1440,7 @@ describe('User Controller', () => {
           password: mockRecoverAccountDto.password,
           salt: mockRecoverAccountDto.salt,
           privateKeys: mockRecoverAccountDto.privateKeys,
+          publicKeys: undefined,
         },
         false,
       );
