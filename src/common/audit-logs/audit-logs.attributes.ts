@@ -54,7 +54,3 @@ export const AUDIT_ENTITY_ACTIONS: Record<AuditEntityType, AuditAction[]> = {
     AuditAction.WorkspaceStorageChanged,
   ],
 };
-
-export type UserActions = (typeof AUDIT_ENTITY_ACTIONS)[AuditEntityType.User];
-export type WorkspaceActions =
-  (typeof AUDIT_ENTITY_ACTIONS)[AuditEntityType.Workspace];

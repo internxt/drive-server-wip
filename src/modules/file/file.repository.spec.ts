@@ -10,7 +10,7 @@ import {
 import { FileAttributes, FileStatus } from './file.domain';
 import { FileModel } from './file.model';
 import { FileRepository, SequelizeFileRepository } from './file.repository';
-import { Op, QueryTypes, Sequelize } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import { v4 } from 'uuid';
 import { UserModel } from '../user/user.model';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
@@ -232,6 +232,86 @@ describe('FileRepository', () => {
           status: { [Op.eq]: mockFile.status },
         }),
       });
+    });
+  });
+
+  describe('findAllCursorWhereUpdatedAfter', () => {
+    const updatedAtAfter = new Date();
+    const limit = 10;
+    const offset = 5;
+    const additionalOrders = [['updatedAt', 'ASC']] as Array<
+      [keyof FileModel, string]
+    >;
+    const whereClause: Partial<FileAttributes> = { status: FileStatus.EXISTS };
+
+    it('When sort options are not provided, it should default to none', async () => {
+      jest.spyOn(repository, 'findAllCursor');
+
+      await repository.findAllCursorWhereUpdatedAfter(
+        whereClause,
+        updatedAtAfter,
+        limit,
+        offset,
+        [],
+      );
+
+      expect(repository.findAllCursor).toHaveBeenCalledWith(
+        {
+          ...whereClause,
+          updatedAt: { [Op.gt]: updatedAtAfter },
+        },
+        limit,
+        offset,
+        [],
+      );
+    });
+
+    it('When sort options are provided, it should sort files', async () => {
+      jest.spyOn(repository, 'findAllCursor');
+
+      await repository.findAllCursorWhereUpdatedAfter(
+        whereClause,
+        updatedAtAfter,
+        limit,
+        offset,
+        additionalOrders,
+      );
+
+      expect(repository.findAllCursor).toHaveBeenCalledWith(
+        {
+          ...whereClause,
+          updatedAt: { [Op.gt]: updatedAtAfter },
+        },
+        limit,
+        offset,
+        additionalOrders,
+      );
+    });
+
+    it('When last id is provided, then it is used instead of the offset', async () => {
+      jest.spyOn(repository, 'findAllCursor');
+
+      const lastId = v4();
+
+      await repository.findAllCursorWhereUpdatedAfter(
+        whereClause,
+        updatedAtAfter,
+        limit,
+        offset,
+        additionalOrders,
+        lastId,
+      );
+
+      expect(repository.findAllCursor).toHaveBeenCalledWith(
+        {
+          ...whereClause,
+          updatedAt: { [Op.gt]: updatedAtAfter },
+          uuid: { [Op.gt]: lastId },
+        },
+        limit,
+        0,
+        additionalOrders,
+      );
     });
   });
 
@@ -598,51 +678,6 @@ describe('FileRepository', () => {
     });
   });
 
-  describe('sumExistentFileSizes', () => {
-    const userId = 123;
-
-    it('When called with valid userId, then it should return the sum of file sizes that are not deleted', async () => {
-      const totalSize = 5000;
-      const sizesSum = [{ total: totalSize }];
-
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(sizesSum as any);
-
-      const result = await repository.sumExistentFileSizes(userId);
-
-      expect(fileModel.findAll).toHaveBeenCalledWith({
-        attributes: [[Sequelize.fn(`SUM`, Sequelize.col('size')), 'total']],
-        where: {
-          userId,
-          status: {
-            [Op.ne]: 'DELETED',
-          },
-        },
-        raw: true,
-      });
-      expect(result).toEqual(totalSize);
-    });
-
-    it('When no files are found or total size is null, then it should return 0', async () => {
-      const sizesSum = [{ total: null }];
-
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(sizesSum as any);
-
-      const result = await repository.sumExistentFileSizes(userId);
-
-      expect(fileModel.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            userId,
-            status: {
-              [Op.ne]: 'DELETED',
-            },
-          },
-        }),
-      );
-      expect(result).toEqual(0);
-    });
-  });
-
   describe('deleteFilesByUser ', () => {
     it('When files are deleted successfully, then it should call update with correct parameters', async () => {
       const user = newUser();
@@ -902,6 +937,19 @@ describe('FileRepository', () => {
     const userId = 123;
     const sinceDate = Time.now('2024-01-01');
 
+    let mockTransaction: Record<string, unknown>;
+
+    beforeEach(() => {
+      mockTransaction = {};
+      Object.defineProperty(fileModel, 'sequelize', {
+        value: {
+          query: jest.fn(),
+          transaction: jest.fn((cb) => cb(mockTransaction)),
+        },
+        configurable: true,
+      });
+    });
+
     it('When files have size delta, then it should return the total delta', async () => {
       const totalDelta = 1500;
       const result = [{ total: totalDelta }];
@@ -922,6 +970,7 @@ describe('FileRepository', () => {
             sinceDate,
           },
           raw: true,
+          transaction: mockTransaction,
         }),
       );
       expect(response).toBe(totalDelta);

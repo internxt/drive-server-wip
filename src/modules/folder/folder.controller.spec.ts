@@ -763,14 +763,14 @@ describe('FolderController', () => {
       const result = await folderController.getFolderFiles(
         userMocked,
         folderId,
-        { limit, offset, sort: 'name', order: SortOrder.ASC },
+        { limit, offset, sort: 'plainName', order: SortOrder.ASC },
       );
 
       expect(result).toEqual({ result: mockFiles });
       expect(fileUseCases.getFiles).toHaveBeenCalledWith(
         userMocked.id,
         { folderId, status: FileStatus.EXISTS },
-        { limit, offset, sort: [['name', 'ASC']] },
+        { limit, offset, sort: [['plainName', 'ASC']] },
       );
     });
   });
@@ -835,7 +835,7 @@ describe('FolderController', () => {
       const result = await folderController.getFolderFolders(
         userMocked,
         folderId,
-        { limit, offset, order: SortOrder.ASC, sort: 'name' },
+        { limit, offset, order: SortOrder.ASC, sort: 'plainName' },
       );
 
       expect(result).toEqual({
@@ -844,7 +844,7 @@ describe('FolderController', () => {
       expect(folderUseCases.getFolders).toHaveBeenCalledWith(
         userMocked.id,
         { parentId: folderId, deleted: false, removed: false },
-        { limit, offset, sort: [['name', 'ASC']] },
+        { limit, offset, sort: [['plainName', 'ASC']] },
       );
     });
   });

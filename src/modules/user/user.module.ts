@@ -50,6 +50,7 @@ import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
 import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
 import { KlaviyoModule } from '../..//externals/klaviyo/klaviyo.module';
+import { CaptchaService } from '../../externals/captcha/captcha.service';
 
 @Module({
   imports: [
@@ -101,6 +102,7 @@ import { KlaviyoModule } from '../..//externals/klaviyo/klaviyo.module';
     NewsletterService,
     AvatarService,
     MailerService,
+    CaptchaService,
   ],
   exports: [
     UserUseCases,

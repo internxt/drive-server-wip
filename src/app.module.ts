@@ -2,7 +2,6 @@ import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { FileModule } from './modules/file/file.module';
 import { TrashModule } from './modules/trash/trash.module';
@@ -25,18 +24,21 @@ import { AppSumoModule } from './modules/app-sumo/app-sumo.module';
 import { PlanModule } from './modules/plan/plan.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { GatewayModule } from './modules/gateway/gateway.module';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter.exception';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { v4 } from 'uuid';
+import { nanoid } from 'nanoid';
 import { getClientIdFromHeaders } from './common/decorators/client.decorator';
+import { AuthGuard } from './modules/auth/auth.guard';
+import { CacheManagerModule } from './modules/cache-manager/cache-manager.module';
 
 @Module({
   imports: [
     LoggerModule.forRoot({
       pinoHttp: {
         name: 'drive-server',
-        genReqId: (req) => req.headers['x-request-id'] ?? v4(),
+        genReqId: (_req) => nanoid(),
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
         base: undefined,
         transport:
@@ -122,18 +124,6 @@ import { getClientIdFromHeaders } from './common/decorators/client.decorator';
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
-    ThrottlerModule.forRoot([
-      {
-        name: 'default',
-        ttl: 60,
-        limit: 5,
-      },
-      {
-        name: 'long',
-        ttl: 3600,
-        limit: 5,
-      },
-    ]),
     JobsModule,
     NotificationModule,
     NotificationsModule,
@@ -155,12 +145,17 @@ import { getClientIdFromHeaders } from './common/decorators/client.decorator';
     PlanModule,
     WorkspacesModule,
     GatewayModule,
+    CacheManagerModule,
   ],
   controllers: [],
   providers: [
     {
       provide: APP_FILTER,
       useClass: HttpGlobalExceptionFilter,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard,
     },
   ],
 })

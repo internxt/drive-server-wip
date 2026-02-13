@@ -29,17 +29,21 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
+        modificationTime: version.modificationTime,
       });
 
       expect(result).toBeInstanceOf(FileVersion);
       expect(fileVersionModel.create).toHaveBeenCalledWith({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
+        modificationTime: version.modificationTime,
       });
     });
 
@@ -53,8 +57,10 @@ describe('SequelizeFileVersionRepository', () => {
 
       await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
+        modificationTime: version.modificationTime,
       } as any);
 
       expect(fileVersionModel.create).toHaveBeenCalledWith(
@@ -76,9 +82,11 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
+        modificationTime: version.modificationTime,
       });
 
       expect(result.status).toBe(FileVersionStatus.DELETED);
@@ -95,9 +103,11 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.create({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
+        modificationTime: version.modificationTime,
       });
 
       expect(result.size).toBe(largeSize);
@@ -208,15 +218,18 @@ describe('SequelizeFileVersionRepository', () => {
 
       const result = await repository.upsert({
         fileId: version.fileId,
+        userId: version.userId,
         networkFileId: version.networkFileId,
         size: version.size,
         status: version.status,
+        modificationTime: version.modificationTime,
       });
 
       expect(result).toBeInstanceOf(FileVersion);
       expect(fileVersionModel.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           fileId: version.fileId,
+          userId: version.userId,
           networkFileId: version.networkFileId,
           size: version.size,
           status: version.status,
@@ -237,6 +250,7 @@ describe('SequelizeFileVersionRepository', () => {
         fileId: version.fileId,
         networkFileId: version.networkFileId,
         size: version.size,
+        modificationTime: version.modificationTime,
       } as any);
 
       expect(fileVersionModel.upsert).toHaveBeenCalledWith(
@@ -400,6 +414,69 @@ describe('SequelizeFileVersionRepository', () => {
       expect(fileVersionModel.update).toHaveBeenCalledWith(
         { status: FileVersionStatus.DELETED },
         expect.any(Object),
+      );
+    });
+  });
+
+  describe('sumExistingSizesByUser', () => {
+    it('When user has versions, then it returns the sum', async () => {
+      const userId = 'user-uuid-123';
+      const totalSize = 5000;
+
+      jest
+        .spyOn(fileVersionModel, 'findAll')
+        .mockResolvedValue([{ total: totalSize }] as any);
+
+      const result = await repository.sumExistingSizesByUser(userId);
+
+      expect(result).toBe(totalSize);
+      expect(fileVersionModel.findAll).toHaveBeenCalledWith({
+        attributes: expect.any(Array),
+        where: {
+          userId,
+          status: FileVersionStatus.EXISTS,
+        },
+        raw: true,
+      });
+    });
+
+    it('When user has no versions, then it returns 0', async () => {
+      const userId = 'user-uuid-456';
+
+      jest
+        .spyOn(fileVersionModel, 'findAll')
+        .mockResolvedValue([{ total: null }] as any);
+
+      const result = await repository.sumExistingSizesByUser(userId);
+
+      expect(result).toBe(0);
+    });
+
+    it('When query returns empty array, then it returns 0', async () => {
+      const userId = 'user-uuid-789';
+
+      jest.spyOn(fileVersionModel, 'findAll').mockResolvedValue([] as any);
+
+      const result = await repository.sumExistingSizesByUser(userId);
+
+      expect(result).toBe(0);
+    });
+
+    it('When summing sizes, then it only counts EXISTS status versions', async () => {
+      const userId = 'user-uuid-abc';
+
+      jest
+        .spyOn(fileVersionModel, 'findAll')
+        .mockResolvedValue([{ total: 1000 }] as any);
+
+      await repository.sumExistingSizesByUser(userId);
+
+      expect(fileVersionModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: FileVersionStatus.EXISTS,
+          }),
+        }),
       );
     });
   });

@@ -14,6 +14,7 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -777,6 +778,7 @@ export class FolderController {
       user,
       folderPath,
     );
+
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }

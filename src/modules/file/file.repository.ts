@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { withQueryTimeout } from '../../lib/query-timeout';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
 import {
@@ -35,6 +36,12 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     options: FileOptions,
   ): Promise<Array<File> | []>;
+  findAllCursor(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]>,
+  ): Promise<Array<File> | []>;
   findAllCursorInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
@@ -42,6 +49,14 @@ export interface FileRepository {
     limit: number,
     offset: number,
     order: Array<[keyof FileModel, string]>,
+  ): Promise<Array<File> | []>;
+  findAllCursorWhereUpdatedAfter(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    updatedAtAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FileModel, string]>,
+    lastId?: FileAttributes['uuid'],
   ): Promise<Array<File> | []>;
   findAllCursorWhereUpdatedAfterInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
@@ -82,18 +97,8 @@ export interface FileRepository {
     workspaceId: WorkspaceAttributes['id'],
     statuses: FileStatus[],
   ): Promise<number>;
-  updateByFieldIdAndUserId(
-    fileId: FileAttributes['fileId'],
-    userId: FileAttributes['userId'],
-    update: Partial<File>,
-  ): Promise<File>;
   updateByUuidAndUserId(
     uuid: FileAttributes['uuid'],
-    userId: FileAttributes['userId'],
-    update: Partial<File>,
-  ): Promise<void>;
-  updateManyByFieldIdAndUserId(
-    fileIds: FileAttributes['fileId'][],
     userId: FileAttributes['userId'],
     update: Partial<File>,
   ): Promise<void>;
@@ -112,7 +117,6 @@ export interface FileRepository {
     userId: User['id'],
     fileIds: FileAttributes['fileId'][],
   ): Promise<File[]>;
-  sumExistentFileSizes(userId: FileAttributes['userId']): Promise<number>;
   getFilesByFolderUuid(
     folderUuid: Folder['uuid'],
     status: FileStatus,
@@ -316,14 +320,22 @@ export class SequelizeFileRepository implements FileRepository {
     limit: number,
     offset: number,
     additionalOrders: Array<[keyof FileModel, string]> = [],
+    lastId?: FileAttributes['uuid'],
   ): Promise<Array<File> | []> {
+    let whereCondition: Partial<Record<keyof FileAttributes, any>> = {
+      ...where,
+      updatedAt: { [Op.gt]: updatedAtAfter },
+    };
+    if (lastId) {
+      whereCondition = {
+        ...whereCondition,
+        uuid: { [Op.gt]: lastId },
+      };
+    }
     const files = await this.findAllCursor(
-      {
-        ...where,
-        updatedAt: { [Op.gt]: updatedAtAfter },
-      },
+      whereCondition,
       limit,
-      offset,
+      lastId ? 0 : offset,
       additionalOrders,
     );
 
@@ -673,41 +685,6 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
-  async updateByFieldIdAndUserId(
-    fileId: FileAttributes['fileId'],
-    userId: FileAttributes['userId'],
-    update: Partial<File>,
-  ): Promise<File> {
-    const file = await this.fileModel.findOne({
-      where: {
-        fileId,
-        userId,
-      },
-    });
-
-    if (!file) {
-      throw new NotFoundException(`File with ID ${fileId} not found`);
-    }
-    file.set(update);
-    await file.save();
-    return this.toDomain(file);
-  }
-
-  async updateManyByFieldIdAndUserId(
-    fileIds: FileAttributes['fileId'][],
-    userId: FileAttributes['userId'],
-    update: Partial<File>,
-  ): Promise<void> {
-    await this.fileModel.update(update, {
-      where: {
-        userId,
-        fileId: {
-          [Op.in]: fileIds,
-        },
-      },
-    });
-  }
-
   async updateByUuidAndUserId(
     uuid: FileAttributes['uuid'],
     userId: FileAttributes['userId'],
@@ -900,27 +877,6 @@ export class SequelizeFileRepository implements FileRepository {
     return file;
   }
 
-  private toModel(domain: File): Partial<FileAttributes> {
-    return domain.toJSON();
-  }
-
-  async sumExistentFileSizes(
-    userId: FileAttributes['userId'],
-  ): Promise<number> {
-    const result = await this.fileModel.findAll({
-      attributes: [[Sequelize.fn(`SUM`, Sequelize.col('size')), 'total']],
-      where: {
-        userId,
-        status: {
-          [Op.ne]: 'DELETED',
-        },
-      },
-      raw: true,
-    });
-
-    return Number(result[0]['total']) as unknown as number;
-  }
-
   async sumFileSizeDeltaBetweenDates(
     userId: FileAttributes['userId'],
     sinceDate: Date,
@@ -983,48 +939,55 @@ export class SequelizeFileRepository implements FileRepository {
     userId: FileAttributes['userId'],
     sinceDate: Date,
   ): Promise<number> {
-    const result = await this.fileModel.findAll({
-      attributes: [
-        [
-          Sequelize.literal(`
-          SUM(
-            CASE      
-              WHEN status != 'DELETED' THEN size
-              
-              -- Files created BEFORE the period but deleted DURING the period
-              WHEN status = 'DELETED' AND created_at < $sinceDate THEN -size
+    return withQueryTimeout(
+      this.fileModel.sequelize,
+      8000,
+      async (transaction) => {
+        const result = await this.fileModel.findAll({
+          attributes: [
+            [
+              Sequelize.literal(`
+            SUM(
+              CASE
+                WHEN status != 'DELETED' THEN size
 
-              -- Files created and deleted DURING the period does not affect delta
-              ELSE 0
-            END
-          )
-        `),
-          'total',
-        ],
-      ],
-      where: {
-        userId,
-        [Op.or]: [
-          {
-            status: { [Op.ne]: FileStatus.DELETED },
-            createdAt: {
-              [Op.gte]: sinceDate,
-            },
-          },
-          {
-            status: FileStatus.DELETED,
-            updatedAt: {
-              [Op.gte]: sinceDate,
-            },
-          },
-        ],
-      },
-      bind: {
-        sinceDate,
-      },
-      raw: true,
-    });
+                -- Files created BEFORE the period but deleted DURING the period
+                WHEN status = 'DELETED' AND created_at < $sinceDate THEN -size
 
-    return Number(result[0]['total']) || 0;
+                -- Files created and deleted DURING the period does not affect delta
+                ELSE 0
+              END
+            )
+          `),
+              'total',
+            ],
+          ],
+          where: {
+            userId,
+            [Op.or]: [
+              {
+                status: { [Op.ne]: FileStatus.DELETED },
+                createdAt: {
+                  [Op.gte]: sinceDate,
+                },
+              },
+              {
+                status: FileStatus.DELETED,
+                updatedAt: {
+                  [Op.gte]: sinceDate,
+                },
+              },
+            ],
+          },
+          bind: {
+            sinceDate,
+          },
+          raw: true,
+          transaction,
+        });
+
+        return Number(result[0]['total']) || 0;
+      },
+    );
   }
 }

@@ -407,7 +407,7 @@ describe('TrashController', () => {
         user,
         validPagination,
         'files',
-        'name',
+        'plainName',
         'ASC',
       );
 
@@ -417,7 +417,7 @@ describe('TrashController', () => {
         {
           limit: validPagination.limit,
           offset: validPagination.offset,
-          sort: [['name', 'ASC']],
+          sort: [['plainName', 'ASC']],
         },
       );
     });

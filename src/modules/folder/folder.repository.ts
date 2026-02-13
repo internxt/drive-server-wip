@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { withQueryTimeout } from '../../lib/query-timeout';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   FindOptions,
@@ -868,35 +869,35 @@ export class SequelizeFolderRepository implements FolderRepository {
 
       const calculateSizeQuery = `
       WITH RECURSIVE folder_recursive AS (
-        SELECT 
-            fl1.uuid,
-            fl1.parent_uuid,
-            COALESCE(f1.size, 0) AS filesize,
-            1 AS row_num,
-            fl1.user_id as owner_id
+        SELECT
+          fl1.uuid,
+          fl1.parent_uuid,
+          1 AS row_num,
+          fl1.user_id as owner_id
         FROM folders fl1
-        LEFT JOIN files f1 ON f1.folder_uuid = fl1.uuid AND f1.status IN (:fileStatusCondition)
         WHERE fl1.uuid = :folderUuid
-          AND fl1.removed = FALSE 
+          AND fl1.removed = FALSE
           AND fl1.deleted = FALSE
-        
+
         UNION ALL
-        
-        SELECT 
-            fl2.uuid,
-            fl2.parent_uuid,
-            COALESCE(f2.size, 0) AS filesize,
-            fr.row_num + 1,
-            fr.owner_id
+
+        SELECT
+          fl2.uuid,
+          fl2.parent_uuid,
+          fr.row_num + 1,
+          fr.owner_id
         FROM folders fl2
-        LEFT JOIN files f2 ON f2.folder_uuid = fl2.uuid AND f2.status IN (:fileStatusCondition)
         INNER JOIN folder_recursive fr ON fr.uuid = fl2.parent_uuid
         WHERE fr.row_num < 100000
           AND fl2.user_id = fr.owner_id
-          AND fl2.removed = FALSE 
+          AND fl2.removed = FALSE
           AND fl2.deleted = FALSE
-    ) 
-    SELECT COALESCE(SUM(filesize), 0) AS totalsize FROM folder_recursive;
+      )
+      SELECT COALESCE(SUM(f.size), 0) AS totalsize
+      FROM folder_recursive fr
+      LEFT JOIN files f
+        ON f.folder_uuid = fr.uuid
+        AND f.status IN (:fileStatusCondition);
       `;
 
       const [[{ totalsize }]]: any = await FolderModel.sequelize.query(
@@ -1179,14 +1180,21 @@ export class SequelizeFolderRepository implements FolderRepository {
     path: string,
     rootFolderUuid: Folder['uuid'],
   ): Promise<Folder | null> {
-    const [[folder]] = await this.folderModel.sequelize.query(
-      'SELECT * FROM get_folder_by_path (:userId, :path, :rootFolderUuid)',
-      {
-        replacements: { userId, path, rootFolderUuid },
+    return withQueryTimeout(
+      this.folderModel.sequelize,
+      3000,
+      async (transaction) => {
+        const [[folder]] = await this.folderModel.sequelize.query(
+          'SELECT * FROM get_folder_by_path (:userId, :path, :rootFolderUuid)',
+          {
+            replacements: { userId, path, rootFolderUuid },
+            transaction,
+          },
+        );
+
+        return (folder as Folder) ?? null;
       },
     );
-
-    return (folder as Folder) ?? null;
   }
 
   private toDomain(model: FolderModel): Folder {

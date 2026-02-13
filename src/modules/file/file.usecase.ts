@@ -50,7 +50,6 @@ import {
 } from '../feature-limit/limits.enum';
 import { FeatureLimitUsecases } from '../feature-limit/feature-limit.usecase';
 import { SequelizeFileVersionRepository } from './file-version.repository';
-import { FileVersion, FileVersionStatus } from './file-version.domain';
 import { FileVersionDto } from './dto/responses/file-version.dto';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
@@ -59,6 +58,13 @@ import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import {
+  DeleteFileVersionAction,
+  GetFileVersionsAction,
+  CreateFileVersionAction,
+  RestoreFileVersionAction,
+  UndoFileVersioningAction,
+} from './actions';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -93,6 +99,11 @@ export class FileUseCases {
     private readonly userUsecases: UserUseCases,
     private readonly redisService: RedisService,
     private readonly cacheManagerService: CacheManagerService,
+    private readonly getFileVersionsAction: GetFileVersionsAction,
+    private readonly deleteFileVersionAction: DeleteFileVersionAction,
+    private readonly createFileVersionAction: CreateFileVersionAction,
+    private readonly restoreFileVersionAction: RestoreFileVersionAction,
+    private readonly undoFileVersioningAction: UndoFileVersioningAction,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -106,17 +117,13 @@ export class FileUseCases {
     return this.fileRepository.getFilesWithUserByUuuid(uuids, order);
   }
 
-  getByUuidsAndUser(
-    user: User,
-    uuids: FileAttributes['uuid'][],
-  ): Promise<File[]> {
-    return this.fileRepository.findByUuids(uuids, { userId: user.id });
-  }
-
   async getUserUsedStorage(user: User): Promise<number> {
-    const usageCalculation = await this.getUserUsedStorageIncrementally(user);
+    const [filesUsage, versionsUsage] = await Promise.all([
+      this.getUserUsedStorageIncrementally(user),
+      this.fileVersionRepository.sumExistingSizesByUser(user.uuid),
+    ]);
 
-    return usageCalculation || 0;
+    return (filesUsage || 0) + versionsUsage;
   }
 
   async getUserUsedStorageIncrementally(user: User): Promise<number> {
@@ -254,28 +261,7 @@ export class FileUseCases {
     user: User,
     fileUuid: string,
   ): Promise<FileVersionDto[]> {
-    const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
-
-    if (!file) {
-      throw new NotFoundException('File not found');
-    }
-
-    const [versions, limits] = await Promise.all([
-      this.fileVersionRepository.findAllByFileId(fileUuid),
-      this.featureLimitService.getFileVersioningLimits(user.uuid),
-    ]);
-
-    const { retentionDays } = limits;
-
-    return versions.map((version) => {
-      const expiresAt = new Date(version.createdAt);
-      expiresAt.setDate(expiresAt.getDate() + retentionDays);
-
-      return {
-        ...version.toJSON(),
-        expiresAt,
-      };
-    });
+    return this.getFileVersionsAction.execute(user, fileUuid);
   }
 
   async deleteFileVersion(
@@ -283,30 +269,7 @@ export class FileUseCases {
     fileUuid: string,
     versionId: string,
   ): Promise<void> {
-    const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
-
-    if (!file) {
-      throw new NotFoundException('File not found');
-    }
-
-    if (!file.isOwnedBy(user)) {
-      throw new ForbiddenException('You do not own this file');
-    }
-
-    const version = await this.fileVersionRepository.findById(versionId);
-
-    if (!version) {
-      throw new NotFoundException('Version not found');
-    }
-
-    if (version.fileId !== fileUuid) {
-      throw new BadRequestException('Version does not belong to this file');
-    }
-
-    await this.fileVersionRepository.updateStatus(
-      versionId,
-      FileVersionStatus.DELETED,
-    );
+    return this.deleteFileVersionAction.execute(user, fileUuid, versionId);
   }
 
   async restoreFileVersion(
@@ -314,61 +277,7 @@ export class FileUseCases {
     fileUuid: string,
     versionId: string,
   ): Promise<File> {
-    const file = await this.fileRepository.findByUuid(fileUuid, user.id, {});
-
-    if (!file) {
-      throw new NotFoundException('File not found');
-    }
-
-    if (!file.isOwnedBy(user)) {
-      throw new ForbiddenException('You do not own this file');
-    }
-
-    const versionToRestore =
-      await this.fileVersionRepository.findById(versionId);
-
-    if (!versionToRestore) {
-      throw new NotFoundException('Version not found');
-    }
-
-    if (versionToRestore.fileId !== fileUuid) {
-      throw new BadRequestException('Version does not belong to this file');
-    }
-
-    if (versionToRestore.status !== FileVersionStatus.EXISTS) {
-      throw new BadRequestException('Cannot restore a deleted version');
-    }
-
-    const allVersions =
-      await this.fileVersionRepository.findAllByFileId(fileUuid);
-
-    const newerVersions = allVersions.filter(
-      (v) =>
-        v.createdAt > versionToRestore.createdAt &&
-        v.status === FileVersionStatus.EXISTS,
-    );
-
-    const idsToDelete = [
-      ...newerVersions.map((v) => v.id),
-      versionToRestore.id,
-    ];
-
-    await Promise.all([
-      this.fileVersionRepository.updateStatusBatch(
-        idsToDelete,
-        FileVersionStatus.DELETED,
-      ),
-      this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
-        fileId: versionToRestore.networkFileId,
-        size: versionToRestore.size,
-        updatedAt: new Date(),
-      }),
-    ]);
-
-    file.fileId = versionToRestore.networkFileId;
-    file.size = versionToRestore.size;
-
-    return file;
+    return this.restoreFileVersionAction.execute(user, fileUuid, versionId);
   }
 
   getByUuids(uuids: File['uuid'][]): Promise<File[]> {
@@ -407,7 +316,7 @@ export class FileUseCases {
       throw new ConflictException('File already exists');
     }
 
-    const isFileEmpty = newFileDto.size === BigInt(0);
+    const isFileEmpty = BigInt(newFileDto.size) === BigInt(0);
 
     if (isFileEmpty) {
       await this.checkEmptyFilesLimit(user);
@@ -565,34 +474,6 @@ export class FileUseCases {
     return this.fileRepository.getFilesByFolderUuid(folderUuid, status);
   }
 
-  async getFilesByFolderId(
-    folderId: FileAttributes['folderId'],
-    userId: FileAttributes['userId'],
-    options: { limit: number; offset: number; sort?: SortParamsFile } = {
-      limit: 20,
-      offset: 0,
-    },
-  ) {
-    const parentFolder = await this.folderUsecases.getFolderByUserId(
-      folderId,
-      userId,
-    );
-
-    if (!parentFolder) {
-      throw new NotFoundException();
-    }
-
-    if (parentFolder.userId !== userId) {
-      throw new ForbiddenException();
-    }
-
-    return this.getFiles(
-      userId,
-      { folderId, status: FileStatus.EXISTS },
-      options,
-    );
-  }
-
   getFilesByIds(user: User, fileIds: File['id'][]): Promise<File[]> {
     return this.fileRepository.findByIds(user.id, fileIds);
   }
@@ -600,7 +481,12 @@ export class FileUseCases {
   getAllFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number; offset: number; sort?: SortParamsFile },
+    pagination: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFile;
+      lastId?: string;
+    },
     bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = {};
@@ -609,13 +495,13 @@ export class FileUseCases {
       where.bucket = bucket;
     }
 
-    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, pagination);
   }
 
   getNotTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number; offset: number },
+    pagination: { limit: number; offset: number; lastId?: string },
     bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = { status: FileStatus.EXISTS };
@@ -624,13 +510,13 @@ export class FileUseCases {
       where.bucket = bucket;
     }
 
-    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, pagination);
   }
 
   getRemovedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number; offset: number },
+    pagination: { limit: number; offset: number; lastId?: string },
     bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = { status: FileStatus.DELETED };
@@ -639,13 +525,13 @@ export class FileUseCases {
       where.bucket = bucket;
     }
 
-    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, pagination);
   }
 
   getTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    options: { limit: number; offset: number },
+    pagination: { limit: number; offset: number; lastId?: string },
     bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = { status: FileStatus.TRASHED };
@@ -654,25 +540,31 @@ export class FileUseCases {
       where.bucket = bucket;
     }
 
-    return this.getFilesUpdatedAfter(userId, where, updatedAfter, options);
+    return this.getFilesUpdatedAfter(userId, where, updatedAfter, pagination);
   }
 
   async getFilesUpdatedAfter(
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
     updatedAfter: Date,
-    options: { limit: number; offset: number; sort?: SortParamsFile },
+    pagination: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFile;
+      lastId?: string;
+    },
   ): Promise<File[]> {
-    const additionalOrders: SortParamsFile = options.sort ?? [
+    const additionalOrders: SortParamsFile = pagination.sort ?? [
       ['updatedAt', 'ASC'],
     ];
 
     const files = await this.fileRepository.findAllCursorWhereUpdatedAfter(
       { ...where, userId },
       updatedAfter,
-      options.limit,
-      options.offset,
+      pagination.limit,
+      pagination.offset,
       additionalOrders,
+      pagination.lastId,
     );
     return files.map((file) => file.toJSON());
   }
@@ -923,24 +815,15 @@ export class FileUseCases {
     );
 
     if (shouldVersion) {
-      await this.applyRetentionPolicy(fileUuid, user.uuid);
+      const { size, modificationTime } = newFileData;
 
-      const { fileId, size, modificationTime } = newFileData;
-
-      await Promise.all([
-        this.fileVersionRepository.upsert({
-          fileId: file.uuid,
-          networkFileId: file.fileId,
-          size: file.size,
-          status: FileVersionStatus.EXISTS,
-        }),
-        this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
-          fileId: newFileId,
-          size,
-          updatedAt: new Date(),
-          ...(modificationTime ? { modificationTime } : null),
-        }),
-      ]);
+      await this.createFileVersionAction.execute(
+        user,
+        file,
+        newFileId,
+        size,
+        modificationTime,
+      );
 
       return {
         ...file.toJSON(),
@@ -1090,10 +973,9 @@ export class FileUseCases {
   }
 
   decrypFileName(file: File): any {
-    const decryptedName = this.cryptoService.decryptName(
-      file.name,
-      file.folderId,
-    );
+    const decryptedName =
+      file.plainName ??
+      this.cryptoService.decryptName(file.name, file.folderId);
 
     if (decryptedName === '') {
       return File.build(file);
@@ -1256,61 +1138,6 @@ export class FileUseCases {
     return { versionable: true, limits };
   }
 
-  private async applyRetentionPolicy(
-    fileUuid: string,
-    userUuid: string,
-  ): Promise<void> {
-    const limits =
-      await this.featureLimitService.getFileVersioningLimits(userUuid);
-
-    if (!limits.enabled) {
-      return;
-    }
-
-    const { retentionDays, maxVersions } = limits;
-
-    const cutoffDate = Time.daysAgo(retentionDays);
-
-    const versions = await this.fileVersionRepository.findAllByFileId(fileUuid);
-
-    const versionsToDeleteByAge = versions.filter(
-      (version) => version.createdAt < cutoffDate,
-    );
-
-    const remainingVersions = versions
-      .filter((version) => version.createdAt >= cutoffDate)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    const versionsToDeleteByCount = remainingVersions.slice(maxVersions);
-
-    const versionsToDelete = [
-      ...versionsToDeleteByAge,
-      ...versionsToDeleteByCount,
-    ];
-
-    const remainingCount = versions.length - versionsToDelete.length;
-    if (remainingCount >= maxVersions) {
-      const versionsNotDeleted = versions.filter(
-        (v) => !versionsToDelete.some((vd) => vd.id === v.id),
-      );
-      const oldestVersion = versionsNotDeleted.sort(
-        (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
-      )[0];
-
-      if (oldestVersion) {
-        versionsToDelete.push(oldestVersion);
-      }
-    }
-
-    if (versionsToDelete.length > 0) {
-      const idsToDelete = versionsToDelete.map((v) => v.id);
-      await this.fileVersionRepository.updateStatusBatch(
-        idsToDelete,
-        FileVersionStatus.DELETED,
-      );
-    }
-  }
-
   async getVersioningLimits(userUuid: string): Promise<{
     enabled: boolean;
     maxFileSize: number;
@@ -1318,5 +1145,23 @@ export class FileUseCases {
     maxVersions: number;
   }> {
     return this.featureLimitService.getFileVersioningLimits(userUuid);
+  }
+
+  async undoFileVersioning(
+    userUuid: string,
+  ): Promise<{ deletedCount: number }> {
+    return this.undoFileVersioningAction.execute(userUuid, {
+      batchSize: 1000,
+    });
+  }
+
+  async partialUndoFileVersioning(
+    userUuid: string,
+    limits: { retentionDays: number; maxVersions: number },
+  ): Promise<{ deletedCount: number }> {
+    return this.undoFileVersioningAction.execute(userUuid, {
+      batchSize: 1000,
+      limits,
+    });
   }
 }

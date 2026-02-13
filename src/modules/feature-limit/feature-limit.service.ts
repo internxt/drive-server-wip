@@ -23,6 +23,7 @@ export class FeatureLimitService {
   ): Promise<boolean> {
     const platformLimitLabelsMap: Record<PlatformName, LimitLabels> = {
       [PlatformName.CLI]: LimitLabels.CliAccess,
+      [PlatformName.RCLONE]: LimitLabels.RcloneAccess,
     };
     const limitLabel = platformLimitLabelsMap[platform];
 
@@ -106,6 +107,23 @@ export class FeatureLimitService {
     retentionDays: number;
     maxVersions: number;
   }> {
+    const user = await this.userRepository.findByUuid(userUuid);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return this.getFileVersioningLimitsByTier(userUuid, user.tierId);
+  }
+
+  async getFileVersioningLimitsByTier(
+    userUuid: string,
+    tierId: string,
+  ): Promise<{
+    enabled: boolean;
+    maxFileSize: number;
+    retentionDays: number;
+    maxVersions: number;
+  }> {
     const fileVersioningLabels = [
       LimitLabels.FileVersionEnabled,
       LimitLabels.FileVersionMaxSize,
@@ -113,18 +131,13 @@ export class FeatureLimitService {
       LimitLabels.FileVersionMaxNumber,
     ];
 
-    const user = await this.userRepository.findByUuid(userUuid);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
     const [userOverriddenLimits, tierLimits] = await Promise.all([
       this.limitsRepository.findUserOverriddenLimitsByLabels(
-        user.uuid,
+        userUuid,
         fileVersioningLabels,
       ),
       this.limitsRepository.findLimitsByLabelsAndTier(
-        user.tierId,
+        tierId,
         fileVersioningLabels,
       ),
     ]);

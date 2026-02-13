@@ -1,6 +1,7 @@
 export enum JobName {
   DELETED_ITEMS_CLEANUP = 'deleted-items-cleanup',
   INACTIVE_USERS_EMAIL = 'inactive-users-email',
+  EXPIRED_FILE_VERSIONS_CLEANUP = 'expired-file-versions-cleanup',
 }
 
 export enum JobStatus {

@@ -8,9 +8,11 @@ describe('FileVersion Domain', () => {
   const mockAttributes: FileVersionAttributes = {
     id: 'version-id-123',
     fileId: 'file-id-456',
+    userId: 'user-uuid-789',
     networkFileId: 'network-file-id-789',
     size: BigInt(1024),
     status: FileVersionStatus.EXISTS,
+    modificationTime: new Date('2024-01-01T00:00:00Z'),
     createdAt: new Date('2024-01-01T00:00:00Z'),
     updatedAt: new Date('2024-01-01T00:00:00Z'),
   };
@@ -63,9 +65,11 @@ describe('FileVersion Domain', () => {
     expect(json).toEqual({
       id: mockAttributes.id,
       fileId: mockAttributes.fileId,
+      userId: mockAttributes.userId,
       networkFileId: mockAttributes.networkFileId,
       size: mockAttributes.size,
       status: mockAttributes.status,
+      modificationTime: mockAttributes.modificationTime,
       createdAt: mockAttributes.createdAt,
       updatedAt: mockAttributes.updatedAt,
     });

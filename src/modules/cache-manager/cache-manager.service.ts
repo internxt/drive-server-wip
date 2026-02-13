@@ -8,7 +8,7 @@ export class CacheManagerService {
   private readonly LIMIT_KEY_PREFIX = 'limit:';
   private readonly JWT_KEY_PREFIX = 'jwt:';
   private readonly AVATAR_KEY_PREFIX = 'avatar:';
-  private readonly TTL_10_MINUTES = 10000 * 60;
+  private readonly TTL_10_MINUTES = 10 * 60 * 1000;
   private readonly TTL_24_HOURS = 24 * 60 * 60 * 1000;
 
   constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}

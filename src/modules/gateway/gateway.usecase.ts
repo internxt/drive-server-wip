@@ -20,6 +20,7 @@ import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
 import { Limit } from '../feature-limit/domain/limit.domain';
 import { FeatureNameLimitMap } from './constants';
+import { FileUseCases } from '../file/file.usecase';
 
 @Injectable()
 export class GatewayUseCases {
@@ -30,6 +31,7 @@ export class GatewayUseCases {
     private readonly cacheManagerService: CacheManagerService,
     private readonly storageNotificationService: StorageNotificationService,
     private readonly featureLimitService: FeatureLimitService,
+    private readonly fileUseCases: FileUseCases,
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
     private readonly folderRepository: SequelizeFolderRepository,
@@ -315,6 +317,9 @@ export class GatewayUseCases {
       user.tierId = newTierId;
     }
 
+    Logger.log(
+      `[GATEWAY/UPDATE_TIER] Validating storage update for user ${user.uuid}: newStorageSpaceBytes=${newStorageSpaceBytes}`,
+    );
     if (!newStorageSpaceBytes) {
       return;
     }
@@ -335,6 +340,37 @@ export class GatewayUseCases {
         `[GATEWAY/LIMIT_CACHE] Error proactively setting cache for user ${user.uuid} with new limit ${newStorageSpaceBytes}`,
         error,
       );
+    }
+
+    const limits =
+      await this.featureLimitService.getFileVersioningLimitsByTier(
+        user.uuid,
+        user.tierId,
+      );
+
+    Logger.log(
+      `[GATEWAY/UPDATE_TIER] Starting file versioning validation for user ${user.uuid}: enabled=${limits.enabled}, retentionDays=${limits.retentionDays}, maxVersions=${limits.maxVersions}`,
+    );
+
+    if (limits.enabled) {
+      const { deletedCount } =
+        await this.fileUseCases.partialUndoFileVersioning(user.uuid, {
+          retentionDays: limits.retentionDays,
+          maxVersions: limits.maxVersions,
+        });
+      if (deletedCount > 0) {
+        Logger.log(
+          `[GATEWAY/UPDATE_TIER] Adjusted ${deletedCount} file versions to tier limits for user ${user.uuid} due to tier change`,
+        );
+      }
+    } else {
+      const { deletedCount } =
+        await this.fileUseCases.undoFileVersioning(user.uuid);
+      if (deletedCount > 0) {
+        Logger.log(
+          `[GATEWAY/UPDATE_TIER] Deleted ${deletedCount} file versions (full cleanup) for user ${user.uuid} due to tier change`,
+        );
+      }
     }
   }
 
