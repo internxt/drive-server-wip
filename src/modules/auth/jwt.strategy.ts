@@ -67,7 +67,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, strategyId) {
         user.lastPasswordChangedAt > Time.convertTimestampToDate(payload.iat);
 
       if (
-        false &&
         !userWithoutLastPasswordChangedAt &&
         tokenIssuedBeforeLastPasswordChange
       ) {
