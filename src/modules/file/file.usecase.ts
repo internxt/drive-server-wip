@@ -25,6 +25,7 @@ import {
   SortableFileAttributes,
 } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
+import { WhereOptions } from 'sequelize';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { FileDto } from './dto/file.dto';
@@ -600,7 +601,7 @@ export class FileUseCases {
 
   async getFiles(
     userId: UserAttributes['id'],
-    where: Partial<FileAttributes>,
+    where: Partial<FileAttributes> | WhereOptions<FileAttributes>,
     options: {
       limit: number;
       offset: number;

@@ -48,6 +48,7 @@ import { Client } from '../../common/decorators/client.decorator';
 import { getPathDepth } from '../../lib/path';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { FileDto } from './dto/responses/file.dto';
+import { Op } from 'sequelize';
 import { GetFileLimitsDto } from './dto/get-file-limits.dto';
 import { FileVersionDto } from './dto/responses/file-version.dto';
 import { UploadGuard } from './guards/upload.guard';
@@ -438,6 +439,8 @@ export class FileController {
       user.id,
       {
         status: FileStatus.EXISTS,
+        updatedAt: { [Op.gte]: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+        '$folder.deleted$': false,
       },
       {
         limit,
