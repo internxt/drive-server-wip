@@ -1092,12 +1092,6 @@ export class UserUseCases {
     }
 
     if (withReset) {
-      await this.userRepository.updateByUuid(userUuid, {
-        mnemonic,
-        password: this.cryptoService.decryptText(password),
-        hKey: this.cryptoService.decryptText(salt),
-      });
-
       await this.keyServerRepository.deleteByUserId(user.id);
       await this.resetUser(user, {
         deleteFiles: true,
@@ -1105,6 +1099,12 @@ export class UserUseCases {
         deleteShares: true,
         deleteWorkspaces: true,
         deleteBackups: true,
+      });
+
+      await this.userRepository.updateByUuid(userUuid, {
+        mnemonic,
+        password: this.cryptoService.decryptText(password),
+        hKey: this.cryptoService.decryptText(salt),
       });
 
       return;
