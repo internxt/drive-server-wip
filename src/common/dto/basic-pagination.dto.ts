@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsNumber, IsOptional, Max, Min } from 'class-validator';
 
-export function createPaginationDto(maxLimit: number) {
+function createPaginationDto(maxLimit: number) {
   class PaginationDto {
     @ApiProperty({
       description: 'Items per page',
@@ -33,7 +33,7 @@ export function createPaginationDto(maxLimit: number) {
   return PaginationDto;
 }
 
-export function createRequiredPaginationDto(maxLimit: number) {
+function createRequiredPaginationDto(maxLimit: number) {
   class RequiredPaginationDto {
     @ApiProperty({
       description: 'Items per page',

@@ -13,7 +13,7 @@ export type CreateFileVersionData = Omit<
   'id' | 'createdAt' | 'updatedAt'
 >;
 
-export interface FileVersionRepository {
+interface FileVersionRepository {
   create(version: CreateFileVersionData): Promise<FileVersion>;
   upsert(version: CreateFileVersionData): Promise<FileVersion>;
   findAllByFileId(fileId: string): Promise<FileVersion[]>;

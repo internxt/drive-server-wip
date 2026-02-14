@@ -66,7 +66,7 @@ export class UserReferralModel extends Model implements UserReferralAttributes {
   startDate: UserReferralAttributes['startDate'];
 }
 
-export interface UserReferralsRepository {
+interface UserReferralsRepository {
   findOneWhere(
     where: Partial<UserReferralAttributes>,
   ): Promise<UserReferralAttributes | null>;

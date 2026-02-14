@@ -61,42 +61,42 @@ import {
 } from './dto/response/get-folders-in-shared-folder.dto';
 import { SequelizeFileRepository } from '../file/file.repository';
 
-export class UserAlreadyHasRole extends BadRequestException {
+class UserAlreadyHasRole extends BadRequestException {
   constructor() {
     super('User already has a role');
     Object.setPrototypeOf(this, UserAlreadyHasRole.prototype);
   }
 }
 
-export class OwnerCannotBeSharedWithError extends BadRequestException {
+class OwnerCannotBeSharedWithError extends BadRequestException {
   constructor() {
     super('Owner cannot share the folder with itself');
     Object.setPrototypeOf(this, OwnerCannotBeSharedWithError.prototype);
   }
 }
 
-export class OwnerCannotBeRemovedWithError extends Error {
+class OwnerCannotBeRemovedWithError extends Error {
   constructor() {
     super('Owner cannot be removed from the item sharing');
     Object.setPrototypeOf(this, OwnerCannotBeRemovedWithError.prototype);
   }
 }
 
-export class InvalidPermissionsError extends ForbiddenException {
+class InvalidPermissionsError extends ForbiddenException {
   constructor() {
     super('You dont have permissions on this item');
     Object.setPrototypeOf(this, InvalidPermissionsError.prototype);
   }
 }
 
-export class SharedFolderInTheTrashError extends ForbiddenException {
+class SharedFolderInTheTrashError extends ForbiddenException {
   constructor() {
     super('This folder is in the trash');
     Object.setPrototypeOf(this, SharedFolderInTheTrashError.prototype);
   }
 }
 
-export class SharedFolderRemovedError extends ForbiddenException {
+class SharedFolderRemovedError extends ForbiddenException {
   constructor() {
     super('This folder has been removed');
     Object.setPrototypeOf(this, SharedFolderRemovedError.prototype);
