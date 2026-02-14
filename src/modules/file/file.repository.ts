@@ -14,6 +14,7 @@ import { Literal } from 'sequelize/types/utils';
 import { User } from '../user/user.domain';
 import { UserModel } from './../user/user.model';
 import { Folder } from '../folder/folder.domain';
+import { FolderModel } from '../folder/folder.model';
 import { Pagination } from '../../lib/pagination';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
@@ -506,6 +507,10 @@ export class SequelizeFileRepository implements FileRepository {
       offset,
       where,
       include: [
+        {
+          model: FolderModel,
+          required: false,
+        },
         {
           separate: true,
           model: this.thumbnailModel,
