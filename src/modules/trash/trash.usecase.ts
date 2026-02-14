@@ -10,6 +10,7 @@ import { SequelizeTrashRepository } from './trash.repository';
 import { TrashItemType } from './trash.attributes';
 import { Trash } from './trash.domain';
 import { Time, TimeUnit } from '../../lib/time';
+import { SequelizeFileRepository } from '../file/file.repository';
 
 const TRASH_RETENTION_BY_TIER: Record<
   string,
@@ -35,6 +36,7 @@ export class TrashUseCases {
     private readonly folderUseCases: FolderUseCases,
     private readonly eventEmitter: EventEmitter2,
     private readonly trashRepository: SequelizeTrashRepository,
+    private readonly fileRepository: SequelizeFileRepository,
   ) {}
 
   /**
@@ -226,5 +228,18 @@ export class TrashUseCases {
     batchSize: number,
   ): Promise<number> {
     return this.trashRepository.deleteByUserId(user.id, batchSize);
+  }
+
+  async deleteExpiredItems(fileUuids: string[]): Promise<number> {
+    if (fileUuids.length === 0) {
+      return 0;
+    }
+
+    await Promise.all([
+      this.fileRepository.deleteFilesByUuid(fileUuids),
+      this.trashRepository.deleteByItemIds(fileUuids, TrashItemType.File),
+    ]);
+
+    return fileUuids.length;
   }
 }

@@ -130,6 +130,7 @@ export interface FileRepository {
     order?: [keyof FileModel, 'ASC' | 'DESC'][],
   ): Promise<File[]>;
   deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
+  deleteFilesByUuid(fileUuids: string[]): Promise<number>;
   sumFileSizeDeltaBetweenDates(
     userId: FileAttributes['userId'],
     sinceDate: Date,
@@ -859,6 +860,26 @@ export class SequelizeFileRepository implements FileRepository {
     );
 
     return { updatedCount };
+  }
+
+  async deleteFilesByUuid(fileUuids: string[]): Promise<number> {
+    const deletedDate = new Date();
+    const [updatedCount] = await this.fileModel.update(
+      {
+        removed: true,
+        removedAt: deletedDate,
+        status: FileStatus.DELETED,
+        updatedAt: deletedDate,
+      },
+      {
+        where: {
+          uuid: { [Op.in]: fileUuids },
+          status: { [Op.not]: FileStatus.DELETED },
+        },
+      },
+    );
+
+    return updatedCount;
   }
 
   async destroyFile(where: Partial<FileModel>): Promise<void> {
