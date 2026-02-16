@@ -241,7 +241,7 @@ describe('Trash Use Cases', () => {
         user,
         filesCount,
         foldersCount,
-        100,
+        250,
       );
       expect(result).toEqual({
         message: 'Trash emptied successfully',
@@ -254,17 +254,17 @@ describe('Trash Use Cases', () => {
     const user = newUser();
 
     it('When deleteItems is called with files and folders, then it should delete items in chunks', async () => {
-      const files = Array.from({ length: 25 }, () => newFile());
-      const folders = Array.from({ length: 15 }, () => newFolder());
+      const files = Array.from({ length: 120 }, () => newFile());
+      const folders = Array.from({ length: 80 }, () => newFolder());
 
       jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
       jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
 
       await service.deleteItems(user, files, folders);
 
-      // Files: 25 items / 10 chunk size = 3 calls
+      // Files: 120 items / 50 chunk size = 3 calls
       expect(fileUseCases.deleteByUser).toHaveBeenCalledTimes(3);
-      // Folders: 15 items / 10 chunk size = 2 calls
+      // Folders: 80 items / 50 chunk size = 2 calls
       expect(folderUseCases.deleteByUser).toHaveBeenCalledTimes(2);
     });
 
@@ -303,17 +303,17 @@ describe('Trash Use Cases', () => {
     });
 
     it('When deleteItems processes large amounts of items, then it should handle chunking correctly', async () => {
-      const files = Array.from({ length: 32 }, () => newFile());
-      const folders = Array.from({ length: 28 }, () => newFolder());
+      const files = Array.from({ length: 130 }, () => newFile());
+      const folders = Array.from({ length: 110 }, () => newFolder());
 
       jest.spyOn(fileUseCases, 'deleteByUser').mockResolvedValue();
       jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue();
 
       await service.deleteItems(user, files, folders);
 
-      // Files: 32 items / 10 chunk size = 4 calls
-      expect(fileUseCases.deleteByUser).toHaveBeenCalledTimes(4);
-      // Folders: 28 items / 10 chunk size = 3 calls
+      // Files: 130 items / 50 chunk size = 3 calls
+      expect(fileUseCases.deleteByUser).toHaveBeenCalledTimes(3);
+      // Folders: 110 items / 50 chunk size = 3 calls
       expect(folderUseCases.deleteByUser).toHaveBeenCalledTimes(3);
 
       const fileDeleteCalls = (fileUseCases.deleteByUser as jest.Mock).mock
@@ -321,9 +321,9 @@ describe('Trash Use Cases', () => {
       const folderDeleteCalls = (folderUseCases.deleteByUser as jest.Mock).mock
         .calls;
 
-      expect(fileDeleteCalls[fileDeleteCalls.length - 1][1]).toHaveLength(2); // Last file chunk
+      expect(fileDeleteCalls[fileDeleteCalls.length - 1][1]).toHaveLength(30); // Last file chunk
       expect(folderDeleteCalls[folderDeleteCalls.length - 1][1]).toHaveLength(
-        8,
+        10,
       ); // Last folder chunk
     });
   });
