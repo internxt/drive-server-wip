@@ -208,6 +208,22 @@ export class SharingInviteModel
   })
   sharedWithPreCreatedUser: PreCreatedUserModel;
 
+  @BelongsTo(() => FileModel, {
+    foreignKey: 'itemId',
+    targetKey: 'uuid',
+    constraints: false,
+    as: 'file',
+  })
+  file: FileModel;
+
+  @BelongsTo(() => FolderModel, {
+    foreignKey: 'itemId',
+    targetKey: 'uuid',
+    constraints: false,
+    as: 'folder',
+  })
+  folder: FolderModel;
+
   @Column(DataType.STRING)
   encryptionKey: SharingInviteAttributes['encryptionKey'];
 

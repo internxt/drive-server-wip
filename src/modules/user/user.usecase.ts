@@ -1075,36 +1075,21 @@ export class UserUseCases {
         ecc: string;
         kyber: string;
       };
+      publicKeys?: {
+        ecc?: string;
+        kyber?: string;
+      };
     },
     withReset = false,
   ): Promise<void> {
-    const { mnemonic, password, salt, privateKeys } = newCredentials;
-
-    const shouldUpdateKeys = privateKeys && Object.keys(privateKeys).length > 0;
-
-    if (!withReset && !shouldUpdateKeys) {
-      throw new BadRequestException(
-        'Keys are required if the account is not being reset',
-      );
-    }
+    const { mnemonic, password, salt, privateKeys, publicKeys } =
+      newCredentials;
 
     const user = await this.userRepository.findByUuid(userUuid);
 
-    if (shouldUpdateKeys) {
-      for (const [version, privateKey] of Object.entries(privateKeys)) {
-        await this.keyServerUseCases.updateByUserAndEncryptVersion(
-          user.id,
-          version as UserKeysEncryptVersions,
-          { privateKey },
-        );
-      }
+    if (!user) {
+      throw new NotFoundException('User not found');
     }
-
-    await this.userRepository.updateByUuid(userUuid, {
-      mnemonic,
-      password: this.cryptoService.decryptText(password),
-      hKey: this.cryptoService.decryptText(salt),
-    });
 
     if (withReset) {
       await this.keyServerRepository.deleteByUserId(user.id);
@@ -1115,7 +1100,54 @@ export class UserUseCases {
         deleteWorkspaces: true,
         deleteBackups: true,
       });
+
+      await this.userRepository.updateByUuid(userUuid, {
+        mnemonic,
+        password: this.cryptoService.decryptText(password),
+        hKey: this.cryptoService.decryptText(salt),
+      });
+
+      return;
     }
+
+    if (!privateKeys) {
+      throw new BadRequestException(
+        'Private keys are required if the account is not being reset',
+      );
+    }
+
+    const shouldUpdateKeys = Object.keys(privateKeys).length > 0;
+
+    if (!shouldUpdateKeys) {
+      throw new BadRequestException('Private keys cannot be empty');
+    }
+
+    if (publicKeys) {
+      const existingKeys = await this.keyServerUseCases.getPublicKeys(user.id);
+      const eccMismatch = existingKeys.ecc !== publicKeys.ecc;
+      const kyberMismatch = existingKeys.kyber !== publicKeys.kyber;
+
+      if (eccMismatch) {
+        throw new BadRequestException('Invalid ECC public key');
+      }
+      if (kyberMismatch) {
+        throw new BadRequestException('Invalid Kyber public key');
+      }
+    }
+
+    for (const [version, privateKey] of Object.entries(privateKeys)) {
+      await this.keyServerUseCases.updateByUserAndEncryptVersion(
+        user.id,
+        version as UserKeysEncryptVersions,
+        { privateKey },
+      );
+    }
+
+    await this.userRepository.updateByUuid(userUuid, {
+      mnemonic,
+      password: this.cryptoService.decryptText(password),
+      hKey: this.cryptoService.decryptText(salt),
+    });
   }
 
   async recoverAccountLegacy(

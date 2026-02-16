@@ -1267,7 +1267,7 @@ describe('Sharing Use Cases', () => {
         },
       ];
 
-      sharingRepository.getInvites.mockResolvedValue(invites);
+      sharingRepository.getUserValidInvites.mockResolvedValue(invites);
       folderUseCases.getByUuids.mockResolvedValue([folder]);
       fileUsecases.getByUuids.mockResolvedValue([file]);
 
@@ -1299,7 +1299,7 @@ describe('Sharing Use Cases', () => {
         },
       ];
 
-      sharingRepository.getInvites.mockResolvedValue(invites);
+      sharingRepository.getUserValidInvites.mockResolvedValue(invites);
       folderUseCases.getByUuids.mockResolvedValue([folder]);
       fileUsecases.getByUuids.mockResolvedValue([]);
 
@@ -1314,7 +1314,7 @@ describe('Sharing Use Cases', () => {
     });
 
     it('When user has no invites, then it returns empty array', async () => {
-      sharingRepository.getInvites.mockResolvedValue([]);
+      sharingRepository.getUserValidInvites.mockResolvedValue([]);
       folderUseCases.getByUuids.mockResolvedValue([]);
       fileUsecases.getByUuids.mockResolvedValue([]);
 

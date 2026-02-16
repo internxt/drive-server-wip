@@ -28,6 +28,7 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter.exception';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { v4 } from 'uuid';
+import { nanoid } from 'nanoid';
 import { getClientIdFromHeaders } from './common/decorators/client.decorator';
 import { AuthGuard } from './modules/auth/auth.guard';
 import { CacheManagerModule } from './modules/cache-manager/cache-manager.module';
@@ -37,7 +38,7 @@ import { CacheManagerModule } from './modules/cache-manager/cache-manager.module
     LoggerModule.forRoot({
       pinoHttp: {
         name: 'drive-server',
-        genReqId: (req) => req.headers['x-request-id'] ?? v4(),
+        genReqId: (_req) => nanoid(),
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
         base: undefined,
         transport:
