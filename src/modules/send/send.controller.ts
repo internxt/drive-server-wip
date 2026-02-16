@@ -18,7 +18,6 @@ import { User } from '../user/user.domain';
 import { SendUseCases } from './send.usecase';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateSendLinkDto } from './dto/create-send-link.dto';
-import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { CaptchaGuard } from '../auth/captcha.guard';
 @ApiTags('Sends')
 @Controller('links')
@@ -28,7 +27,7 @@ export class SendController {
     private readonly userUseCases: UserUseCases,
   ) {}
 
-  @UseGuards(ThrottlerGuard, CaptchaGuard)
+  @UseGuards(CaptchaGuard)
   @Post('/')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({

@@ -768,6 +768,7 @@ export const newFileVersion = (params?: {
     }),
     size: BigInt(randomDataGenerator.natural({ min: 1 })),
     status: FileVersionStatus.EXISTS,
+    modificationTime: randomCreatedAt,
     createdAt: randomCreatedAt,
     updatedAt: new Date(
       randomDataGenerator.date({

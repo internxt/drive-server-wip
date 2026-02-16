@@ -69,6 +69,7 @@
     "helmet": "^7.2.0",
     "ioredis": "^5.9.1",
     "multer-s3": "^3.0.1",
+    "nanoid": "3",
     "nestjs-pino": "^4.5.0",
     "newrelic": "^13.8.1",
     "node-device-detector": "2.0.17",
@@ -155,5 +156,11 @@
   },
   "lint-staged": {
     "./src/**/*.{js,ts}": "yarn run lint"
+  },
+  "resolutions": {
+    "@isaacs/brace-expansion": "^5.0.1",
+    "fast-xml-parser": "^5.3.4",
+    "lodash": "^4.17.23",
+    "qs": "^6.14.1"
   }
 }

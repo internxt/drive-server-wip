@@ -19,7 +19,13 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
     const request = ctx.getRequest();
     const response = ctx.getResponse();
 
+    const requestId = request.id;
+
     try {
+      if (requestId) {
+        response.setHeader('x-request-id', requestId);
+      }
+
       //  Errors thrown intentionally by the application
       if (exception instanceof HttpException) {
         const status = exception.getStatus
@@ -37,9 +43,45 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
         return httpAdapter.reply(response, message, status);
       }
 
-      const requestId = request.id;
+      if (this.isQueryTimeoutError(exception)) {
+        this.logger.warn(
+          {
+            requestId,
+            path: request.url,
+            method: request.method,
+            errorType: 'QUERY_TIMEOUT',
+            user: { uuid: request?.user?.uuid },
+            error: { message: exception.message },
+          },
+          'QUERY_TIMEOUT',
+        );
 
-      this.logUnexpectedError(exception, request);
+        return httpAdapter.reply(
+          response,
+          {
+            statusCode: HttpStatus.REQUEST_TIMEOUT,
+            message: 'Request timed out',
+            requestId,
+          },
+          HttpStatus.REQUEST_TIMEOUT,
+        );
+      }
+
+      if (this.isDatabaseConnectionError(exception)) {
+        this.logDatabaseConnectionError(exception, request, requestId);
+
+        return httpAdapter.reply(
+          response,
+          {
+            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+            message: 'Service temporarily unavailable',
+            requestId,
+          },
+          HttpStatus.SERVICE_UNAVAILABLE,
+        );
+      }
+
+      this.logUnexpectedError(exception, request, requestId);
 
       return httpAdapter.reply(
         response,
@@ -52,6 +94,7 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
       );
     } catch (error) {
       const errorDetails = {
+        requestId,
         user: {
           email: request?.user?.email,
           uuid: request?.user?.uuid,
@@ -83,7 +126,47 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
     );
   }
 
-  logUnexpectedError(exception: any, request) {
+  private isDatabaseConnectionError(exception: any): boolean {
+    const connectionErrorNames = [
+      'SequelizeConnectionAcquireTimeoutError',
+      'SequelizeConnectionError',
+      'SequelizeConnectionRefusedError',
+      'SequelizeConnectionTimedOutError',
+    ];
+
+    return connectionErrorNames.includes(exception?.name);
+  }
+
+  private isQueryTimeoutError(exception: any): boolean {
+    return (
+      exception?.message === 'Query timed out' ||
+      exception?.original?.code === '57014'
+    );
+  }
+
+  private logDatabaseConnectionError(
+    exception: any,
+    request: any,
+    requestId?: string,
+  ) {
+    const errorResponse = {
+      requestId,
+      name: exception.name,
+      path: request.url,
+      errorType: 'DATABASE_CONNECTION_ERROR',
+      method: request.method,
+      user: {
+        uuid: request?.user?.uuid,
+      },
+      error: {
+        message: exception.message,
+      },
+    };
+
+    this.logger.error(errorResponse, 'DATABASE_CONNECTION_ERROR');
+  }
+
+  logUnexpectedError(exception: any, request: any, requestId?: string) {
     let errorSubtype = '';
     if (exception instanceof SequelizeError) {
       errorSubtype = 'DATABASE';
@@ -96,6 +179,7 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
       : 'UNEXPECTED_ERROR';
 
     const errorResponse = {
+      requestId,
       name: exception.name,
       path: request.url,
       errorType: errorCategory,

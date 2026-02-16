@@ -27,7 +27,6 @@ import { Public } from './decorators/public.decorator';
 import { User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
-import { ThrottlerGuard } from '../../guards/throttler.guard';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { LoginDto } from './dto/login-dto';
 import { LoginAccessDto } from './dto/login-access.dto';
@@ -44,7 +43,7 @@ import { LoginAccessResponseDto } from './dto/responses/login-access-response.dt
 import { LoginResponseDto } from './dto/responses/login-response.dto';
 import { JwtToken } from './decorators/get-jwt.decorator';
 import { AuthUsecases } from './auth.usecase';
-import { ClientToPlatformMap } from '../../common/constants';
+import { ClientToPlatformMap, PlatformName } from '../../common/constants';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { Client } from '../../common/decorators/client.decorator';
@@ -266,7 +265,6 @@ export class AuthController {
     return this.userUseCases.areCredentialsCorrect(user, hashedPassword);
   }
 
-  @UseGuards(ThrottlerGuard)
   @Post('/cli/login/access')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -284,12 +282,10 @@ export class AuthController {
     @Body() body: LoginAccessDto,
     @Client() client: string,
   ): Promise<LoginAccessResponseDto> {
-    const platform = ClientToPlatformMap[client as ClientEnum];
+    let platform = ClientToPlatformMap[client as ClientEnum];
 
     if (!platform) {
-      throw new BadRequestException(
-        `Invalid client header '${client}' for this endpoint`,
-      );
+      platform = PlatformName.RCLONE;
     }
 
     this.logger.log(

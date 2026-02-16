@@ -2,7 +2,6 @@ import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { seconds, ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { FileModule } from './modules/file/file.module';
 import { TrashModule } from './modules/trash/trash.module';
@@ -29,17 +28,17 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { HttpGlobalExceptionFilter } from './common/http-global-exception-filter.exception';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { v4 } from 'uuid';
+import { nanoid } from 'nanoid';
 import { getClientIdFromHeaders } from './common/decorators/client.decorator';
-import { CustomThrottlerGuard } from './guards/throttler.guard';
 import { AuthGuard } from './modules/auth/auth.guard';
-import { CustomThrottlerModule } from './guards/throttler.module';
+import { CacheManagerModule } from './modules/cache-manager/cache-manager.module';
 
 @Module({
   imports: [
     LoggerModule.forRoot({
       pinoHttp: {
         name: 'drive-server',
-        genReqId: (req) => req.headers['x-request-id'] ?? v4(),
+        genReqId: (_req) => nanoid(),
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
         base: undefined,
         transport:
@@ -125,7 +124,6 @@ import { CustomThrottlerModule } from './guards/throttler.module';
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
-    CustomThrottlerModule,
     JobsModule,
     NotificationModule,
     NotificationsModule,
@@ -147,6 +145,7 @@ import { CustomThrottlerModule } from './guards/throttler.module';
     PlanModule,
     WorkspacesModule,
     GatewayModule,
+    CacheManagerModule,
   ],
   controllers: [],
   providers: [
@@ -157,10 +156,6 @@ import { CustomThrottlerModule } from './guards/throttler.module';
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: CustomThrottlerGuard,
     },
   ],
 })

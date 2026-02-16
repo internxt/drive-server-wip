@@ -7,6 +7,7 @@ import {
   Logger,
   NotAcceptableException,
   NotFoundException,
+  RequestTimeoutException,
   UnprocessableEntityException,
   forwardRef,
 } from '@nestjs/common';
@@ -204,6 +205,13 @@ export class FolderUseCases {
 
     if (folder.plainName) return folder;
     else return this.decryptFolderName(folder);
+  }
+
+  async getFolderByIdNoDecryption(
+    folderId: FolderAttributes['id'],
+    { deleted }: FolderOptions = { deleted: false },
+  ): Promise<Folder | null> {
+    return this.folderRepository.findById(folderId, deleted);
   }
 
   async isFolderInsideFolder(
@@ -1005,11 +1013,18 @@ export class FolderUseCases {
       throw new NotFoundException('Root Folder not found');
     }
 
-    return this.folderRepository.getFolderByPath(
-      user.id,
-      path,
-      rootFolder.uuid,
-    );
+    try {
+      return await this.folderRepository.getFolderByPath(
+        user.id,
+        path,
+        rootFolder.uuid,
+      );
+    } catch (error) {
+      if (error.message === 'Query timed out') {
+        throw new RequestTimeoutException('Folder metadata search timed out');
+      }
+      throw error;
+    }
   }
 
   async updateByFolderIdAndForceUpdatedAt(

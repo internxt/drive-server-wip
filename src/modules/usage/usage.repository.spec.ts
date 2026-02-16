@@ -92,16 +92,27 @@ describe('SequelizeUsageRepository', () => {
   describe('createFirstUsageCalculation', () => {
     it('When called, then should execute query with expected arguments', async () => {
       const userUuid = v4();
+      const mockTransaction = {};
       const mockSequelize = {
         query: jest.fn().mockResolvedValue([{ toJSON: () => newUsage() }]),
+        transaction: jest.fn((cb) => cb(mockTransaction)),
       };
 
       Object.defineProperty(usageModel, 'sequelize', {
         value: mockSequelize,
       });
 
+      jest
+        .spyOn(usageModel, 'findOrCreate')
+        .mockResolvedValue([{ toJSON: () => newUsage() } as any, true]);
+
       await repository.createFirstUsageCalculation(userUuid);
 
+      expect(mockSequelize.transaction).toHaveBeenCalled();
+      expect(mockSequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('SET LOCAL statement_timeout'),
+        expect.objectContaining({ transaction: mockTransaction }),
+      );
       expect(mockSequelize.query).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
@@ -109,6 +120,7 @@ describe('SequelizeUsageRepository', () => {
             userUuid,
           }),
           type: QueryTypes.SELECT,
+          transaction: mockTransaction,
         }),
       );
     });

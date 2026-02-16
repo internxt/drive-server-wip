@@ -937,6 +937,19 @@ describe('FileRepository', () => {
     const userId = 123;
     const sinceDate = Time.now('2024-01-01');
 
+    let mockTransaction: Record<string, unknown>;
+
+    beforeEach(() => {
+      mockTransaction = {};
+      Object.defineProperty(fileModel, 'sequelize', {
+        value: {
+          query: jest.fn(),
+          transaction: jest.fn((cb) => cb(mockTransaction)),
+        },
+        configurable: true,
+      });
+    });
+
     it('When files have size delta, then it should return the total delta', async () => {
       const totalDelta = 1500;
       const result = [{ total: totalDelta }];
@@ -957,6 +970,7 @@ describe('FileRepository', () => {
             sinceDate,
           },
           raw: true,
+          transaction: mockTransaction,
         }),
       );
       expect(response).toBe(totalDelta);

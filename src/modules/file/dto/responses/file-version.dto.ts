@@ -17,6 +17,12 @@ export class FileVersionDto {
   @ApiProperty({ enum: FileVersionStatus })
   status: FileVersionStatus;
 
+  @ApiProperty({
+    description:
+      'Date when the file was last modified before this version was created',
+  })
+  modificationTime: Date;
+
   @ApiProperty()
   createdAt: Date;
 

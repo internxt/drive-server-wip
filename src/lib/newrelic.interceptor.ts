@@ -4,7 +4,7 @@ import {
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
-const newrelic = require('newrelic');
+import newrelic from 'newrelic';
 
 /**
  * Only for the headers, the instrumentation is not done directly here
@@ -12,10 +12,16 @@ const newrelic = require('newrelic');
 @Injectable()
 export class NewRelicInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler) {
-    const req = context.switchToHttp().getRequest<Request>();
+    const req = context.switchToHttp().getRequest<Request & { id: string }>();
+    const res = context.switchToHttp().getResponse();
 
     const rawClient = req.headers['internxt-client'];
     const rawVersion = req.headers['internxt-version'];
+    const requestId = req.id;
+
+    if (requestId) {
+      res.setHeader('x-request-id', requestId);
+    }
 
     if (rawClient) {
       newrelic.addCustomAttribute(
@@ -37,7 +43,9 @@ export class NewRelicInterceptor implements NestInterceptor {
       );
     }
 
-    console.log(rawClient, rawVersion);
+    if (requestId) {
+      newrelic.addCustomAttribute('requestId', requestId);
+    }
 
     return next.handle();
   }

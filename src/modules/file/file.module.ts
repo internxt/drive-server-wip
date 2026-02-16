@@ -21,8 +21,14 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { RedisService } from '../../externals/redis/redis.service';
 import { TrashModule } from '../trash/trash.module';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
-import { CustomEndpointThrottleGuard } from '../../guards/custom-endpoint-throttle.guard';
-import { DeleteFileVersionAction, GetFileVersionsAction } from './actions';
+import {
+  DeleteFileVersionAction,
+  GetFileVersionsAction,
+  CreateFileVersionAction,
+  RestoreFileVersionAction,
+  UndoFileVersioningAction,
+  DeleteExpiredFileVersionsAction,
+} from './actions';
 
 @Module({
   imports: [
@@ -47,15 +53,19 @@ import { DeleteFileVersionAction, GetFileVersionsAction } from './actions';
     FileUseCases,
     MailerService,
     RedisService,
-    CustomEndpointThrottleGuard,
     GetFileVersionsAction,
     DeleteFileVersionAction,
+    CreateFileVersionAction,
+    RestoreFileVersionAction,
+    UndoFileVersioningAction,
+    DeleteExpiredFileVersionsAction,
   ],
   exports: [
     FileUseCases,
     SequelizeModule,
     SequelizeFileRepository,
     SequelizeFileVersionRepository,
+    DeleteExpiredFileVersionsAction,
   ],
 })
 export class FileModule {}

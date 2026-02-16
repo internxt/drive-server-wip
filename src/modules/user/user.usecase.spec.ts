@@ -2055,18 +2055,24 @@ describe('User use cases', () => {
     };
 
     it('When root folder exists, then it should return the folder without creating a new one', async () => {
-      jest.spyOn(folderUseCases, 'getFolder').mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(folderUseCases, 'getFolderByIdNoDecryption')
+        .mockResolvedValueOnce(rootFolder);
 
       const result =
         await userUseCases.getOrCreateUserRootFolderAndBucket(user);
 
-      expect(folderUseCases.getFolder).toHaveBeenCalledWith(user.rootFolderId);
+      expect(folderUseCases.getFolderByIdNoDecryption).toHaveBeenCalledWith(
+        user.rootFolderId,
+      );
       expect(bridgeService.createBucket).not.toHaveBeenCalled();
       expect(result).toEqual(rootFolder);
     });
 
     it('When root folder does not exist, then it should create a new bucket and folder', async () => {
-      jest.spyOn(folderUseCases, 'getFolder').mockResolvedValueOnce(null);
+      jest
+        .spyOn(folderUseCases, 'getFolderByIdNoDecryption')
+        .mockResolvedValueOnce(null);
 
       jest.spyOn(bridgeService, 'createBucket').mockResolvedValueOnce(bucket);
       jest
@@ -2076,7 +2082,9 @@ describe('User use cases', () => {
       const result =
         await userUseCases.getOrCreateUserRootFolderAndBucket(user);
 
-      expect(folderUseCases.getFolder).toHaveBeenCalledWith(user.rootFolderId);
+      expect(folderUseCases.getFolderByIdNoDecryption).toHaveBeenCalledWith(
+        user.rootFolderId,
+      );
       expect(bridgeService.createBucket).toHaveBeenCalledWith(
         user.username,
         user.userId,
@@ -2658,6 +2666,10 @@ describe('User use cases', () => {
 
   describe('updateCredentials', () => {
     const mockUser = newUser();
+    const mockPublicKeys = {
+      ecc: 'existing_ecc_public_key',
+      kyber: 'existing_kyber_public_key',
+    };
     const mockCredentials = {
       mnemonic: 'encrypted_mnemonic',
       password: 'encrypted_password',
@@ -2666,6 +2678,7 @@ describe('User use cases', () => {
         ecc: 'encrypted_ecc_key',
         kyber: 'encrypted_kyber_key',
       },
+      publicKeys: mockPublicKeys,
     };
 
     const decryptedPassword = 'decrypted_password';
@@ -2673,6 +2686,9 @@ describe('User use cases', () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
+      jest
+        .spyOn(keyServerUseCases, 'getPublicKeys')
+        .mockResolvedValue(mockPublicKeys);
       jest.spyOn(cryptoService, 'decryptText').mockImplementation((text) => {
         if (text === mockCredentials.password) return decryptedPassword;
         if (text === mockCredentials.salt) return decryptedSalt;
@@ -2742,6 +2758,123 @@ describe('User use cases', () => {
           false,
         ),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When publicKeys are provided and match existing keys, then it should succeed', async () => {
+      const existingPublicKeys = {
+        ecc: 'existing_ecc_public_key',
+        kyber: 'existing_kyber_public_key',
+      };
+
+      jest
+        .spyOn(keyServerUseCases, 'getPublicKeys')
+        .mockResolvedValue(existingPublicKeys);
+
+      const credentialsWithPublicKeys = {
+        ...mockCredentials,
+        publicKeys: existingPublicKeys,
+      };
+
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        credentialsWithPublicKeys,
+      );
+
+      expect(keyServerUseCases.getPublicKeys).toHaveBeenCalledWith(mockUser.id);
+      expect(userRepository.updateByUuid).toHaveBeenCalled();
+    });
+
+    it('When publicKeys.ecc does not match existing key, then it should throw', async () => {
+      const existingPublicKeys = {
+        ecc: 'existing_ecc_public_key',
+        kyber: 'existing_kyber_public_key',
+      };
+
+      jest
+        .spyOn(keyServerUseCases, 'getPublicKeys')
+        .mockResolvedValue(existingPublicKeys);
+
+      const credentialsWithWrongEcc = {
+        ...mockCredentials,
+        publicKeys: {
+          ecc: 'wrong_ecc_public_key',
+          kyber: 'existing_kyber_public_key',
+        },
+      };
+
+      await expect(
+        userUseCases.updateCredentials(mockUser.uuid, credentialsWithWrongEcc),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When publicKeys.kyber does not match existing key, then it should throw', async () => {
+      const existingPublicKeys = {
+        ecc: 'existing_ecc_public_key',
+        kyber: 'existing_kyber_public_key',
+      };
+
+      jest
+        .spyOn(keyServerUseCases, 'getPublicKeys')
+        .mockResolvedValue(existingPublicKeys);
+
+      const credentialsWithWrongKyber = {
+        ...mockCredentials,
+        publicKeys: {
+          ecc: 'existing_ecc_public_key',
+          kyber: 'wrong_kyber_public_key',
+        },
+      };
+
+      await expect(
+        userUseCases.updateCredentials(
+          mockUser.uuid,
+          credentialsWithWrongKyber,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When publicKeys are not provided and not resetting, then it should succeed without validation', async () => {
+      jest.spyOn(keyServerUseCases, 'getPublicKeys');
+
+      const credentialsWithoutPublicKeys = {
+        mnemonic: mockCredentials.mnemonic,
+        password: mockCredentials.password,
+        salt: mockCredentials.salt,
+        privateKeys: mockCredentials.privateKeys,
+      };
+
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        credentialsWithoutPublicKeys,
+      );
+
+      expect(keyServerUseCases.getPublicKeys).not.toHaveBeenCalled();
+      expect(userRepository.updateByUuid).toHaveBeenCalledWith(mockUser.uuid, {
+        mnemonic: mockCredentials.mnemonic,
+        password: decryptedPassword,
+        hKey: decryptedSalt,
+      });
+      expect(
+        keyServerUseCases.updateByUserAndEncryptVersion,
+      ).toHaveBeenCalled();
+    });
+
+    it('When publicKeys are not provided but resetting account, then it should succeed', async () => {
+      jest.spyOn(keyServerUseCases, 'getPublicKeys');
+
+      const credentialsWithoutPublicKeys = {
+        mnemonic: mockCredentials.mnemonic,
+        password: mockCredentials.password,
+        salt: mockCredentials.salt,
+      };
+
+      await userUseCases.updateCredentials(
+        mockUser.uuid,
+        credentialsWithoutPublicKeys,
+        true,
+      );
+
+      expect(keyServerUseCases.getPublicKeys).not.toHaveBeenCalled();
     });
   });
 
@@ -3461,6 +3594,10 @@ describe('User use cases', () => {
 
   describe('updateCredentials', () => {
     const mockUser = newUser();
+    const mockPublicKeys = {
+      ecc: 'existing_ecc_public_key',
+      kyber: 'existing_kyber_public_key',
+    };
     const mockCredentials = {
       mnemonic: 'encrypted_mnemonic',
       password: 'encrypted_password',
@@ -3469,6 +3606,7 @@ describe('User use cases', () => {
         ecc: 'encrypted_ecc_key',
         kyber: 'encrypted_kyber_key',
       },
+      publicKeys: mockPublicKeys,
     };
 
     const decryptedPassword = 'decrypted_password';
@@ -3476,6 +3614,9 @@ describe('User use cases', () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
+      jest
+        .spyOn(keyServerUseCases, 'getPublicKeys')
+        .mockResolvedValue(mockPublicKeys);
       jest.spyOn(cryptoService, 'decryptText').mockImplementation((text) => {
         if (text === mockCredentials.password) return decryptedPassword;
         if (text === mockCredentials.salt) return decryptedSalt;

@@ -12,6 +12,7 @@ describe('FileVersion Domain', () => {
     networkFileId: 'network-file-id-789',
     size: BigInt(1024),
     status: FileVersionStatus.EXISTS,
+    modificationTime: new Date('2024-01-01T00:00:00Z'),
     createdAt: new Date('2024-01-01T00:00:00Z'),
     updatedAt: new Date('2024-01-01T00:00:00Z'),
   };
@@ -68,6 +69,7 @@ describe('FileVersion Domain', () => {
       networkFileId: mockAttributes.networkFileId,
       size: mockAttributes.size,
       status: mockAttributes.status,
+      modificationTime: mockAttributes.modificationTime,
       createdAt: mockAttributes.createdAt,
       updatedAt: mockAttributes.updatedAt,
     });
