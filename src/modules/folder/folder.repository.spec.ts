@@ -1309,4 +1309,79 @@ describe('SequelizeFolderRepository', () => {
       );
     });
   });
+
+  describe('deleteFoldersByUuid', () => {
+    it('When folder UUIDs are provided, then it should mark them as removed', async () => {
+      const folderUuids = [v4(), v4(), v4()];
+      const updatedCount = 3;
+
+      jest.spyOn(folderModel, 'update').mockResolvedValueOnce([updatedCount]);
+
+      const result = await repository.deleteFoldersByUuid(folderUuids);
+
+      expect(folderModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          removed: true,
+        }),
+        expect.objectContaining({
+          where: {
+            uuid: { [Op.in]: folderUuids },
+            removed: false,
+          },
+        }),
+      );
+      expect(result).toBe(updatedCount);
+    });
+
+    it('When single folder UUID is provided, then it should process it', async () => {
+      const folderUuid = v4();
+      const updatedCount = 1;
+
+      jest.spyOn(folderModel, 'update').mockResolvedValueOnce([updatedCount]);
+
+      const result = await repository.deleteFoldersByUuid([folderUuid]);
+
+      expect(folderModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          removed: true,
+        }),
+        expect.objectContaining({
+          where: {
+            uuid: { [Op.in]: [folderUuid] },
+            removed: false,
+          },
+        }),
+      );
+      expect(result).toBe(1);
+    });
+
+    it('When no folders match the UUIDs, then it should return zero', async () => {
+      const folderUuids = [v4(), v4()];
+      const updatedCount = 0;
+
+      jest.spyOn(folderModel, 'update').mockResolvedValueOnce([updatedCount]);
+
+      const result = await repository.deleteFoldersByUuid(folderUuids);
+
+      expect(result).toBe(0);
+    });
+
+    it('When folders already removed, then it should not update them', async () => {
+      const folderUuids = [v4(), v4()];
+
+      jest.spyOn(folderModel, 'update').mockResolvedValueOnce([0]);
+
+      const result = await repository.deleteFoldersByUuid(folderUuids);
+
+      expect(folderModel.update).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          where: expect.objectContaining({
+            removed: false,
+          }),
+        }),
+      );
+      expect(result).toBe(0);
+    });
+  });
 });

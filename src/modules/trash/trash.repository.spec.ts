@@ -275,4 +275,98 @@ describe('SequelizeTrashRepository', () => {
       ).rejects.toThrow('Database error during delete');
     });
   });
+
+  describe('findExpiredItems', () => {
+    it('When expired items exist, then it should return them', async () => {
+      const limit = 10;
+      const now = new Date();
+      const expiredDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      const mockTrashItems = [
+        newTrash({
+          itemId: 'file-1',
+          itemType: TrashItemType.File,
+          caducityDate: expiredDate,
+          userId: 1,
+        }),
+        newTrash({
+          itemId: 'folder-1',
+          itemType: TrashItemType.Folder,
+          caducityDate: expiredDate,
+          userId: 1,
+        }),
+      ];
+
+      jest.spyOn(trashModel, 'findAll').mockResolvedValue(mockTrashItems as any);
+
+      const result = await repository.findExpiredItems(limit);
+
+      expect(trashModel.findAll).toHaveBeenCalledWith({
+        where: {
+          caducityDate: {
+            [Symbol.for('lte')]: expect.any(Date),
+          },
+        },
+        limit,
+      });
+      expect(result).toHaveLength(2);
+      expect(result[0].itemId).toBe('file-1');
+      expect(result[1].itemId).toBe('folder-1');
+    });
+
+    it('When limit is set, then it should respect the limit', async () => {
+      const limit = 5;
+
+      jest.spyOn(trashModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findExpiredItems(limit);
+
+      expect(trashModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          limit: 5,
+        }),
+      );
+    });
+
+    it('When no expired items found, then it should return empty array', async () => {
+      const limit = 10;
+
+      jest.spyOn(trashModel, 'findAll').mockResolvedValue([]);
+
+      const result = await repository.findExpiredItems(limit);
+
+      expect(result).toEqual([]);
+    });
+
+    it('When mixed file and folder items are expired, then it should return both types', async () => {
+      const limit = 100;
+      const expiredDate = new Date('2020-01-01');
+
+      const mockTrashItems = [
+        newTrash({
+          itemId: 'file-1',
+          itemType: TrashItemType.File,
+          caducityDate: expiredDate,
+        }),
+        newTrash({
+          itemId: 'file-2',
+          itemType: TrashItemType.File,
+          caducityDate: expiredDate,
+        }),
+        newTrash({
+          itemId: 'folder-1',
+          itemType: TrashItemType.Folder,
+          caducityDate: expiredDate,
+        }),
+      ];
+
+      jest.spyOn(trashModel, 'findAll').mockResolvedValue(mockTrashItems as any);
+
+      const result = await repository.findExpiredItems(limit);
+
+      expect(result).toHaveLength(3);
+      expect(result.filter((t) => t.itemType === TrashItemType.File)).toHaveLength(2);
+      expect(result.filter((t) => t.itemType === TrashItemType.Folder)).toHaveLength(1);
+    });
+  });
 });
