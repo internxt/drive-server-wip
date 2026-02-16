@@ -16,6 +16,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
   let task: DeleteExpiredTrashItemsTask;
   let jobExecutionRepository: DeepMocked<SequelizeJobExecutionRepository>;
   let trashRepository: DeepMocked<SequelizeTrashRepository>;
+  let trashUseCases: DeepMocked<TrashUseCases>;
   let redisService: DeepMocked<RedisService>;
   let configService: DeepMocked<ConfigService>;
 
@@ -30,6 +31,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
     task = moduleRef.get(DeleteExpiredTrashItemsTask);
     jobExecutionRepository = moduleRef.get(SequelizeJobExecutionRepository);
     trashRepository = moduleRef.get(SequelizeTrashRepository);
+    trashUseCases = moduleRef.get(TrashUseCases);
     redisService = moduleRef.get(RedisService);
     configService = moduleRef.get(ConfigService);
   });
@@ -94,9 +96,8 @@ describe('DeleteExpiredTrashItemsTask', () => {
     });
 
     it('When no expired items exist, then it should complete with zero deletions', async () => {
-      jest.spyOn(task as any, 'deleteExpiredTrashItems').mockResolvedValue({
-        filesDeleted: 0,
-        foldersDeleted: 0,
+      jest.spyOn(task as any, 'yieldExpiredTrashItems').mockImplementation(async function* () {
+        yield [];
       });
       jobExecutionRepository.markAsCompleted.mockResolvedValue(
         mockCompletedJob,
@@ -114,10 +115,32 @@ describe('DeleteExpiredTrashItemsTask', () => {
     });
 
     it('When expired items exist, then it should delete them and log counts', async () => {
-      jest.spyOn(task as any, 'deleteExpiredTrashItems').mockResolvedValue({
-        filesDeleted: 150,
-        foldersDeleted: 25,
+      const batch1 = Array.from({ length: 100 }, (_, i) =>
+        Trash.build({
+          itemId: `file-${i}`,
+          itemType: TrashItemType.File,
+          caducityDate: new Date('2026-01-01'),
+          userId: 1,
+        }),
+      );
+      const batch2 = Array.from({ length: 50 }, (_, i) =>
+        Trash.build({
+          itemId: `folder-${i}`,
+          itemType: TrashItemType.Folder,
+          caducityDate: new Date('2026-01-01'),
+          userId: 1,
+        }),
+      );
+
+      jest.spyOn(task as any, 'yieldExpiredTrashItems').mockImplementation(async function* () {
+        yield batch1;
+        yield batch2;
       });
+
+      trashUseCases.deleteExpiredItems
+        .mockResolvedValueOnce({ filesDeleted: 100, foldersDeleted: 0 })
+        .mockResolvedValueOnce({ filesDeleted: 50, foldersDeleted: 25 });
+
       jobExecutionRepository.markAsCompleted.mockResolvedValue(
         mockCompletedJob,
       );
@@ -136,7 +159,19 @@ describe('DeleteExpiredTrashItemsTask', () => {
     it('When deletion fails, then it should mark job as failed and throw error', async () => {
       const errorMessage = 'Repository error';
       const error = new Error(errorMessage);
-      jest.spyOn(task as any, 'deleteExpiredTrashItems').mockRejectedValue(error);
+      const batch = [
+        Trash.build({
+          itemId: 'file-1',
+          itemType: TrashItemType.File,
+          caducityDate: new Date('2026-01-01'),
+          userId: 1,
+        }),
+      ];
+
+      jest.spyOn(task as any, 'yieldExpiredTrashItems').mockImplementation(async function* () {
+        yield batch;
+      });
+      trashUseCases.deleteExpiredItems.mockRejectedValue(error);
 
       await expect(task.startJob()).rejects.toThrow(error);
 
@@ -147,10 +182,26 @@ describe('DeleteExpiredTrashItemsTask', () => {
     });
 
     it('When processing large batch, then it should handle it successfully', async () => {
-      jest.spyOn(task as any, 'deleteExpiredTrashItems').mockResolvedValue({
-        filesDeleted: 5000,
-        foldersDeleted: 1000,
+      const largeBatch = Array.from({ length: 100 }, (_, i) =>
+        Trash.build({
+          itemId: `item-${i}`,
+          itemType: i % 2 === 0 ? TrashItemType.File : TrashItemType.Folder,
+          caducityDate: new Date('2026-01-01'),
+          userId: 1,
+        }),
+      );
+
+      jest.spyOn(task as any, 'yieldExpiredTrashItems').mockImplementation(async function* () {
+        for (let i = 0; i < 50; i++) {
+          yield largeBatch;
+        }
       });
+
+      trashUseCases.deleteExpiredItems.mockResolvedValue({
+        filesDeleted: 100,
+        foldersDeleted: 20,
+      });
+
       jobExecutionRepository.markAsCompleted.mockResolvedValue(
         mockCompletedJob,
       );
