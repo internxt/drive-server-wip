@@ -128,6 +128,7 @@ interface FolderRepository {
     update: Partial<Folder>,
   ): Promise<void>;
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
+  deleteFoldersByUuid(folderUuids: string[]): Promise<number>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
   calculateFolderSize(folderUuid: string): Promise<number>;
   calculateFolderStats(folderUuid: string): Promise<{
@@ -777,13 +778,13 @@ export class SequelizeFolderRepository implements FolderRepository {
   ): Promise<number> {
     const result = await this.folderModel.sequelize.query(
       `
-      UPDATE folders 
+      UPDATE folders
       SET removed = true, removed_at = NOW(), updated_at = NOW()
       WHERE uuid IN (
-        SELECT uuid 
-        FROM folders 
-        WHERE user_id = :userId 
-          AND deleted = true 
+        SELECT uuid
+        FROM folders
+        WHERE user_id = :userId
+          AND deleted = true
           AND removed = false
         LIMIT :limit
       )
@@ -794,6 +795,25 @@ export class SequelizeFolderRepository implements FolderRepository {
       },
     );
     return result[1];
+  }
+
+  async deleteFoldersByUuid(folderUuids: string[]): Promise<number> {
+    const deletedDate = new Date();
+    const [updatedCount] = await this.folderModel.update(
+      {
+        removed: true,
+        removedAt: deletedDate,
+        updatedAt: deletedDate,
+      },
+      {
+        where: {
+          uuid: { [Op.in]: folderUuids },
+          removed: false,
+        },
+      },
+    );
+
+    return updatedCount;
   }
 
   async findAllCursorWhereUpdatedAfter(
