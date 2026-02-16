@@ -124,13 +124,8 @@ export class DeleteExpiredTrashItemsTask {
 
     for await (const expiredItems of this.yieldExpiredTrashItems(batchSize)) {
       if (expiredItems.length === 0) {
-        this.logger.log('No more expired trash items to process');
         break;
       }
-
-      this.logger.log(
-        `Found ${expiredItems.length} expired trash items to delete`,
-      );
 
       const result = await this.trashUseCases.deleteExpiredItems(expiredItems);
 
