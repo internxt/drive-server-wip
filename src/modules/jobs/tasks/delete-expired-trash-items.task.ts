@@ -65,36 +65,45 @@ export class DeleteExpiredTrashItemsTask {
     const { lastCompletedJob, startedJob } =
       await this.initializeJobExecution();
 
-    const jobId = startedJob.id;
-    const lastRun = lastCompletedJob
-      ? `(last completed: ${lastCompletedJob.completedAt})`
-      : '(first run)';
-
     this.logger.log(
-      `[${jobId}] Starting expired trash items cleanup job ${lastRun}`,
+      `[${startedJob.id}] Starting expired trash items cleanup job${
+        lastCompletedJob
+          ? ` (last completed: ${lastCompletedJob.completedAt})`
+          : ' (first run)'
+      }`,
     );
 
     try {
-      const result = await this.deleteExpiredTrashItems();
+      let totalFilesDeleted = 0;
+      let totalFoldersDeleted = 0;
+      const batchSize = 100;
 
-      const completedJob = await this.jobExecutionRepository.markAsCompleted(
-        startedJob.id,
-        {
-          filesDeleted: result.filesDeleted,
-          foldersDeleted: result.foldersDeleted,
-        },
-      );
+      for await (const expiredItems of this.yieldExpiredTrashItems(batchSize)) {
+        if (expiredItems.length === 0) {
+          break;
+        }
+
+        const result = await this.trashUseCases.deleteExpiredItems(
+          expiredItems,
+        );
+        totalFilesDeleted += result.filesDeleted;
+        totalFoldersDeleted += result.foldersDeleted;
+      }
+
+      await this.jobExecutionRepository.markAsCompleted(startedJob.id, {
+        filesDeleted: totalFilesDeleted,
+        foldersDeleted: totalFoldersDeleted,
+      });
 
       this.logger.log(
-        `[${jobId}] Cleanup completed at ${completedJob?.completedAt}: ${result.filesDeleted} files and ${result.foldersDeleted} folders deleted`,
+        `[${startedJob.id}] Cleanup completed: ${totalFilesDeleted} files and ${totalFoldersDeleted} folders deleted`,
       );
     } catch (error) {
-      const errorMessage = error.message;
       this.logger.error(
-        `[${jobId}] Error while executing expired trash items cleanup: ${errorMessage}`,
+        `[${startedJob.id}] Error: ${error.message}`,
       );
       await this.jobExecutionRepository.markAsFailed(startedJob.id, {
-        errorMessage,
+        errorMessage: error.message,
       });
       throw error;
     }
@@ -112,35 +121,6 @@ export class DeleteExpiredTrashItemsTask {
     );
 
     return { lastCompletedJob, startedJob };
-  }
-
-  private async deleteExpiredTrashItems(): Promise<{
-    filesDeleted: number;
-    foldersDeleted: number;
-  }> {
-    let totalFilesDeleted = 0;
-    let totalFoldersDeleted = 0;
-    const batchSize = 100;
-
-    for await (const expiredItems of this.yieldExpiredTrashItems(batchSize)) {
-      if (expiredItems.length === 0) {
-        break;
-      }
-
-      const result = await this.trashUseCases.deleteExpiredItems(expiredItems);
-
-      totalFilesDeleted += result.filesDeleted;
-      totalFoldersDeleted += result.foldersDeleted;
-
-      this.logger.log(
-        `Processed batch: ${result.filesDeleted} files, ${result.foldersDeleted} folders deleted. Total: ${totalFilesDeleted} files, ${totalFoldersDeleted} folders`,
-      );
-    }
-
-    return {
-      filesDeleted: totalFilesDeleted,
-      foldersDeleted: totalFoldersDeleted,
-    };
   }
 
   private async *yieldExpiredTrashItems(batchSize: number) {
