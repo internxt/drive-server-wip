@@ -102,9 +102,10 @@ describe('SequelizeUsageRepository', () => {
         value: mockSequelize,
       });
 
-      jest
-        .spyOn(usageModel, 'findOrCreate')
-        .mockResolvedValue([{ toJSON: () => newUsage() } as any, true]);
+      jest.spyOn(usageModel, 'findOrCreate').mockResolvedValue([
+        { toJSON: () => newUsage() } as any,
+        true,
+      ]);
 
       await repository.createFirstUsageCalculation(userUuid);
 

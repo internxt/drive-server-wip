@@ -29,7 +29,11 @@ import { CacheManagerModule } from '../cache-manager/cache-manager.module';
     CacheManagerModule,
   ],
   controllers: [FolderController],
-  providers: [SequelizeFolderRepository, CryptoService, FolderUseCases],
+  providers: [
+    SequelizeFolderRepository,
+    CryptoService,
+    FolderUseCases,
+  ],
   exports: [FolderUseCases, SequelizeFolderRepository],
 })
 export class FolderModule {}

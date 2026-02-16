@@ -342,10 +342,11 @@ export class GatewayUseCases {
       );
     }
 
-    const limits = await this.featureLimitService.getFileVersioningLimitsByTier(
-      user.uuid,
-      user.tierId,
-    );
+    const limits =
+      await this.featureLimitService.getFileVersioningLimitsByTier(
+        user.uuid,
+        user.tierId,
+      );
 
     Logger.log(
       `[GATEWAY/UPDATE_TIER] Starting file versioning validation for user ${user.uuid}: enabled=${limits.enabled}, retentionDays=${limits.retentionDays}, maxVersions=${limits.maxVersions}`,
@@ -363,9 +364,8 @@ export class GatewayUseCases {
         );
       }
     } else {
-      const { deletedCount } = await this.fileUseCases.undoFileVersioning(
-        user.uuid,
-      );
+      const { deletedCount } =
+        await this.fileUseCases.undoFileVersioning(user.uuid);
       if (deletedCount > 0) {
         Logger.log(
           `[GATEWAY/UPDATE_TIER] Deleted ${deletedCount} file versions (full cleanup) for user ${user.uuid} due to tier change`,

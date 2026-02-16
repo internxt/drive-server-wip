@@ -20,7 +20,9 @@ describe('UndoFileVersioningAction', () => {
       ],
     }).compile();
 
-    action = module.get<UndoFileVersioningAction>(UndoFileVersioningAction);
+    action = module.get<UndoFileVersioningAction>(
+      UndoFileVersioningAction,
+    );
     fileVersionRepository = module.get<SequelizeFileVersionRepository>(
       SequelizeFileVersionRepository,
     );

@@ -45,20 +45,16 @@ export class DeleteExpiredFileVersionsTask {
         return;
       }
 
-      this.logger.log(
-        'Lock acquired! Starting expired file versions cleanup job',
-      );
+      this.logger.log('Lock acquired! Starting expired file versions cleanup job');
       await this.startJob();
     } catch (error) {
       this.logger.error(
-        `Expired file versions cleanup job could not be setup. error: ${JSON.stringify(
-          {
-            timestamp: new Date().toISOString(),
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-          },
-        )}`,
+        `Expired file versions cleanup job could not be setup. error: ${JSON.stringify({
+          timestamp: new Date().toISOString(),
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        })}`,
       );
     }
   }

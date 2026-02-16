@@ -194,17 +194,20 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
       )
     `;
 
-    const result = await this.model.sequelize.query(query, {
-      replacements: {
-        userId,
-        retentionDays,
-        maxVersions,
-        limit,
-        deletedStatus: FileVersionStatus.DELETED,
-        existsStatus: FileVersionStatus.EXISTS,
+    const result = await this.model.sequelize.query(
+      query,
+      {
+        replacements: {
+          userId,
+          retentionDays,
+          maxVersions,
+          limit,
+          deletedStatus: FileVersionStatus.DELETED,
+          existsStatus: FileVersionStatus.EXISTS,
+        },
+        type: QueryTypes.UPDATE,
       },
-      type: QueryTypes.UPDATE,
-    });
+    );
 
     return result[1];
   }

@@ -92,7 +92,9 @@ describe('RestoreFileVersionAction', () => {
       jest
         .spyOn(fileVersionRepository, 'updateStatusBatch')
         .mockResolvedValue(undefined);
-      jest.spyOn(fileVersionRepository, 'delete').mockResolvedValue(undefined);
+      jest
+        .spyOn(fileVersionRepository, 'delete')
+        .mockResolvedValue(undefined);
       jest
         .spyOn(fileRepository, 'updateByUuidAndUserId')
         .mockResolvedValue(undefined);
@@ -221,7 +223,9 @@ describe('RestoreFileVersionAction', () => {
       jest
         .spyOn(fileVersionRepository, 'updateStatusBatch')
         .mockResolvedValue(undefined);
-      jest.spyOn(fileVersionRepository, 'delete').mockResolvedValue(undefined);
+      jest
+        .spyOn(fileVersionRepository, 'delete')
+        .mockResolvedValue(undefined);
       jest
         .spyOn(fileRepository, 'updateByUuidAndUserId')
         .mockResolvedValue(undefined);
