@@ -10,13 +10,18 @@ import { newUser, newFile, newFolder, newTrash } from '../../../test/fixtures';
 import { TrashEmptyRequestedEvent } from './events/trash-empty-requested.event';
 import { SequelizeTrashRepository } from './trash.repository';
 import { TrashItemType } from './trash.attributes';
+import { SequelizeFileRepository } from '../file/file.repository';
+import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { Trash } from './trash.domain';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,
     fileUseCases: FileUseCases,
     folderUseCases: FolderUseCases,
     eventEmitter: EventEmitter2,
-    trashRepository: SequelizeTrashRepository;
+    trashRepository: SequelizeTrashRepository,
+    fileRepository: SequelizeFileRepository,
+    folderRepository: SequelizeFolderRepository;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -32,6 +37,12 @@ describe('Trash Use Cases', () => {
     eventEmitter = module.get<EventEmitter2>(EventEmitter2);
     trashRepository = module.get<SequelizeTrashRepository>(
       SequelizeTrashRepository,
+    );
+    fileRepository = module.get<SequelizeFileRepository>(
+      SequelizeFileRepository,
+    );
+    folderRepository = module.get<SequelizeFolderRepository>(
+      SequelizeFolderRepository,
     );
   });
 
@@ -678,6 +689,190 @@ describe('Trash Use Cases', () => {
       await expect(
         service.removeItemsFromTrash(fileIds, TrashItemType.File),
       ).rejects.toThrow('Database error during delete');
+    });
+  });
+
+  describe('deleteExpiredItems', () => {
+    it('When empty array provided, then should return zero counts', async () => {
+      const result = await service.deleteExpiredItems([]);
+
+      expect(result).toEqual({
+        filesDeleted: 0,
+        foldersDeleted: 0,
+      });
+      expect(fileRepository.deleteFilesByUuid).not.toHaveBeenCalled();
+      expect(folderRepository.deleteFoldersByUuid).not.toHaveBeenCalled();
+    });
+
+    it('When only files provided, then should delete files only', async () => {
+      const fileItems = [
+        Trash.build({
+          itemId: 'file-1',
+          itemType: TrashItemType.File,
+          caducityDate: new Date('2020-01-01'),
+          userId: 1,
+        }),
+        Trash.build({
+          itemId: 'file-2',
+          itemType: TrashItemType.File,
+          caducityDate: new Date('2020-01-01'),
+          userId: 1,
+        }),
+      ];
+
+      jest.spyOn(fileRepository, 'deleteFilesByUuid').mockResolvedValue(2);
+      jest.spyOn(folderRepository, 'deleteFoldersByUuid').mockResolvedValue(0);
+      jest.spyOn(trashRepository, 'deleteByItemIds').mockResolvedValue();
+
+      const result = await service.deleteExpiredItems(fileItems);
+
+      expect(fileRepository.deleteFilesByUuid).toHaveBeenCalledWith([
+        'file-1',
+        'file-2',
+      ]);
+      expect(folderRepository.deleteFoldersByUuid).not.toHaveBeenCalled();
+      expect(trashRepository.deleteByItemIds).toHaveBeenCalledWith(
+        ['file-1', 'file-2'],
+        TrashItemType.File,
+      );
+      expect(result).toEqual({
+        filesDeleted: 2,
+        foldersDeleted: 0,
+      });
+    });
+
+    it('When only folders provided, then should delete folders only', async () => {
+      const folderItems = [
+        Trash.build({
+          itemId: 'folder-1',
+          itemType: TrashItemType.Folder,
+          caducityDate: new Date('2020-01-01'),
+          userId: 1,
+        }),
+        Trash.build({
+          itemId: 'folder-2',
+          itemType: TrashItemType.Folder,
+          caducityDate: new Date('2020-01-01'),
+          userId: 1,
+        }),
+      ];
+
+      jest.spyOn(fileRepository, 'deleteFilesByUuid').mockResolvedValue(0);
+      jest.spyOn(folderRepository, 'deleteFoldersByUuid').mockResolvedValue(2);
+      jest.spyOn(trashRepository, 'deleteByItemIds').mockResolvedValue();
+
+      const result = await service.deleteExpiredItems(folderItems);
+
+      expect(fileRepository.deleteFilesByUuid).not.toHaveBeenCalled();
+      expect(folderRepository.deleteFoldersByUuid).toHaveBeenCalledWith([
+        'folder-1',
+        'folder-2',
+      ]);
+      expect(trashRepository.deleteByItemIds).toHaveBeenCalledWith(
+        ['folder-1', 'folder-2'],
+        TrashItemType.Folder,
+      );
+      expect(result).toEqual({
+        filesDeleted: 0,
+        foldersDeleted: 2,
+      });
+    });
+
+    it('When mixed files and folders provided, then should delete both types', async () => {
+      const mixedItems = [
+        Trash.build({
+          itemId: 'file-1',
+          itemType: TrashItemType.File,
+          caducityDate: new Date('2020-01-01'),
+          userId: 1,
+        }),
+        Trash.build({
+          itemId: 'file-2',
+          itemType: TrashItemType.File,
+          caducityDate: new Date('2020-01-01'),
+          userId: 1,
+        }),
+        Trash.build({
+          itemId: 'folder-1',
+          itemType: TrashItemType.Folder,
+          caducityDate: new Date('2020-01-01'),
+          userId: 1,
+        }),
+        Trash.build({
+          itemId: 'folder-2',
+          itemType: TrashItemType.Folder,
+          caducityDate: new Date('2020-01-01'),
+          userId: 1,
+        }),
+        Trash.build({
+          itemId: 'folder-3',
+          itemType: TrashItemType.Folder,
+          caducityDate: new Date('2020-01-01'),
+          userId: 1,
+        }),
+      ];
+
+      jest.spyOn(fileRepository, 'deleteFilesByUuid').mockResolvedValue(2);
+      jest.spyOn(folderRepository, 'deleteFoldersByUuid').mockResolvedValue(3);
+      jest.spyOn(trashRepository, 'deleteByItemIds').mockResolvedValue();
+
+      const result = await service.deleteExpiredItems(mixedItems);
+
+      expect(fileRepository.deleteFilesByUuid).toHaveBeenCalledWith([
+        'file-1',
+        'file-2',
+      ]);
+      expect(folderRepository.deleteFoldersByUuid).toHaveBeenCalledWith([
+        'folder-1',
+        'folder-2',
+        'folder-3',
+      ]);
+      expect(trashRepository.deleteByItemIds).toHaveBeenCalledTimes(2);
+      expect(trashRepository.deleteByItemIds).toHaveBeenCalledWith(
+        ['file-1', 'file-2'],
+        TrashItemType.File,
+      );
+      expect(trashRepository.deleteByItemIds).toHaveBeenCalledWith(
+        ['folder-1', 'folder-2', 'folder-3'],
+        TrashItemType.Folder,
+      );
+      expect(result).toEqual({
+        filesDeleted: 2,
+        foldersDeleted: 3,
+      });
+    });
+
+    it('When deletion is executed, then repositories and trash should be called in parallel', async () => {
+      const mixedItems = [
+        Trash.build({
+          itemId: 'file-1',
+          itemType: TrashItemType.File,
+          caducityDate: new Date('2020-01-01'),
+          userId: 1,
+        }),
+        Trash.build({
+          itemId: 'folder-1',
+          itemType: TrashItemType.Folder,
+          caducityDate: new Date('2020-01-01'),
+          userId: 1,
+        }),
+      ];
+
+      const fileDeleteSpy = jest
+        .spyOn(fileRepository, 'deleteFilesByUuid')
+        .mockResolvedValue(1);
+      const folderDeleteSpy = jest
+        .spyOn(folderRepository, 'deleteFoldersByUuid')
+        .mockResolvedValue(1);
+      const trashDeleteSpy = jest
+        .spyOn(trashRepository, 'deleteByItemIds')
+        .mockResolvedValue();
+
+      await service.deleteExpiredItems(mixedItems);
+
+      expect(fileDeleteSpy).toHaveBeenCalled();
+      expect(folderDeleteSpy).toHaveBeenCalled();
+      expect(trashDeleteSpy).toHaveBeenCalledTimes(2);
     });
   });
 });
