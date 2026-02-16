@@ -81,11 +81,12 @@ export class DeleteExpiredTrashItemsTask {
         startedJob.id,
         {
           filesDeleted: result.filesDeleted,
+          foldersDeleted: result.foldersDeleted,
         },
       );
 
       this.logger.log(
-        `[${jobId}] Cleanup completed at ${completedJob?.completedAt}: ${result.filesDeleted} files deleted`,
+        `[${jobId}] Cleanup completed at ${completedJob?.completedAt}: ${result.filesDeleted} files and ${result.foldersDeleted} folders deleted`,
       );
     } catch (error) {
       const errorMessage = error.message;
@@ -115,8 +116,10 @@ export class DeleteExpiredTrashItemsTask {
 
   private async deleteExpiredTrashItems(): Promise<{
     filesDeleted: number;
+    foldersDeleted: number;
   }> {
     let totalFilesDeleted = 0;
+    let totalFoldersDeleted = 0;
     const batchSize = 100;
 
     for await (const expiredItems of this.yieldExpiredTrashItems(batchSize)) {
@@ -129,20 +132,19 @@ export class DeleteExpiredTrashItemsTask {
         `Found ${expiredItems.length} expired trash items to delete`,
       );
 
-      const fileUuids = expiredItems.map((item) => item.itemId);
-      const deletedCount = await this.trashUseCases.deleteExpiredItems(
-        fileUuids,
-      );
+      const result = await this.trashUseCases.deleteExpiredItems(expiredItems);
 
-      totalFilesDeleted += deletedCount;
+      totalFilesDeleted += result.filesDeleted;
+      totalFoldersDeleted += result.foldersDeleted;
 
       this.logger.log(
-        `Processed batch: ${deletedCount} files deleted. Total: ${totalFilesDeleted}`,
+        `Processed batch: ${result.filesDeleted} files, ${result.foldersDeleted} folders deleted. Total: ${totalFilesDeleted} files, ${totalFoldersDeleted} folders`,
       );
     }
 
     return {
       filesDeleted: totalFilesDeleted,
+      foldersDeleted: totalFoldersDeleted,
     };
   }
 

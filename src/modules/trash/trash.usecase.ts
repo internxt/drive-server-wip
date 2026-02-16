@@ -11,6 +11,7 @@ import { TrashItemType } from './trash.attributes';
 import { Trash } from './trash.domain';
 import { Time, TimeUnit } from '../../lib/time';
 import { SequelizeFileRepository } from '../file/file.repository';
+import { SequelizeFolderRepository } from '../folder/folder.repository';
 
 const TRASH_RETENTION_BY_TIER: Record<
   string,
@@ -37,6 +38,7 @@ export class TrashUseCases {
     private readonly eventEmitter: EventEmitter2,
     private readonly trashRepository: SequelizeTrashRepository,
     private readonly fileRepository: SequelizeFileRepository,
+    private readonly folderRepository: SequelizeFolderRepository,
   ) {}
 
   /**
@@ -230,16 +232,46 @@ export class TrashUseCases {
     return this.trashRepository.deleteByUserId(user.id, batchSize);
   }
 
-  async deleteExpiredItems(fileUuids: string[]): Promise<number> {
-    if (fileUuids.length === 0) {
-      return 0;
+  async deleteExpiredItems(items: Trash[]): Promise<{
+    filesDeleted: number;
+    foldersDeleted: number;
+  }> {
+    if (items.length === 0) {
+      return { filesDeleted: 0, foldersDeleted: 0 };
     }
 
+    const files = items.filter((item) => item.itemType === TrashItemType.File);
+    const folders = items.filter(
+      (item) => item.itemType === TrashItemType.Folder,
+    );
+
+    const fileUuids = files.map((item) => item.itemId);
+    const folderUuids = folders.map((item) => item.itemId);
+
     await Promise.all([
-      this.fileRepository.deleteFilesByUuid(fileUuids),
-      this.trashRepository.deleteByItemIds(fileUuids, TrashItemType.File),
+      fileUuids.length > 0
+        ? this.fileRepository.deleteFilesByUuid(fileUuids)
+        : Promise.resolve(0),
+      folderUuids.length > 0
+        ? this.folderRepository.deleteFoldersByUuid(folderUuids)
+        : Promise.resolve(0),
     ]);
 
-    return fileUuids.length;
+    await Promise.all([
+      fileUuids.length > 0
+        ? this.trashRepository.deleteByItemIds(fileUuids, TrashItemType.File)
+        : Promise.resolve(),
+      folderUuids.length > 0
+        ? this.trashRepository.deleteByItemIds(
+            folderUuids,
+            TrashItemType.Folder,
+          )
+        : Promise.resolve(),
+    ]);
+
+    return {
+      filesDeleted: fileUuids.length,
+      foldersDeleted: folderUuids.length,
+    };
   }
 }

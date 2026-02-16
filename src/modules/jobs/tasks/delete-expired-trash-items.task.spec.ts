@@ -96,6 +96,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
     it('When no expired items exist, then it should complete with zero deletions', async () => {
       jest.spyOn(task as any, 'deleteExpiredTrashItems').mockResolvedValue({
         filesDeleted: 0,
+        foldersDeleted: 0,
       });
       jobExecutionRepository.markAsCompleted.mockResolvedValue(
         mockCompletedJob,
@@ -107,6 +108,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
         mockStartedJob.id,
         {
           filesDeleted: 0,
+          foldersDeleted: 0,
         },
       );
     });
@@ -114,6 +116,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
     it('When expired items exist, then it should delete them and log counts', async () => {
       jest.spyOn(task as any, 'deleteExpiredTrashItems').mockResolvedValue({
         filesDeleted: 150,
+        foldersDeleted: 25,
       });
       jobExecutionRepository.markAsCompleted.mockResolvedValue(
         mockCompletedJob,
@@ -125,6 +128,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
         mockStartedJob.id,
         {
           filesDeleted: 150,
+          foldersDeleted: 25,
         },
       );
     });
@@ -145,6 +149,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
     it('When processing large batch, then it should handle it successfully', async () => {
       jest.spyOn(task as any, 'deleteExpiredTrashItems').mockResolvedValue({
         filesDeleted: 5000,
+        foldersDeleted: 1000,
       });
       jobExecutionRepository.markAsCompleted.mockResolvedValue(
         mockCompletedJob,
@@ -156,6 +161,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
         mockStartedJob.id,
         {
           filesDeleted: 5000,
+          foldersDeleted: 1000,
         },
       );
     });
