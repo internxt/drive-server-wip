@@ -72,6 +72,7 @@ describe('GetFileVersionsAction', () => {
           networkFileId: 'network-1',
           size: BigInt(100),
           status: FileVersionStatus.EXISTS,
+          modificationTime: mockFile.updatedAt,
           createdAt,
           updatedAt: new Date(),
         }),

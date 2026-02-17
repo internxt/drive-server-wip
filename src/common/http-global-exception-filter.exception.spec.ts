@@ -237,7 +237,9 @@ describe('HttpGlobalExceptionFilter', () => {
         throw new Error('Error in filter');
       });
 
-      const superCatchSpy = jest.spyOn(BaseExceptionFilter.prototype, 'catch');
+      const superCatchSpy = jest
+        .spyOn(BaseExceptionFilter.prototype, 'catch')
+        .mockImplementation(() => undefined);
 
       filter.catch(mockException, mockHost);
 
@@ -282,6 +284,6 @@ const createMockArgumentsHost = (
         body,
         id,
       }),
-      getResponse: () => ({}),
+      getResponse: () => ({ setHeader: jest.fn() }),
     }),
   });

@@ -31,6 +31,7 @@ export class CreateFileVersionAction {
         networkFileId: file.fileId,
         size: file.size,
         status: FileVersionStatus.EXISTS,
+        modificationTime: file.updatedAt,
       }),
       this.fileRepository.updateByUuidAndUserId(file.uuid, user.id, {
         fileId: newFileId,
