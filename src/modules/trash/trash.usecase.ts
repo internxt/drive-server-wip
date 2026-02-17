@@ -248,7 +248,7 @@ export class TrashUseCases {
     const fileUuids = files.map((item) => item.itemId);
     const folderUuids = folders.map((item) => item.itemId);
 
-    await Promise.all([
+    const [filesDeleted, foldersDeleted] = await Promise.all([
       fileUuids.length > 0
         ? this.fileRepository.deleteFilesByUuid(fileUuids)
         : Promise.resolve(0),
@@ -270,8 +270,8 @@ export class TrashUseCases {
     ]);
 
     return {
-      filesDeleted: fileUuids.length,
-      foldersDeleted: folderUuids.length,
+      filesDeleted,
+      foldersDeleted,
     };
   }
 }
