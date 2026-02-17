@@ -300,10 +300,7 @@ export class FileUseCases {
       throw new ForbiddenException('Folder is not yours');
     }
 
-    const cryptoFileName = this.cryptoService.encryptName(
-      newFileDto.plainName,
-      folder.id,
-    );
+    const cryptoFileName = newFileDto.plainName;
 
     const exists = await this.fileRepository.findByPlainNameAndFolderId(
       user.id,
@@ -428,9 +425,7 @@ export class FileUseCases {
       newFileMetadata.plainName ??
       file.plainName ??
       this.cryptoService.decryptName(file.name, file.folderId);
-    const cryptoFileName = newFileMetadata.plainName
-      ? this.cryptoService.encryptName(newFileMetadata.plainName, file.folderId)
-      : file.name;
+    const cryptoFileName = newFileMetadata.plainName || file.name;
     const type = newFileMetadata.type ?? file.type;
 
     const updatedFile = File.build({
@@ -940,15 +935,10 @@ export class FileUseCases {
       );
     }
 
-    const destinationEncryptedName = this.cryptoService.encryptName(
-      file.plainName,
-      destinationFolder.id,
-    );
-
     const updateData: Partial<File> = {
       folderId: destinationFolder.id,
       folderUuid: destinationFolder.uuid,
-      name: destinationEncryptedName,
+      name: file.plainName,
       status: FileStatus.EXISTS,
       plainName: file.plainName,
       type: file.type,

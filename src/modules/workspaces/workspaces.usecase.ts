@@ -174,9 +174,11 @@ export class WorkspacesUsecases {
         workspaceEmail,
         networkUserId,
       );
+      const name = v4();
       const rootFolder = await this.folderUseCases.createRootFolder(
         workspaceUser,
-        v4(),
+        name,
+        name,
         bucket.id,
       );
       newWorkspace.rootFolderId = rootFolder.uuid;

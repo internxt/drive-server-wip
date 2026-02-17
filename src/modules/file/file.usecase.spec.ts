@@ -121,10 +121,9 @@ describe('FileUseCases', () => {
     restoreFileVersionAction = module.get<RestoreFileVersionAction>(
       RestoreFileVersionAction,
     );
-    undoFileVersioningAction =
-      module.get<UndoFileVersioningAction>(
-        UndoFileVersioningAction,
-      );
+    undoFileVersioningAction = module.get<UndoFileVersioningAction>(
+      UndoFileVersioningAction,
+    );
   });
 
   afterEach(() => {
@@ -463,7 +462,7 @@ describe('FileUseCases', () => {
       const expectedFile = newFile({
         attributes: {
           ...file,
-          name: 'newencrypted-' + file.name,
+          name: file.plainName,
           folderId: destinationFolder.id,
           folderUuid: destinationFolder.uuid,
           status: FileStatus.EXISTS,
@@ -474,10 +473,6 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValueOnce(destinationFolder);
-
-      jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValueOnce(expectedFile.name);
 
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
@@ -499,7 +494,7 @@ describe('FileUseCases', () => {
         {
           folderId: destinationFolder.id,
           folderUuid: destinationFolder.uuid,
-          name: expectedFile.name,
+          name: expectedFile.plainName,
           status: FileStatus.EXISTS,
           plainName: expectedFile.plainName,
           type: expectedFile.type,
@@ -562,7 +557,6 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValueOnce(destinationFolder);
-      jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(file.name);
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(file);
@@ -585,7 +579,6 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValueOnce(destinationFolder);
-      jest.spyOn(cryptoService, 'encryptName').mockReturnValueOnce(file.name);
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(conflictFile);
@@ -623,6 +616,7 @@ describe('FileUseCases', () => {
           folderUuid: destinationFolder.uuid,
           status: FileStatus.EXISTS,
           plainName: newAttributes.name,
+          name: newAttributes.name,
           type: newAttributes.type,
         },
       });
@@ -633,10 +627,6 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValueOnce(destinationFolder);
-
-      jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValueOnce(fileToBeMovedAndRenamed.name);
 
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
@@ -663,7 +653,7 @@ describe('FileUseCases', () => {
         {
           folderId: destinationFolder.id,
           folderUuid: destinationFolder.uuid,
-          name: expectedFile.name,
+          name: expectedFile.plainName,
           status: FileStatus.EXISTS,
           plainName: expectedFile.plainName,
           type: expectedFile.type,
@@ -695,6 +685,7 @@ describe('FileUseCases', () => {
           folderUuid: destinationFolder.uuid,
           status: FileStatus.EXISTS,
           plainName: newAttributes.name,
+          name: newAttributes.name,
           type: newAttributes.type,
         },
       });
@@ -705,10 +696,6 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValueOnce(destinationFolder);
-
-      jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValueOnce(fileToBeRenamed.name);
 
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
@@ -731,7 +718,7 @@ describe('FileUseCases', () => {
         {
           folderId: expectedFile.folderId,
           folderUuid: expectedFile.folderUuid,
-          name: expectedFile.name,
+          name: expectedFile.plainName,
           status: FileStatus.EXISTS,
           plainName: expectedFile.plainName,
           type: expectedFile.type,
@@ -762,10 +749,6 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValueOnce(destinationFolder);
-
-      jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValueOnce(fileToBeRenamed.name);
 
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
@@ -1364,12 +1347,11 @@ describe('FileUseCases', () => {
       const newFileMeta: UpdateFileMetaDto = { plainName: 'new-name' };
       const mockFile = newFile({ owner: userMocked });
 
-      const encryptedName = 'encrypted-name';
       const updatedFile = newFile({
         attributes: {
           ...mockFile,
           plainName: newFileMeta.plainName,
-          name: encryptedName,
+          name: newFileMeta.plainName,
         },
       });
 
@@ -1377,7 +1359,6 @@ describe('FileUseCases', () => {
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(null);
-      jest.spyOn(cryptoService, 'encryptName').mockReturnValue(encryptedName);
 
       const result = await service.updateFileMetaData(
         userMocked,
@@ -1402,7 +1383,7 @@ describe('FileUseCases', () => {
         userMocked.id,
         expect.objectContaining({
           plainName: newFileMeta.plainName,
-          name: encryptedName,
+          name: newFileMeta.plainName,
         }),
       );
       const {
@@ -1438,7 +1419,6 @@ describe('FileUseCases', () => {
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(null);
-      jest.spyOn(cryptoService, 'encryptName').mockReturnValue(mockFile.name);
 
       const result = await service.updateFileMetaData(
         userMocked,
@@ -1861,7 +1841,7 @@ describe('FileUseCases', () => {
     const mockFile = newFile({
       attributes: {
         fileId: testFileId,
-        name: 'encrypted-name',
+        name: 'name',
         type: 'jpg',
         size: BigInt(1000),
         bucket: testBucketId,
