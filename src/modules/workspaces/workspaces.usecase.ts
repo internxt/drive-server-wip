@@ -77,6 +77,7 @@ import { SharingAccessTokenData } from '../sharing/guards/sharings-token.interfa
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { WorkspaceLog } from './domains/workspace-log.domain';
 import { TrashItem } from './interceptors/workspaces-logs.interceptor';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 
 @Injectable()
 export class WorkspacesUsecases {
@@ -98,6 +99,7 @@ export class WorkspacesUsecases {
     private readonly folderUseCases: FolderUseCases,
     private readonly avatarService: AvatarService,
     private readonly fuzzySearchUseCases: FuzzySearchUseCases,
+    private readonly featureLimitsService: FeatureLimitService,
   ) {}
 
   async initiateWorkspace(
@@ -910,6 +912,10 @@ export class WorkspacesUsecases {
         ...createFileDto,
       },
       tier,
+      {
+        workspace,
+        memberId: workspaceUser.memberId,
+      },
     );
 
     const createdItemFile = await this.workspaceRepository.createItem({
