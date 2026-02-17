@@ -7,7 +7,7 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.model';
 
-export interface AppSumoAttributes {
+interface AppSumoAttributes {
   id: number;
   userId: number;
   planId: string;

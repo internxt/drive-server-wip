@@ -5,7 +5,7 @@ import { Trash } from './trash.domain';
 import { TrashItemType } from './trash.attributes';
 import { Op } from 'sequelize';
 
-export interface TrashRepository {
+interface TrashRepository {
   create(trash: Trash): Promise<void>;
   delete(itemId: string, itemType: TrashItemType): Promise<void>;
   deleteByItemIds(itemIds: string[], itemType: TrashItemType): Promise<void>;

@@ -27,7 +27,6 @@ import { CreateDeviceAndFolderDto } from './dto/create-device-and-folder.dto';
 import { CreateDeviceAndAttachFolderDto } from './dto/create-device-and-attach-folder.dto';
 import { DeviceDto } from './dto/responses/device.dto';
 import { UpdateDeviceAndFolderDto } from './dto/update-device-and-folder.dto';
-import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Backup')
 @Controller('backup')

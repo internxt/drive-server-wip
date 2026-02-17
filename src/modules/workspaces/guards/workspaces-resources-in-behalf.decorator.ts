@@ -7,7 +7,7 @@ import {
   WORKSPACE_IN_BEHALF_ACTION_META_KEY,
 } from './workspaces-resources-in-behalf.types';
 
-export interface ValidationOptions {
+interface ValidationOptions {
   defaultItemType?: WorkspaceItemType;
   action?: WorkspaceResourcesAction;
 }

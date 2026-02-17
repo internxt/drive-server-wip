@@ -11,11 +11,7 @@ import { BridgeUserNotFoundException } from './exception/bridge-user-not-found.e
 import { BridgeException } from './exception/bridge.exception';
 import { BridgeUserEmailAlreadyInUseException } from './exception/bridge-user-email-already-in-use.exception';
 
-export function signToken(
-  duration: string,
-  secret: string,
-  isDevelopment?: boolean,
-) {
+function signToken(duration: string, secret: string, isDevelopment?: boolean) {
   return sign({}, Buffer.from(secret, 'base64').toString('utf8'), {
     algorithm: 'RS256',
     expiresIn: duration,

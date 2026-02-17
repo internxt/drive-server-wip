@@ -68,7 +68,7 @@ import { GetFilesInFoldersDto } from './dto/get-files-in-folder.dto';
 import { GetFoldersInFoldersDto } from './dto/get-folders-in-folder.dto';
 import { GetFoldersQueryDto } from './dto/get-folders.dto';
 
-export class BadRequestWrongFolderIdException extends BadRequestException {
+class BadRequestWrongFolderIdException extends BadRequestException {
   constructor() {
     super('Folder id should be a number and higher than 0');
 
