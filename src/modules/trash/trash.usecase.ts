@@ -13,14 +13,20 @@ import { Time, TimeUnit } from '../../lib/time';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 
+const DEFAULT_TRASH_RETENTION = { amount: 2, unit: 'day' as TimeUnit };
+
 const TRASH_RETENTION_BY_TIER: Record<
   string,
   { amount: number; unit: TimeUnit }
 > = {
-  free_individual: { amount: 1, unit: 'day' },
   essential_individual: { amount: 7, unit: 'day' },
-  premium_individual: { amount: 14, unit: 'day' },
+  essential_lifetime_individual: { amount: 7, unit: 'day' },
+  premium_individual: { amount: 15, unit: 'day' },
+  premium_lifetime_individual: { amount: 15, unit: 'day' },
   ultimate_individual: { amount: 30, unit: 'day' },
+  ultimate_lifetime_individual: { amount: 30, unit: 'day' },
+  standard_business: { amount: 15, unit: 'day' },
+  pro_business: { amount: 30, unit: 'day' },
 };
 
 export interface EmptyTrashResult {
@@ -173,11 +179,9 @@ export class TrashUseCases {
   calculateCaducityDate(
     tierLabel: string,
     deletedAt: Date = new Date(),
-  ): Date | null {
-    const retentionConfig = TRASH_RETENTION_BY_TIER[tierLabel];
-    if (!retentionConfig) {
-      return null;
-    }
+  ): Date {
+    const retentionConfig =
+      TRASH_RETENTION_BY_TIER[tierLabel] ?? DEFAULT_TRASH_RETENTION;
     return Time.dateWithTimeAdded(
       retentionConfig.amount,
       retentionConfig.unit,
@@ -193,9 +197,6 @@ export class TrashUseCases {
     deletedAt: Date = new Date(),
   ): Promise<void> {
     const caducityDate = this.calculateCaducityDate(tierLabel, deletedAt);
-    if (!caducityDate) {
-      return;
-    }
     await Promise.all(
       itemIds.map((itemId) =>
         this.trashRepository.create(

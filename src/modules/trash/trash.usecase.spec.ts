@@ -340,7 +340,7 @@ describe('Trash Use Cases', () => {
   });
 
   describe('calculateCaducityDate', () => {
-    it('When user has free tier, then caducity date should be 24 hours from now', () => {
+    it('When user has free tier, then caducity date should be 48 hours from now', () => {
       const trashedAt = new Date('2025-10-30T00:00:00Z');
 
       const result = service.calculateCaducityDate(
@@ -348,7 +348,7 @@ describe('Trash Use Cases', () => {
         trashedAt,
       );
 
-      expect(result).toEqual(new Date('2025-10-31T00:00:00Z'));
+      expect(result).toEqual(new Date('2025-11-01T00:00:00Z'));
     });
 
     it('When user has essential tier, then caducity date should be 7 days from now', () => {
@@ -362,7 +362,7 @@ describe('Trash Use Cases', () => {
       expect(result).toEqual(new Date('2025-11-06T00:00:00Z'));
     });
 
-    it('When user has premium tier, then caducity date should be 14 days from now', () => {
+    it('When user has premium tier, then caducity date should be 15 days from now', () => {
       const trashedAt = new Date('2025-10-30T00:00:00Z');
 
       const result = service.calculateCaducityDate(
@@ -370,7 +370,7 @@ describe('Trash Use Cases', () => {
         trashedAt,
       );
 
-      expect(result).toEqual(new Date('2025-11-13T00:00:00Z'));
+      expect(result).toEqual(new Date('2025-11-14T00:00:00Z'));
     });
 
     it('When user has ultimate tier, then caducity date should be 30 days from now', () => {
@@ -384,38 +384,89 @@ describe('Trash Use Cases', () => {
       expect(result).toEqual(new Date('2025-11-29T00:00:00Z'));
     });
 
-    it('When user tier is unknown, then caducity date should be null', () => {
+    it('When user has lifetime tier, then caducity date should match its non-lifetime counterpart', () => {
+      const trashedAt = new Date('2025-10-30T00:00:00Z');
+
+      expect(
+        service.calculateCaducityDate('essential_lifetime_individual', trashedAt),
+      ).toEqual(new Date('2025-11-06T00:00:00Z'));
+
+      expect(
+        service.calculateCaducityDate('premium_lifetime_individual', trashedAt),
+      ).toEqual(new Date('2025-11-14T00:00:00Z'));
+
+      expect(
+        service.calculateCaducityDate('ultimate_lifetime_individual', trashedAt),
+      ).toEqual(new Date('2025-11-29T00:00:00Z'));
+    });
+
+    it('When user has B2C legacy tier, then caducity date should be 2 days from now', () => {
+      const trashedAt = new Date('2025-10-30T00:00:00Z');
+
+      const tiers = [
+        '200gb_individual',
+        '2tb_individual',
+        '5tb_individual',
+        '10tb_individual',
+      ];
+
+      for (const tier of tiers) {
+        const result = service.calculateCaducityDate(tier, trashedAt);
+        expect(result).toEqual(new Date('2025-11-01T00:00:00Z'));
+      }
+    });
+
+    it('When user has standard_business tier, then caducity date should be 15 days from now', () => {
+      const trashedAt = new Date('2025-10-30T00:00:00Z');
+
+      const result = service.calculateCaducityDate(
+        'standard_business',
+        trashedAt,
+      );
+
+      expect(result).toEqual(new Date('2025-11-14T00:00:00Z'));
+    });
+
+    it('When user has pro_business tier, then caducity date should be 30 days from now', () => {
+      const trashedAt = new Date('2025-10-30T00:00:00Z');
+
+      const result = service.calculateCaducityDate('pro_business', trashedAt);
+
+      expect(result).toEqual(new Date('2025-11-29T00:00:00Z'));
+    });
+
+    it('When user tier is unknown, then caducity date should default to 2 days', () => {
       const trashedAt = new Date('2025-10-30T00:00:00Z');
 
       const result = service.calculateCaducityDate('unknown_tier', trashedAt);
 
-      expect(result).toBeNull();
+      expect(result).toEqual(new Date('2025-11-01T00:00:00Z'));
     });
 
-    it('When user tier is null, then caducity date should be null', () => {
+    it('When user tier is null, then caducity date should default to 2 days', () => {
       const trashedAt = new Date('2025-10-30T00:00:00Z');
 
       const result = service.calculateCaducityDate(null, trashedAt);
 
-      expect(result).toBeNull();
+      expect(result).toEqual(new Date('2025-11-01T00:00:00Z'));
     });
 
-    it('When user tier is undefined, then caducity date should be null', () => {
+    it('When user tier is undefined, then caducity date should default to 2 days', () => {
       const trashedAt = new Date('2025-10-30T00:00:00Z');
 
       const result = service.calculateCaducityDate(undefined, trashedAt);
 
-      expect(result).toBeNull();
+      expect(result).toEqual(new Date('2025-11-01T00:00:00Z'));
     });
 
     it('When no trashedAt date provided, then should calculate from current date', () => {
       const beforeCall = new Date();
-      beforeCall.setDate(beforeCall.getDate() + 14);
+      beforeCall.setDate(beforeCall.getDate() + 15);
 
       const result = service.calculateCaducityDate('premium_individual');
 
       const afterCall = new Date();
-      afterCall.setDate(afterCall.getDate() + 14);
+      afterCall.setDate(afterCall.getDate() + 15);
 
       expect(result.getTime()).toBeGreaterThanOrEqual(beforeCall.getTime());
       expect(result.getTime()).toBeLessThanOrEqual(afterCall.getTime());
@@ -429,7 +480,7 @@ describe('Trash Use Cases', () => {
         customDate,
       );
 
-      expect(result).toEqual(new Date('2025-01-29T10:30:00Z'));
+      expect(result).toEqual(new Date('2025-01-30T10:30:00Z'));
     });
 
     it('When trashedAt is in the past, then caducity date should calculate correctly', () => {
@@ -437,7 +488,7 @@ describe('Trash Use Cases', () => {
 
       const result = service.calculateCaducityDate('free_individual', pastDate);
 
-      expect(result).toEqual(new Date('2024-01-02T00:00:00Z'));
+      expect(result).toEqual(new Date('2024-01-03T00:00:00Z'));
     });
   });
 
@@ -535,7 +586,7 @@ describe('Trash Use Cases', () => {
   });
 
   describe('addItemsToTrash', () => {
-    it('When files with premium tier are trashed, then should create entries with 14 days caducity', async () => {
+    it('When files with premium tier are trashed, then should create entries with 15 days caducity', async () => {
       const file1 = newFile();
       const file2 = newFile();
       const trashedAt = new Date('2025-10-30T00:00:00Z');
@@ -554,7 +605,7 @@ describe('Trash Use Cases', () => {
       expect(trashRepository.create).toHaveBeenCalledTimes(2);
     });
 
-    it('When folders with free tier are trashed, then should create entries with 24 hours caducity', async () => {
+    it('When folders with free tier are trashed, then should create entries with 48 hours caducity', async () => {
       const folder1 = newFolder();
       const folder2 = newFolder();
       const trashedAt = new Date('2025-10-30T00:00:00Z');
@@ -573,7 +624,7 @@ describe('Trash Use Cases', () => {
       expect(trashRepository.create).toHaveBeenCalledTimes(2);
     });
 
-    it('When items with unknown tier are trashed, then should not create entries', async () => {
+    it('When items with unknown tier are trashed, then should create entries with 2 days caducity', async () => {
       const file = newFile();
       const trashedAt = new Date('2025-10-30T00:00:00Z');
       const userId = 1;
@@ -588,13 +639,17 @@ describe('Trash Use Cases', () => {
         trashedAt,
       );
 
-      expect(trashRepository.create).not.toHaveBeenCalled();
+      expect(trashRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          caducityDate: new Date('2025-11-01T00:00:00Z'),
+        }),
+      );
     });
 
     it('When custom trashedAt date provided, then should use it for caducity calculation', async () => {
       const file = newFile();
       const customDate = new Date('2025-01-15T10:30:00Z');
-      const expectedCaducity = new Date('2025-01-29T10:30:00Z');
+      const expectedCaducity = new Date('2025-01-30T10:30:00Z');
       const userId = 1;
 
       jest.spyOn(trashRepository, 'create').mockResolvedValue();
