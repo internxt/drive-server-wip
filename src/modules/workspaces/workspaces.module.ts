@@ -26,6 +26,8 @@ import { FuzzySearchModule } from '../fuzzy-search/fuzzy-search.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { WorkspaceLogModel } from './models/workspace-logs.model';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
+import { TrashModel } from '../trash/trash.model';
+import { SequelizeTrashRepository } from '../trash/trash.repository';
 
 @Module({
   imports: [
@@ -37,6 +39,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
       WorkspaceUserModel,
       WorkspaceInviteModel,
       WorkspaceLogModel,
+      TrashModel,
     ]),
     forwardRef(() => UserModule),
     forwardRef(() => FolderModule),
@@ -60,6 +63,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
     AvatarService,
     PaymentsService,
     FuzzySearchUseCases,
+    SequelizeTrashRepository,
   ],
   exports: [WorkspacesUsecases, SequelizeModule, SequelizeWorkspaceRepository],
 })

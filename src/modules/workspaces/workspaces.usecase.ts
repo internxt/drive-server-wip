@@ -78,7 +78,8 @@ import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { WorkspaceLog } from './domains/workspace-log.domain';
 import { TrashItem } from './interceptors/workspaces-logs.interceptor';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-
+import { SequelizeTrashRepository } from '../trash/trash.repository';
+import { TrashItemType } from '../trash/trash.attributes';
 @Injectable()
 export class WorkspacesUsecases {
   constructor(
@@ -100,6 +101,7 @@ export class WorkspacesUsecases {
     private readonly avatarService: AvatarService,
     private readonly fuzzySearchUseCases: FuzzySearchUseCases,
     private readonly featureLimitsService: FeatureLimitService,
+    private readonly trashRepository: SequelizeTrashRepository,
   ) {}
 
   async initiateWorkspace(
@@ -722,7 +724,24 @@ export class WorkspacesUsecases {
       );
     }
 
-    return { result };
+    const itemUuids = result.map((item) => item.uuid);
+    const trashEntries = await this.trashRepository.findByItemIds(
+      itemUuids,
+      itemType === WorkspaceItemType.File
+        ? TrashItemType.File
+        : TrashItemType.Folder,
+    );
+
+    const trashMap = new Map(
+      trashEntries.map((entry) => [entry.itemId, entry.caducityDate]),
+    );
+
+    return {
+      result: result.map((item) => ({
+        ...item.toJSON(),
+        caducityDate: trashMap.get(item.uuid) || null,
+      })),
+    };
   }
 
   async getUserUsageInWorkspace(

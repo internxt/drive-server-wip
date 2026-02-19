@@ -65,6 +65,8 @@ import {
   WorkspaceLogPlatform,
   WorkspaceLogType,
 } from './attributes/workspace-logs.attributes';
+import { SequelizeTrashRepository } from '../trash/trash.repository';
+import { TrashItemType } from '../trash/trash.attributes';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -93,6 +95,7 @@ describe('WorkspacesUsecases', () => {
   let sharingUseCases: SharingService;
   let paymentsService: PaymentsService;
   let fuzzySearchUseCases: FuzzySearchUseCases;
+  let trashRepository: SequelizeTrashRepository;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -122,6 +125,7 @@ describe('WorkspacesUsecases', () => {
     sharingUseCases = module.get<SharingService>(SharingService);
     paymentsService = module.get<PaymentsService>(PaymentsService);
     fuzzySearchUseCases = module.get<FuzzySearchUseCases>(FuzzySearchUseCases);
+    trashRepository = module.get<SequelizeTrashRepository>(SequelizeTrashRepository);
   });
 
   it('should be defined', () => {
@@ -3862,6 +3866,9 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(fileUseCases, 'getFilesInWorkspace')
         .mockResolvedValue(trashedFiles);
+      jest
+        .spyOn(trashRepository, 'findByItemIds')
+        .mockResolvedValue([]);
 
       const result = await service.getWorkspaceUserTrashedItems(
         user,
@@ -3872,7 +3879,9 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
-      expect(result).toEqual({ result: trashedFiles });
+      expect(result).toEqual({
+        result: [{ ...trashedFiles[0].toJSON(), caducityDate: null }],
+      });
       expect(fileUseCases.getFilesInWorkspace).toHaveBeenCalledWith(
         user.uuid,
         workspaceId,
@@ -3886,6 +3895,9 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(folderUseCases, 'getFoldersInWorkspace')
         .mockResolvedValue(trashedFolders);
+      jest
+        .spyOn(trashRepository, 'findByItemIds')
+        .mockResolvedValue([]);
 
       const result = await service.getWorkspaceUserTrashedItems(
         user,
@@ -3896,13 +3908,73 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
-      expect(result).toEqual({ result: trashedFolders });
+      expect(result).toEqual({
+        result: [{ ...trashedFolders[0].toJSON(), caducityDate: null }],
+      });
       expect(folderUseCases.getFoldersInWorkspace).toHaveBeenCalledWith(
         user.uuid,
         workspaceId,
         { deleted: true, removed: false },
         { limit, offset, sort: ['plainName', 'ASC'] },
       );
+    });
+
+    it('When files have caducityDate, it should return files with expiration date', async () => {
+      const trashedFiles = [newFile()];
+      const caducityDate = new Date();
+      jest
+        .spyOn(fileUseCases, 'getFilesInWorkspace')
+        .mockResolvedValue(trashedFiles);
+      jest.spyOn(trashRepository, 'findByItemIds').mockResolvedValue([
+        {
+          itemId: trashedFiles[0].uuid,
+          caducityDate,
+          itemType: TrashItemType.File,
+          userId: user.id,
+        } as any,
+      ]);
+
+      const result = await service.getWorkspaceUserTrashedItems(
+        user,
+        workspaceId,
+        WorkspaceItemType.File,
+        limit,
+        offset,
+        ['plainName', 'ASC'] as any,
+      );
+
+      expect(result).toEqual({
+        result: [{ ...trashedFiles[0].toJSON(), caducityDate }],
+      });
+    });
+
+    it('When folders have caducityDate, it should return folders with expiration date', async () => {
+      const trashedFolders = [newFolder({ attributes: { deleted: true } })];
+      const caducityDate = new Date();
+      jest
+        .spyOn(folderUseCases, 'getFoldersInWorkspace')
+        .mockResolvedValue(trashedFolders);
+      jest.spyOn(trashRepository, 'findByItemIds').mockResolvedValue([
+        {
+          itemId: trashedFolders[0].uuid,
+          caducityDate,
+          itemType: TrashItemType.Folder,
+          userId: user.id,
+        } as any,
+      ]);
+
+      const result = await service.getWorkspaceUserTrashedItems(
+        user,
+        workspaceId,
+        WorkspaceItemType.Folder,
+        limit,
+        offset,
+        ['plainName', 'ASC'] as any,
+      );
+
+      expect(result).toEqual({
+        result: [{ ...trashedFolders[0].toJSON(), caducityDate }],
+      });
     });
   });
 
