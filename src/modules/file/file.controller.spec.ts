@@ -136,9 +136,10 @@ describe('FileController', () => {
       expect(result).toEqual(files);
       expect(fileUseCases.getFiles).toHaveBeenCalledWith(
         userMocked.id,
-        {
+        expect.objectContaining({
           status: FileStatus.EXISTS,
-        },
+          '$folder.deleted$': false,
+        }),
         {
           limit,
           offset: 0,
@@ -159,9 +160,10 @@ describe('FileController', () => {
 
       expect(fileUseCases.getFiles).toHaveBeenCalledWith(
         userMocked.id,
-        {
+        expect.objectContaining({
           status: FileStatus.EXISTS,
-        },
+          '$folder.deleted$': false,
+        }),
         {
           limit: API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND,
           offset: 0,
