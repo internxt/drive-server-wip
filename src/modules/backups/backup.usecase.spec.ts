@@ -80,17 +80,42 @@ describe('BackupUseCase', () => {
   });
 
   describe('createDeviceAsFolder', () => {
-    it('When a folder with the same name exists, then it should throw a ConflictException', async () => {
+    it('When a folder with the same plainName exists, then it should throw a ConflictException', async () => {
+      const existingFolder = newFolder({
+        attributes: {
+          plainName: 'Device Folder',
+          bucket: userMocked.backupsBucket,
+        },
+      });
       jest
         .spyOn(folderUseCases, 'getFolders')
-        .mockResolvedValue([{ id: 1, name: 'Device Folder' }] as any);
+        .mockResolvedValue([existingFolder]);
 
       await expect(
         backupUseCase.createDeviceAsFolder(userMocked, 'Device Folder'),
       ).rejects.toThrow(ConflictException);
     });
 
-    it('When no folder with the same name exists, then it should create the folder', async () => {
+    it('When checking for duplicates, then it should use plainName (not encrypted name) and filter by bucket', async () => {
+      const getFoldersSpy = jest
+        .spyOn(folderUseCases, 'getFolders')
+        .mockResolvedValue([]);
+      const mockFolder = newFolder();
+      jest
+        .spyOn(folderUseCases, 'createFolderDevice')
+        .mockResolvedValue(mockFolder);
+
+      await backupUseCase.createDeviceAsFolder(userMocked, 'My Device');
+
+      expect(getFoldersSpy).toHaveBeenCalledWith(userMocked.id, {
+        bucket: userMocked.backupsBucket,
+        plainName: 'My Device',
+        deleted: false,
+        removed: false,
+      });
+    });
+
+    it('When no folder with the same plainName exists, then it should create the folder', async () => {
       const mockFolder = newFolder();
       jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue([]);
       jest
