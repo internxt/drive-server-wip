@@ -130,20 +130,13 @@ describe('FileController', () => {
         newFile({ owner: userMocked }),
         newFile({ owner: userMocked }),
       ];
-      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(files);
+      jest.spyOn(fileUseCases, 'getRecentFiles').mockResolvedValue(files);
 
       const result = await fileController.getRecentFiles(userMocked, limit);
       expect(result).toEqual(files);
-      expect(fileUseCases.getFiles).toHaveBeenCalledWith(
+      expect(fileUseCases.getRecentFiles).toHaveBeenCalledWith(
         userMocked.id,
-        {
-          status: FileStatus.EXISTS,
-        },
-        {
-          limit,
-          offset: 0,
-          sort: [['updatedAt', 'DESC']],
-        },
+        { limit, offset: 0 },
       );
     });
 
@@ -153,20 +146,13 @@ describe('FileController', () => {
         newFile({ owner: userMocked }),
       ];
 
-      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(files);
+      jest.spyOn(fileUseCases, 'getRecentFiles').mockResolvedValue(files);
 
       fileController.getRecentFiles(userMocked);
 
-      expect(fileUseCases.getFiles).toHaveBeenCalledWith(
+      expect(fileUseCases.getRecentFiles).toHaveBeenCalledWith(
         userMocked.id,
-        {
-          status: FileStatus.EXISTS,
-        },
-        {
-          limit: API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND,
-          offset: 0,
-          sort: [['updatedAt', 'DESC']],
-        },
+        { limit: API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND, offset: 0 },
       );
     });
   });

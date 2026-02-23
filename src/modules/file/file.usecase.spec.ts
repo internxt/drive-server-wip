@@ -3013,6 +3013,74 @@ describe('FileUseCases', () => {
     });
   });
 
+  describe('getRecentFiles', () => {
+    it('When called with options, then it should call findRecent with correct params', async () => {
+      const file = newFile({ owner: userMocked, attributes: { thumbnails: [], sharings: [] } });
+      jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([file]);
+
+      const result = await service.getRecentFiles(userMocked.id, {
+        limit: 10,
+        offset: 0,
+      });
+
+      expect(result).toHaveLength(1);
+      expect(fileRepository.findRecent).toHaveBeenCalledWith(
+        userMocked.id,
+        7,
+        10,
+        0,
+        { withThumbnails: true },
+      );
+    });
+
+    it('When called without options, then it should use defaults', async () => {
+      jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([]);
+
+      await service.getRecentFiles(userMocked.id);
+
+      expect(fileRepository.findRecent).toHaveBeenCalledWith(
+        userMocked.id,
+        7,
+        20,
+        0,
+        { withThumbnails: true },
+      );
+    });
+
+    it('When called with withThumbnails false, then it should pass it to repository', async () => {
+      jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([]);
+
+      await service.getRecentFiles(userMocked.id, { withThumbnails: false });
+
+      expect(fileRepository.findRecent).toHaveBeenCalledWith(
+        userMocked.id,
+        7,
+        20,
+        0,
+        { withThumbnails: false },
+      );
+    });
+
+    it('When files have plainName, then it should not decrypt', async () => {
+      const file = newFile({ owner: userMocked, attributes: { plainName: 'report.pdf', thumbnails: [], sharings: [] } });
+      jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([file]);
+
+      const result = await service.getRecentFiles(userMocked.id, { limit: 10 });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].plainName).toBe('report.pdf');
+    });
+
+    it('When files have no plainName, then it should decrypt the file name', async () => {
+      const file = newFile({ owner: userMocked, attributes: { plainName: null, thumbnails: [], sharings: [] } });
+      jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([file]);
+
+      const result = await service.getRecentFiles(userMocked.id, { limit: 10 });
+
+      expect(result).toHaveLength(1);
+    });
+  });
+
   describe('getFilesByFolderUuid', () => {
     it('When called with folder uuid and status, then it should return files', async () => {
       const folderUuid = v4();

@@ -14,6 +14,7 @@ import { Literal } from 'sequelize/types/utils';
 import { User } from '../user/user.domain';
 import { UserModel } from './../user/user.model';
 import { Folder } from '../folder/folder.domain';
+import { FolderModel } from '../folder/folder.model';
 import { Pagination } from '../../lib/pagination';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
@@ -135,6 +136,13 @@ export interface FileRepository {
   ): Promise<File[]>;
   deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
   deleteFilesByUuid(fileUuids: string[]): Promise<number>;
+  findRecent(
+    userId: number,
+    daysBack: number,
+    limit: number,
+    offset: number,
+    options?: { withThumbnails?: boolean },
+  ): Promise<File[]>;
   sumFileSizeDeltaBetweenDates(
     userId: FileAttributes['userId'],
     sinceDate: Date,
@@ -551,6 +559,55 @@ export class SequelizeFileRepository implements FileRepository {
       ],
       subQuery: false,
       order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async findRecent(
+    userId: number,
+    daysBack: number,
+    limit: number,
+    offset: number,
+    options: { withThumbnails?: boolean } = {},
+  ): Promise<File[]> {
+    const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+    const { withThumbnails = true } = options;
+
+    const thumbnailIncludes = withThumbnails
+      ? [
+          {
+            separate: true,
+            model: this.thumbnailModel,
+            required: false,
+          },
+          {
+            separate: true,
+            model: SharingModel,
+            attributes: ['type', 'id'],
+            required: false,
+          },
+        ]
+      : [];
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where: {
+        userId,
+        status: FileStatus.EXISTS,
+        updatedAt: { [Op.gte]: since },
+      },
+      include: [
+        {
+          model: FolderModel,
+          where: { deleted: false },
+          required: true,
+        },
+        ...thumbnailIncludes,
+      ],
+      subQuery: false,
+      order: [['updatedAt', 'DESC']],
     });
 
     return files.map(this.toDomain.bind(this));
