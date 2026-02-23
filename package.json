@@ -12,14 +12,11 @@
     "cleanup:retroactive": "ts-node -r tsconfig-paths/register src/modules/jobs/commands/retroactive-deleted-items-cleanup.command.ts",
     "start:dev": "cross-env NODE_ENV=development nest start --watch",
     "start:debug": "cross-env NODE_ENV=development nest start --debug --watch",
-    "start:prod": "NODE_ENV=production node -r newrelic dist/main",
+    "start:prod": "cross-env NODE_ENV=production node -r newrelic dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules NODE_ENV=test jest",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
-    "test:cov": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "NODE_OPTIONS=--experimental-vm-modules cross-env NODE_ENV=test jest --config ./test/jest-e2e.json --forceExit",
-    "test:e2e:watch": "cross-env NODE_ENV=test jest --config ./test/jest-e2e.json --watchAll",
+    "test": "cross-env NODE_ENV=test vitest run",
+    "test:watch": "cross-env NODE_ENV=test vitest --watch",
+    "test:cov": "cross-env NODE_ENV=test vitest run --coverage",
     "migrate": "cross-env NODE_ENV=development sequelize db:migrate",
     "migrate:undo": "cross-env NODE_ENV=development sequelize db:migrate:undo",
     "migrate:prod": "cross-env NODE_ENV=production sequelize db:migrate",
@@ -96,14 +93,12 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
-    "@golevelup/ts-jest": "^1.2.0",
     "@internxt/eslint-config-internxt": "^1.0.9",
     "@nestjs/schematics": "^11.0.7",
     "@nestjs/testing": "^11.1.6",
     "@types/chance": "^1.1.6",
     "@types/crypto-js": "^4.2.1",
     "@types/express": "^5.0.1",
-    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "9.0.2",
     "@types/multer": "^1.4.13",
     "@types/multer-s3": "^3.0.3",
@@ -113,6 +108,7 @@
     "@types/supertest": "^6.0.3",
     "@typescript-eslint/eslint-plugin": "^6.11.0",
     "@typescript-eslint/parser": "^6.11.0",
+    "@vitest/coverage-istanbul": "^4.0.18",
     "aws-sdk-client-mock": "^4.0.0",
     "chance": "^1.1.13",
     "cross-env": "^7.0.3",
@@ -120,39 +116,17 @@
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.1",
     "husky": "^8.0.3",
-    "jest": "^30.2.0",
     "lint-staged": "^15.1.0",
     "prettier": "^3.5.3",
     "sequelize-cli": "^6.6.3",
     "source-map-support": "^0.5.21",
     "supertest": "^7.1.4",
-    "ts-jest": "^29.4.6",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "4.2.0",
-    "typescript": "^5.8.3"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "roots": [
-      "src",
-      "test"
-    ],
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "testEnvironment": "node",
-    "setupFilesAfterEnv": [
-      "<rootDir>/jest.setup.js"
-    ]
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18",
+    "vitest-mock-extended": "^3.1.0"
   },
   "lint-staged": {
     "./src/**/*.{js,ts}": "yarn run lint"
