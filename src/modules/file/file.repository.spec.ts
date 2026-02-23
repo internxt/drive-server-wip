@@ -527,6 +527,69 @@ describe('FileRepository', () => {
     });
   });
 
+  describe('findRecent', () => {
+    const mockFile = newFile();
+    const toJson = {
+      id: mockFile.id,
+      uuid: mockFile.uuid,
+      name: mockFile.name,
+      folderId: mockFile.folderId,
+      folderUuid: mockFile.folderUuid,
+      userId: mockFile.userId,
+      status: mockFile.status,
+      plainName: mockFile.plainName,
+      type: mockFile.type,
+      deleted: false,
+      removed: false,
+    };
+    const model: FileModel = {
+      ...mockFile,
+      toJSON: () => ({ ...toJson }),
+    } as any;
+
+    it('When recent files are found, then it should return them', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([model]);
+
+      const result = await repository.findRecent(1, 7, 10, 0);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          limit: 10,
+          offset: 0,
+          where: expect.objectContaining({
+            userId: 1,
+            status: FileStatus.EXISTS,
+          }),
+          order: [['updatedAt', 'DESC']],
+        }),
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('When no recent files are found, then it should return empty array', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      const result = await repository.findRecent(1, 7, 10, 0);
+
+      expect(fileModel.findAll).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([]);
+    });
+
+    it('When thumbnails are excluded, then it should not include thumbnail models', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findRecent(1, 7, 10, 0, { withThumbnails: false });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.arrayContaining([
+            expect.objectContaining({ required: true }),
+          ]),
+        }),
+      );
+    });
+  });
+
   describe('findAll', () => {
     it('When files are found then it should return an array of files', async () => {
       const file1 = v4();

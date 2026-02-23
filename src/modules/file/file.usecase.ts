@@ -622,6 +622,30 @@ export class FileUseCases {
     return files;
   }
 
+  async getRecentFiles(
+    userId: UserAttributes['id'],
+    options?: {
+      limit?: number;
+      offset?: number;
+      withThumbnails?: boolean;
+    },
+  ): Promise<File[]> {
+    const { limit = 20, offset = 0, withThumbnails = true } = options ?? {};
+    const files = await this.fileRepository.findRecent(
+      userId,
+      7,
+      limit,
+      offset,
+      { withThumbnails },
+    );
+
+    const filesModified = files.map((file) => this.addOldAttributes(file));
+
+    return filesModified.map((file) =>
+      file.plainName ? file : this.decrypFileName(file),
+    );
+  }
+
   async getFiles(
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,

@@ -31,7 +31,7 @@ import { FileUseCases } from './file.usecase';
 import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { isNumber } from '../../lib/validators';
 import API_LIMITS from '../../lib/http/limits';
-import { File, FileStatus } from './file.domain';
+import { File } from './file.domain';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
@@ -443,17 +443,7 @@ export class FileController {
       );
     }
 
-    const files = this.fileUseCases.getFiles(
-      user.id,
-      {
-        status: FileStatus.EXISTS,
-      },
-      {
-        limit,
-        offset: 0,
-        sort: [['updatedAt', 'DESC']],
-      },
-    );
+    const files = this.fileUseCases.getRecentFiles(user.id, { limit, offset: 0 });
 
     return files;
   }
