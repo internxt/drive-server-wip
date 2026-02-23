@@ -77,6 +77,8 @@ const VERSIONABLE_FILE_EXTENSIONS = Object.values(VersionableFileExtension);
 
 export type SortParamsFile = Array<[SortableFileAttributes, 'ASC' | 'DESC']>;
 
+export const RECENT_FILES_DAYS = 7;
+
 @Injectable()
 export class FileUseCases {
   constructor(
@@ -633,7 +635,7 @@ export class FileUseCases {
     const { limit = 20, offset = 0, withThumbnails = true } = options ?? {};
     const files = await this.fileRepository.findRecent(
       userId,
-      7,
+      RECENT_FILES_DAYS,
       limit,
       offset,
       { withThumbnails },
