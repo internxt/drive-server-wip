@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
-import { FileUseCases, VersionableFileExtension } from './file.usecase';
+import { FileUseCases, RECENT_FILES_DAYS, VersionableFileExtension } from './file.usecase';
 import { SequelizeFileRepository, FileRepository } from './file.repository';
 import { SequelizeFileVersionRepository } from './file-version.repository';
 import {
@@ -3026,7 +3026,7 @@ describe('FileUseCases', () => {
       expect(result).toHaveLength(1);
       expect(fileRepository.findRecent).toHaveBeenCalledWith(
         userMocked.id,
-        7,
+        RECENT_FILES_DAYS,
         10,
         0,
         { withThumbnails: true },
@@ -3040,7 +3040,7 @@ describe('FileUseCases', () => {
 
       expect(fileRepository.findRecent).toHaveBeenCalledWith(
         userMocked.id,
-        7,
+        RECENT_FILES_DAYS,
         20,
         0,
         { withThumbnails: true },
@@ -3054,7 +3054,7 @@ describe('FileUseCases', () => {
 
       expect(fileRepository.findRecent).toHaveBeenCalledWith(
         userMocked.id,
-        7,
+        RECENT_FILES_DAYS,
         20,
         0,
         { withThumbnails: false },
