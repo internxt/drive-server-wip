@@ -1,20 +1,18 @@
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Logger } from '@nestjs/common';
-import { createMock } from '@golevelup/ts-jest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockDeep, DeepMockProxy } from 'vitest-mock-extended';
+import { ConfigService } from '@nestjs/config';
 import { User } from '../../modules/user/user.domain';
 import { CryptoService } from '../crypto/crypto.service';
-import { HttpClientModule } from '../http/http.module';
 import { HttpClient } from '../http/http.service';
 import { BridgeService } from './bridge.service';
 import { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
-import { CryptoModule } from '../crypto/crypto.module';
+import { mockLogger } from '../../../test/helpers/auth.helper';
 
 describe('Bridge Service', () => {
   let service: BridgeService;
-  let httpClient: HttpClient;
-  let cryptoService: CryptoService;
-  let configService: ConfigService;
+  let httpClient: DeepMockProxy<HttpClient>;
+  let cryptoService: DeepMockProxy<CryptoService>;
+  let configService: DeepMockProxy<ConfigService>;
 
   const mockedUser = User.build({
     id: 2,
@@ -47,17 +45,12 @@ describe('Bridge Service', () => {
   });
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      imports: [ConfigModule, HttpClientModule, CryptoModule],
-      providers: [BridgeService],
-    })
-      .setLogger(createMock<Logger>())
-      .compile();
+    cryptoService = mockDeep<CryptoService>();
+    httpClient = mockDeep<HttpClient>();
+    configService = mockDeep<ConfigService>();
 
-    service = module.get<BridgeService>(BridgeService);
-    httpClient = module.get<HttpClient>(HttpClient);
-    configService = module.get<ConfigService>(ConfigService);
-    cryptoService = module.get<CryptoService>(CryptoService);
+    service = new BridgeService(cryptoService, httpClient, configService);
+    mockLogger();
   });
 
   describe('delete file', () => {
@@ -71,9 +64,9 @@ describe('Bridge Service', () => {
         config: {} as InternalAxiosRequestConfig,
         statusText: 'OK',
       };
-      jest.spyOn(configService, 'get').mockReturnValue(testUrl);
-      jest.spyOn(cryptoService, 'hashSha256').mockReturnValue(hash);
-      jest.spyOn(httpClient, 'delete').mockResolvedValueOnce(response);
+      configService.get.mockReturnValue(testUrl);
+      cryptoService.hashSha256.mockReturnValue(hash);
+      httpClient.delete.mockResolvedValueOnce(response);
 
       await service.deleteFile(
         mockedUser,
@@ -109,8 +102,8 @@ describe('Bridge Service', () => {
         statusText: 'OK',
       };
 
-      jest.spyOn(configService, 'get').mockReturnValue(testBridgeApiUrl);
-      jest.spyOn(httpClient, 'delete').mockResolvedValueOnce(response);
+      configService.get.mockReturnValue(testBridgeApiUrl);
+      httpClient.delete.mockResolvedValueOnce(response);
 
       await service.sendDeactivationEmail(
         mockedUser,
@@ -126,8 +119,8 @@ describe('Bridge Service', () => {
     });
 
     it('When deactivation email fails, it should throw', async () => {
-      jest.spyOn(configService, 'get').mockReturnValue(testBridgeApiUrl);
-      jest.spyOn(httpClient, 'delete').mockRejectedValueOnce(new Error());
+      configService.get.mockReturnValue(testBridgeApiUrl);
+      httpClient.delete.mockRejectedValueOnce(new Error());
 
       await expect(
         service.sendDeactivationEmail(
@@ -153,8 +146,8 @@ describe('Bridge Service', () => {
         statusText: 'OK',
       };
 
-      jest.spyOn(configService, 'get').mockReturnValue(testBridgeApiUrl);
-      jest.spyOn(httpClient, 'get').mockResolvedValueOnce(response);
+      configService.get.mockReturnValue(testBridgeApiUrl);
+      httpClient.get.mockResolvedValueOnce(response);
 
       await service.confirmDeactivation(token);
 
@@ -166,8 +159,8 @@ describe('Bridge Service', () => {
     });
 
     it('When user deactivation confirmation fails, it should throw', async () => {
-      jest.spyOn(configService, 'get').mockReturnValue(testBridgeApiUrl);
-      jest.spyOn(httpClient, 'get').mockRejectedValueOnce(new Error());
+      configService.get.mockReturnValue(testBridgeApiUrl);
+      httpClient.get.mockRejectedValueOnce(new Error());
 
       await expect(service.confirmDeactivation(token)).rejects.toThrow();
     });

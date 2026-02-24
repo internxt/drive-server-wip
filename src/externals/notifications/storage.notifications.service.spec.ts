@@ -1,5 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockDeep, MockProxy } from 'vitest-mock-extended';
 import { Logger } from '@nestjs/common';
 import { StorageNotificationService } from './storage.notifications.service';
 import { NotificationService } from './notification.service';
@@ -15,44 +15,34 @@ import {
   ItemToTrashDto,
   ItemToTrashType,
 } from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
+import { mockLogger } from '../../../test/helpers/auth.helper';
 
 describe('StorageNotificationService', () => {
   const fixedSystemCurrentDate = new Date('2021-01-01T00:00:00Z');
   let service: StorageNotificationService;
-  let notificationService: NotificationService;
-  let apnService: ApnService;
-  let userRepository: SequelizeUserRepository;
-  let loggerMock: DeepMocked<Logger>;
+  let notificationService: MockProxy<NotificationService>;
+  let apnService: MockProxy<ApnService>;
+  let userRepository: MockProxy<SequelizeUserRepository>;
 
   beforeEach(async () => {
-    loggerMock = createMock<Logger>();
+    notificationService = mockDeep<NotificationService>();
+    apnService = mockDeep<ApnService>();
+    userRepository = mockDeep<SequelizeUserRepository>();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [StorageNotificationService],
-    })
-      .setLogger(loggerMock)
-      .useMocker(createMock)
-      .compile();
+    vi.useFakeTimers();
+    vi.setSystemTime(fixedSystemCurrentDate);
 
-    jest.useFakeTimers();
-    jest.setSystemTime(fixedSystemCurrentDate);
-
-    service = module.get<StorageNotificationService>(
-      StorageNotificationService,
+    service = new StorageNotificationService(
+      notificationService,
+      apnService,
+      userRepository,
     );
-    notificationService = module.get<NotificationService>(NotificationService);
-    apnService = module.get<ApnService>(ApnService);
-    userRepository = module.get<SequelizeUserRepository>(
-      SequelizeUserRepository,
-    );
+
+    mockLogger();
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
   });
 
   describe('fileCreated', () => {
@@ -64,7 +54,7 @@ describe('StorageNotificationService', () => {
     const clientId = 'test-client';
 
     it('When called, then it should add a notification event and send APN notification', () => {
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      vi.spyOn(service, 'getTokensAndSendApnNotification');
       const notification = new NotificationEvent(
         'notification.itemCreated',
         payload,
@@ -94,7 +84,7 @@ describe('StorageNotificationService', () => {
     const clientId = 'test-client';
 
     it('When called, then it should add a notification event and send APN notification', () => {
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      vi.spyOn(service, 'getTokensAndSendApnNotification');
       const notification = new NotificationEvent(
         'notification.itemUpdated',
         payload,
@@ -123,7 +113,7 @@ describe('StorageNotificationService', () => {
     const clientId = 'test-client';
 
     it('When called, then it should add a notification event and send APN notification', () => {
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      vi.spyOn(service, 'getTokensAndSendApnNotification');
       const notification = new NotificationEvent(
         'notification.itemCreated',
         payload,
@@ -153,7 +143,7 @@ describe('StorageNotificationService', () => {
     const clientId = 'test-client';
 
     it('When called, then it should add a notification event and send APN notification', () => {
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      vi.spyOn(service, 'getTokensAndSendApnNotification');
       const notification = new NotificationEvent(
         'notification.itemUpdated',
         payload,
@@ -182,7 +172,7 @@ describe('StorageNotificationService', () => {
     const clientId = 'test-client';
 
     it('When called, then it should add a notification event and send APN notification', () => {
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      vi.spyOn(service, 'getTokensAndSendApnNotification');
       const notification = new NotificationEvent(
         'notification.itemsToTrash',
         payload,
@@ -217,7 +207,7 @@ describe('StorageNotificationService', () => {
         user.uuid,
         'PLAN_UPDATED',
       );
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      vi.spyOn(service, 'getTokensAndSendApnNotification');
 
       service.planUpdated({ payload, user, clientId });
 
@@ -240,7 +230,7 @@ describe('StorageNotificationService', () => {
     const clientId = 'test-client';
 
     it('When called, then it should add a notification event and send APN notification', () => {
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      vi.spyOn(service, 'getTokensAndSendApnNotification');
       const notification = new NotificationEvent(
         'notification.workspaceJoined',
         payload,
@@ -271,7 +261,7 @@ describe('StorageNotificationService', () => {
     const clientId = 'test-client';
 
     it('When called, then it should add a notification event and send APN notification', () => {
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      vi.spyOn(service, 'getTokensAndSendApnNotification');
       const notification = new NotificationEvent(
         'notification.workspaceLeft',
         payload,
@@ -327,12 +317,11 @@ describe('StorageNotificationService', () => {
     ];
 
     it('When called with valid tokens, then it should send notifications to all tokens', async () => {
-      jest
-        .spyOn(userRepository, 'getNotificationTokens')
-        .mockResolvedValue(tokens);
-      jest
-        .spyOn(apnService, 'sendNotification')
-        .mockResolvedValue({ statusCode: 200, body: '' });
+      userRepository.getNotificationTokens.mockResolvedValue(tokens);
+      apnService.sendNotification.mockResolvedValue({
+        statusCode: 200,
+        body: '',
+      });
 
       await service.getTokensAndSendApnNotification(user.uuid);
 
@@ -356,11 +345,8 @@ describe('StorageNotificationService', () => {
     });
 
     it('When some tokens are expired, then it should delete them', async () => {
-      jest
-        .spyOn(userRepository, 'getNotificationTokens')
-        .mockResolvedValue(tokens);
-      jest
-        .spyOn(apnService, 'sendNotification')
+      userRepository.getNotificationTokens.mockResolvedValue(tokens);
+      apnService.sendNotification
         .mockResolvedValueOnce({ statusCode: 200, body: '' })
         .mockResolvedValueOnce({ statusCode: 410, body: '' }) // expired token
         .mockResolvedValueOnce({ statusCode: 200, body: '' });
@@ -374,31 +360,29 @@ describe('StorageNotificationService', () => {
     });
 
     it('When sending notification fails, then it should log error and continue', async () => {
-      jest
-        .spyOn(userRepository, 'getNotificationTokens')
-        .mockResolvedValue(tokens);
+      userRepository.getNotificationTokens.mockResolvedValue(tokens);
       const error = new Error('APN error');
-      jest
-        .spyOn(apnService, 'sendNotification')
+      apnService.sendNotification
         .mockResolvedValueOnce({ statusCode: 200, body: '' })
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce({ statusCode: 200, body: '' });
 
-      const errorSpy = jest.spyOn(loggerMock, 'error');
+      const errorSpy = vi.spyOn(Logger.prototype, 'error');
 
       await service.getTokensAndSendApnNotification(user.uuid);
 
-      expect(errorSpy).toHaveBeenCalled();
       expect(apnService.sendNotification).toHaveBeenCalledTimes(3);
+      expect(errorSpy).toHaveBeenCalled();
     });
 
     it('When called with custom options, then it should pass them properly', async () => {
-      jest
-        .spyOn(userRepository, 'getNotificationTokens')
-        .mockResolvedValue([{ token: 'token1' }] as any);
-      jest
-        .spyOn(apnService, 'sendNotification')
-        .mockResolvedValue({ statusCode: 200, body: '' });
+      userRepository.getNotificationTokens.mockResolvedValue([
+        { token: 'token1' },
+      ] as any);
+      apnService.sendNotification.mockResolvedValue({
+        statusCode: 200,
+        body: '',
+      });
 
       const options = {
         isStorageNotification: false,

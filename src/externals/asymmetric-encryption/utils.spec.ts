@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { extendSecret, XORhex } from './utils';
 
 describe('extendSecret', () => {

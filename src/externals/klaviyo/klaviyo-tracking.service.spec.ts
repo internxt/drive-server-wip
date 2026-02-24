@@ -1,36 +1,29 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { beforeEach, describe, expect, it, Mocked, vi } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import { KlaviyoTrackingService } from './klaviyo-tracking.service';
 import axios, { AxiosResponse } from 'axios';
+import { DeepMockProxy, mockDeep } from 'vitest-mock-extended';
+import { mockLogger } from '../../../test/helpers/auth.helper';
 
-jest.mock('axios');
-const mockedAxios = axios as jest.Mocked<typeof axios>;
+vi.mock('axios');
+const mockedAxios = axios as Mocked<typeof axios>;
 
 describe('KlaviyoTrackingService', () => {
   let service: KlaviyoTrackingService;
+  let configService: DeepMockProxy<ConfigService>;
   const mockApiKey = 'test-klaviyo-api-key';
   const mockBaseUrl = 'https://a.klaviyo.com/api';
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    configService = mockDeep<ConfigService>();
+    configService.get.mockImplementation((key: string) => {
+      if (key === 'klaviyo.apiKey') return mockApiKey;
+      if (key === 'klaviyo.baseUrl') return mockBaseUrl;
+      return null;
+    });
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        KlaviyoTrackingService,
-        {
-          provide: ConfigService,
-          useValue: {
-            get: jest.fn((key: string) => {
-              if (key === 'klaviyo.apiKey') return mockApiKey;
-              if (key === 'klaviyo.baseUrl') return mockBaseUrl;
-              return null;
-            }),
-          },
-        },
-      ],
-    }).compile();
-
-    service = module.get<KlaviyoTrackingService>(KlaviyoTrackingService);
+    service = new KlaviyoTrackingService(configService);
+    mockLogger();
   });
 
   it('should be defined', () => {

@@ -1,3 +1,4 @@
+import { describe, expect, it, Mock, vi } from 'vitest';
 import {
   generateNewKeys,
   decryptMessageWithPrivateKey,
@@ -5,14 +6,14 @@ import {
 } from './openpgp';
 import * as openpgp from 'openpgp';
 
-jest.mock('openpgp', () => ({
-  generateKey: jest.fn(),
-  readPrivateKey: jest.fn(),
-  readMessage: jest.fn(),
-  decrypt: jest.fn(),
-  readKey: jest.fn(),
-  encrypt: jest.fn(),
-  createMessage: jest.fn(),
+vi.mock('openpgp', () => ({
+  generateKey: vi.fn(),
+  readPrivateKey: vi.fn(),
+  readMessage: vi.fn(),
+  decrypt: vi.fn(),
+  readKey: vi.fn(),
+  encrypt: vi.fn(),
+  createMessage: vi.fn(),
 }));
 
 describe('PGP Utils', () => {
@@ -22,7 +23,7 @@ describe('PGP Utils', () => {
       const mockPublicKey = 'mockPublicKey';
       const mockRevocationCert = 'mockRevocationCert';
 
-      (openpgp.generateKey as jest.Mock).mockResolvedValue({
+      (openpgp.generateKey as Mock).mockResolvedValue({
         privateKey: mockPrivateKey,
         publicKey: mockPublicKey,
         revocationCertificate: mockRevocationCert,
@@ -51,11 +52,9 @@ describe('PGP Utils', () => {
       const mockPrivateKey = 'mockPrivateKeyBase64';
       const mockDecryptedMessage = 'Decrypted message';
 
-      (openpgp.readPrivateKey as jest.Mock).mockResolvedValue(mockPrivateKey);
-      (openpgp.readMessage as jest.Mock).mockResolvedValue(
-        mockEncryptedMessage,
-      );
-      (openpgp.decrypt as jest.Mock).mockResolvedValue({
+      (openpgp.readPrivateKey as Mock).mockResolvedValue(mockPrivateKey);
+      (openpgp.readMessage as Mock).mockResolvedValue(mockEncryptedMessage);
+      (openpgp.decrypt as Mock).mockResolvedValue({
         data: mockDecryptedMessage,
       });
 
@@ -85,11 +84,11 @@ describe('PGP Utils', () => {
       const mockPublicKeyBase64 = Buffer.from(mockPublicKey).toString('base64');
       const mockEncryptedMessage = 'mockEncryptedMessage';
 
-      (openpgp.readKey as jest.Mock).mockResolvedValue(mockPublicKey);
-      (openpgp.createMessage as jest.Mock).mockResolvedValue({
+      (openpgp.readKey as Mock).mockResolvedValue(mockPublicKey);
+      (openpgp.createMessage as Mock).mockResolvedValue({
         text: mockMessage,
       });
-      (openpgp.encrypt as jest.Mock).mockResolvedValue(mockEncryptedMessage);
+      (openpgp.encrypt as Mock).mockResolvedValue(mockEncryptedMessage);
 
       const result = await encryptMessageWithPublicKey({
         message: mockMessage,
