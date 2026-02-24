@@ -1,6 +1,6 @@
+import { beforeEach, describe, expect, it } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AsymmetricEncryptionService } from './asymmetric-encryption.service';
-import { KyberProvider } from './providers/kyber.provider';
 import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
@@ -11,7 +11,7 @@ describe('AsymmetricEncryptionService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AsymmetricEncryptionService, KyberProvider],
+      providers: [AsymmetricEncryptionService],
     }).compile();
 
     await module.init();
