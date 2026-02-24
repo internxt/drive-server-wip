@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 import { BadRequestException, ExecutionContext, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
@@ -20,11 +21,11 @@ describe('extractDataFromRequest', () => {
 
     reflector = new Reflector();
     context = {
-      getHandler: jest.fn(),
+      getHandler: vi.fn(),
     } as unknown as ExecutionContext;
 
-    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
-    jest.spyOn(reflector, 'get').mockImplementation();
+    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    vi.spyOn(reflector, 'get').mockImplementation(() => {});
   });
 
   it('When all fields are present, then it should extract data correctly', () => {
@@ -39,8 +40,8 @@ describe('extractDataFromRequest', () => {
       { sourceKey: 'headers', fieldName: 'field4' },
     ];
 
-    (reflector.get as jest.Mock).mockReturnValue({ dataSources });
-    (context.getHandler as jest.Mock).mockReturnValue('handler');
+    (reflector.get as Mock).mockReturnValue({ dataSources });
+    (context.getHandler as Mock).mockReturnValue('handler');
 
     const result = extractDataFromRequest(request, reflector, context);
 
@@ -57,8 +58,8 @@ describe('extractDataFromRequest', () => {
       { sourceKey: 'body', fieldName: 'missingField' },
     ];
 
-    (reflector.get as jest.Mock).mockReturnValue({ dataSources });
-    (context.getHandler as jest.Mock).mockReturnValue('handler');
+    (reflector.get as Mock).mockReturnValue({ dataSources });
+    (context.getHandler as Mock).mockReturnValue('handler');
 
     expect(() => extractDataFromRequest(request, reflector, context)).toThrow(
       BadRequestException,
@@ -73,8 +74,8 @@ describe('extractDataFromRequest', () => {
       { sourceKey: 'body', fieldName: 'field1', value: 'providedValue' },
     ];
 
-    (reflector.get as jest.Mock).mockReturnValue({ dataSources });
-    (context.getHandler as jest.Mock).mockReturnValue('handler');
+    (reflector.get as Mock).mockReturnValue({ dataSources });
+    (context.getHandler as Mock).mockReturnValue('handler');
 
     const result = extractDataFromRequest(request, reflector, context);
 
@@ -88,8 +89,8 @@ describe('extractDataFromRequest', () => {
       { sourceKey: 'body', fieldName: 'field1', value: null },
     ];
 
-    (reflector.get as jest.Mock).mockReturnValue({ dataSources });
-    (context.getHandler as jest.Mock).mockReturnValue('handler');
+    (reflector.get as Mock).mockReturnValue({ dataSources });
+    (context.getHandler as Mock).mockReturnValue('handler');
 
     expect(() => extractDataFromRequest(request, reflector, context)).toThrow(
       BadRequestException,
@@ -104,8 +105,8 @@ describe('extractDataFromRequest', () => {
       { sourceKey: 'query', fieldName: 'field2', newFieldName: 'newField2' },
     ];
 
-    (reflector.get as jest.Mock).mockReturnValue({ dataSources });
-    (context.getHandler as jest.Mock).mockReturnValue('handler');
+    (reflector.get as Mock).mockReturnValue({ dataSources });
+    (context.getHandler as Mock).mockReturnValue('handler');
 
     const result = extractDataFromRequest(request, reflector, context);
 
@@ -120,8 +121,8 @@ describe('extractDataFromRequest', () => {
       { sourceKey: 'query', fieldName: 'field2' },
     ];
 
-    (reflector.get as jest.Mock).mockReturnValue({ dataSources });
-    (context.getHandler as jest.Mock).mockReturnValue('handler');
+    (reflector.get as Mock).mockReturnValue({ dataSources });
+    (context.getHandler as Mock).mockReturnValue('handler');
 
     const result = extractDataFromRequest(request, reflector, context);
 

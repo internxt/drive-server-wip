@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockDeep, DeepMockProxy } from 'vitest-mock-extended';
 import {
   ArgumentsHost,
   HttpException,
@@ -9,26 +11,25 @@ import { BaseExceptionFilter, HttpAdapterHost } from '@nestjs/core';
 import { ValidationError } from 'sequelize';
 import { AxiosError } from 'axios';
 import { HttpGlobalExceptionFilter } from './http-global-exception-filter.exception';
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { newUser } from '../../test/fixtures';
 import { v4 } from 'uuid';
 
-jest.mock('../common/decorators/client.decorator', () => ({
-  getClientIdFromHeaders: jest.fn().mockReturnValue('drive-web'),
+vi.mock('../common/decorators/client.decorator', () => ({
+  getClientIdFromHeaders: vi.fn().mockReturnValue('drive-web'),
 }));
 
 describe('HttpGlobalExceptionFilter', () => {
   let filter: HttpGlobalExceptionFilter;
-  let mockHttpAdapter: DeepMocked<HttpAdapterHost['httpAdapter']>;
-  let mockHttpAdapterHost: DeepMocked<HttpAdapterHost>;
-  let loggerMock: DeepMocked<Logger>;
+  let mockHttpAdapter: DeepMockProxy<HttpAdapterHost['httpAdapter']>;
+  let mockHttpAdapterHost: DeepMockProxy<HttpAdapterHost>;
+  let loggerMock: DeepMockProxy<Logger>;
 
   beforeEach(async () => {
-    mockHttpAdapter = createMock<HttpAdapterHost['httpAdapter']>();
-    mockHttpAdapterHost = createMock<HttpAdapterHost>({
+    mockHttpAdapter = mockDeep<HttpAdapterHost['httpAdapter']>();
+    mockHttpAdapterHost = mockDeep<HttpAdapterHost>({
       httpAdapter: mockHttpAdapter,
     });
-    loggerMock = createMock<Logger>();
+    loggerMock = mockDeep<Logger>();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -45,7 +46,7 @@ describe('HttpGlobalExceptionFilter', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('When HttpException is sent, it should format response and not log errors', () => {
@@ -237,7 +238,7 @@ describe('HttpGlobalExceptionFilter', () => {
         throw new Error('Error in filter');
       });
 
-      const superCatchSpy = jest
+      const superCatchSpy = vi
         .spyOn(BaseExceptionFilter.prototype, 'catch')
         .mockImplementation(() => undefined);
 
@@ -274,16 +275,19 @@ const createMockArgumentsHost = (
   user: any,
   body: any = {},
   id: string = v4(),
-) =>
-  createMock<ArgumentsHost>({
-    switchToHttp: () => ({
-      getRequest: () => ({
-        url,
-        method,
-        user,
-        body,
-        id,
-      }),
-      getResponse: () => ({ setHeader: jest.fn() }),
+) => {
+  const mock = mockDeep<ArgumentsHost>();
+
+  mock.switchToHttp.mockReturnValue({
+    getRequest: () => ({
+      url,
+      method,
+      user,
+      body,
+      id,
     }),
-  });
+    getResponse: () => ({ setHeader: vi.fn() }),
+  } as any);
+
+  return mock;
+};

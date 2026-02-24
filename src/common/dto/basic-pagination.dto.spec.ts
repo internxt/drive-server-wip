@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { validate } from 'class-validator';
 import { BasicPaginationDto } from './basic-pagination.dto';
 
