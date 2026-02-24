@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { SharingInvite } from '../sharing.domain';
+import { type SharingInvite } from '../sharing.domain';
 
 export class AcceptInviteDto {
   @ApiProperty({

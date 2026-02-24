@@ -1,9 +1,9 @@
 import { Logger, Inject, Injectable, HttpStatus } from '@nestjs/common';
 import { sign } from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
-import { FileAttributes } from '../../modules/file/file.domain';
-import { User } from '../../modules/user/user.domain';
-import { UserAttributes } from '../../modules/user/user.attributes';
+import { type FileAttributes } from '../../modules/file/file.domain';
+import { type User } from '../../modules/user/user.domain';
+import { type UserAttributes } from '../../modules/user/user.attributes';
 import { CryptoService } from '../crypto/crypto.service';
 import { HttpClient } from '../http/http.service';
 import { AxiosError } from 'axios';

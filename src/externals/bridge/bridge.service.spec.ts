@@ -1,13 +1,13 @@
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Logger } from '@nestjs/common';
+import { Test, type TestingModule } from '@nestjs/testing';
+import { type Logger } from '@nestjs/common';
 import { createMock } from '@golevelup/ts-jest';
 import { User } from '../../modules/user/user.domain';
 import { CryptoService } from '../crypto/crypto.service';
 import { HttpClientModule } from '../http/http.module';
 import { HttpClient } from '../http/http.service';
 import { BridgeService } from './bridge.service';
-import { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { CryptoModule } from '../crypto/crypto.module';
 
 describe('Bridge Service', () => {

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Sharing } from '../sharing.domain';
+import { type Sharing } from '../sharing.domain';
 import { IsBase64, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateSharingDto {

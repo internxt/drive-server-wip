@@ -8,8 +8,8 @@ import {
   AllowNull,
   Unique,
 } from 'sequelize-typescript';
-import { PreCreatedUserAttributes } from './pre-created-users.attributes';
-import { KeyServerAttributes } from '../keyserver/key-server.domain';
+import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
+import { type KeyServerAttributes } from '../keyserver/key-server.domain';
 
 @Table({
   underscored: true,

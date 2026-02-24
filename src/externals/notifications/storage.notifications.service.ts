@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NotificationService } from './notification.service';
-import { User } from '../../modules/user/user.domain';
+import { type User } from '../../modules/user/user.domain';
 import { NotificationEvent } from './events/notification.event';
 import { ApnService } from '../apn/apn.service';
 import { SequelizeUserRepository } from '../../modules/user/user.repository';
-import { FolderDto } from '../../modules/folder/dto/responses/folder.dto';
-import { FileDto } from '../../modules/file/dto/responses/file.dto';
-import { ItemToTrashDto } from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
+import { type FolderDto } from '../../modules/folder/dto/responses/folder.dto';
+import { type FileDto } from '../../modules/file/dto/responses/file.dto';
+import { type ItemToTrashDto } from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
 
 enum StorageEvents {
   FILE_CREATED = 'FILE_CREATED',

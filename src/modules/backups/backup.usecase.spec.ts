@@ -1,5 +1,5 @@
 import { newDevice, newFolder, newUser } from './../../../test/fixtures';
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { BackupUseCase } from './backup.usecase';
 import { SequelizeBackupRepository } from './backup.repository';
@@ -12,7 +12,7 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { Folder } from '../folder/folder.domain';
+import { type Folder } from '../folder/folder.domain';
 import { DevicePlatform } from './device.domain';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 

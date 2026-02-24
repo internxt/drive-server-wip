@@ -1,7 +1,7 @@
 import {
-  PipeTransform,
+  type PipeTransform,
   Injectable,
-  ArgumentMetadata,
+  type ArgumentMetadata,
   BadRequestException,
 } from '@nestjs/common';
 import { isUUID } from 'class-validator';

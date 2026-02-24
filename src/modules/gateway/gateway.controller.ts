@@ -27,7 +27,7 @@ import { GatewayGuard } from '../auth/gateway.guard';
 import { UpdateWorkspaceStorageDto } from './dto/update-workspace-storage.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { DeleteWorkspaceDto } from './dto/delete-workspace.dto';
-import { User } from '../user/user.domain';
+import { type User } from '../user/user.domain';
 import { CheckStorageExpansionDto } from './dto/check-storage-expansion.dto';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { UpdateUserDto } from './dto/update-user.dto';

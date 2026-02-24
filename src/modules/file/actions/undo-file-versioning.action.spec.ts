@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { InternalServerErrorException } from '@nestjs/common';
 import { createMock } from '@golevelup/ts-jest';
 import { UndoFileVersioningAction } from './undo-file-versioning.action';
@@ -20,9 +20,7 @@ describe('UndoFileVersioningAction', () => {
       ],
     }).compile();
 
-    action = module.get<UndoFileVersioningAction>(
-      UndoFileVersioningAction,
-    );
+    action = module.get<UndoFileVersioningAction>(UndoFileVersioningAction);
     fileVersionRepository = module.get<SequelizeFileVersionRepository>(
       SequelizeFileVersionRepository,
     );

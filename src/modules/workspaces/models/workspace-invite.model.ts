@@ -8,7 +8,7 @@ import {
   BelongsTo,
 } from 'sequelize-typescript';
 import { WorkspaceModel } from './workspace.model';
-import { WorkspaceInviteAttributes } from '../attributes/workspace-invite.attribute';
+import { type WorkspaceInviteAttributes } from '../attributes/workspace-invite.attribute';
 
 @Table({
   underscored: true,

@@ -14,7 +14,7 @@ import {
 import { ApiOperation, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { UserUseCases } from '../user/user.usecase';
-import { User } from '../user/user.domain';
+import { type User } from '../user/user.domain';
 import { SendUseCases } from './send.usecase';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateSendLinkDto } from './dto/create-send-link.dto';

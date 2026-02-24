@@ -1,4 +1,4 @@
-import { FactoryProvider } from '@nestjs/common';
+import { type FactoryProvider } from '@nestjs/common';
 import { importEsmPackage } from '../../../lib/import-esm-package';
 import type { KEM } from '@dashlane/pqc-kem-kyber512-node';
 

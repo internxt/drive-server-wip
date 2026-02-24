@@ -9,7 +9,7 @@ import {
 } from 'sequelize-typescript';
 import { WorkspaceModel } from './workspace.model';
 import { UserModel } from '../../user/user.model';
-import { WorkspaceItemUserAttributes } from '../attributes/workspace-items-users.attributes';
+import { type WorkspaceItemUserAttributes } from '../attributes/workspace-items-users.attributes';
 import { FolderModel } from '../../folder/folder.model';
 import { FileModel } from '../../file/file.model';
 

@@ -1,8 +1,8 @@
-import { User } from '../../user/user.domain';
+import { type User } from '../../user/user.domain';
 import {
-  WorkspaceItemContext,
-  WorkspaceItemType,
-  WorkspaceItemUserAttributes,
+  type WorkspaceItemContext,
+  type WorkspaceItemType,
+  type WorkspaceItemUserAttributes,
 } from '../attributes/workspace-items-users.attributes';
 
 export class WorkspaceItemUser implements WorkspaceItemUserAttributes {

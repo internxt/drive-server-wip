@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty } from 'class-validator';
-import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
+import { type WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
 
 export class GetSharedWithDto {

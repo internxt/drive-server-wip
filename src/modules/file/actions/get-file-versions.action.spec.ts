@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { GetFileVersionsAction } from './get-file-versions.action';
 import { SequelizeFileVersionRepository } from '../file-version.repository';

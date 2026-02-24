@@ -15,7 +15,7 @@ import { File, FileStatus } from '../src/modules/file/file.domain';
 import { MailTypes } from '../src/modules/security/mail-limit/mailTypes';
 import { MailLimit } from '../src/modules/security/mail-limit/mail-limit.domain';
 import {
-  LimitLabels,
+  type LimitLabels,
   LimitTypes,
 } from '../src/modules/feature-limit/limits.enum';
 import { Limit } from '../src/modules/feature-limit/domain/limit.domain';
@@ -28,19 +28,19 @@ import { WorkspaceTeamUser } from '../src/modules/workspaces/domains/workspace-t
 import {
   WorkspaceItemContext,
   WorkspaceItemType,
-  WorkspaceItemUserAttributes,
+  type WorkspaceItemUserAttributes,
 } from '../src/modules/workspaces/attributes/workspace-items-users.attributes';
-import { UserAttributes } from '../src/modules/user/user.attributes';
+import { type UserAttributes } from '../src/modules/user/user.attributes';
 import { WorkspaceItemUser } from '../src/modules/workspaces/domains/workspace-item-user.domain';
 import { PreCreatedUser } from '../src/modules/user/pre-created-user.domain';
 import { UserNotificationTokens } from '../src/modules/user/user-notification-tokens.domain';
-import { UserNotificationTokenAttributes } from '../src/modules/user/user-notification-tokens.attribute';
+import { type UserNotificationTokenAttributes } from '../src/modules/user/user-notification-tokens.attribute';
 import {
   KeyServer,
-  KeyServerAttributes,
+  type KeyServerAttributes,
   UserKeysEncryptVersions,
 } from '../src/modules/keyserver/key-server.domain';
-import { DeviceAttributes } from '../src/modules/backups/models/device.attributes';
+import { type DeviceAttributes } from '../src/modules/backups/models/device.attributes';
 import { Device, DevicePlatform } from '../src/modules/backups/device.domain';
 import { Usage, UsageType } from '../src/modules/usage/usage.domain';
 import { Notification } from '../src/modules/notifications/domain/notification.domain';
@@ -49,14 +49,14 @@ import { AuditLog } from '../src/common/audit-logs/audit-logs.domain';
 import {
   AuditAction,
   AuditEntityType,
-  AuditLogAttributes,
+  type AuditLogAttributes,
   AuditPerformerType,
 } from '../src/common/audit-logs/audit-logs.attributes';
 import { Trash } from '../src/modules/trash/trash.domain';
 import { TrashItemType } from '../src/modules/trash/trash.attributes';
 import {
   FileVersion,
-  FileVersionAttributes,
+  type FileVersionAttributes,
   FileVersionStatus,
 } from '../src/modules/file/file-version.domain';
 

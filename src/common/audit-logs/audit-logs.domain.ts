@@ -1,8 +1,8 @@
 import {
-  AuditLogAttributes,
-  AuditAction,
-  AuditPerformerType,
-  AuditEntityType,
+  type AuditLogAttributes,
+  type AuditAction,
+  type AuditPerformerType,
+  type AuditEntityType,
   AUDIT_ENTITY_ACTIONS,
 } from './audit-logs.attributes';
 

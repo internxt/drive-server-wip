@@ -1,16 +1,16 @@
 import { HttpStatus } from '@nestjs/common';
-import { NestExpressApplication } from '@nestjs/platform-express';
+import { type NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 
 import { SequelizeFileRepository } from '../file/file.repository';
 import { newFile, newFolder } from '../../../test/fixtures';
-import { File } from '../file/file.domain';
+import { type File } from '../file/file.domain';
 import { SequelizeFolderRepository } from './folder.repository';
-import { Folder } from './folder.domain';
+import { type Folder } from './folder.domain';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import {
   createTestUser,
-  TestUserContext,
+  type TestUserContext,
 } from '../../../test/helpers/user.helper';
 import { createTestApp } from '../../../test/helpers/test-app.helper';
 

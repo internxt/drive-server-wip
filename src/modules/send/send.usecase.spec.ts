@@ -1,7 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { getModelToken } from '@nestjs/sequelize';
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { Sequelize } from 'sequelize-typescript';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationService } from '../../externals/notifications/notification.service';
@@ -12,7 +12,7 @@ import { SendLink } from './send-link.domain';
 import {
   SendLinkItemModel,
   SendLinkModel,
-  SendRepository,
+  type SendRepository,
   SequelizeSendRepository,
 } from './send-link.repository';
 import { SendUseCases } from './send.usecase';

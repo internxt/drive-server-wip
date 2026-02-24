@@ -1,5 +1,5 @@
-import { ConfigService } from '@nestjs/config';
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { type ConfigService } from '@nestjs/config';
+import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import {
   BadRequestException,
   ConflictException,
@@ -22,23 +22,23 @@ import {
 } from '../../../test/fixtures';
 import * as jwtUtils from '../../lib/jwt';
 import { PasswordNeededError, SharingService } from './sharing.service';
-import { SequelizeSharingRepository } from './sharing.repository';
-import { FolderUseCases } from '../folder/folder.usecase';
-import { FileUseCases } from '../file/file.usecase';
-import { UserUseCases } from '../user/user.usecase';
-import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
-import { SequelizeFileRepository } from '../file/file.repository';
+import { type SequelizeSharingRepository } from './sharing.repository';
+import { type FolderUseCases } from '../folder/folder.usecase';
+import { type FileUseCases } from '../file/file.usecase';
+import { type UserUseCases } from '../user/user.usecase';
+import { type SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
+import { type SequelizeFileRepository } from '../file/file.repository';
 import {
-  Role,
+  type Role,
   SharedWithType,
   SharingActionName,
-  SharingAttributes,
+  type SharingAttributes,
   SharingItemType,
   SharingType,
 } from './sharing.domain';
-import { FileStatus, FileAttributes } from '../file/file.domain';
+import { FileStatus, type FileAttributes } from '../file/file.domain';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
-import { GetInviteDto } from './dto/get-invites.dto';
+import { type GetInviteDto } from './dto/get-invites.dto';
 
 jest.mock('../../lib/jwt');
 jest.mock('../../externals/mailer/mailer.service', () => ({

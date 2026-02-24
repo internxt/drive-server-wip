@@ -12,11 +12,11 @@ import {
   Table,
 } from 'sequelize-typescript';
 import {
-  PermissionAttributes,
-  RoleAttributes,
+  type PermissionAttributes,
+  type RoleAttributes,
   SharedWithType,
-  SharingAttributes,
-  SharingInviteAttributes,
+  type SharingAttributes,
+  type SharingInviteAttributes,
   SharingActionName,
 } from '../sharing.domain';
 import { UserModel } from '../../user/user.model';

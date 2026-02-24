@@ -1,5 +1,5 @@
 import { newUser } from './../../../test/fixtures';
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { BackupController } from './backup.controller';
 import { BackupUseCase } from './backup.usecase';

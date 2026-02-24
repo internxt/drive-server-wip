@@ -12,7 +12,7 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { DeviceModel } from './device.model';
-import { BackupAttributes } from './backup.attributes';
+import { type BackupAttributes } from './backup.attributes';
 
 @Table({
   timestamps: true,

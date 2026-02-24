@@ -7,7 +7,7 @@ import {
   BelongsTo,
   ForeignKey,
 } from 'sequelize-typescript';
-import { ItemType, LookUpAttributes } from './look-up.domain';
+import { ItemType, type LookUpAttributes } from './look-up.domain';
 import { FileModel } from '../file/file.model';
 import { FolderModel } from '../folder/folder.model';
 import { UserModel } from '../user/user.model';

@@ -1,30 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOrCreateOptions, Transaction } from 'sequelize/types';
-import { WorkspaceAttributes } from '../attributes/workspace.attributes';
+import { type FindOrCreateOptions, type Transaction } from 'sequelize/types';
+import { type WorkspaceAttributes } from '../attributes/workspace.attributes';
 import { Workspace } from '../domains/workspaces.domain';
 import { WorkspaceModel } from '../models/workspace.model';
 import { WorkspaceUserModel } from '../models/workspace-users.model';
 import { WorkspaceUser } from '../domains/workspace-user.domain';
 import { WorkspaceInviteModel } from '../models/workspace-invite.model';
 import { WorkspaceInvite } from '../domains/workspace-invite.domain';
-import { WorkspaceInviteAttributes } from '../attributes/workspace-invite.attribute';
-import { WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
+import { type WorkspaceInviteAttributes } from '../attributes/workspace-invite.attribute';
+import { type WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
 import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
 import { Op, Sequelize } from 'sequelize';
 import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
 import {
   WorkspaceItemType,
-  WorkspaceItemUserAttributes,
+  type WorkspaceItemUserAttributes,
 } from '../attributes/workspace-items-users.attributes';
 import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { FileModel } from '../../file/file.model';
-import { File, FileAttributes } from '../../file/file.domain';
-import { Folder, FolderAttributes } from '../../folder/folder.domain';
+import { File, type FileAttributes } from '../../file/file.domain';
+import { Folder, type FolderAttributes } from '../../folder/folder.domain';
 import { FolderModel } from '../../folder/folder.model';
 import {
-  WorkspaceLogAttributes,
+  type WorkspaceLogAttributes,
   WorkspaceLogType,
 } from '../attributes/workspace-logs.attributes';
 import { WorkspaceLogModel } from '../models/workspace-logs.model';

@@ -1,7 +1,7 @@
-import { Sharing } from '../../../modules/sharing/sharing.domain';
-import { FolderDto } from '../../folder/dto/folder.dto';
-import { Thumbnail } from '../../thumbnail/thumbnail.domain';
-import { FileStatus } from '../file.domain';
+import { type Sharing } from '../../../modules/sharing/sharing.domain';
+import { type FolderDto } from '../../folder/dto/folder.dto';
+import { type Thumbnail } from '../../thumbnail/thumbnail.domain';
+import { type FileStatus } from '../file.domain';
 
 export class FileDto {
   id: number;

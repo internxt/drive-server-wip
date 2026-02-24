@@ -1,13 +1,13 @@
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { createMock, type DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
-import { Logger } from '@nestjs/common';
+import { type Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DeleteExpiredTrashItemsTask } from './delete-expired-trash-items.task';
 import { RedisService } from '../../../externals/redis/redis.service';
 import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
 import { SequelizeTrashRepository } from '../../trash/trash.repository';
 import { TrashUseCases } from '../../trash/trash.usecase';
-import { JobExecutionModel } from '../models/job-execution.model';
+import { type JobExecutionModel } from '../models/job-execution.model';
 import { JobName } from '../constants';
 import { Trash } from '../../trash/trash.domain';
 import { TrashItemType } from '../../trash/trash.attributes';
@@ -96,9 +96,11 @@ describe('DeleteExpiredTrashItemsTask', () => {
     });
 
     it('When no expired items exist, then it should complete with zero deletions', async () => {
-      jest.spyOn(task as any, 'yieldExpiredTrashItems').mockImplementation(async function* () {
-        yield [];
-      });
+      jest
+        .spyOn(task as any, 'yieldExpiredTrashItems')
+        .mockImplementation(async function* () {
+          yield [];
+        });
       jobExecutionRepository.markAsCompleted.mockResolvedValue(
         mockCompletedJob,
       );
@@ -132,10 +134,12 @@ describe('DeleteExpiredTrashItemsTask', () => {
         }),
       );
 
-      jest.spyOn(task as any, 'yieldExpiredTrashItems').mockImplementation(async function* () {
-        yield batch1;
-        yield batch2;
-      });
+      jest
+        .spyOn(task as any, 'yieldExpiredTrashItems')
+        .mockImplementation(async function* () {
+          yield batch1;
+          yield batch2;
+        });
 
       trashUseCases.deleteExpiredItems
         .mockResolvedValueOnce({ filesDeleted: 100, foldersDeleted: 0 })
@@ -168,9 +172,11 @@ describe('DeleteExpiredTrashItemsTask', () => {
         }),
       ];
 
-      jest.spyOn(task as any, 'yieldExpiredTrashItems').mockImplementation(async function* () {
-        yield batch;
-      });
+      jest
+        .spyOn(task as any, 'yieldExpiredTrashItems')
+        .mockImplementation(async function* () {
+          yield batch;
+        });
       trashUseCases.deleteExpiredItems.mockRejectedValue(error);
 
       await expect(task.startJob()).rejects.toThrow(error);
@@ -191,11 +197,13 @@ describe('DeleteExpiredTrashItemsTask', () => {
         }),
       );
 
-      jest.spyOn(task as any, 'yieldExpiredTrashItems').mockImplementation(async function* () {
-        for (let i = 0; i < 50; i++) {
-          yield largeBatch;
-        }
-      });
+      jest
+        .spyOn(task as any, 'yieldExpiredTrashItems')
+        .mockImplementation(async function* () {
+          for (let i = 0; i < 50; i++) {
+            yield largeBatch;
+          }
+        });
 
       trashUseCases.deleteExpiredItems.mockResolvedValue({
         filesDeleted: 100,

@@ -1,7 +1,7 @@
 import {
-  Data,
-  MaybeStream,
-  WebStream,
+  type Data,
+  type MaybeStream,
+  type WebStream,
   generateKey,
   readPrivateKey,
   readMessage,

@@ -1,4 +1,4 @@
-import { DeviceAttributes } from './models/device.attributes';
+import { type DeviceAttributes } from './models/device.attributes';
 
 // This is the UUID used for devices that are not linked to any folder.
 export const DEVICE_LEGACY_NULL_FOLDER_UUID =

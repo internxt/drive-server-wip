@@ -1,4 +1,4 @@
-import { WorkspaceInviteAttributes } from '../attributes/workspace-invite.attribute';
+import { type WorkspaceInviteAttributes } from '../attributes/workspace-invite.attribute';
 
 export class WorkspaceInvite implements WorkspaceInviteAttributes {
   id: string;

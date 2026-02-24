@@ -1,8 +1,8 @@
-import { FolderAttributes } from '../../folder/folder.attributes';
-import { User } from '../../user/user.domain';
-import { Workspace } from '../../workspaces/domains/workspaces.domain';
-import { WorkspaceItemType } from './../../workspaces/attributes/workspace-items-users.attributes';
-import { SharedWithType } from '../sharing.domain';
+import { type FolderAttributes } from '../../folder/folder.attributes';
+import { type User } from '../../user/user.domain';
+import { type Workspace } from '../../workspaces/domains/workspaces.domain';
+import { type WorkspaceItemType } from './../../workspaces/attributes/workspace-items-users.attributes';
+import { type SharedWithType } from '../sharing.domain';
 
 export interface SharingAccessTokenData {
   sharedRootFolderId?: FolderAttributes['uuid'];

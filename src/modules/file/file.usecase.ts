@@ -14,34 +14,34 @@ import {
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
-import { FolderAttributes } from '../folder/folder.attributes';
-import { User } from '../user/user.domain';
-import { UserAttributes } from '../user/user.attributes';
+import { type FolderAttributes } from '../folder/folder.attributes';
+import { type User } from '../user/user.domain';
+import { type UserAttributes } from '../user/user.attributes';
 import {
   File,
-  FileAttributes,
-  FileOptions,
+  type FileAttributes,
+  type FileOptions,
   FileStatus,
-  SortableFileAttributes,
+  type SortableFileAttributes,
 } from './file.domain';
 import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { ReplaceFileDto } from './dto/replace-file.dto';
-import { FileDto } from './dto/file.dto';
+import { type ReplaceFileDto } from './dto/replace-file.dto';
+import { type FileDto } from './dto/file.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
 import { v4 } from 'uuid';
-import { CreateFileDto } from './dto/create-file.dto';
-import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
-import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
-import { Folder } from '../folder/folder.domain';
+import { type CreateFileDto } from './dto/create-file.dto';
+import { type UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { type Folder } from '../folder/folder.domain';
 import { getPathFileData } from '../../lib/path';
 import { isStringEmpty } from '../../lib/validators';
-import { FileModel } from './file.model';
+import { type FileModel } from './file.model';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
-import { MoveFileDto } from './dto/move-file.dto';
+import { type MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import {
@@ -49,10 +49,10 @@ import {
   LimitLabels,
 } from '../feature-limit/limits.enum';
 import { SequelizeFileVersionRepository } from './file-version.repository';
-import { FileVersionDto } from './dto/responses/file-version.dto';
+import { type FileVersionDto } from './dto/responses/file-version.dto';
 import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
-import { Usage } from '../usage/usage.domain';
+import { type Usage } from '../usage/usage.domain';
 import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
@@ -64,7 +64,7 @@ import {
   RestoreFileVersionAction,
   UndoFileVersioningAction,
 } from './actions';
-import { Workspace } from '../workspaces/domains/workspaces.domain';
+import { type Workspace } from '../workspaces/domains/workspaces.domain';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',

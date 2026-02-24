@@ -1,7 +1,7 @@
 import {
   BadRequestException,
-  CanActivate,
-  ExecutionContext,
+  type CanActivate,
+  type ExecutionContext,
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
@@ -12,7 +12,7 @@ import {
   WORKSPACE_IN_BEHALF_ACTION_META_KEY,
   WorkspaceResourcesAction,
 } from './workspaces-resources-in-behalf.types';
-import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
+import { type WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { verifyWithDefaultSecret } from '../../../lib/jwt';
 import { isUUID } from 'class-validator';
 import { extractDataFromRequest } from '../../../common/extract-data-from-request';

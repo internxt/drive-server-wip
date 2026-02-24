@@ -1,10 +1,10 @@
 import { AppSumoUseCase } from './app-sumo.usecase';
-import { SequelizeAppSumoRepository } from './app-sumo.repository';
-import { SequelizePlanRepository } from '../plan/plan.repository';
-import { AppSumoModel } from './app-sumo.model';
+import { type SequelizeAppSumoRepository } from './app-sumo.repository';
+import { type SequelizePlanRepository } from '../plan/plan.repository';
+import { type AppSumoModel } from './app-sumo.model';
 import { PlanNotFoundException } from '../plan/exception/plan-not-found.exception';
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
-import { PlanModel } from '../plan/plan.model';
+import { type DeepMocked, createMock } from '@golevelup/ts-jest';
+import { type PlanModel } from '../plan/plan.model';
 
 describe('AppSumoUseCase', () => {
   let useCase: AppSumoUseCase;

@@ -1,28 +1,28 @@
 import {
-  CanActivate,
-  ExecutionContext,
+  type CanActivate,
+  type ExecutionContext,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { User } from '../../user/user.domain';
+import { type User } from '../../user/user.domain';
 import { UserUseCases } from '../../user/user.usecase';
 import { verifyWithDefaultSecret } from '../../../lib/jwt';
 import { SharingService } from '../../sharing/sharing.service';
 import {
   SharedWithType,
-  SharingActionName,
+  type SharingActionName,
 } from '../../sharing/sharing.domain';
 import {
   PermissionsMetadataName,
-  PermissionsOptions,
+  type PermissionsOptions,
 } from './sharing-permissions.decorator';
-import { Workspace } from '../../workspaces/domains/workspaces.domain';
-import { Folder } from '../../folder/folder.domain';
+import { type Workspace } from '../../workspaces/domains/workspaces.domain';
+import { type Folder } from '../../folder/folder.domain';
 import { WorkspacesUsecases } from '../../workspaces/workspaces.usecase';
 import { extractDataFromRequest } from '../../../common/extract-data-from-request';
-import { SharingAccessTokenData } from './sharings-token.interface';
+import { type SharingAccessTokenData } from './sharings-token.interface';
 
 @Injectable()
 export class SharingPermissionsGuard implements CanActivate {

@@ -1,7 +1,7 @@
 import {
   BadRequestException,
-  CanActivate,
-  ExecutionContext,
+  type CanActivate,
+  type ExecutionContext,
   Injectable,
 } from '@nestjs/common';
 import * as semver from 'semver';

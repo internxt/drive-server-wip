@@ -1,17 +1,17 @@
 import {
   Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
+  type NestInterceptor,
+  type ExecutionContext,
+  type CallHandler,
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Observable } from 'rxjs';
+import { type Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import {
-  AuditLogConfig,
+  type AuditLogConfig,
   AUDIT_LOG_METADATA_KEY,
-  ValueExtractor,
+  type ValueExtractor,
 } from '../decorators/audit-log.decorator';
 import { AuditLogService } from '../audit-log.service';
 import { AuditEntityType, AuditPerformerType } from '../audit-logs.attributes';

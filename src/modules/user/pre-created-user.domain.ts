@@ -1,5 +1,5 @@
-import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
-import { PreCreatedUserAttributes } from './pre-created-users.attributes';
+import { type UserKeysEncryptVersions } from '../keyserver/key-server.domain';
+import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
 
 export class PreCreatedUser implements PreCreatedUserAttributes {
   id: number;

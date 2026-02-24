@@ -1,5 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { NestExpressApplication } from '@nestjs/platform-express';
+import { Test, type TestingModule } from '@nestjs/testing';
+import { type NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { v4 } from 'uuid';
@@ -10,7 +10,6 @@ import { BridgeService } from '../../src/externals/bridge/bridge.service';
 import { MailerService } from '../../src/externals/mailer/mailer.service';
 import { NewsletterService } from '../../src/externals/newsletter';
 import { NotificationListener } from '../../src/externals/notifications/listeners/notification.listener';
-
 
 class MockBridgeService {
   async createUser() {

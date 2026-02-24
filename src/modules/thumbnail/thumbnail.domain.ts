@@ -1,4 +1,4 @@
-import { ThumbnailAttributes } from './thumbnail.attributes';
+import { type ThumbnailAttributes } from './thumbnail.attributes';
 
 export class Thumbnail implements ThumbnailAttributes {
   id: number;

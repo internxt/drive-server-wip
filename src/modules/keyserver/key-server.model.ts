@@ -9,7 +9,7 @@ import {
 } from 'sequelize-typescript';
 import {
   UserKeysEncryptVersions,
-  KeyServerAttributes,
+  type KeyServerAttributes,
 } from './key-server.domain';
 import { UserModel } from '../user/user.model';
 

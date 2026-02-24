@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { AuditLogModel } from './audit-logs.model';
 import { AuditLog } from './audit-logs.domain';
-import { AuditLogAttributes } from './audit-logs.attributes';
+import { type AuditLogAttributes } from './audit-logs.attributes';
 
 export abstract class AuditLogsRepository {
   abstract create(

@@ -27,14 +27,14 @@ import {
 } from '@nestjs/swagger';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { CreateTeamDto } from './dto/create-team.dto';
-import { WorkspaceAttributes } from './attributes/workspace.attributes';
+import { type WorkspaceAttributes } from './attributes/workspace.attributes';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { UserTier } from '../auth/decorators/user-tier.decorator';
 import { User } from '../user/user.domain';
 import { isUUID } from 'class-validator';
 import { EditTeamDto } from './dto/edit-team-data.dto';
-import { UserAttributes } from '../user/user.attributes';
-import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes';
+import { type UserAttributes } from '../user/user.attributes';
+import { type WorkspaceTeamAttributes } from './attributes/workspace-team.attributes';
 import { WorkspaceGuard } from './guards/workspaces.guard';
 import {
   AccessContext,
@@ -47,11 +47,11 @@ import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { AcceptWorkspaceInviteDto } from './dto/accept-workspace-invite.dto';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
-import { WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
+import { type WorkspaceInviteAttributes } from './attributes/workspace-invite.attribute';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
-  Folder,
-  FolderAttributes,
+  type Folder,
+  type FolderAttributes,
   FolderStatus,
   SortableFolderAttributes,
 } from '../folder/folder.domain';
@@ -65,9 +65,9 @@ import { OrderBy } from '../../common/order.type';
 import { GetDataFromRequest } from './../../common/extract-data-from-request';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
-import { Sharing, SharingActionName } from '../sharing/sharing.domain';
+import { type Sharing, SharingActionName } from '../sharing/sharing.domain';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
-import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
+import { type WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 import { Public } from '../auth/decorators/public.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';

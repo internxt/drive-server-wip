@@ -1,6 +1,6 @@
-import { Request } from 'express';
+import { type Request } from 'express';
 
-import { User } from '../../../modules/user/user.domain';
+import { type User } from '../../../modules/user/user.domain';
 import { Event } from './event';
 export class SignUpSuccessEvent extends Event {
   req?: Request;

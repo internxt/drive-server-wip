@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional } from 'class-validator';
-import { Workspace } from '../domains/workspaces.domain';
-import { WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
+import { type Workspace } from '../domains/workspaces.domain';
+import { type WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
 
 export class SetupWorkspaceDto {
   @ApiProperty({

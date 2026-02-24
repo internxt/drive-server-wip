@@ -1,10 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { getModelToken } from '@nestjs/sequelize';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { AttemptChangeEmailStatus } from './attempt-change-email.attributes';
-import { Transaction } from 'sequelize';
+import { type Transaction } from 'sequelize';
 import { v4 } from 'uuid';
 
 describe('SequelizeAttemptChangeEmailRepository', () => {

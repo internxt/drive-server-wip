@@ -2,15 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { UserModel } from '../../user/user.model';
 import { User } from '../../user/user.domain';
-import { WorkspaceAttributes } from '../attributes/workspace.attributes';
+import { type WorkspaceAttributes } from '../attributes/workspace.attributes';
 import { Sequelize } from 'sequelize';
 import { WorkspaceTeamModel } from '../models/workspace-team.model';
 import { WorkspaceTeamUserModel } from '../models/workspace-team-users.model';
 import { WorkspaceTeam } from '../domains/workspace-team.domain';
-import { WorkspaceTeamAttributes } from '../attributes/workspace-team.attributes';
-import { UserAttributes } from '../../user/user.attributes';
+import { type WorkspaceTeamAttributes } from '../attributes/workspace-team.attributes';
+import { type UserAttributes } from '../../user/user.attributes';
 import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
-import { WorkspaceTeamUserAttributes } from '../attributes/workspace-team-users.attributes';
+import { type WorkspaceTeamUserAttributes } from '../attributes/workspace-team-users.attributes';
 
 @Injectable()
 export class SequelizeWorkspaceTeamRepository {

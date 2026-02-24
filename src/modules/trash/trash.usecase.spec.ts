@@ -1,5 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { Logger } from '@nestjs/common';
+import { Test, type TestingModule } from '@nestjs/testing';
+import { type Logger } from '@nestjs/common';
 import { createMock } from '@golevelup/ts-jest';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
@@ -388,7 +388,10 @@ describe('Trash Use Cases', () => {
       const trashedAt = new Date('2025-10-30T00:00:00Z');
 
       expect(
-        service.calculateCaducityDate('essential_lifetime_individual', trashedAt),
+        service.calculateCaducityDate(
+          'essential_lifetime_individual',
+          trashedAt,
+        ),
       ).toEqual(new Date('2025-11-06T00:00:00Z'));
 
       expect(
@@ -396,7 +399,10 @@ describe('Trash Use Cases', () => {
       ).toEqual(new Date('2025-11-14T00:00:00Z'));
 
       expect(
-        service.calculateCaducityDate('ultimate_lifetime_individual', trashedAt),
+        service.calculateCaducityDate(
+          'ultimate_lifetime_individual',
+          trashedAt,
+        ),
       ).toEqual(new Date('2025-11-29T00:00:00Z'));
     });
 

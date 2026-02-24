@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SequelizeUsageRepository } from './usage.repository';
-import { File } from '../file/file.domain';
-import { User } from '../user/user.domain';
+import { type File } from '../file/file.domain';
+import { type User } from '../user/user.domain';
 import { Usage, UsageType } from './usage.domain';
 import { v4 } from 'uuid';
 import { Time } from '../../lib/time';

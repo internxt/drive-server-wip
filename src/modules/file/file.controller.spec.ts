@@ -1,9 +1,9 @@
 import { createMock } from '@golevelup/ts-jest';
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   InternalServerErrorException,
-  Logger,
+  type Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
@@ -15,20 +15,20 @@ import {
 } from '../../../test/fixtures';
 import { FileUseCases } from './file.usecase';
 import { User } from '../user/user.domain';
-import { File, FileStatus } from './file.domain';
+import { type File, FileStatus } from './file.domain';
 import { FileController } from './file.controller';
 import API_LIMITS from '../../lib/http/limits';
-import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { type UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
-import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
-import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
+import { type ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
+import { type CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { BridgeModule } from './../../externals/bridge/bridge.module';
 import { ClientEnum } from '../../common/enums/platform.enum';
-import { CreateFileDto } from './dto/create-file.dto';
-import { ReplaceFileDto } from './dto/replace-file.dto';
+import { type CreateFileDto } from './dto/create-file.dto';
+import { type ReplaceFileDto } from './dto/replace-file.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
-import { GetFilesDto } from './dto/get-files.dto';
+import { type GetFilesDto } from './dto/get-files.dto';
 import { SortOrder } from '../../common/order.type';
 
 describe('FileController', () => {
@@ -134,10 +134,10 @@ describe('FileController', () => {
 
       const result = await fileController.getRecentFiles(userMocked, limit);
       expect(result).toEqual(files);
-      expect(fileUseCases.getRecentFiles).toHaveBeenCalledWith(
-        userMocked.id,
-        { limit, offset: 0 },
-      );
+      expect(fileUseCases.getRecentFiles).toHaveBeenCalledWith(userMocked.id, {
+        limit,
+        offset: 0,
+      });
     });
 
     it('When getRecentFiles is requested with no limit, then it should use upper bound limit', () => {
@@ -150,10 +150,10 @@ describe('FileController', () => {
 
       fileController.getRecentFiles(userMocked);
 
-      expect(fileUseCases.getRecentFiles).toHaveBeenCalledWith(
-        userMocked.id,
-        { limit: API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND, offset: 0 },
-      );
+      expect(fileUseCases.getRecentFiles).toHaveBeenCalledWith(userMocked.id, {
+        limit: API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND,
+        offset: 0,
+      });
     });
   });
 

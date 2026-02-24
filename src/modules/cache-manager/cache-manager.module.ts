@@ -1,5 +1,5 @@
 import { Logger, Module } from '@nestjs/common';
-import { CacheModule, CacheOptions } from '@nestjs/cache-manager';
+import { CacheModule, type CacheOptions } from '@nestjs/cache-manager';
 import { createKeyv } from '@keyv/redis';
 import { CacheManagerService } from './cache-manager.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';

@@ -1,6 +1,6 @@
 import { createMock } from '@golevelup/ts-jest';
 import { SequelizeTrashRepository } from './trash.repository';
-import { TrashModel } from './trash.model';
+import { type TrashModel } from './trash.model';
 import { TrashItemType } from './trash.attributes';
 import { newTrash } from '../../../test/fixtures';
 
@@ -297,7 +297,9 @@ describe('SequelizeTrashRepository', () => {
         }),
       ];
 
-      jest.spyOn(trashModel, 'findAll').mockResolvedValue(mockTrashItems as any);
+      jest
+        .spyOn(trashModel, 'findAll')
+        .mockResolvedValue(mockTrashItems as any);
 
       const result = await repository.findExpiredItems(limit);
 
@@ -360,13 +362,19 @@ describe('SequelizeTrashRepository', () => {
         }),
       ];
 
-      jest.spyOn(trashModel, 'findAll').mockResolvedValue(mockTrashItems as any);
+      jest
+        .spyOn(trashModel, 'findAll')
+        .mockResolvedValue(mockTrashItems as any);
 
       const result = await repository.findExpiredItems(limit);
 
       expect(result).toHaveLength(3);
-      expect(result.filter((t) => t.itemType === TrashItemType.File)).toHaveLength(2);
-      expect(result.filter((t) => t.itemType === TrashItemType.Folder)).toHaveLength(1);
+      expect(
+        result.filter((t) => t.itemType === TrashItemType.File),
+      ).toHaveLength(2);
+      expect(
+        result.filter((t) => t.itemType === TrashItemType.Folder),
+      ).toHaveLength(1);
     });
   });
 });

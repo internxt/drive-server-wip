@@ -35,8 +35,15 @@ import {
   DeleteItemsDto,
   DeleteItemType,
 } from './dto/controllers/delete-item.dto';
-import { Folder, SortableFolderAttributes } from '../folder/folder.domain';
-import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
+import {
+  type Folder,
+  type SortableFolderAttributes,
+} from '../folder/folder.domain';
+import {
+  type File,
+  FileStatus,
+  type SortableFileAttributes,
+} from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { WorkspaceResourcesAction } from '../workspaces/guards/workspaces-resources-in-behalf.types';

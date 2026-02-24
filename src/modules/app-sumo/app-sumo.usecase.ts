@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SequelizeAppSumoRepository } from './app-sumo.repository';
 import { SequelizePlanRepository } from '../plan/plan.repository';
-import { AppSumoModel } from './app-sumo.model';
+import { type AppSumoModel } from './app-sumo.model';
 import { PlanNotFoundException } from '../plan/exception/plan-not-found.exception';
 
 @Injectable()

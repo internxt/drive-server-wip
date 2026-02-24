@@ -1,15 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
 import { InjectModel } from '@nestjs/sequelize';
-import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
 import {
-  FindOptions,
+  File,
+  type FileAttributes,
+  type FileOptions,
+  FileStatus,
+} from './file.domain';
+import {
+  type FindOptions,
   Op,
   QueryTypes,
   Sequelize,
-  WhereOptions,
+  type WhereOptions,
 } from 'sequelize';
-import { Literal } from 'sequelize/types/utils';
+import { type Literal } from 'sequelize/types/utils';
 
 import { User } from '../user/user.domain';
 import { UserModel } from './../user/user.model';
@@ -21,10 +26,10 @@ import { FileModel } from './file.model';
 import { SharingModel } from '../sharing/models';
 import {
   WorkspaceItemType,
-  WorkspaceItemUserAttributes,
+  type WorkspaceItemUserAttributes,
 } from '../workspaces/attributes/workspace-items-users.attributes';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
-import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;

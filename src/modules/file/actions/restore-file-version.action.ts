@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common';
 import { SequelizeFileVersionRepository } from '../file-version.repository';
 import { SequelizeFileRepository } from '../file.repository';
-import { User } from '../../user/user.domain';
+import { type User } from '../../user/user.domain';
 import { FileVersionStatus } from '../file-version.domain';
-import { File } from '../file.domain';
+import { type File } from '../file.domain';
 
 @Injectable()
 export class RestoreFileVersionAction {

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { UserAttributes } from '../user/user.attributes';
-import { KeyServer, KeyServerAttributes } from './key-server.domain';
+import { type UserAttributes } from '../user/user.attributes';
+import { KeyServer, type KeyServerAttributes } from './key-server.domain';
 import { KeyServerModel } from './key-server.model';
 
 @Injectable()

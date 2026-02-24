@@ -3,8 +3,8 @@ import {
   SequelizeLookUpRepository,
 } from './look-up.repository';
 import { Inject } from '@nestjs/common';
-import { FuzzySearchResult } from './dto/fuzzy-search-result.dto';
-import { Workspace } from '../workspaces/domains/workspaces.domain';
+import { type FuzzySearchResult } from './dto/fuzzy-search-result.dto';
+import { type Workspace } from '../workspaces/domains/workspaces.domain';
 export class FuzzySearchUseCases {
   constructor(
     @Inject(SequelizeLookUpRepository)

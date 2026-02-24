@@ -1,7 +1,7 @@
 import { Injectable, forwardRef, Inject } from '@nestjs/common';
-import { Folder } from '../folder/folder.domain';
-import { User } from '../user/user.domain';
-import { File } from '../file/file.domain';
+import { type Folder } from '../folder/folder.domain';
+import { type User } from '../user/user.domain';
+import { type File } from '../file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -9,7 +9,7 @@ import { TrashEmptyRequestedEvent } from './events/trash-empty-requested.event';
 import { SequelizeTrashRepository } from './trash.repository';
 import { TrashItemType } from './trash.attributes';
 import { Trash } from './trash.domain';
-import { Time, TimeUnit } from '../../lib/time';
+import { Time, type TimeUnit } from '../../lib/time';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 
@@ -176,10 +176,7 @@ export class TrashUseCases {
     }
   }
 
-  calculateCaducityDate(
-    tierLabel: string,
-    deletedAt: Date = new Date(),
-  ): Date {
+  calculateCaducityDate(tierLabel: string, deletedAt: Date = new Date()): Date {
     const retentionConfig =
       TRASH_RETENTION_BY_TIER[tierLabel] ?? DEFAULT_TRASH_RETENTION;
     return Time.dateWithTimeAdded(

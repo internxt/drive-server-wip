@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { CacheManagerService } from './cache-manager.service';
-import { Cache } from 'cache-manager';
+import { type Cache } from 'cache-manager';
 import { createMock } from '@golevelup/ts-jest';
 import { v4 } from 'uuid';
 import { JWT_7DAYS_EXPIRATION } from '../auth/constants';

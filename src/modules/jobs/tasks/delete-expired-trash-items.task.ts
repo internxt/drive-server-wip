@@ -47,16 +47,20 @@ export class DeleteExpiredTrashItemsTask {
         return;
       }
 
-      this.logger.log('Lock acquired! Starting expired trash items cleanup job');
+      this.logger.log(
+        'Lock acquired! Starting expired trash items cleanup job',
+      );
       await this.startJob();
     } catch (error) {
       this.logger.error(
-        `Expired trash items cleanup job could not be setup. error: ${JSON.stringify({
-          timestamp: new Date().toISOString(),
-          name: error.name,
-          message: error.message,
-          stack: error.stack,
-        })}`,
+        `Expired trash items cleanup job could not be setup. error: ${JSON.stringify(
+          {
+            timestamp: new Date().toISOString(),
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          },
+        )}`,
       );
     }
   }
@@ -83,9 +87,8 @@ export class DeleteExpiredTrashItemsTask {
           break;
         }
 
-        const result = await this.trashUseCases.deleteExpiredItems(
-          expiredItems,
-        );
+        const result =
+          await this.trashUseCases.deleteExpiredItems(expiredItems);
         totalFilesDeleted += result.filesDeleted;
         totalFoldersDeleted += result.foldersDeleted;
       }
@@ -99,9 +102,7 @@ export class DeleteExpiredTrashItemsTask {
         `[${startedJob.id}] Cleanup completed: ${totalFilesDeleted} files and ${totalFoldersDeleted} folders deleted`,
       );
     } catch (error) {
-      this.logger.error(
-        `[${startedJob.id}] Error: ${error.message}`,
-      );
+      this.logger.error(`[${startedJob.id}] Error: ${error.message}`);
       await this.jobExecutionRepository.markAsFailed(startedJob.id, {
         errorMessage: error.message,
       });
@@ -127,9 +128,8 @@ export class DeleteExpiredTrashItemsTask {
     let resultCount = 0;
 
     do {
-      const expiredItems = await this.trashRepository.findExpiredItems(
-        batchSize,
-      );
+      const expiredItems =
+        await this.trashRepository.findExpiredItems(batchSize);
 
       resultCount = expiredItems.length;
 

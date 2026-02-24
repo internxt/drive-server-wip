@@ -1,5 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { ExecutionContext } from '@nestjs/common';
+import { Test, type TestingModule } from '@nestjs/testing';
+import { type ExecutionContext } from '@nestjs/common';
 import { createMock } from '@golevelup/ts-jest';
 
 import { NotificationsGuard } from './notifications.guard';

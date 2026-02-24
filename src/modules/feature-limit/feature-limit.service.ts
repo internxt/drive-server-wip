@@ -4,8 +4,8 @@ import { LimitLabels } from './limits.enum';
 import { PlatformName } from '../../common/constants';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { Limit } from './domain/limit.domain';
-import { User } from '../user/user.domain';
+import { type Limit } from './domain/limit.domain';
+import { type User } from '../user/user.domain';
 
 @Injectable()
 export class FeatureLimitService {

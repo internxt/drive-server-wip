@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
 import { UserOverriddenLimitModel } from './models/user-overridden-limit.model';
 import { Limitmodel } from './models/limit.model';

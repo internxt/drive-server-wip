@@ -4,12 +4,12 @@ dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
 
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { NestExpressApplication } from '@nestjs/platform-express';
+import { type NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import {
   DocumentBuilder,
-  SwaggerCustomOptions,
+  type SwaggerCustomOptions,
   SwaggerModule,
 } from '@nestjs/swagger';
 import { AppModule } from './app.module';

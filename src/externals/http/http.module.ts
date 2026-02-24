@@ -2,9 +2,9 @@ import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import {
   HttpAgent,
-  HttpOptions,
+  type HttpOptions,
   HttpsAgent,
-  HttpsOptions,
+  type HttpsOptions,
 } from 'agentkeepalive';
 
 import { HttpClient } from './http.service';
