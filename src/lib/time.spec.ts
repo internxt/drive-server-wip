@@ -1,15 +1,16 @@
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Time } from './time';
 
 describe('Time class', () => {
   const fixedSystemCurrentDate = new Date('2022-01-01');
 
   beforeAll(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(fixedSystemCurrentDate);
+    vi.useFakeTimers();
+    vi.setSystemTime(fixedSystemCurrentDate);
   });
 
   afterAll(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('now()', () => {

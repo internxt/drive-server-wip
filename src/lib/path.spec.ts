@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import * as service from './path';
 
 describe('Path class', () => {
