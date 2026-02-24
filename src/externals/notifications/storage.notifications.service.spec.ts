@@ -15,7 +15,7 @@ import {
   ItemToTrashDto,
   ItemToTrashType,
 } from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
-import { mockLogger } from '../../../test/helpers/auth.helper';
+import { mockLogger } from '../../../test/helpers/mocker.helper';
 
 describe('StorageNotificationService', () => {
   const fixedSystemCurrentDate = new Date('2021-01-01T00:00:00Z');

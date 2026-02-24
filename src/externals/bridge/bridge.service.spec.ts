@@ -6,7 +6,7 @@ import { CryptoService } from '../crypto/crypto.service';
 import { HttpClient } from '../http/http.service';
 import { BridgeService } from './bridge.service';
 import { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
-import { mockLogger } from '../../../test/helpers/auth.helper';
+import { mockLogger } from '../../../test/helpers/mocker.helper';
 
 describe('Bridge Service', () => {
   let service: BridgeService;

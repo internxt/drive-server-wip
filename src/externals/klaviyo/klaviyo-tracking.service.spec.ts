@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { KlaviyoTrackingService } from './klaviyo-tracking.service';
 import axios, { AxiosResponse } from 'axios';
 import { DeepMockProxy, mockDeep } from 'vitest-mock-extended';
-import { mockLogger } from '../../../test/helpers/auth.helper';
+import { mockLogger } from '../../../test/helpers/mocker.helper';
 
 vi.mock('axios');
 const mockedAxios = axios as Mocked<typeof axios>;

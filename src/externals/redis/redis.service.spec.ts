@@ -3,7 +3,7 @@ import { mockDeep, MockProxy } from 'vitest-mock-extended';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from './redis.service';
 import { createClient } from 'redis';
-import { mockLogger } from '../../../test/helpers/auth.helper';
+import { mockLogger } from '../../../test/helpers/mocker.helper';
 
 vi.mock('redis', () => ({
   createClient: vi.fn(),
