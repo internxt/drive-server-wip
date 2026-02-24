@@ -22,5 +22,6 @@ export default defineConfig({
         ...coverageConfigDefaults.exclude
       ]
     },
+    mockReset: true
   },
 });
