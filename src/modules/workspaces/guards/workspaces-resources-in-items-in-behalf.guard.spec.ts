@@ -18,6 +18,7 @@ import {
 import { v4 } from 'uuid';
 import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
 import { extractDataFromRequest } from '../../../common/extract-data-from-request';
+import { type FeatureLimitService } from '../../feature-limit/feature-limit.service';
 
 jest.mock('../../../lib/jwt', () => ({
   verifyWithDefaultSecret: jest.fn(),
@@ -31,13 +32,16 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
   let guard: WorkspacesResourcesItemsInBehalfGuard;
   let reflector: DeepMocked<Reflector>;
   let workspaceUseCases: DeepMocked<WorkspacesUsecases>;
+  let featureLimitService: DeepMocked<FeatureLimitService>;
 
   beforeEach(async () => {
     reflector = createMock<Reflector>();
     workspaceUseCases = createMock<WorkspacesUsecases>();
+    featureLimitService = createMock<FeatureLimitService>();
     guard = new WorkspacesResourcesItemsInBehalfGuard(
       reflector,
       workspaceUseCases,
+      featureLimitService,
     );
   });
 
@@ -270,6 +274,100 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
         workspace,
       );
     });
+
+    it('When workspace token is valid and behalfUser has tierId, then authInfo tier should be updated to behalfUser tier', async () => {
+      const tierId = v4();
+      const user = newUser();
+      const behalfUser = newUser({ attributes: { tierId } });
+      const workspace = newWorkspace({
+        attributes: { workspaceUserId: behalfUser.uuid },
+      });
+      const member = newWorkspaceUser({ workspaceId: workspace.id });
+      const mockTier = { id: tierId, label: 'pro_business', context: 'Pro' };
+
+      const excutionContext = createMockExecutionContext(
+        user,
+        {
+          headers: { 'x-internxt-workspace': 'valid-token' },
+          body: { items: [{ uuid: v4(), type: 'file' }] },
+        },
+        { tier: { id: v4(), label: 'free_individual' } },
+      );
+
+      (verifyWithDefaultSecret as jest.Mock).mockReturnValue({
+        workspaceId: workspace.id,
+      });
+      jest
+        .spyOn(reflector, 'get')
+        .mockReturnValueOnce(WorkspaceResourcesAction.AddItemsToTrash);
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
+        workspace,
+        workspaceUser: member,
+      });
+      workspaceUseCases.findWorkspaceResourceOwner.mockResolvedValue(
+        behalfUser,
+      );
+      jest
+        .spyOn(
+          guard['actionHandlers'],
+          WorkspaceResourcesAction.AddItemsToTrash,
+        )
+        .mockResolvedValueOnce(true);
+      featureLimitService.getTier.mockResolvedValue(mockTier as any);
+
+      await guard.canActivate(excutionContext);
+
+      expect(featureLimitService.getTier).toHaveBeenCalledWith(tierId);
+      expect(excutionContext.switchToHttp().getRequest().authInfo.tier).toEqual(
+        mockTier,
+      );
+    });
+
+    it('When workspace token is valid and behalfUser has no tierId, then authInfo tier should not be updated', async () => {
+      const user = newUser();
+      const behalfUser = newUser({ attributes: { tierId: null } });
+      const workspace = newWorkspace({
+        attributes: { workspaceUserId: behalfUser.uuid },
+      });
+      const member = newWorkspaceUser({ workspaceId: workspace.id });
+      const originalTier = { id: v4(), label: 'free_individual' };
+
+      const excutionContext = createMockExecutionContext(
+        user,
+        {
+          headers: { 'x-internxt-workspace': 'valid-token' },
+          body: { items: [{ uuid: v4(), type: 'file' }] },
+        },
+        { tier: originalTier },
+      );
+
+      (verifyWithDefaultSecret as jest.Mock).mockReturnValue({
+        workspaceId: workspace.id,
+      });
+      jest
+        .spyOn(reflector, 'get')
+        .mockReturnValueOnce(WorkspaceResourcesAction.AddItemsToTrash);
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
+        workspace,
+        workspaceUser: member,
+      });
+      workspaceUseCases.findWorkspaceResourceOwner.mockResolvedValue(
+        behalfUser,
+      );
+      jest
+        .spyOn(
+          guard['actionHandlers'],
+          WorkspaceResourcesAction.AddItemsToTrash,
+        )
+        .mockResolvedValueOnce(true);
+
+      await guard.canActivate(excutionContext);
+
+      expect(featureLimitService.getTier).not.toHaveBeenCalled();
+      expect(excutionContext.switchToHttp().getRequest().authInfo.tier).toEqual(
+        originalTier,
+      );
+    });
   });
 
   describe('hasUserPermissions', () => {
@@ -357,9 +455,11 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
 const createMockExecutionContext = (
   user: any,
   requestPayload: any,
+  authInfo?: any,
 ): ExecutionContext => {
   const request = {
     user: user,
+    authInfo,
     ...requestPayload,
   };
 
