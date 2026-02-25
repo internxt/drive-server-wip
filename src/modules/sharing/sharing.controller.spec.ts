@@ -529,4 +529,360 @@ describe('SharingController', () => {
       expect(result).toStrictEqual({ list: expectedResult });
     });
   });
+
+  describe('getSharingType', () => {
+    it('When getting sharing type for file, then it calls service', async () => {
+      const expectedSharing = newSharing();
+      jest.spyOn(sharingService, 'getSharingType').mockResolvedValue(expectedSharing);
+
+      const result = await controller.getSharingType(user, 'file', file.uuid);
+
+      expect(result).toBe(expectedSharing);
+      expect(sharingService.getSharingType).toHaveBeenCalledWith(user, file.uuid, 'file');
+    });
+
+    it('When getting sharing type for folder, then it calls service', async () => {
+      const expectedSharing = newSharing();
+      jest.spyOn(sharingService, 'getSharingType').mockResolvedValue(expectedSharing);
+
+      const result = await controller.getSharingType(user, 'folder', folder.uuid);
+
+      expect(result).toBe(expectedSharing);
+    });
+
+    it('When item type is invalid, then it fails', () => {
+      expect(() =>
+        controller.getSharingType(user, 'invalid' as any, 'some-id'),
+      ).toThrow(BadRequestException);
+    });
+  });
+
+  describe('getItemSharingStatus', () => {
+    it('When getting item sharing info for file, then it calls service', async () => {
+      const expectedInfo = { type: 'public', invitationsCount: 1, publicSharing: null };
+      jest.spyOn(sharingService, 'getItemSharingInfo').mockResolvedValue(expectedInfo as any);
+
+      const result = await controller.getItemSharingStatus(user, 'file', file.uuid);
+
+      expect(result).toBe(expectedInfo);
+      expect(sharingService.getItemSharingInfo).toHaveBeenCalledWith(user, file.uuid, 'file');
+    });
+
+    it('When getting item sharing info for folder, then it calls service', async () => {
+      const expectedInfo = { type: 'private', invitationsCount: 0, publicSharing: null };
+      jest.spyOn(sharingService, 'getItemSharingInfo').mockResolvedValue(expectedInfo as any);
+
+      const result = await controller.getItemSharingStatus(user, 'folder', folder.uuid);
+
+      expect(result).toBe(expectedInfo);
+    });
+
+    it('When item type is invalid, then it fails', () => {
+      expect(() =>
+        controller.getItemSharingStatus(user, 'invalid' as any, 'some-id'),
+      ).toThrow(BadRequestException);
+    });
+  });
+
+  describe('getInvitesByUser', () => {
+    it('When getting invites with valid params, then it returns invites', async () => {
+      const expectedInvites = [{ id: 'invite-1' }];
+      jest.spyOn(sharingService, 'getInvitesByUser').mockResolvedValue(expectedInvites as any);
+
+      const result = await controller.getInvitesByUser(user, 10, 0);
+
+      expect(result).toEqual({ invites: expectedInvites });
+      expect(sharingService.getInvitesByUser).toHaveBeenCalledWith(user, 10, 0);
+    });
+
+    it('When limit is out of range (too low), then it throws', async () => {
+      await expect(
+        controller.getInvitesByUser(user, -1, 0),
+      ).rejects.toThrow();
+    });
+
+    it('When offset is out of range (too low), then it throws', async () => {
+      await expect(
+        controller.getInvitesByUser(user, 10, -1),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('validateInvite', () => {
+    it('When invite is valid, then it returns the uuid', async () => {
+      const inviteId = 'invite-uuid';
+      jest.spyOn(sharingService, 'validateInvite').mockResolvedValue({ uuid: inviteId });
+
+      const result = await controller.validateInvite(inviteId);
+
+      expect(result).toEqual({ uuid: inviteId });
+    });
+
+    it('When invite is invalid, then it fails', async () => {
+      jest.spyOn(sharingService, 'validateInvite').mockRejectedValue(new BadRequestException());
+
+      await expect(controller.validateInvite('id')).rejects.toThrow(BadRequestException);
+    });
+
+    it('When an unexpected error occurs while validating, then it fails', async () => {
+      jest.spyOn(sharingService, 'validateInvite').mockRejectedValue(new Error('unexpected'));
+
+      await expect(controller.validateInvite('id')).rejects.toThrow();
+    });
+  });
+
+  describe('getFoldersInPrivateSharedFolder', () => {
+    it('When getting folders in private shared folder, then it calls service', async () => {
+      const expectedResult = { items: [], credentials: {}, token: '', bucket: '', encryptionKey: null, parent: { uuid: null, name: null }, name: 'test', role: 'OWNER' };
+      jest.spyOn(sharingService, 'getFoldersInSharedFolder').mockResolvedValue(expectedResult as any);
+
+      const result = await controller.getFoldersInPrivateSharedFolder(
+        user,
+        folder.uuid,
+        { token: 'some-token', page: 0, perPage: 50 },
+      );
+
+      expect(result).toBe(expectedResult);
+      expect(sharingService.getFoldersInSharedFolder).toHaveBeenCalledWith(
+        folder.uuid, 'some-token', user, 0, 50,
+      );
+    });
+
+    it('When no page/perPage provided, then it uses defaults', async () => {
+      jest.spyOn(sharingService, 'getFoldersInSharedFolder').mockResolvedValue({} as any);
+
+      await controller.getFoldersInPrivateSharedFolder(user, folder.uuid, {} as any);
+
+      expect(sharingService.getFoldersInSharedFolder).toHaveBeenCalledWith(
+        folder.uuid, undefined, user, 0, 50,
+      );
+    });
+  });
+
+  describe('getFilesInPrivateSharedFolder', () => {
+    it('When getting files in private shared folder, then it calls service', async () => {
+      const expectedResult = { items: [], credentials: {}, token: '', bucket: '', encryptionKey: null, parent: { uuid: null, name: null }, name: 'test', role: 'OWNER' };
+      jest.spyOn(sharingService, 'getFilesInSharedFolder').mockResolvedValue(expectedResult as any);
+
+      const result = await controller.getFilesInPrivateSharedFolder(
+        user,
+        folder.uuid,
+        { token: 'some-token', page: 0, perPage: 50 },
+      );
+
+      expect(result).toBe(expectedResult);
+      expect(sharingService.getFilesInSharedFolder).toHaveBeenCalledWith(
+        folder.uuid, 'some-token', user, 0, 50,
+      );
+    });
+  });
+
+  describe('getPublicShareFiles', () => {
+    it('When getting public share files, then it calls service', async () => {
+      const expectedResult = { items: [], credentials: {}, token: '', bucket: '', encryptionKey: null, parent: { uuid: null, name: null }, name: 'test', role: 'NONE' };
+      jest.spyOn(sharingService, 'getFilesFromPublicFolder').mockResolvedValue(expectedResult as any);
+
+      const result = await controller.getPublicShareFiles(
+        folder.uuid, 'token', 'code', 0, 50,
+      );
+
+      expect(result).toBe(expectedResult);
+      expect(sharingService.getFilesFromPublicFolder).toHaveBeenCalledWith(
+        folder.uuid, 'token', 'code', 0, 50,
+      );
+    });
+  });
+
+  describe('getPublicSharedFolders', () => {
+    it('When getting public shared folders, then it calls service', async () => {
+      const expectedResult = { items: [], credentials: {}, token: '', bucket: '', encryptionKey: null, parent: { uuid: null, name: null }, name: 'test', role: 'NONE' };
+      jest.spyOn(sharingService, 'getFoldersFromPublicFolder').mockResolvedValue(expectedResult as any);
+
+      const result = await controller.getPublicSharedFolders(
+        folder.uuid, 'token', 'code', 0, 50,
+      );
+
+      expect(result).toBe(expectedResult);
+      expect(sharingService.getFoldersFromPublicFolder).toHaveBeenCalledWith(
+        folder.uuid, 'token', 0, 50,
+      );
+    });
+  });
+
+  describe('getSharedFoldersWithAUser', () => {
+    it('When getting shared folders with user, then it returns folders', async () => {
+      const expectedFolders = [folder];
+      jest.spyOn(sharingService, 'getSharedFoldersBySharedWith').mockResolvedValue(expectedFolders);
+
+      const result = await controller.getSharedFoldersWithAUser(user, undefined, 0, 50);
+
+      expect(result).toEqual({ folders: expectedFolders });
+    });
+
+    it('When orderBy is provided, then it passes order to service', async () => {
+      jest.spyOn(sharingService, 'getSharedFoldersBySharedWith').mockResolvedValue([]);
+
+      await controller.getSharedFoldersWithAUser(user, 'createdAt:DESC' as any, 0, 50);
+
+      expect(sharingService.getSharedFoldersBySharedWith).toHaveBeenCalledWith(
+        user, 0, 50, [['createdAt', 'DESC']],
+      );
+    });
+
+    it('When service fails, then it fails', async () => {
+      jest.spyOn(sharingService, 'getSharedFoldersBySharedWith').mockRejectedValue(new Error('fail'));
+
+      await expect(
+        controller.getSharedFoldersWithAUser(user, undefined, 0, 50),
+      ).rejects.toThrow('fail');
+    });
+  });
+
+  describe('getSharedFolders (shared-by-me)', () => {
+    it('When getting shared folders by owner, then it returns folders', async () => {
+      const expectedFolders = [folder];
+      jest.spyOn(sharingService, 'getSharedFoldersByOwner').mockResolvedValue(expectedFolders);
+
+      const result = await controller.getSharedFolders(user, undefined, 0, 50);
+
+      expect(result).toEqual({ folders: expectedFolders });
+    });
+
+    it('When orderBy is provided, then it passes order to service', async () => {
+      jest.spyOn(sharingService, 'getSharedFoldersByOwner').mockResolvedValue([]);
+
+      await controller.getSharedFolders(user, 'name:ASC' as any, 0, 50);
+
+      expect(sharingService.getSharedFoldersByOwner).toHaveBeenCalledWith(
+        user, 0, 50, [['name', 'ASC']],
+      );
+    });
+
+    it('When service fails, then it fails', async () => {
+      jest.spyOn(sharingService, 'getSharedFoldersByOwner').mockRejectedValue(new Error('fail'));
+
+      await expect(
+        controller.getSharedFolders(user, undefined, 0, 50),
+      ).rejects.toThrow('fail');
+    });
+  });
+
+  describe('getAllSharedFolders', () => {
+    it('When getting all shared folders, then it calls service', async () => {
+      const expectedResult = { folders: [], files: [], credentials: {}, token: '', role: 'OWNER' };
+      jest.spyOn(sharingService, 'getSharedFolders').mockResolvedValue(expectedResult as any);
+
+      const result = await controller.getAllSharedFolders(user, undefined, 0, 50);
+
+      expect(result).toBe(expectedResult);
+    });
+
+    it('When orderBy is provided, then it passes order', async () => {
+      jest.spyOn(sharingService, 'getSharedFolders').mockResolvedValue({} as any);
+
+      await controller.getAllSharedFolders(user, 'createdAt:DESC' as any, 0, 50);
+
+      expect(sharingService.getSharedFolders).toHaveBeenCalledWith(
+        user, 0, 50, [['createdAt', 'DESC']],
+      );
+    });
+  });
+
+  describe('getAllSharedFiles', () => {
+    it('When getting all shared files, then it calls service', async () => {
+      const expectedResult = { folders: [], files: [], credentials: {}, token: '', role: 'OWNER' };
+      jest.spyOn(sharingService, 'getSharedFiles').mockResolvedValue(expectedResult as any);
+
+      const result = await controller.getAllSharedFiles(user, undefined, 0, 50);
+
+      expect(result).toBe(expectedResult);
+    });
+
+    it('When orderBy is provided, then it passes order', async () => {
+      jest.spyOn(sharingService, 'getSharedFiles').mockResolvedValue({} as any);
+
+      await controller.getAllSharedFiles(user, 'name:ASC' as any, 0, 50);
+
+      expect(sharingService.getSharedFiles).toHaveBeenCalledWith(
+        user, 0, 50, [['name', 'ASC']],
+      );
+    });
+  });
+
+  describe('getItemsSharedsWith', () => {
+    it('When getting items shared with, then it returns users', async () => {
+      const expectedUsers = [{ uuid: 'user-1' }];
+      jest.spyOn(sharingService, 'getItemSharedWith').mockResolvedValue(expectedUsers as any);
+
+      const result = await controller.getItemsSharedsWith(user, file.uuid, 'file');
+
+      expect(result).toEqual({ users: expectedUsers });
+    });
+
+    it('When service fails, then it fails', async () => {
+      jest.spyOn(sharingService, 'getItemSharedWith').mockRejectedValue(new Error('fail'));
+
+      await expect(
+        controller.getItemsSharedsWith(user, file.uuid, 'file'),
+      ).rejects.toThrow('fail');
+    });
+  });
+
+  describe('getSharedWithByFolderId', () => {
+    it('When getting shared with by folder id, then it returns users', async () => {
+      const expectedUsers = [{ uuid: 'user-1' }];
+      jest.spyOn(sharingService, 'getSharedWithByItemId').mockResolvedValue(expectedUsers as any);
+
+      const result = await controller.getSharedWithByFolderId(
+        user, 0, 50, undefined, folder.uuid,
+      );
+
+      expect(result).toEqual({ users: expectedUsers });
+    });
+
+    it('When orderBy is provided, then it passes order', async () => {
+      jest.spyOn(sharingService, 'getSharedWithByItemId').mockResolvedValue([] as any);
+
+      await controller.getSharedWithByFolderId(
+        user, 0, 50, 'createdAt:DESC' as any, folder.uuid,
+      );
+
+      expect(sharingService.getSharedWithByItemId).toHaveBeenCalledWith(
+        user, folder.uuid, 0, 50, [['createdAt', 'DESC']],
+      );
+    });
+
+    it('When service fails with a known error, then it fails', async () => {
+      jest.spyOn(sharingService, 'getSharedWithByItemId').mockRejectedValue(
+        new BadRequestException('test'),
+      );
+
+      await expect(
+        controller.getSharedWithByFolderId(user, 0, 50, undefined, folder.uuid),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When an unexpected error occurs, then it fails', async () => {
+      jest.spyOn(sharingService, 'getSharedWithByItemId').mockRejectedValue(new Error('unexpected'));
+
+      await expect(
+        controller.getSharedWithByFolderId(user, 0, 50, undefined, folder.uuid),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('removeUserFromSharedItem', () => {
+    it('When removing user from shared item, then it returns success message', async () => {
+      jest.spyOn(sharingService, 'removeSharedWith').mockResolvedValue(undefined);
+
+      const result = await controller.removeUserFromSharedItem(
+        user.uuid, file.uuid, 'file', user,
+      );
+
+      expect(result).toEqual({ message: 'User removed from shared folder' });
+      expect(sharingService.removeSharedWith).toHaveBeenCalledWith(
+        file.uuid, 'file', user.uuid, user,
+      );
+    });
+  });
 });

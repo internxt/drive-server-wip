@@ -47,6 +47,8 @@ jest.mock('../../externals/mailer/mailer.service', () => ({
     sendInvitationToSharingReceivedEmail: jest
       .fn()
       .mockResolvedValue(undefined),
+    sendRemovedFromSharingEmail: jest.fn().mockResolvedValue(undefined),
+    sendUpdatedSharingRoleEmail: jest.fn().mockResolvedValue(undefined),
   })),
 }));
 
@@ -2404,6 +2406,842 @@ describe('Sharing Use Cases', () => {
       );
 
       expect(result.files[0].sharedWithMe).toBe(false);
+    });
+  });
+
+  describe('getSharedFoldersBySharedWith', () => {
+    const user = newUser();
+    const folders = [newFolder()];
+    const offset = 0;
+    const limit = 10;
+    const order: [string, string][] = [['createdAt', 'DESC']];
+
+    it('When user requests shared folders, then it returns folders', async () => {
+      sharingRepository.findAllSharing.mockResolvedValue(folders);
+
+      const result = await sharingService.getSharedFoldersBySharedWith(
+        user,
+        offset,
+        limit,
+        order,
+      );
+
+      expect(result).toEqual(folders);
+      expect(sharingRepository.findAllSharing).toHaveBeenCalledWith(
+        { sharedWith: user.uuid },
+        offset,
+        limit,
+        order,
+      );
+    });
+  });
+
+  describe('getSharedFoldersByOwner', () => {
+    const user = newUser();
+    const folders = [newFolder()];
+    const offset = 0;
+    const limit = 10;
+    const order: [string, string][] = [['createdAt', 'DESC']];
+
+    it('When owner requests shared folders, then it returns folders', async () => {
+      sharingRepository.findAllSharing.mockResolvedValue(folders);
+
+      const result = await sharingService.getSharedFoldersByOwner(
+        user,
+        offset,
+        limit,
+        order,
+      );
+
+      expect(result).toEqual(folders);
+      expect(sharingRepository.findAllSharing).toHaveBeenCalledWith(
+        { ownerId: user.uuid },
+        offset,
+        limit,
+        order,
+      );
+    });
+  });
+
+  describe('getSharedFolders', () => {
+    const user = newUser();
+    const folder = newFolder({ owner: user });
+    const offset = 0;
+    const limit = 10;
+    const order: [string, string][] = [['createdAt', 'DESC']];
+
+    const buildFolderWithSharedInfo = (overrides?: { avatar?: string; plainName?: string | null }) => {
+      let plainName = folder.plainName;
+      if (overrides && 'plainName' in overrides) {
+        plainName = overrides.plainName;
+      }
+      return {
+      id: v4(),
+      encryptionKey: 'enc-key',
+      createdAt: new Date(),
+      folder: {
+        ...folder,
+        plainName,
+        user: {
+          uuid: user.uuid,
+          userId: user.userId,
+          bridgeUser: user.bridgeUser,
+          avatar: overrides?.avatar ?? null,
+        },
+      },
+    };
+    };
+
+    it('When user requests shared folders, then it returns folders with shared info', async () => {
+      sharingRepository.findByOwnerAndSharedWithMe.mockResolvedValue([
+        buildFolderWithSharedInfo(),
+      ] as any);
+
+      const result = await sharingService.getSharedFolders(user, offset, limit, order);
+
+      expect(result.folders).toHaveLength(1);
+      expect(result.files).toEqual([]);
+      expect(result.role).toBe('OWNER');
+    });
+
+    it('When folder owner has avatar, then it returns the avatar', async () => {
+      sharingRepository.findByOwnerAndSharedWithMe.mockResolvedValue([
+        buildFolderWithSharedInfo({ avatar: 'avatar-key' }),
+      ] as any);
+      usersUsecases.getAvatarUrl.mockResolvedValue(
+        'https://example.com/avatar.jpg',
+      );
+
+      const result = await sharingService.getSharedFolders(user, offset, limit, order);
+
+      expect(usersUsecases.getAvatarUrl).toHaveBeenCalledWith('avatar-key');
+      expect(result.folders[0].user.avatar).toBe(
+        'https://example.com/avatar.jpg',
+      );
+    });
+
+    it('When folder has no plain name, then it decrypts it', async () => {
+      sharingRepository.findByOwnerAndSharedWithMe.mockResolvedValue([
+        buildFolderWithSharedInfo({ plainName: null }),
+      ] as any);
+      folderUseCases.decryptFolderName.mockReturnValue({
+        plainName: 'Decrypted Name',
+      } as any);
+
+      const result = await sharingService.getSharedFolders(user, offset, limit, order);
+
+      expect(result.folders[0].plainName).toBe('Decrypted Name');
+    });
+  });
+
+  describe('getItemSharedWith', () => {
+    const owner = newUser();
+    const sharedUser = newUser();
+    const file = newFile({ owner });
+    const folder = newFolder({ owner });
+    const role = newRole();
+    const fileSharing = newSharing({ owner, item: file, sharedWith: sharedUser });
+    const folderSharing = newSharing({ owner, item: folder, sharedWith: sharedUser });
+
+    it('When item is a file and user is owner, then it returns users with roles', async () => {
+      fileUsecases.getByUuid.mockResolvedValue(file);
+      sharingRepository.findSharingsWithRolesByItem.mockResolvedValue([
+        { ...fileSharing, role },
+      ]);
+      usersUsecases.findByUuids.mockResolvedValue([sharedUser]);
+
+      const result = await sharingService.getItemSharedWith(owner, file.uuid, 'file');
+
+      expect(result).toBeDefined();
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('When item is a folder, then it returns users with roles', async () => {
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      sharingRepository.findSharingsWithRolesByItem.mockResolvedValue([
+        { ...folderSharing, role },
+      ]);
+      usersUsecases.findByUuids.mockResolvedValue([sharedUser]);
+
+      const result = await sharingService.getItemSharedWith(owner, folder.uuid, 'folder');
+
+      expect(result).toBeDefined();
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('When item type is invalid, then it fails', async () => {
+      await expect(
+        sharingService.getItemSharedWith(owner, v4(), 'invalid' as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When item is not found, then it fails', async () => {
+      fileUsecases.getByUuid.mockResolvedValue(null);
+
+      await expect(
+        sharingService.getItemSharedWith(owner, v4(), 'file'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When item is not being shared, then it fails', async () => {
+      fileUsecases.getByUuid.mockResolvedValue(file);
+      sharingRepository.findSharingsWithRolesByItem.mockResolvedValue([]);
+
+      await expect(
+        sharingService.getItemSharedWith(owner, file.uuid, 'file'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is not owner and not invited, then it fails', async () => {
+      const outsider = newUser();
+
+      fileUsecases.getByUuid.mockResolvedValue(file);
+      sharingRepository.findSharingsWithRolesByItem.mockResolvedValue([
+        { ...fileSharing, role },
+      ]);
+
+      await expect(
+        sharingService.getItemSharedWith(outsider, file.uuid, 'file'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When owner is the requesting user, then it returns the owner info directly', async () => {
+      fileUsecases.getByUuid.mockResolvedValue(file);
+      sharingRepository.findSharingsWithRolesByItem.mockResolvedValue([
+        { ...fileSharing, role },
+      ]);
+      usersUsecases.findByUuids.mockResolvedValue([sharedUser]);
+
+      const result = await sharingService.getItemSharedWith(owner, file.uuid, 'file');
+
+      expect(usersUsecases.getUser).not.toHaveBeenCalled();
+      const ownerEntry = result.find((r) => r.role.name === 'OWNER');
+      expect(ownerEntry).toBeDefined();
+      expect(ownerEntry.uuid).toBe(owner.uuid);
+    });
+
+    it('When owner is different from requesting user, then it returns the owner info', async () => {
+      fileUsecases.getByUuid.mockResolvedValue(file);
+      sharingRepository.findSharingsWithRolesByItem.mockResolvedValue([
+        { ...fileSharing, role },
+      ]);
+      usersUsecases.findByUuids.mockResolvedValue([sharedUser]);
+      usersUsecases.getUser.mockResolvedValue(owner);
+
+      const result = await sharingService.getItemSharedWith(sharedUser, file.uuid, 'file');
+
+      expect(usersUsecases.getUser).toHaveBeenCalledWith(owner.uuid);
+      const ownerEntry = result.find((r) => r.role.name === 'OWNER');
+      expect(ownerEntry).toBeDefined();
+    });
+  });
+
+  describe('getSharedWithByItemId', () => {
+    const owner = newUser();
+    const sharedUser = newUser();
+    const folder = newFolder({ owner });
+    const role = newRole();
+    const sharing = newSharing({ owner, item: folder, sharedWith: sharedUser });
+    const offset = 0;
+    const limit = 10;
+    const order: [string, string][] = [['createdAt', 'DESC']];
+
+    it('When user is owner, then it returns shared users with roles', async () => {
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      sharingRepository.findSharingsWithRolesByItem.mockResolvedValue([
+        { ...sharing, role },
+      ]);
+      usersUsecases.findByUuids.mockResolvedValue([sharedUser]);
+
+      const result = await sharingService.getSharedWithByItemId(
+        owner, folder.uuid, offset, limit, order,
+      );
+
+      expect(result).toBeDefined();
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('When item is not found, then it fails', async () => {
+      folderUseCases.getByUuid.mockResolvedValue(null);
+
+      await expect(
+        sharingService.getSharedWithByItemId(owner, v4(), offset, limit, order),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When item is not being shared, then it fails', async () => {
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      sharingRepository.findSharingsWithRolesByItem.mockResolvedValue([]);
+
+      await expect(
+        sharingService.getSharedWithByItemId(owner, folder.uuid, offset, limit, order),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is not owner and not invited, then it fails', async () => {
+      const outsider = newUser();
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      sharingRepository.findSharingsWithRolesByItem.mockResolvedValue([
+        { ...sharing, role },
+      ]);
+
+      await expect(
+        sharingService.getSharedWithByItemId(outsider, folder.uuid, offset, limit, order),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When shared user has avatar, then it returns the avatar', async () => {
+      const userWithAvatar = newUser({ attributes: { avatar: 'avatar-key' } });
+      const avatarSharing = newSharing({ owner, item: folder, sharedWith: userWithAvatar });
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      sharingRepository.findSharingsWithRolesByItem.mockResolvedValue([
+        { ...avatarSharing, role },
+      ]);
+      usersUsecases.findByUuids.mockResolvedValue([userWithAvatar]);
+      usersUsecases.getAvatarUrl.mockResolvedValue(
+        'https://example.com/avatar.jpg',
+      );
+
+      const result = await sharingService.getSharedWithByItemId(
+        owner, folder.uuid, offset, limit, order,
+      );
+
+      expect(usersUsecases.getAvatarUrl).toHaveBeenCalledWith('avatar-key');
+      const sharedEntry = result.find((r) => r.uuid === userWithAvatar.uuid);
+      expect(sharedEntry.avatar).toBe('https://example.com/avatar.jpg');
+    });
+  });
+
+  describe('getFoldersInSharedFolder', () => {
+    const owner = newUser();
+    const sharedUser = newUser();
+    const folder = newFolder({ owner });
+    const parentFolder = newFolder({ owner });
+    folder.parentId = parentFolder.id;
+    const sharing = newSharing({ owner, item: folder, sharedWith: sharedUser });
+    const sharingRole = newSharingRole({ sharingId: sharing.id, roleId: v4() });
+    const role = newRole();
+    sharingRole['role'] = role;
+    const page = 0;
+    const perPage = 10;
+
+    it('When user is the owner, then it returns folders directly', async () => {
+      const childFolder = newFolder({ owner });
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      folderUseCases.getFoldersWithParent.mockResolvedValue([childFolder]);
+      usersUsecases.getAvatarUrl.mockResolvedValue(null);
+
+      const result = await sharingService.getFoldersInSharedFolder(
+        folder.uuid, null, owner, page, perPage,
+      );
+
+      expect(result.role).toBe('OWNER');
+      expect(result.items).toBeDefined();
+    });
+
+    it('When folder is trashed, then it fails', async () => {
+      const trashedFolder = newFolder({
+        attributes: { deleted: true, deletedAt: new Date() },
+      });
+      folderUseCases.getByUuid.mockResolvedValue(trashedFolder);
+
+      await expect(
+        sharingService.getFoldersInSharedFolder(trashedFolder.uuid, null, owner, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When folder is removed, then it fails', async () => {
+      const removedFolder = newFolder({
+        attributes: { removed: true, removedAt: new Date() },
+      });
+      folderUseCases.getByUuid.mockResolvedValue(removedFolder);
+
+      await expect(
+        sharingService.getFoldersInSharedFolder(removedFolder.uuid, null, owner, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When invited user accesses the shared folder, then it returns folders', async () => {
+      const childFolder = newFolder({ owner });
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      folderUseCases.getFoldersWithParent.mockResolvedValue([childFolder]);
+      folderUseCases.getFolderByUserId.mockResolvedValue(
+        newFolder({ owner, attributes: { bucket: 'test-bucket' } }),
+      );
+      sharingRepository.findSharingRoleBy.mockResolvedValue(sharingRole);
+      usersUsecases.getAvatarUrl.mockResolvedValue(null);
+
+      const result = await sharingService.getFoldersInSharedFolder(
+        folder.uuid, null, sharedUser, page, perPage,
+      );
+
+      expect(result.items).toBeDefined();
+      expect(result.bucket).toBeDefined();
+    });
+
+    it('When user has no access to the folder, then it fails', async () => {
+      const outsider = newUser();
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(newFolder());
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+
+      await expect(
+        sharingService.getFoldersInSharedFolder(folder.uuid, null, outsider, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user tries to navigate above the shared folder, then it fails', async () => {
+      const decoded = {
+        sharedRootFolderId: folder.uuid,
+        parentFolderId: folder.uuid,
+        folder: { uuid: folder.uuid, id: folder.id },
+        owner: { id: owner.id, uuid: owner.uuid },
+      };
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
+
+      await expect(
+        sharingService.getFoldersInSharedFolder(folder.uuid, 'token', sharedUser, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user tries to navigate to an unrelated folder, then it fails', async () => {
+      const unrelatedFolder = newFolder({ owner });
+      const decoded = {
+        sharedRootFolderId: sharing.itemId,
+        parentFolderId: v4(),
+        folder: { uuid: unrelatedFolder.uuid, id: unrelatedFolder.id },
+        owner: { id: owner.id, uuid: owner.uuid },
+      };
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
+
+      await expect(
+        sharingService.getFoldersInSharedFolder(folder.uuid, 'token', sharedUser, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When folder has no parent, then parent is null', async () => {
+      const noParentFolder = newFolder({ owner, attributes: { parentId: null } });
+
+      folderUseCases.getByUuid.mockResolvedValue(noParentFolder);
+      folderUseCases.getFoldersWithParent.mockResolvedValue([]);
+      usersUsecases.getAvatarUrl.mockResolvedValue(null);
+
+      const result = await sharingService.getFoldersInSharedFolder(
+        noParentFolder.uuid, null, owner, page, perPage,
+      );
+
+      expect(result.parent.uuid).toBeNull();
+      expect(result.parent.name).toBeNull();
+    });
+  });
+
+  describe('getFilesInSharedFolder', () => {
+    const owner = newUser();
+    const sharedUser = newUser();
+    const folder = newFolder({ owner });
+    const parentFolder = newFolder({ owner });
+    folder.parentId = parentFolder.id;
+    const sharing = newSharing({ owner, item: folder, sharedWith: sharedUser });
+    const sharingRole = newSharingRole({ sharingId: sharing.id, roleId: v4() });
+    const role = newRole();
+    sharingRole['role'] = role;
+    const page = 0;
+    const perPage = 10;
+
+    it('When user is the owner, then it returns files directly', async () => {
+      const file = newFile({ owner });
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      fileUsecases.getFiles.mockResolvedValue([file]);
+      usersUsecases.getAvatarUrl.mockResolvedValue(null);
+
+      const result = await sharingService.getFilesInSharedFolder(
+        folder.uuid, null, owner, page, perPage,
+      );
+
+      expect(result.role).toBe('OWNER');
+      expect(result.items).toBeDefined();
+    });
+
+    it('When folder is trashed, then it throws', async () => {
+      const trashedFolder = newFolder({
+        attributes: { deleted: true, deletedAt: new Date() },
+      });
+      folderUseCases.getByUuid.mockResolvedValue(trashedFolder);
+
+      await expect(
+        sharingService.getFilesInSharedFolder(trashedFolder.uuid, null, owner, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When folder is removed, then it throws', async () => {
+      const removedFolder = newFolder({
+        attributes: { removed: true, removedAt: new Date() },
+      });
+      folderUseCases.getByUuid.mockResolvedValue(removedFolder);
+
+      await expect(
+        sharingService.getFilesInSharedFolder(removedFolder.uuid, null, owner, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When invited user accesses the shared folder, then it returns files', async () => {
+      const file = newFile({ owner });
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      fileUsecases.getFiles.mockResolvedValue([file]);
+      folderUseCases.getFolderByUserId.mockResolvedValue(
+        newFolder({ owner, attributes: { bucket: 'test-bucket' } }),
+      );
+      sharingRepository.findSharingRoleBy.mockResolvedValue(sharingRole);
+      usersUsecases.getAvatarUrl.mockResolvedValue(null);
+
+      const result = await sharingService.getFilesInSharedFolder(
+        folder.uuid, null, sharedUser, page, perPage,
+      );
+
+      expect(result.items).toBeDefined();
+      expect(result.bucket).toBeDefined();
+    });
+
+    it('When user has no access to the folder, then it fails', async () => {
+      const outsider = newUser();
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(newFolder());
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+
+      await expect(
+        sharingService.getFilesInSharedFolder(folder.uuid, null, outsider, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user tries to navigate to an unrelated folder, then it fails', async () => {
+      const unrelatedFolder = newFolder({ owner });
+      const decoded = {
+        sharedRootFolderId: sharing.itemId,
+        parentFolderId: v4(),
+        folder: { uuid: unrelatedFolder.uuid, id: unrelatedFolder.id },
+        owner: { id: owner.id, uuid: owner.uuid },
+      };
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
+
+      await expect(
+        sharingService.getFilesInSharedFolder(folder.uuid, 'token', sharedUser, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user tries to navigate above the shared folder, then it fails', async () => {
+      const decoded = {
+        sharedRootFolderId: folder.uuid,
+        parentFolderId: folder.uuid,
+        folder: { uuid: folder.uuid, id: folder.id },
+        owner: { id: owner.id, uuid: owner.uuid },
+      };
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
+
+      await expect(
+        sharingService.getFilesInSharedFolder(folder.uuid, 'token', sharedUser, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getFoldersFromPublicFolder', () => {
+    const owner = newUser();
+    const folder = newFolder({ owner });
+    const parentFolder = newFolder({ owner });
+    folder.parentId = parentFolder.id;
+    const sharing = newSharing({ owner, item: folder });
+    const page = 0;
+    const perPage = 10;
+
+    it('When requesting root public folder, then it returns folders', async () => {
+      const childFolder = newFolder({ owner });
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      folderUseCases.getFoldersWithParent.mockResolvedValue([childFolder]);
+      folderUseCases.getFolderByUserId.mockResolvedValue(
+        newFolder({ owner, attributes: { bucket: 'test-bucket' } }),
+      );
+
+      const result = await sharingService.getFoldersFromPublicFolder(
+        folder.uuid, null, page, perPage,
+      );
+
+      expect(result.items).toHaveLength(1);
+      expect(result.role).toBe('NONE');
+    });
+
+    it('When folder is trashed, then it throws', async () => {
+      const trashedFolder = newFolder({
+        attributes: { deleted: true, deletedAt: new Date() },
+      });
+      folderUseCases.getByUuid.mockResolvedValue(trashedFolder);
+
+      await expect(
+        sharingService.getFoldersFromPublicFolder(trashedFolder.uuid, null, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When folder is removed, then it throws', async () => {
+      const removedFolder = newFolder({
+        attributes: { removed: true, removedAt: new Date() },
+      });
+      folderUseCases.getByUuid.mockResolvedValue(removedFolder);
+
+      await expect(
+        sharingService.getFoldersFromPublicFolder(removedFolder.uuid, null, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When navigation credentials are invalid, then it fails', async () => {
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue('invalid-string');
+
+      await expect(
+        sharingService.getFoldersFromPublicFolder(folder.uuid, 'some-token', page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user tries to navigate above the shared folder, then it fails', async () => {
+      const decoded = {
+        sharedRootFolderId: folder.uuid,
+        parentFolderId: folder.uuid,
+        folder: { uuid: folder.uuid, id: folder.id },
+        owner: { id: owner.id, uuid: owner.uuid },
+      };
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
+
+      await expect(
+        sharingService.getFoldersFromPublicFolder(folder.uuid, 'some-token', page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user tries to navigate to an unrelated folder, then it fails', async () => {
+      const unrelatedFolder = newFolder({ owner });
+      const decoded = {
+        sharedRootFolderId: sharing.itemId,
+        parentFolderId: v4(),
+        folder: { uuid: unrelatedFolder.uuid, id: unrelatedFolder.id },
+        owner: { id: owner.id, uuid: owner.uuid },
+      };
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
+
+      await expect(
+        sharingService.getFoldersFromPublicFolder(folder.uuid, 'some-token', page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When folder has no parent, then parent fields are null', async () => {
+      const noParentFolder = newFolder({ owner, attributes: { parentId: null } });
+      const noParentSharing = newSharing({ owner, item: noParentFolder });
+
+      folderUseCases.getByUuid.mockResolvedValue(noParentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(noParentSharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      folderUseCases.getFoldersWithParent.mockResolvedValue([]);
+      folderUseCases.getFolderByUserId.mockResolvedValue(
+        newFolder({ owner, attributes: { bucket: 'test-bucket' } }),
+      );
+
+      const result = await sharingService.getFoldersFromPublicFolder(
+        noParentFolder.uuid, null, page, perPage,
+      );
+
+      expect(result.parent.uuid).toBeNull();
+      expect(result.parent.name).toBeNull();
+    });
+  });
+
+  describe('getFilesFromPublicFolder', () => {
+    const owner = newUser();
+    const folder = newFolder({ owner });
+    const parentFolder = newFolder({ owner });
+    folder.parentId = parentFolder.id;
+    const sharing = newSharing({ owner, item: folder });
+    const code = 'encryption-code';
+    const page = 0;
+    const perPage = 10;
+
+    it('When requesting root public folder files, then it returns files', async () => {
+      const file = newFile({ owner });
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      fileUsecases.getFiles.mockResolvedValue([file]);
+      folderUseCases.getFolderByUserId.mockResolvedValue(
+        newFolder({ owner, attributes: { bucket: 'test-bucket' } }),
+      );
+      fileUsecases.getEncryptionKeyFromFile.mockResolvedValue('encrypted-key');
+
+      const result = await sharingService.getFilesFromPublicFolder(
+        folder.uuid, null, code, page, perPage,
+      );
+
+      expect(result.items).toHaveLength(1);
+      expect(result.role).toBe('NONE');
+    });
+
+    it('When folder is trashed, then it throws', async () => {
+      const trashedFolder = newFolder({
+        attributes: { deleted: true, deletedAt: new Date() },
+      });
+      folderUseCases.getByUuid.mockResolvedValue(trashedFolder);
+
+      await expect(
+        sharingService.getFilesFromPublicFolder(trashedFolder.uuid, null, code, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When folder is removed, then it throws', async () => {
+      const removedFolder = newFolder({
+        attributes: { removed: true, removedAt: new Date() },
+      });
+      folderUseCases.getByUuid.mockResolvedValue(removedFolder);
+
+      await expect(
+        sharingService.getFilesFromPublicFolder(removedFolder.uuid, null, code, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When sharing is not found, then it fails', async () => {
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+
+      await expect(
+        sharingService.getFilesFromPublicFolder(folder.uuid, null, code, page, perPage),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When navigation credentials are invalid, then it fails', async () => {
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue('invalid-string');
+
+      await expect(
+        sharingService.getFilesFromPublicFolder(folder.uuid, 'some-token', code, page, perPage),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When user tries to navigate to an unrelated folder, then it fails', async () => {
+      const unrelatedFolder = newFolder({ owner });
+      const decoded = {
+        sharedRootFolderId: sharing.itemId,
+        parentFolderId: v4(),
+        folder: { uuid: unrelatedFolder.uuid, id: unrelatedFolder.id },
+        owner: { id: owner.id, uuid: owner.uuid },
+      };
+
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
+
+      await expect(
+        sharingService.getFilesFromPublicFolder(folder.uuid, 'some-token', code, page, perPage),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('notifyUserRemovedFromSharing', () => {
+    const owner = newUser();
+    const folder = newFolder({ owner });
+
+    it('When user exists, then it sends email', async () => {
+      const user = newUser();
+      const sharing = newSharing({ owner, item: folder, sharedWith: user });
+
+      usersUsecases.getUser.mockResolvedValue(user);
+
+      await sharingService.notifyUserRemovedFromSharing(sharing, folder);
+
+      expect(usersUsecases.getUser).toHaveBeenCalledWith(sharing.sharedWith);
+    });
+
+    it('When user is not found, then it does not send email', async () => {
+      const sharing = newSharing({ owner, item: folder });
+
+      usersUsecases.getUser.mockResolvedValue(null);
+
+      await sharingService.notifyUserRemovedFromSharing(sharing, folder);
+
+      expect(usersUsecases.getUser).toHaveBeenCalled();
+    });
+  });
+
+  describe('notifyUserSharingRoleUpdated', () => {
+    const owner = newUser();
+    const folder = newFolder({ owner });
+    const role = newRole();
+
+    it('When user exists, then it sends email', async () => {
+      const user = newUser();
+      const sharing = newSharing({ owner, item: folder, sharedWith: user });
+
+      usersUsecases.getUser.mockResolvedValue(user);
+
+      await sharingService.notifyUserSharingRoleUpdated(sharing, folder, role);
+
+      expect(usersUsecases.getUser).toHaveBeenCalledWith(sharing.sharedWith);
+    });
+
+    it('When user is not found, then it does not send email', async () => {
+      const sharing = newSharing({ owner, item: folder });
+
+      usersUsecases.getUser.mockResolvedValue(null);
+
+      await sharingService.notifyUserSharingRoleUpdated(sharing, folder, role);
+
+      expect(usersUsecases.getUser).toHaveBeenCalled();
     });
   });
 });
