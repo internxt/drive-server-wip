@@ -93,6 +93,7 @@ describe('Send Use Cases', () => {
     notificationService = module.get<NotificationService>(NotificationService);
     sendRepository = module.get<SendRepository>(SequelizeSendRepository);
     newsletterService = module.get<NewsletterService>(NewsletterService);
+    jest.spyOn(newsletterService, 'subscribe').mockResolvedValue(undefined);
   });
 
   it('should be defined', () => {
@@ -100,6 +101,12 @@ describe('Send Use Cases', () => {
   });
   describe('get By Id use case', () => {
     const sendLinkMockId = '53cf59ce-599d-4bc3-8497-09b72301d2a4';
+
+    it('throw bad request when id is not valid uuid format', async () => {
+      await expect(service.getById('invalid-uuid')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
 
     it('throw not found when id invalid', async () => {
       jest.spyOn(sendRepository, 'findById').mockResolvedValue(null);
@@ -197,6 +204,10 @@ describe('Send Use Cases', () => {
       receivers: ['receiver@gmail.com'],
       items: [],
     });
+    expect(newsletterService.subscribe).toHaveBeenCalledWith(
+      'sender@gmail.com',
+      undefined,
+    );
   });
 
   it('create send links with user', async () => {
@@ -227,6 +238,10 @@ describe('Send Use Cases', () => {
       receivers: ['receiver@gmail.com'],
       items: [],
     });
+    expect(newsletterService.subscribe).toHaveBeenCalledWith(
+      'sender@gmail.com',
+      undefined,
+    );
   });
 
   it('should create a sendLink protected by password', async () => {
@@ -249,6 +264,50 @@ describe('Send Use Cases', () => {
     );
 
     expect(sendLink.isProtected()).toBe(true);
+    expect(newsletterService.subscribe).toHaveBeenCalledWith(
+      'sender@gmail.com',
+      undefined,
+    );
+  });
+
+  it('create send links should handle newsletter subscription error', async () => {
+    jest.spyOn(notificationService, 'add').mockResolvedValue(true);
+    jest
+      .spyOn(sendRepository, 'createSendLinkWithItems')
+      .mockResolvedValue(undefined);
+    jest.spyOn(sendRepository, 'findById').mockResolvedValue(undefined);
+    jest.spyOn(sendRepository, 'countBySendersToday').mockResolvedValue(2);
+
+    const loggerSpy = jest
+      .spyOn((service as any).logger, 'error')
+      .mockImplementation(() => {});
+    jest
+      .spyOn(newsletterService, 'subscribe')
+      .mockRejectedValue(new Error('Klaviyo error'));
+
+    const sendLink = await service.createSendLinks(
+      userMock,
+      [],
+      'code',
+      ['receiver@gmail.com'],
+      'sender@gmail.com',
+      'title',
+      'subject',
+      'plainCode',
+      null,
+    );
+    expect(sendRepository.createSendLinkWithItems).toHaveBeenCalledTimes(1);
+    expect(newsletterService.subscribe).toHaveBeenCalledWith(
+      'sender@gmail.com',
+      undefined,
+    );
+
+    // Wait for the fire-and-forget promise to catch and log
+    await new Promise(setImmediate);
+
+    expect(loggerSpy).toHaveBeenCalledWith(
+      'Failed to subscribe sender@gmail.com to Klaviyo list: Klaviyo error',
+    );
   });
 
   describe('Unlock Link', () => {
