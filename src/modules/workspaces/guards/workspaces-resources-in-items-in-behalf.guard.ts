@@ -16,6 +16,7 @@ import { type WorkspaceItemUser } from '../domains/workspace-item-user.domain';
 import { verifyWithDefaultSecret } from '../../../lib/jwt';
 import { isUUID } from 'class-validator';
 import { extractDataFromRequest } from '../../../common/extract-data-from-request';
+import { FeatureLimitService } from '../../feature-limit/feature-limit.service';
 
 export interface DecodedWorkspaceToken {
   workspaceId: string;
@@ -38,6 +39,7 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly workspaceUseCases: WorkspacesUsecases,
+    private readonly featureLimitService: FeatureLimitService,
   ) {}
 
   protected actionHandlers: ActionHandlers = {
@@ -106,6 +108,11 @@ export class WorkspacesResourcesItemsInBehalfGuard implements CanActivate {
     request.user = behalfUser;
     request.requester = requester;
     request.workspace = workspace;
+
+    if (behalfUser.tierId && request.authInfo) {
+      const tier = await this.featureLimitService.getTier(behalfUser.tierId);
+      request.authInfo.tier = tier;
+    }
 
     return true;
   }
