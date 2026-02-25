@@ -5,6 +5,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { Sequelize } from 'sequelize-typescript';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationService } from '../../externals/notifications/notification.service';
+import { NewsletterService } from '../../externals/newsletter';
 import { FolderModel } from '../folder/folder.model';
 import { User } from '../user/user.domain';
 import { UserModel } from '../user/user.repository';
@@ -19,7 +20,10 @@ import { SendUseCases } from './send.usecase';
 import { createMock } from '@golevelup/ts-jest';
 
 describe('Send Use Cases', () => {
-  let service: SendUseCases, notificationService, sendRepository;
+  let service: SendUseCases,
+    notificationService,
+    sendRepository,
+    newsletterService;
   const userMock = User.build({
     id: 2,
     userId: 'userId',
@@ -88,6 +92,7 @@ describe('Send Use Cases', () => {
     service = module.get<SendUseCases>(SendUseCases);
     notificationService = module.get<NotificationService>(NotificationService);
     sendRepository = module.get<SendRepository>(SequelizeSendRepository);
+    newsletterService = module.get<NewsletterService>(NewsletterService);
   });
 
   it('should be defined', () => {

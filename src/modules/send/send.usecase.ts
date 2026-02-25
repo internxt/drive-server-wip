@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { type User } from '../user/user.domain';
@@ -13,13 +14,19 @@ import { NotificationService } from '../../externals/notifications/notification.
 import { SendLinkCreatedEvent } from '../../externals/notifications/events/send-link-created.event';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { type SendLinkItemDto } from './dto/create-send-link.dto';
+import { NewsletterService } from '../../externals/newsletter';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class SendUseCases {
+  private readonly logger = new Logger(SendUseCases.name);
+
   constructor(
     private readonly sendRepository: SequelizeSendRepository,
     private readonly notificationService: NotificationService,
     private readonly cryptoService: CryptoService,
+    private readonly newsletterService: NewsletterService,
+    private readonly configService: ConfigService,
   ) {}
 
   async getById(id: SendLinkAttributes['id']) {
@@ -118,6 +125,14 @@ export class SendUseCases {
 
       this.notificationService.add(sendLinkCreatedEvent);
     }
+
+    const sendListId = this.configService.get<string>('klaviyo.sendListId');
+
+    this.newsletterService.subscribe(sender, sendListId).catch((err) => {
+      this.logger.error(
+        `Failed to subscribe ${sender} to Klaviyo list: ${err.message}`,
+      );
+    });
 
     return sendLink;
   }
