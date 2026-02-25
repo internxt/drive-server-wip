@@ -4,6 +4,7 @@ import { type AttemptChangeEmailModel } from './attempt-change-email.model';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 
 import {
+  InvalidReferralCodeError,
   MailLimitReachedException,
   UserUseCases,
   ReferralsNotAvailableError,
@@ -11,7 +12,7 @@ import {
 } from './user.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
-import { AccountTokenAction, User } from './user.domain';
+import { AccountTokenAction, ReferralKey, User } from './user.domain';
 import { SequelizeUserRepository } from './user.repository';
 import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
 import { AvatarService } from '../../externals/avatar/avatar.service';
@@ -79,9 +80,13 @@ import { AsymmetricEncryptionService } from '../../externals/asymmetric-encrypti
 import { KyberProvider } from '../../externals/asymmetric-encryption/providers/kyber.provider';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
+import { SequelizeReferralRepository } from './referrals.repository';
+import { SequelizeUserReferralsRepository } from './user-referrals.repository';
+import { NotificationService } from '../../externals/notifications/notification.service';
 import { SharingInvite } from '../sharing/sharing.domain';
 import { aes } from '@internxt/lib';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
+import { PaymentsService } from '../../externals/payments/payments.service';
 import * as jwtLibrary from '../../lib/jwt';
 import { JsonWebTokenError } from 'jsonwebtoken';
 import { type LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
@@ -132,6 +137,10 @@ describe('User use cases', () => {
   let preCreatedUsersRepository: SequelizePreCreatedUsersRepository;
   let asymmetricEncryptionService: AsymmetricEncryptionService;
   let workspaceUseCases: WorkspacesUsecases;
+  let paymentsService: DeepMocked<PaymentsService>;
+  let referralsRepository: SequelizeReferralRepository;
+  let userReferralsRepository: SequelizeUserReferralsRepository;
+  let notificationService: NotificationService;
 
   const user = User.build({
     id: 1,
@@ -226,6 +235,17 @@ describe('User use cases', () => {
       AsymmetricEncryptionService,
     );
     workspaceUseCases = moduleRef.get<WorkspacesUsecases>(WorkspacesUsecases);
+    paymentsService = moduleRef.get<PaymentsService>(
+      PaymentsService,
+    ) as DeepMocked<PaymentsService>;
+    referralsRepository = moduleRef.get<SequelizeReferralRepository>(
+      SequelizeReferralRepository,
+    );
+    userReferralsRepository = moduleRef.get<SequelizeUserReferralsRepository>(
+      SequelizeUserReferralsRepository,
+    );
+    notificationService =
+      moduleRef.get<NotificationService>(NotificationService);
   });
 
   describe('Resetting a user', () => {
@@ -2876,6 +2896,29 @@ describe('User use cases', () => {
 
       expect(keyServerUseCases.getPublicKeys).not.toHaveBeenCalled();
     });
+
+    it('When user is not found, then it fails', async () => {
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(
+        userUseCases.updateCredentials(mockUser.uuid, mockCredentials),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When private keys object is empty, then it fails', async () => {
+      const credentialsWithEmptyKeys = {
+        ...mockCredentials,
+        privateKeys: {} as any,
+      };
+
+      await expect(
+        userUseCases.updateCredentials(
+          mockUser.uuid,
+          credentialsWithEmptyKeys,
+          false,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
   describe('updateCredentialsOld', () => {
@@ -4826,6 +4869,375 @@ describe('User use cases', () => {
           kyber: { privateKey: null, publicKey: null },
         });
       });
+    });
+  });
+
+  describe('hasUserBeenSubscribedAnyTime', () => {
+    it('When user has active subscription, then it returns true', async () => {
+      jest.spyOn(paymentsService, 'hasSubscriptions').mockResolvedValue(true);
+      jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(0);
+
+      const result = await userUseCases.hasUserBeenSubscribedAnyTime(
+        user.email,
+        user.bridgeUser,
+        user.userId,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('When user has no subscription but has lifetime plan, then it returns true', async () => {
+      jest.spyOn(paymentsService, 'hasSubscriptions').mockResolvedValue(false);
+      jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(10737418240 + 1);
+
+      const result = await userUseCases.hasUserBeenSubscribedAnyTime(
+        user.email,
+        user.bridgeUser,
+        user.userId,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('When user has no subscription and free plan, then it returns false', async () => {
+      jest.spyOn(paymentsService, 'hasSubscriptions').mockResolvedValue(false);
+      jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(10737418240);
+
+      const result = await userUseCases.hasUserBeenSubscribedAnyTime(
+        user.email,
+        user.bridgeUser,
+        user.userId,
+      );
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('hasReferralsProgram', () => {
+    it('When user has never been subscribed, then referrals program is available', async () => {
+      jest.spyOn(paymentsService, 'hasSubscriptions').mockResolvedValue(false);
+      jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(0);
+
+      const result = await userUseCases.hasReferralsProgram(
+        user.email,
+        user.bridgeUser,
+        user.userId,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('When user has been subscribed, then referrals program is not available', async () => {
+      jest.spyOn(paymentsService, 'hasSubscriptions').mockResolvedValue(true);
+      jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(0);
+
+      const result = await userUseCases.hasReferralsProgram(
+        user.email,
+        user.bridgeUser,
+        user.userId,
+      );
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('createUserReferrals', () => {
+    it('When enabled referrals exist, then user referrals are created for each step', async () => {
+      const referrals = [
+        {
+          id: 1,
+          key: ReferralKey.InviteFriends,
+          type: 'storage',
+          credit: 1024,
+          steps: 2,
+          enabled: true,
+        },
+      ];
+      jest
+        .spyOn(referralsRepository, 'findAll')
+        .mockResolvedValue(referrals as any);
+      jest
+        .spyOn(userReferralsRepository, 'bulkCreate')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.createUserReferrals(user.id);
+
+      expect(referralsRepository.findAll).toHaveBeenCalledWith({
+        enabled: true,
+      });
+      expect(userReferralsRepository.bulkCreate).toHaveBeenCalledWith([
+        {
+          userId: user.id,
+          referralId: 1,
+          applied: false,
+          referred: '',
+        },
+        {
+          userId: user.id,
+          referralId: 1,
+          applied: false,
+          referred: '',
+        },
+      ]);
+    });
+
+    it('When referral key is create-account, then it is auto-applied', async () => {
+      const referrals = [
+        {
+          id: 2,
+          key: ReferralKey.CreateAccount,
+          type: 'storage',
+          credit: 512,
+          steps: 1,
+          enabled: true,
+        },
+      ];
+      jest
+        .spyOn(referralsRepository, 'findAll')
+        .mockResolvedValue(referrals as any);
+      jest
+        .spyOn(userReferralsRepository, 'bulkCreate')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.createUserReferrals(user.id);
+
+      expect(userReferralsRepository.bulkCreate).toHaveBeenCalledWith([
+        {
+          userId: user.id,
+          referralId: 2,
+          applied: true,
+          referred: '',
+        },
+      ]);
+    });
+  });
+
+  describe('applyReferral', () => {
+    const mockUser = newUser();
+
+    it('When referral does not exist, then it fails', async () => {
+      jest.spyOn(referralsRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(
+        userUseCases.applyReferral(mockUser.id, ReferralKey.InviteFriends),
+      ).rejects.toThrow();
+    });
+
+    it('When user does not exist, then it fails', async () => {
+      jest
+        .spyOn(referralsRepository, 'findOne')
+        .mockResolvedValue({ id: 1 } as any);
+      jest.spyOn(userRepository, 'findById').mockResolvedValue(null);
+
+      await expect(
+        userUseCases.applyReferral(mockUser.id, ReferralKey.InviteFriends),
+      ).rejects.toThrow();
+    });
+
+    it('When no pending referral exists for user, then it returns without applying', async () => {
+      jest
+        .spyOn(referralsRepository, 'findOne')
+        .mockResolvedValue({ id: 1 } as any);
+      jest.spyOn(userRepository, 'findById').mockResolvedValue(mockUser);
+      jest
+        .spyOn(userReferralsRepository, 'findOneWhere')
+        .mockResolvedValue(null);
+
+      await userUseCases.applyReferral(mockUser.id, ReferralKey.InviteFriends);
+
+      expect(userReferralsRepository.findOneWhere).toHaveBeenCalledWith({
+        userId: mockUser.id,
+        referralId: 1,
+        applied: false,
+      });
+    });
+
+    it('When user has no referrals program, then it fails', async () => {
+      const referral = { id: 1, type: 'storage', credit: 1024 };
+      const userReferral = { id: 10 };
+      jest
+        .spyOn(referralsRepository, 'findOne')
+        .mockResolvedValue(referral as any);
+      jest.spyOn(userRepository, 'findById').mockResolvedValue(mockUser);
+      jest
+        .spyOn(userReferralsRepository, 'findOneWhere')
+        .mockResolvedValue(userReferral as any);
+      jest.spyOn(paymentsService, 'hasSubscriptions').mockResolvedValue(true);
+      jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(0);
+
+      await expect(
+        userUseCases.applyReferral(mockUser.id, ReferralKey.InviteFriends),
+      ).rejects.toThrow(ReferralsNotAvailableError);
+    });
+
+    it('When referral is valid and program is available, then it applies the referral', async () => {
+      const referral = {
+        id: 1,
+        key: ReferralKey.InviteFriends,
+        type: 'storage',
+        credit: 1024,
+      };
+      const userReferral = { id: 10 };
+      jest
+        .spyOn(referralsRepository, 'findOne')
+        .mockResolvedValue(referral as any);
+      jest.spyOn(userRepository, 'findById').mockResolvedValue(mockUser);
+      jest
+        .spyOn(userReferralsRepository, 'findOneWhere')
+        .mockResolvedValue(userReferral as any);
+      jest.spyOn(paymentsService, 'hasSubscriptions').mockResolvedValue(false);
+      jest.spyOn(bridgeService, 'getLimit').mockResolvedValue(0);
+      jest
+        .spyOn(userReferralsRepository, 'updateReferralById')
+        .mockResolvedValue(undefined);
+      jest.spyOn(bridgeService, 'addStorage').mockResolvedValue(undefined);
+      jest.spyOn(notificationService, 'add').mockReturnValue(undefined);
+
+      process.env.GATEWAY_USER = 'user';
+      process.env.GATEWAY_PASS = 'pass';
+
+      await userUseCases.applyReferral(
+        mockUser.id,
+        ReferralKey.InviteFriends,
+        'referred-uuid',
+      );
+
+      expect(userReferralsRepository.updateReferralById).toHaveBeenCalledWith(
+        10,
+        { applied: true, referred: 'referred-uuid' },
+      );
+      expect(notificationService.add).toHaveBeenCalled();
+    });
+  });
+
+  describe('redeemUserReferral', () => {
+    it('When type is storage and gateway credentials exist, then storage is added', async () => {
+      jest.spyOn(bridgeService, 'addStorage').mockResolvedValue(undefined);
+      process.env.GATEWAY_USER = 'user';
+      process.env.GATEWAY_PASS = 'pass';
+
+      await userUseCases.redeemUserReferral(
+        user.uuid,
+        user.userId,
+        'storage',
+        1024,
+      );
+
+      expect(bridgeService.addStorage).toHaveBeenCalledWith(user.uuid, 1024);
+    });
+
+    it('When type is storage but gateway credentials are missing, then storage is not added', async () => {
+      jest.spyOn(bridgeService, 'addStorage').mockResolvedValue(undefined);
+      delete process.env.GATEWAY_USER;
+      delete process.env.GATEWAY_PASS;
+
+      await userUseCases.redeemUserReferral(
+        user.uuid,
+        user.userId,
+        'storage',
+        1024,
+      );
+
+      expect(bridgeService.addStorage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('applyReferralIfHasReferrer', () => {
+    it('When referrer does not exist, then it fails', async () => {
+      jest.spyOn(userRepository, 'findByReferralCode').mockResolvedValue(null);
+
+      await expect(
+        userUseCases.applyReferralIfHasReferrer(
+          user.uuid,
+          user.email,
+          'invalid-code',
+        ),
+      ).rejects.toThrow(InvalidReferralCodeError);
+    });
+
+    it('When referrer exists, then invitation is accepted and referral applied', async () => {
+      const referrer = newUser();
+      jest
+        .spyOn(userRepository, 'findByReferralCode')
+        .mockResolvedValue(referrer);
+      jest.spyOn(notificationService, 'add').mockReturnValue(undefined);
+      jest
+        .spyOn(sharedWorkspaceRepository, 'updateByHostAndGuest')
+        .mockResolvedValue(undefined);
+      jest.spyOn(referralsRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(
+        userUseCases.applyReferralIfHasReferrer(
+          user.uuid,
+          user.email,
+          'valid-code',
+        ),
+      ).rejects.toThrow();
+
+      expect(userRepository.findByReferralCode).toHaveBeenCalledWith(
+        'valid-code',
+      );
+      expect(notificationService.add).toHaveBeenCalled();
+    });
+  });
+
+  describe('invitationAccepted', () => {
+    it('When invitation is accepted, then workspace is updated and referral is applied', async () => {
+      const referrer = newUser();
+      jest
+        .spyOn(sharedWorkspaceRepository, 'updateByHostAndGuest')
+        .mockResolvedValue(undefined);
+      jest.spyOn(referralsRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(
+        userUseCases.invitationAccepted(referrer.id, {
+          email: user.email,
+          uuid: user.uuid,
+        }),
+      ).rejects.toThrow();
+
+      expect(
+        sharedWorkspaceRepository.updateByHostAndGuest,
+      ).toHaveBeenCalledWith(referrer.id, user.email);
+    });
+  });
+
+  describe('getMeetClosedBetaUsers', () => {
+    it('When requesting beta users, then it returns the list', async () => {
+      jest
+        .spyOn(userRepository, 'getMeetClosedBetaUsers')
+        .mockResolvedValue([]);
+
+      const result = await userUseCases.getMeetClosedBetaUsers();
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('setRoomToBetaUser', () => {
+    it('When setting room to beta user, then it delegates to repository', async () => {
+      jest
+        .spyOn(userRepository, 'setRoomToBetaUser')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.setRoomToBetaUser('room-1', user);
+
+      expect(userRepository.setRoomToBetaUser).toHaveBeenCalledWith(
+        'room-1',
+        user,
+      );
+    });
+  });
+
+  describe('getBetaUserFromRoom', () => {
+    it('When getting beta user from room, then it delegates to repository', async () => {
+      jest
+        .spyOn(userRepository, 'getBetaUserFromRoom')
+        .mockResolvedValue(user as any);
+
+      const result = await userUseCases.getBetaUserFromRoom('room-1');
+
+      expect(result).toEqual(user);
     });
   });
 });
