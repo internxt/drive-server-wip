@@ -1,9 +1,11 @@
 import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import * as jwtUtils from '../../lib/jwt';
@@ -14,7 +16,12 @@ import {
 } from '../../../test/fixtures';
 import getEnv from '../../config/configuration';
 import { UserController } from './user.controller';
-import { MailLimitReachedException, UserUseCases } from './user.usecase';
+import {
+  InvalidReferralCodeError,
+  MailLimitReachedException,
+  UserAlreadyRegisteredError,
+  UserUseCases,
+} from './user.usecase';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -44,6 +51,8 @@ import {
   AuditPerformerType,
 } from '../../common/audit-logs/audit-logs.attributes';
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -87,6 +96,7 @@ describe('User Controller', () => {
   let cryptoService: DeepMocked<CryptoService>;
   let auditLogService: DeepMocked<AuditLogService>;
   let klaviyoService: KlaviyoTrackingService;
+  let featureLimitService: DeepMocked<FeatureLimitService>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -102,6 +112,7 @@ describe('User Controller', () => {
     cryptoService = moduleRef.get(CryptoService);
     auditLogService = moduleRef.get(AuditLogService);
     klaviyoService = moduleRef.get(KlaviyoTrackingService);
+    featureLimitService = moduleRef.get(FeatureLimitService);
   });
 
   it('should be defined', () => {
@@ -198,6 +209,60 @@ describe('User Controller', () => {
       await expect(
         userController.accountUnblock(validToken),
       ).resolves.toBeUndefined();
+    });
+
+    it('When account unblock is forbidden, then it fails', async () => {
+      jest.spyOn(jwtUtils, 'verifyWithDefaultSecret').mockReturnValueOnce({
+        payload: {
+          uuid: user.uuid,
+          email: user.email,
+          action: AccountTokenAction.Unblock,
+        },
+        iat: 123123,
+      });
+      userUseCases.unblockAccount.mockRejectedValueOnce(
+        new ForbiddenException('Token already used'),
+      );
+
+      await expect(userController.accountUnblock(validToken)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('When account unblock request is invalid, then it fails', async () => {
+      jest.spyOn(jwtUtils, 'verifyWithDefaultSecret').mockReturnValueOnce({
+        payload: {
+          uuid: user.uuid,
+          email: user.email,
+          action: AccountTokenAction.Unblock,
+        },
+        iat: 123123,
+      });
+      userUseCases.unblockAccount.mockRejectedValueOnce(
+        new BadRequestException('Invalid request'),
+      );
+
+      await expect(userController.accountUnblock(validToken)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('When an unexpected error occurs during unblock, then it fails', async () => {
+      jest.spyOn(jwtUtils, 'verifyWithDefaultSecret').mockReturnValueOnce({
+        payload: {
+          uuid: user.uuid,
+          email: user.email,
+          action: AccountTokenAction.Unblock,
+        },
+        iat: 123123,
+      });
+      userUseCases.unblockAccount.mockRejectedValueOnce(
+        new Error('Database failure'),
+      );
+
+      await expect(userController.accountUnblock(validToken)).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
   });
 
@@ -757,6 +822,58 @@ describe('User Controller', () => {
 
       expect(userUseCases.replacePreCreatedUser).toHaveBeenCalled();
     });
+
+    it('When referral code is invalid, then it fails', async () => {
+      const createDto: CreateUserDto = {
+        name: 'Test',
+        lastname: 'User',
+        email: 'test@test.com',
+        password: v4(),
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+      };
+      userUseCases.createUser.mockRejectedValueOnce(
+        new InvalidReferralCodeError(),
+      );
+
+      await expect(
+        userController.createUser(createDto, req, clientId),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is already registered, then it fails', async () => {
+      const createDto: CreateUserDto = {
+        name: 'Test',
+        lastname: 'User',
+        email: 'test@test.com',
+        password: v4(),
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+      };
+      userUseCases.createUser.mockRejectedValueOnce(
+        new UserAlreadyRegisteredError(createDto.email),
+      );
+
+      await expect(
+        userController.createUser(createDto, req, clientId),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When an unexpected error occurs during creation, then it fails', async () => {
+      const createDto: CreateUserDto = {
+        name: 'Test',
+        lastname: 'User',
+        email: 'test@test.com',
+        password: v4(),
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+      };
+      userUseCases.createUser.mockRejectedValueOnce(new Error('unexpected'));
+
+      await expect(
+        userController.createUser(createDto, req, clientId),
+      ).rejects.toThrow(InternalServerErrorException);
+    });
   });
 
   describe('POST /pre-created-users/register', () => {
@@ -849,6 +966,63 @@ describe('User Controller', () => {
       await userController.registerPreCreatedUser(preCreateUserDto, req);
 
       expect(userUseCases.replacePreCreatedUser).not.toHaveBeenCalled();
+    });
+
+    it('When pre-created user is not found, then it fails', async () => {
+      const dto: RegisterPreCreatedUserDto = {
+        name: 'Test',
+        lastname: 'User',
+        email: 'test@test.com',
+        password: v4(),
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+        invitationId: v4(),
+      };
+      userUseCases.findPreCreatedByEmail.mockResolvedValueOnce(null);
+
+      await expect(
+        userController.registerPreCreatedUser(dto, req),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When referral code is invalid during registration, then it fails', async () => {
+      const dto: RegisterPreCreatedUserDto = {
+        name: 'Test',
+        lastname: 'User',
+        email: 'test@test.com',
+        password: v4(),
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+        invitationId: v4(),
+      };
+      userUseCases.findPreCreatedByEmail.mockResolvedValueOnce(preCreatedUser);
+      userUseCases.createUser.mockRejectedValueOnce(
+        new InvalidReferralCodeError(),
+      );
+
+      await expect(
+        userController.registerPreCreatedUser(dto, req),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When user is already registered during registration, then it fails', async () => {
+      const dto: RegisterPreCreatedUserDto = {
+        name: 'Test',
+        lastname: 'User',
+        email: 'test@test.com',
+        password: v4(),
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+        invitationId: v4(),
+      };
+      userUseCases.findPreCreatedByEmail.mockResolvedValueOnce(preCreatedUser);
+      userUseCases.createUser.mockRejectedValueOnce(
+        new UserAlreadyRegisteredError(dto.email),
+      );
+
+      await expect(
+        userController.registerPreCreatedUser(dto, req),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
@@ -1009,6 +1183,15 @@ describe('User Controller', () => {
       await userController.confirmUserDeactivation({ token });
 
       expect(userUseCases.confirmDeactivation).toHaveBeenCalledWith(token);
+    });
+
+    it('When confirming deactivation fails, then it fails', async () => {
+      const error = new Error('Deactivation failed');
+      userUseCases.confirmDeactivation.mockRejectedValueOnce(error);
+
+      await expect(
+        userController.confirmUserDeactivation({ token: 'some-token' }),
+      ).rejects.toThrow(error);
     });
   });
 
@@ -1664,6 +1847,129 @@ describe('User Controller', () => {
       );
 
       loggerErrorSpy.mockRestore();
+    });
+  });
+
+  describe('GET /cli/refresh', () => {
+    const user = newUser();
+
+    it('When user has CLI access, then it returns credentials', async () => {
+      const mockCredentials = { token: 'token', newToken: 'newToken', user };
+      featureLimitService.canUserAccessPlatform.mockResolvedValueOnce(true);
+      userUseCases.getUserCredentials.mockResolvedValueOnce(
+        mockCredentials as any,
+      );
+
+      const result = await userController.cliRefresh(user);
+
+      expect(featureLimitService.canUserAccessPlatform).toHaveBeenCalledWith(
+        'cli',
+        user.uuid,
+      );
+      expect(result).toEqual(mockCredentials);
+    });
+
+    it('When user does not have CLI access, then it fails', async () => {
+      featureLimitService.canUserAccessPlatform.mockResolvedValueOnce(false);
+
+      await expect(userController.cliRefresh(user)).rejects.toThrow(
+        PaymentRequiredException,
+      );
+    });
+  });
+
+  describe('POST /recover-account - request recovery', () => {
+    it('When recovery email is sent successfully, then it resolves', async () => {
+      userUseCases.sendAccountRecoveryEmail.mockResolvedValueOnce(undefined);
+
+      await expect(
+        userController.requestAccountRecovery({
+          email: 'test@test.com',
+        }),
+      ).resolves.toBeUndefined();
+
+      expect(userUseCases.sendAccountRecoveryEmail).toHaveBeenCalledWith(
+        'test@test.com',
+      );
+    });
+
+    it('When sending recovery email fails, then it fails', async () => {
+      const error = new Error('Mail service down');
+      userUseCases.sendAccountRecoveryEmail.mockRejectedValueOnce(error);
+
+      await expect(
+        userController.requestAccountRecovery({
+          email: 'test@test.com',
+        }),
+      ).rejects.toThrow(error);
+    });
+  });
+
+  describe('POST /attempt-change-email', () => {
+    it('When called with valid data, then it calls the usecase with lowercased email', async () => {
+      const user = newUser();
+      userUseCases.createAttemptChangeEmail.mockResolvedValueOnce(undefined);
+
+      await userController.createAttemptChangeEmail(user, {
+        newEmail: 'New@Test.com',
+      });
+
+      expect(userUseCases.createAttemptChangeEmail).toHaveBeenCalledWith(
+        user,
+        'new@test.com',
+      );
+    });
+  });
+
+  describe('POST /attempt-change-email/:id/accept', () => {
+    it('When called with a valid id, then it returns the result', async () => {
+      const mockResult = {
+        oldEmail: 'old@test.com',
+        newEmail: 'new@test.com',
+        newAuthentication: {
+          user: newUser(),
+          token: 'token',
+          newToken: 'newToken',
+        },
+      };
+      userUseCases.acceptAttemptChangeEmail.mockResolvedValueOnce(
+        mockResult as any,
+      );
+
+      const result =
+        await userController.acceptAttemptChangeEmail('encrypted-id');
+
+      expect(userUseCases.acceptAttemptChangeEmail).toHaveBeenCalledWith(
+        'encrypted-id',
+      );
+      expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe('GET /attempt-change-email/:id/verify-expiration', () => {
+    it('When called, then it returns the expiration check result', async () => {
+      userUseCases.isAttemptChangeEmailExpired.mockResolvedValueOnce({
+        expired: false,
+      } as any);
+
+      const result =
+        await userController.verifyAttemptChangeEmail('encrypted-id');
+
+      expect(userUseCases.isAttemptChangeEmailExpired).toHaveBeenCalledWith(
+        'encrypted-id',
+      );
+      expect(result).toEqual({ expired: false });
+    });
+  });
+
+  describe('GET /generate-mnemonic', () => {
+    it('When called, then it returns a generated mnemonic', async () => {
+      const mockMnemonic = 'word1 word2 word3 word4 word5';
+      userUseCases.generateMnemonic.mockResolvedValueOnce(mockMnemonic);
+
+      const result = await userController.generateMnemonic();
+
+      expect(result).toEqual({ mnemonic: mockMnemonic });
     });
   });
 });
