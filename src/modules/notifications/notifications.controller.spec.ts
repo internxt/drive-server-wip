@@ -1,9 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { Test, type TestingModule } from '@nestjs/testing';
+import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 
 import { NotificationsController } from './notifications.controller';
 import { NotificationsUseCases } from './notifications.usecase';
-import { CreateNotificationDto } from './dto/create-notification.dto';
+import { type CreateNotificationDto } from './dto/create-notification.dto';
 import { newNotification, newUser } from '../../../test/fixtures';
 import { NotificationResponseDto } from './dto/response/notification-response.dto';
 import { NotificationWithStatusDto } from './dto/response/notification-with-status.dto';

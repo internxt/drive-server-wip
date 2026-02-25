@@ -1,11 +1,11 @@
-import { INestApplication } from '@nestjs/common';
+import { type INestApplication } from '@nestjs/common';
 import { getModelToken } from '@nestjs/sequelize';
 import { v4 } from 'uuid';
 import { UserModel } from '../../src/modules/user/user.model';
 import { FolderModel } from '../../src/modules/folder/folder.model';
 import { User } from '../../src/modules/user/user.domain';
 import { Folder } from '../../src/modules/folder/folder.domain';
-import { UserAttributes } from '../../src/modules/user/user.attributes';
+import { type UserAttributes } from '../../src/modules/user/user.attributes';
 import { Sign } from '../../src/middlewares/passport';
 import getEnv from '../../src/config/configuration';
 import { FileModel } from '../../src/modules/file/file.model';

@@ -1,8 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as http2 from 'http2';
-import jwt, { JwtHeader } from 'jsonwebtoken';
-import { ApnAlert } from './apn.types';
+import jwt, { type JwtHeader } from 'jsonwebtoken';
+import { type ApnAlert } from './apn.types';
 
 @Injectable()
 export class ApnService {

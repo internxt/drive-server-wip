@@ -1,12 +1,12 @@
 import { HttpStatus } from '@nestjs/common';
-import { NestExpressApplication } from '@nestjs/platform-express';
+import { type NestExpressApplication } from '@nestjs/platform-express';
 import { getModelToken } from '@nestjs/sequelize';
 import request from 'supertest';
 
 import { createTestApp } from '../../../test/helpers/test-app.helper';
 import {
   generateValidRegistrationData,
-  RegisterUserDto,
+  type RegisterUserDto,
 } from '../../../test/helpers/register.helper';
 import { UserModel } from './user.model';
 import { FolderModel } from '../folder/folder.model';

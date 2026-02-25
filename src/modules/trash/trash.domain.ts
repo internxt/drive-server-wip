@@ -1,4 +1,4 @@
-import { TrashAttributes, TrashItemType } from './trash.attributes';
+import { type TrashAttributes, type TrashItemType } from './trash.attributes';
 
 export class Trash implements TrashAttributes {
   itemId: string;

@@ -6,7 +6,7 @@ import {
   Table,
   Index,
 } from 'sequelize-typescript';
-import { TrashAttributes, TrashItemType } from './trash.attributes';
+import { type TrashAttributes, TrashItemType } from './trash.attributes';
 
 @Table({
   underscored: true,

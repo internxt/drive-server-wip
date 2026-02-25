@@ -1,5 +1,5 @@
 import { createMock } from '@golevelup/ts-jest';
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
 import {
@@ -10,7 +10,7 @@ import {
 } from '../../../test/fixtures';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderController } from './folder.controller';
-import { Folder, FolderStatus } from './folder.domain';
+import { type Folder, FolderStatus } from './folder.domain';
 import { FolderUseCases } from './folder.usecase';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { User } from '../user/user.domain';

@@ -1,6 +1,6 @@
-import { User } from '../../user/user.domain';
-import { WorkspaceAttributes } from '../attributes/workspace.attributes';
-import { WorkspaceTeam } from './workspace-team.domain';
+import { type User } from '../../user/user.domain';
+import { type WorkspaceAttributes } from '../attributes/workspace.attributes';
+import { type WorkspaceTeam } from './workspace-team.domain';
 
 export class Workspace implements WorkspaceAttributes {
   id: string;

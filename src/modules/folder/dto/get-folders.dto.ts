@@ -4,7 +4,7 @@ import {
   IsEnum,
   IsOptional,
   ValidateIf,
-  ValidationArguments,
+  type ValidationArguments,
 } from 'class-validator';
 import { SortOrder } from '../../../common/order.type';
 import {

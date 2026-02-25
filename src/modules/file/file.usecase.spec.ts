@@ -1,7 +1,14 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
-import { FileUseCases, RECENT_FILES_DAYS, VersionableFileExtension } from './file.usecase';
-import { SequelizeFileRepository, FileRepository } from './file.repository';
+import {
+  FileUseCases,
+  RECENT_FILES_DAYS,
+  VersionableFileExtension,
+} from './file.usecase';
+import {
+  SequelizeFileRepository,
+  type FileRepository,
+} from './file.repository';
 import { SequelizeFileVersionRepository } from './file-version.repository';
 import {
   BadRequestException,
@@ -12,11 +19,11 @@ import {
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import {
   File,
-  FileAttributes,
+  type FileAttributes,
   FileStatus,
-  SortableFileAttributes,
+  type SortableFileAttributes,
 } from './file.domain';
-import { User } from '../user/user.domain';
+import { type User } from '../user/user.domain';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
@@ -33,14 +40,14 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
-import { CreateFileDto } from './dto/create-file.dto';
-import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { type CreateFileDto } from './dto/create-file.dto';
+import { type UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { Tier } from '../feature-limit/domain/tier.domain';
+import { type Tier } from '../feature-limit/domain/tier.domain';
 import { LimitLabels, LimitTypes } from '../feature-limit/limits.enum';
 import { RedisService } from '../../externals/redis/redis.service';
 import { TrashUseCases } from '../trash/trash.usecase';
@@ -3015,7 +3022,10 @@ describe('FileUseCases', () => {
 
   describe('getRecentFiles', () => {
     it('When called with options, then it should call findRecent with correct params', async () => {
-      const file = newFile({ owner: userMocked, attributes: { thumbnails: [], sharings: [] } });
+      const file = newFile({
+        owner: userMocked,
+        attributes: { thumbnails: [], sharings: [] },
+      });
       jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([file]);
 
       const result = await service.getRecentFiles(userMocked.id, {
@@ -3062,7 +3072,10 @@ describe('FileUseCases', () => {
     });
 
     it('When files have plainName, then it should not decrypt', async () => {
-      const file = newFile({ owner: userMocked, attributes: { plainName: 'report.pdf', thumbnails: [], sharings: [] } });
+      const file = newFile({
+        owner: userMocked,
+        attributes: { plainName: 'report.pdf', thumbnails: [], sharings: [] },
+      });
       jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([file]);
 
       const result = await service.getRecentFiles(userMocked.id, { limit: 10 });
@@ -3072,7 +3085,10 @@ describe('FileUseCases', () => {
     });
 
     it('When files have no plainName, then it should decrypt the file name', async () => {
-      const file = newFile({ owner: userMocked, attributes: { plainName: null, thumbnails: [], sharings: [] } });
+      const file = newFile({
+        owner: userMocked,
+        attributes: { plainName: null, thumbnails: [], sharings: [] },
+      });
       jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([file]);
 
       const result = await service.getRecentFiles(userMocked.id, { limit: 10 });

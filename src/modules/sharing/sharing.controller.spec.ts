@@ -1,8 +1,8 @@
 import { SharingController } from './sharing.controller';
-import { SharingService } from './sharing.service';
-import { UuidDto } from '../../common/dto/uuid.dto';
+import { type SharingService } from './sharing.service';
+import { type UuidDto } from '../../common/dto/uuid.dto';
 import { createMock } from '@golevelup/ts-jest';
-import { Sharing, SharingType } from './sharing.domain';
+import { type Sharing, SharingType } from './sharing.domain';
 import {
   newSharing,
   newUser,
@@ -13,15 +13,15 @@ import {
 } from '../../../test/fixtures';
 import getEnv from '../../config/configuration';
 import { BadRequestException } from '@nestjs/common';
-import { CreateInviteDto } from './dto/create-invite.dto';
-import { AcceptInviteDto } from './dto/accept-invite.dto';
-import { ChangeSharingType } from './dto/change-sharing-type.dto';
-import { UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
-import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
-import { CreateSharingDto } from './dto/create-sharing.dto';
-import { User } from '../user/user.domain';
-import { File } from '../file/file.domain';
-import { Folder } from '../folder/folder.domain';
+import { type CreateInviteDto } from './dto/create-invite.dto';
+import { type AcceptInviteDto } from './dto/accept-invite.dto';
+import { type ChangeSharingType } from './dto/change-sharing-type.dto';
+import { type UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
+import { type SetSharingPasswordDto } from './dto/set-sharing-password.dto';
+import { type CreateSharingDto } from './dto/create-sharing.dto';
+import { type User } from '../user/user.domain';
+import { type File } from '../file/file.domain';
+import { type Folder } from '../folder/folder.domain';
 
 jest.mock('../../config/configuration');
 

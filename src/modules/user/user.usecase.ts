@@ -20,12 +20,12 @@ import crypto from 'crypto';
 import { SequelizeUserRepository } from './user.repository';
 import {
   AccountTokenAction,
-  ReferralAttributes,
+  type ReferralAttributes,
   ReferralKey,
-  User,
-  UserReferralAttributes,
+  type User,
+  type UserReferralAttributes,
 } from './user.domain';
-import { UserAttributes } from './user.attributes';
+import { type UserAttributes } from './user.attributes';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { BridgeService } from '../../externals/bridge/bridge.service';
@@ -42,21 +42,21 @@ import { SequelizeUserReferralsRepository } from './user-referrals.repository';
 import { ReferralRedeemedEvent } from '../../externals/notifications/events/referral-redeemed.event';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
-import { Folder } from '../folder/folder.domain';
+import { type Folder } from '../folder/folder.domain';
 import { SignUpErrorEvent } from '../../externals/notifications/events/sign-up-error.event';
-import { UpdatePasswordDto } from './dto/update-password.dto';
+import { type UpdatePasswordDto } from './dto/update-password.dto';
 import { FileUseCases } from '../file/file.usecase';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
-import { PreCreateUserDto } from './dto/pre-create-user.dto';
+import { type PreCreateUserDto } from './dto/pre-create-user.dto';
 import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
 } from '../../externals/asymmetric-encryption/openpgp';
 import { aes } from '@internxt/lib';
-import { PreCreatedUserAttributes } from './pre-created-users.attributes';
-import { PreCreatedUser } from './pre-created-user.domain';
+import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
+import { type PreCreatedUser } from './pre-created-user.domain';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { AttemptChangeEmailAlreadyVerifiedException } from './exception/attempt-change-email-already-verified.exception';
@@ -71,10 +71,10 @@ import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.
 import { Time } from '../../lib/time';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
-import { UserNotificationTokens } from './user-notification-tokens.domain';
-import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
-import { LoginAccessDto } from '../auth/dto/login-access.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
+import { type UserNotificationTokens } from './user-notification-tokens.domain';
+import { type RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
+import { type LoginAccessDto } from '../auth/dto/login-access.dto';
+import { type UpdateProfileDto } from './dto/update-profile.dto';
 import { isUUID } from 'class-validator';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
@@ -82,14 +82,14 @@ import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
-import { SharingInvite } from '../sharing/sharing.domain';
+import { type SharingInvite } from '../sharing/sharing.domain';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
-import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
+import { type LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
-import { GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
-import { IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
-import { UserResponseDto } from './dto/responses/user-credentials.dto';
+import { type GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
+import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
+import { type UserResponseDto } from './dto/responses/user-credentials.dto';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {

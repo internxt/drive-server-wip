@@ -1,10 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
 import { ThumbnailUseCases } from './thumbnail.usecase';
 import { SequelizeThumbnailRepository } from './thumbnail.repository';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { newUser } from './../../../test/fixtures';
-import { CreateThumbnailDto } from './dto/create-thumbnail.dto';
+import { type CreateThumbnailDto } from './dto/create-thumbnail.dto';
 import { createMock } from '@golevelup/ts-jest';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { v4 } from 'uuid';

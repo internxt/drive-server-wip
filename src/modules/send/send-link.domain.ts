@@ -1,5 +1,5 @@
-import { User } from '../user/user.domain';
-import { SendLinkItem } from './send-link-item.domain';
+import { type User } from '../user/user.domain';
+import { type SendLinkItem } from './send-link-item.domain';
 
 export interface SendLinkAttributes {
   id: string;

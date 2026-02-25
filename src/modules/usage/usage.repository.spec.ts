@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/sequelize';
 import { v4 } from 'uuid';
 import { createMock } from '@golevelup/ts-jest';
@@ -102,10 +102,9 @@ describe('SequelizeUsageRepository', () => {
         value: mockSequelize,
       });
 
-      jest.spyOn(usageModel, 'findOrCreate').mockResolvedValue([
-        { toJSON: () => newUsage() } as any,
-        true,
-      ]);
+      jest
+        .spyOn(usageModel, 'findOrCreate')
+        .mockResolvedValue([{ toJSON: () => newUsage() } as any, true]);
 
       await repository.createFirstUsageCalculation(userUuid);
 

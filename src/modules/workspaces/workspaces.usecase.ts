@@ -9,74 +9,77 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { User } from '../user/user.domain';
-import { CreateTeamDto } from './dto/create-team.dto';
-import { WorkspaceAttributes } from './attributes/workspace.attributes';
+import { type User } from '../user/user.domain';
+import { type CreateTeamDto } from './dto/create-team.dto';
+import { type WorkspaceAttributes } from './attributes/workspace.attributes';
 import { v4 } from 'uuid';
 import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository';
 import { SequelizeWorkspaceRepository } from './repositories/workspaces.repository';
 import { Workspace } from './domains/workspaces.domain';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { UserAttributes } from '../user/user.attributes';
+import { type UserAttributes } from '../user/user.attributes';
 import { WorkspaceTeam } from './domains/workspace-team.domain';
-import { EditTeamDto } from './dto/edit-team-data.dto';
-import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
+import { type EditTeamDto } from './dto/edit-team-data.dto';
+import { type WorkspaceTeamUser } from './domains/workspace-team-user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { WorkspaceInvite } from './domains/workspace-invite.domain';
-import { CreateWorkspaceInviteDto } from './dto/create-workspace-invite.dto';
+import { type CreateWorkspaceInviteDto } from './dto/create-workspace-invite.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
 import { Sign } from '../../middlewares/passport';
-import { ChangeUserRoleDto } from './dto/change-user-role.dto';
-import { WorkspaceTeamAttributes } from './attributes/workspace-team.attributes';
+import { type ChangeUserRoleDto } from './dto/change-user-role.dto';
+import { type WorkspaceTeamAttributes } from './attributes/workspace-team.attributes';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
-import { SetupWorkspaceDto } from './dto/setup-workspace.dto';
+import { type SetupWorkspaceDto } from './dto/setup-workspace.dto';
 import { WorkspaceUser } from './domains/workspace-user.domain';
-import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
+import { type EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { AvatarService } from '../../externals/avatar/avatar.service';
-import { FolderUseCases, SortParamsFolder } from '../folder/folder.usecase';
-import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
 import {
-  File,
-  FileAttributes,
+  FolderUseCases,
+  type SortParamsFolder,
+} from '../folder/folder.usecase';
+import { type WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
+import {
+  type File,
+  type FileAttributes,
   FileStatus,
-  SortableFileAttributes,
+  type SortableFileAttributes,
 } from '../file/file.domain';
-import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
-import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
-import { FileUseCases, SortParamsFile } from '../file/file.usecase';
+import { type CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
+import { type CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
+import { FileUseCases, type SortParamsFile } from '../file/file.usecase';
 import {
   Folder,
-  FolderAttributes,
+  type FolderAttributes,
   FolderStatus,
-  SortableFolderAttributes,
+  type SortableFolderAttributes,
 } from '../folder/folder.domain';
 import {
   WorkspaceItemContext,
   WorkspaceItemType,
-  WorkspaceItemUserAttributes,
+  type WorkspaceItemUserAttributes,
 } from './attributes/workspace-items-users.attributes';
-import { WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
+import { type WorkspaceUserAttributes } from './attributes/workspace-users.attributes';
 import {
   SharedWithType,
   Sharing,
   SharingType,
 } from '../sharing/sharing.domain';
-import { ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
+import { type ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
 import {
   generateTokenWithPlainSecret,
   generateWithDefaultSecret,
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
-import { WorkspaceItemUser } from './domains/workspace-item-user.domain';
-import { SharingInfo, SharingService } from '../sharing/sharing.service';
-import { ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
+import { type WorkspaceItemUser } from './domains/workspace-item-user.domain';
+import { type SharingInfo, SharingService } from '../sharing/sharing.service';
+import { type ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-space.dto';
 import { PaymentsService } from '../../externals/payments/payments.service';
-import { SharingAccessTokenData } from '../sharing/guards/sharings-token.interface';
+import { type SharingAccessTokenData } from '../sharing/guards/sharings-token.interface';
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
-import { WorkspaceLog } from './domains/workspace-log.domain';
-import { TrashItem } from './interceptors/workspaces-logs.interceptor';
+import { type WorkspaceLog } from './domains/workspace-log.domain';
+import { type TrashItem } from './interceptors/workspaces-logs.interceptor';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { SequelizeTrashRepository } from '../trash/trash.repository';
 import { TrashItemType } from '../trash/trash.attributes';

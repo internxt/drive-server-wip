@@ -7,18 +7,18 @@ import { TrashUseCases } from './trash.usecase';
 import { newUser, newFile, newFolder } from '../../../test/fixtures';
 import {
   BadRequestException,
-  Logger,
+  type Logger,
   NotFoundException,
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ItemToTrashType } from './dto/controllers/move-items-to-trash.dto';
 import {
   DeleteItemType,
-  DeleteItemsDto,
+  type DeleteItemsDto,
 } from './dto/controllers/delete-item.dto';
 import { Test } from '@nestjs/testing';
 import { FileStatus } from '../file/file.domain';
-import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
+import { type BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { v4 } from 'uuid';
 
 const user = newUser();

@@ -1,11 +1,11 @@
-import { NestExpressApplication } from '@nestjs/platform-express';
+import { type NestExpressApplication } from '@nestjs/platform-express';
 import { getModelToken } from '@nestjs/sequelize';
 import { v4 } from 'uuid';
 import { Op } from 'sequelize';
 
 import {
   createTestUser,
-  TestUserContext,
+  type TestUserContext,
 } from '../../../test/helpers/user.helper';
 import { createTestApp } from '../../../test/helpers/test-app.helper';
 import { FileUseCases } from './file.usecase';
@@ -15,7 +15,7 @@ import { UsageModel } from '../usage/usage.model';
 import { FileModel } from './file.model';
 import { newFile } from '../../../test/fixtures';
 import { Time } from '../../lib/time';
-import { File, FileStatus } from './file.domain';
+import { type File, FileStatus } from './file.domain';
 
 describe('File module', () => {
   let app: NestExpressApplication;

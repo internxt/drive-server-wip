@@ -1,7 +1,7 @@
 import { applyDecorators, SetMetadata, UseInterceptors } from '@nestjs/common';
 import {
-  WorkspaceLogGlobalActionType,
-  WorkspaceLogType,
+  type WorkspaceLogGlobalActionType,
+  type WorkspaceLogType,
 } from '../attributes/workspace-logs.attributes';
 import { WorkspacesLogsInterceptor } from './../interceptors/workspaces-logs.interceptor';
 

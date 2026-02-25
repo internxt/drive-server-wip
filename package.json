@@ -155,7 +155,10 @@
     ]
   },
   "lint-staged": {
-    "./src/**/*.{js,ts}": "yarn run lint"
+    "./src/**/*.{js,ts}": [
+      "prettier --write",
+      "eslint --fix"
+    ]
   },
   "resolutions": {
     "@isaacs/brace-expansion": "^5.0.1",

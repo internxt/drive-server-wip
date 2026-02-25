@@ -1,4 +1,4 @@
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import {
   BadRequestException,
   ForbiddenException,
@@ -19,24 +19,24 @@ import { NotificationService } from '../../externals/notifications/notification.
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { SignWithCustomDuration } from '../../middlewares/passport';
-import { AccountTokenAction, User } from './user.domain';
+import { AccountTokenAction, type User } from './user.domain';
 import { v4 } from 'uuid';
 import { DeviceType } from './dto/register-notification-token.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
+import { type UpdateProfileDto } from './dto/update-profile.dto';
 import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
-import { UpdatePasswordDto } from './dto/update-password.dto';
-import { CreateUserDto } from './dto/create-user.dto';
-import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
-import { Request } from 'express';
+import { type UpdatePasswordDto } from './dto/update-password.dto';
+import { type CreateUserDto } from './dto/create-user.dto';
+import { type RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
+import { type Request } from 'express';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { Test } from '@nestjs/testing';
 import {
-  RecoverAccountDto,
-  DeprecatedRecoverAccountDto,
+  type RecoverAccountDto,
+  type DeprecatedRecoverAccountDto,
 } from './dto/recover-account.dto';
-import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
+import { type LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { ClientEnum } from '../../common/enums/platform.enum';
-import { IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
+import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import { AuditLogService } from '../../common/audit-logs/audit-log.service';
 import {
   AuditAction,

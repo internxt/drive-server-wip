@@ -1,11 +1,15 @@
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { Keys, KeyServer, UserKeysEncryptVersions } from './key-server.domain';
+import { createMock, type DeepMocked } from '@golevelup/ts-jest';
+import {
+  type Keys,
+  KeyServer,
+  UserKeysEncryptVersions,
+} from './key-server.domain';
 import { SequelizeKeyServerRepository } from './key-server.repository';
 import {
   InvalidKeyServerException,
   KeyServerUseCases,
 } from './key-server.usecase';
-import { Logger } from '@nestjs/common';
+import { type Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
 describe('Key Server Use Cases', () => {

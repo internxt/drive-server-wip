@@ -1,5 +1,5 @@
 import { createMock } from '@golevelup/ts-jest';
-import { Logger } from '@nestjs/common';
+import { type Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { TrashEventHandler } from './trash-event.handler';
 import { TrashUseCases } from '../trash.usecase';

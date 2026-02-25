@@ -1,6 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { createMock, type DeepMocked } from '@golevelup/ts-jest';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import {
   newUser,
@@ -15,7 +15,7 @@ import {
 import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
 import { GatewayUseCases } from './gateway.usecase';
-import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
+import { type InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
 import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';

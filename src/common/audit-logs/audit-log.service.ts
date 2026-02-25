@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AuditLogsRepository } from './audit-logs.repository';
 import {
-  AuditAction,
-  AuditEntityType,
-  AuditPerformerType,
+  type AuditAction,
+  type AuditEntityType,
+  type AuditPerformerType,
 } from './audit-logs.attributes';
 
 export interface CreateAuditLogDto {

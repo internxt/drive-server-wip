@@ -33,13 +33,18 @@ import { SharingService } from './sharing.service';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { User } from '../user/user.domain';
 import { CreateInviteDto } from './dto/create-invite.dto';
-import { Sharing, SharingInvite, SharingItemType, SharingRole } from './sharing.domain';
+import {
+  type Sharing,
+  type SharingInvite,
+  SharingItemType,
+  type SharingRole,
+} from './sharing.domain';
 import { UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
-import { Folder } from '../folder/folder.domain';
+import { type Folder } from '../folder/folder.domain';
 import {
-  GetFilesResponse,
-  GetItemsReponse,
+  type GetFilesResponse,
+  type GetItemsReponse,
 } from './dto/get-items-and-shared-folders.dto';
 import { OrderBy } from '../../common/order.type';
 import { Pagination } from '../../lib/pagination';
@@ -58,7 +63,7 @@ import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
 import getEnv from '../../config/configuration';
-import { FileAttributes } from '../file/file.domain';
+import { type FileAttributes } from '../file/file.domain';
 import {
   GetFilesInSharedFolderResponseDto,
   GetFoldersInSharedFolderResponseDto,
@@ -537,7 +542,8 @@ export class SharingController {
   @WorkspacesInBehalfGuard()
   removeSharing(
     @UserDecorator() user: User,
-    @Param('itemType', new ParseEnumPipe(SharingItemType)) itemType: Sharing['itemType'],
+    @Param('itemType', new ParseEnumPipe(SharingItemType))
+    itemType: Sharing['itemType'],
     @Param('itemId', ParseUUIDPipe) itemId: Sharing['itemId'],
   ) {
     return this.sharingService.removeSharing(user, itemId, itemType);

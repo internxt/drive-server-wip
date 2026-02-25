@@ -4,7 +4,7 @@ import { SequelizeFolderRepository } from '../../folder/folder.repository';
 import { SequelizeFileRepository } from '../../file/file.repository';
 import { JobName } from '../constants';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { JobExecutionModel } from '../models/job-execution.model';
+import { type JobExecutionModel } from '../models/job-execution.model';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../../../externals/redis/redis.service';
 

@@ -4,15 +4,15 @@ import {
   Logger,
 } from '@nestjs/common';
 import { LimitLabels } from './limits.enum';
-import { User } from '../user/user.domain';
+import { type User } from '../user/user.domain';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SharingType } from '../sharing/sharing.domain';
-import { Limit } from './domain/limit.domain';
+import { type Limit } from './domain/limit.domain';
 import {
-  LimitTypeMapping,
-  MaxInviteesPerItemAttribute,
-  MaxSharedItemsAttribute,
+  type LimitTypeMapping,
+  type MaxInviteesPerItemAttribute,
+  type MaxSharedItemsAttribute,
 } from './domain/limits.attributes';
 import { PaymentRequiredException } from './exceptions/payment-required.exception';
 

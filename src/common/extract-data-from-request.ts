@@ -1,10 +1,10 @@
 import {
   BadRequestException,
-  ExecutionContext,
+  type ExecutionContext,
   Logger,
   SetMetadata,
 } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import { type Reflector } from '@nestjs/core';
 
 const extractDataFromRequestMetaName = 'dataFromRequest';
 

@@ -3,7 +3,7 @@ import { CalculateFolderSizeTimeoutException } from './exception/calculate-folde
 import { SequelizeFolderRepository } from './folder.repository';
 import { FolderModel } from './folder.model';
 import { Folder } from './folder.domain';
-import { FolderAttributes } from './folder.attributes';
+import { type FolderAttributes } from './folder.attributes';
 import { newFolder, newUser } from '../../../test/fixtures';
 import { FileStatus } from '../file/file.domain';
 import { Op, QueryTypes } from 'sequelize';

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { TrashModel } from './trash.model';
 import { Trash } from './trash.domain';
-import { TrashItemType } from './trash.attributes';
+import { type TrashItemType } from './trash.attributes';
 import { Op } from 'sequelize';
 
 interface TrashRepository {

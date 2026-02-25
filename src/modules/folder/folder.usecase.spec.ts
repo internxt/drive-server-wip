@@ -1,6 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
-import { FolderUseCases, SortParamsFolder } from './folder.usecase';
+import { FolderUseCases, type SortParamsFolder } from './folder.usecase';
 import { SequelizeFolderRepository } from './folder.repository';
 import {
   BadRequestException,
@@ -12,8 +12,8 @@ import {
   RequestTimeoutException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
-import { Folder, FolderOptions } from './folder.domain';
-import { FolderAttributes } from './folder.attributes';
+import { Folder, type FolderOptions } from './folder.domain';
+import { type FolderAttributes } from './folder.attributes';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -26,7 +26,7 @@ import {
 } from '../../../test/fixtures';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { SharingService } from '../sharing/sharing.service';
-import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
+import { type UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { FileUseCases } from '../file/file.usecase';
 import { FileStatus } from '../file/file.domain';
 import { TrashUseCases } from '../trash/trash.usecase';

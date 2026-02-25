@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { SharingActionName } from '../sharing.domain';
+import { type SharingActionName } from '../sharing.domain';
 
 export interface PermissionsOptions {
   action: SharingActionName;

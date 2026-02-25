@@ -1,5 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
-import { Observable } from 'rxjs';
+import {
+  Injectable,
+  type CanActivate,
+  type ExecutionContext,
+} from '@nestjs/common';
+import { type Observable } from 'rxjs';
 import { CaptchaService } from '../../externals/captcha/captcha.service';
 
 @Injectable()

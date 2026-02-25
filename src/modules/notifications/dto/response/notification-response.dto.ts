@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Notification } from '../../domain/notification.domain';
+import { type Notification } from '../../domain/notification.domain';
 
 export class NotificationResponseDto {
   constructor(notification: Partial<Notification>) {

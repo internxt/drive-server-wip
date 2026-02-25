@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 
-import { UserAttributes } from '../../modules/user/user.attributes';
+import { type UserAttributes } from '../../modules/user/user.attributes';
 import { HttpClient } from '../http/http.service';
 import { Sign } from '../../middlewares/passport';
 

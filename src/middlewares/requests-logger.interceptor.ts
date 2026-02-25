@@ -1,14 +1,14 @@
 import {
   Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
+  type NestInterceptor,
+  type ExecutionContext,
+  type CallHandler,
   Logger,
 } from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { Request } from 'express';
+import { type Observable } from 'rxjs';
+import { type Request } from 'express';
 import jwt from 'jsonwebtoken';
-import { User } from '../modules/user/user.domain';
+import { type User } from '../modules/user/user.domain';
 
 @Injectable()
 export class RequestLoggerInterceptor implements NestInterceptor {

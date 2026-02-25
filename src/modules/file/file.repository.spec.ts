@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/sequelize';
 import { createMock } from '@golevelup/ts-jest';
 import {
@@ -7,9 +7,12 @@ import {
   newUser,
   newWorkspace,
 } from '../../../test/fixtures';
-import { FileAttributes, FileStatus } from './file.domain';
+import { type FileAttributes, FileStatus } from './file.domain';
 import { FileModel } from './file.model';
-import { FileRepository, SequelizeFileRepository } from './file.repository';
+import {
+  type FileRepository,
+  SequelizeFileRepository,
+} from './file.repository';
 import { Op, QueryTypes } from 'sequelize';
 import { v4 } from 'uuid';
 import { UserModel } from '../user/user.model';
@@ -1083,7 +1086,9 @@ describe('FileRepository', () => {
       const fileUuids = [v4(), v4(), v4()];
       const updatedCount = 3;
 
-      jest.spyOn(fileModel, 'update').mockResolvedValueOnce([updatedCount] as any);
+      jest
+        .spyOn(fileModel, 'update')
+        .mockResolvedValueOnce([updatedCount] as any);
 
       const result = await repository.deleteFilesByUuid(fileUuids);
 
@@ -1106,7 +1111,9 @@ describe('FileRepository', () => {
       const fileUuid = v4();
       const updatedCount = 1;
 
-      jest.spyOn(fileModel, 'update').mockResolvedValueOnce([updatedCount] as any);
+      jest
+        .spyOn(fileModel, 'update')
+        .mockResolvedValueOnce([updatedCount] as any);
 
       const result = await repository.deleteFilesByUuid([fileUuid]);
 
@@ -1129,7 +1136,9 @@ describe('FileRepository', () => {
       const fileUuids = [v4(), v4()];
       const updatedCount = 0;
 
-      jest.spyOn(fileModel, 'update').mockResolvedValueOnce([updatedCount] as any);
+      jest
+        .spyOn(fileModel, 'update')
+        .mockResolvedValueOnce([updatedCount] as any);
 
       const result = await repository.deleteFilesByUuid(fileUuids);
 

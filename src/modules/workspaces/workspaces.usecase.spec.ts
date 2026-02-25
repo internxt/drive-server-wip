@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { SequelizeWorkspaceRepository } from './repositories/workspaces.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { UserUseCases } from '../user/user.usecase';
@@ -28,20 +28,20 @@ import {
   ConflictException,
   ForbiddenException,
   InternalServerErrorException,
-  Logger,
+  type Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PreCreatedUser } from '../user/pre-created-user.domain';
+import { type PreCreatedUser } from '../user/pre-created-user.domain';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
-import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
+import { type EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
+import { type CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 import { FileUseCases } from '../file/file.usecase';
-import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
+import { type CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { FileStatus } from '../file/file.domain';
 import { v4 } from 'uuid';
 import { SharingService } from '../sharing/sharing.service';
@@ -50,17 +50,17 @@ import {
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
 import { Role, SharedWithType } from '../sharing/sharing.domain';
-import { WorkspaceAttributes } from './attributes/workspace.attributes';
+import { type WorkspaceAttributes } from './attributes/workspace.attributes';
 import * as jwtUtils from '../../lib/jwt';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import {
-  FileWithSharedInfo,
-  FolderWithSharedInfo,
+  type FileWithSharedInfo,
+  type FolderWithSharedInfo,
 } from '../sharing/dto/get-items-and-shared-folders.dto';
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
-import { FuzzySearchResult } from '../fuzzy-search/dto/fuzzy-search-result.dto';
+import { type FuzzySearchResult } from '../fuzzy-search/dto/fuzzy-search-result.dto';
 import { FolderStatus } from '../folder/folder.domain';
-import { WorkspaceLog } from './domains/workspace-log.domain';
+import { type WorkspaceLog } from './domains/workspace-log.domain';
 import {
   WorkspaceLogPlatform,
   WorkspaceLogType,
@@ -125,7 +125,9 @@ describe('WorkspacesUsecases', () => {
     sharingUseCases = module.get<SharingService>(SharingService);
     paymentsService = module.get<PaymentsService>(PaymentsService);
     fuzzySearchUseCases = module.get<FuzzySearchUseCases>(FuzzySearchUseCases);
-    trashRepository = module.get<SequelizeTrashRepository>(SequelizeTrashRepository);
+    trashRepository = module.get<SequelizeTrashRepository>(
+      SequelizeTrashRepository,
+    );
   });
 
   it('should be defined', () => {
@@ -3866,9 +3868,7 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(fileUseCases, 'getFilesInWorkspace')
         .mockResolvedValue(trashedFiles);
-      jest
-        .spyOn(trashRepository, 'findByItemIds')
-        .mockResolvedValue([]);
+      jest.spyOn(trashRepository, 'findByItemIds').mockResolvedValue([]);
 
       const result = await service.getWorkspaceUserTrashedItems(
         user,
@@ -3895,9 +3895,7 @@ describe('WorkspacesUsecases', () => {
       jest
         .spyOn(folderUseCases, 'getFoldersInWorkspace')
         .mockResolvedValue(trashedFolders);
-      jest
-        .spyOn(trashRepository, 'findByItemIds')
-        .mockResolvedValue([]);
+      jest.spyOn(trashRepository, 'findByItemIds').mockResolvedValue([]);
 
       const result = await service.getWorkspaceUserTrashedItems(
         user,

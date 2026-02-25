@@ -8,14 +8,14 @@ import { LoginAccessDto } from './dto/login-access.dto';
 import {
   BadRequestException,
   ConflictException,
-  Logger,
+  type Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import { v4 } from 'uuid';
 import { TwoFactorAuthService } from './two-factor-auth.service';
-import { GeneratedSecret } from 'speakeasy';
+import { type GeneratedSecret } from 'speakeasy';
 import { UpdateTfaDto } from './dto/update-tfa.dto';
 import { DeleteTfaDto } from './dto/delete-tfa.dto';
 import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';

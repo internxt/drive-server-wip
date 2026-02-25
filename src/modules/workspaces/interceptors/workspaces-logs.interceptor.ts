@@ -1,21 +1,21 @@
 import {
   Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
+  type NestInterceptor,
+  type ExecutionContext,
+  type CallHandler,
   Logger,
 } from '@nestjs/common';
-import { Observable } from 'rxjs';
+import { type Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { SequelizeWorkspaceRepository } from '../repositories/workspaces.repository';
 import {
-  WorkspaceLogAttributes,
+  type WorkspaceLogAttributes,
   WorkspaceLogPlatform,
   WorkspaceLogType,
   WorkspaceLogGlobalActionType,
 } from '../attributes/workspace-logs.attributes';
-import { User } from '../../user/user.domain';
-import { DeleteItemDto } from './../../trash/dto/controllers/delete-item.dto';
+import { type User } from '../../user/user.domain';
+import { type DeleteItemDto } from './../../trash/dto/controllers/delete-item.dto';
 import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
 
 type ActionHandler = {

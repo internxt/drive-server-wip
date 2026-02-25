@@ -14,7 +14,7 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { BackupModel } from './backup.model';
-import { DeviceAttributes } from './device.attributes';
+import { type DeviceAttributes } from './device.attributes';
 import { FolderModel } from '../../folder/folder.model';
 import { DevicePlatform } from '../device.domain';
 

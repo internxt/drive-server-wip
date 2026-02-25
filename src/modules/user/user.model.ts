@@ -14,7 +14,7 @@ import {
 } from 'sequelize-typescript';
 
 import { FolderModel } from '../folder/folder.model';
-import { UserAttributes } from './user.attributes';
+import { type UserAttributes } from './user.attributes';
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
 
 @Table({

@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { User } from '../../modules/user/user.domain';
+import { type User } from '../../modules/user/user.domain';
 
 type Context = {
   user: User['uuid'];

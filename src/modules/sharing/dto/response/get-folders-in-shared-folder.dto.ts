@@ -1,6 +1,6 @@
 import { ApiProperty, IntersectionType } from '@nestjs/swagger';
-import { Role, Sharing } from '../../sharing.domain';
-import { Folder } from '../../../folder/folder.domain';
+import { type Role, type Sharing } from '../../sharing.domain';
+import { type Folder } from '../../../folder/folder.domain';
 import { NetworkCredentialsDto, SharingOwnerInfoDto } from './shared-base.dto';
 import { FileDto } from '../../../file/dto/responses/file.dto';
 import { FolderDto } from '../../../folder/dto/responses/folder.dto';

@@ -1,7 +1,7 @@
 import {
   BadRequestException,
-  CanActivate,
-  ExecutionContext,
+  type CanActivate,
+  type ExecutionContext,
   ForbiddenException,
   Injectable,
   Logger,
@@ -11,7 +11,7 @@ import { Reflector } from '@nestjs/core';
 import { WorkspacesUsecases } from '../workspaces.usecase';
 import {
   AccessContext,
-  AccessOptions,
+  type AccessOptions,
   WorkspaceContextIdFieldName,
   WorkspaceRole,
 } from './workspace-required-access.decorator';

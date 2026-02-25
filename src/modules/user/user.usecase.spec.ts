@@ -1,6 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { AttemptChangeEmailModel } from './attempt-change-email.model';
+import { Test, type TestingModule } from '@nestjs/testing';
+import { createMock, type DeepMocked } from '@golevelup/ts-jest';
+import { type AttemptChangeEmailModel } from './attempt-change-email.model';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 
 import {
@@ -18,12 +18,12 @@ import { AvatarService } from '../../externals/avatar/avatar.service';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { ConfigService } from '@nestjs/config';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { Folder, type FolderAttributes } from '../folder/folder.domain';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import {
   BadRequestException,
   ForbiddenException,
-  Logger,
+  type Logger,
   NotFoundException,
   UnauthorizedException,
   ConflictException,
@@ -56,18 +56,18 @@ import * as openpgpUtils from '../../externals/asymmetric-encryption/openpgp';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 import {
   DeviceType,
-  RegisterNotificationTokenDto,
+  type RegisterNotificationTokenDto,
 } from './dto/register-notification-token.dto';
-import { UserNotificationTokens } from './user-notification-tokens.domain';
+import { type UserNotificationTokens } from './user-notification-tokens.domain';
 import { v4 } from 'uuid';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import * as speakeasy from 'speakeasy';
 import { MailerService } from '../../externals/mailer/mailer.service';
-import { LoginAccessDto } from '../auth/dto/login-access.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
-import { UpdatePasswordDto } from './dto/update-password.dto';
+import { type LoginAccessDto } from '../auth/dto/login-access.dto';
+import { type UpdateProfileDto } from './dto/update-profile.dto';
+import { type UpdatePasswordDto } from './dto/update-password.dto';
 import {
-  KeyServer,
+  type KeyServer,
   UserKeysEncryptVersions,
 } from '../keyserver/key-server.domain';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
@@ -84,11 +84,11 @@ import { aes } from '@internxt/lib';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import * as jwtLibrary from '../../lib/jwt';
 import { JsonWebTokenError } from 'jsonwebtoken';
-import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
+import { type LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
-import { PreCreateUserDto } from './dto/pre-create-user.dto';
-import { IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
+import { type PreCreateUserDto } from './dto/pre-create-user.dto';
+import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import * as bip39 from 'bip39';
 import getEnv from '../../config/configuration';
 

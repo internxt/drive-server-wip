@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty } from 'class-validator';
-import { SharingRole } from '../sharing.domain';
+import { type SharingRole } from '../sharing.domain';
 
 export class UpdateSharingRoleDto {
   @ApiProperty({

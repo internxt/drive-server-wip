@@ -11,7 +11,7 @@ import {
   AllowNull,
   Unique,
 } from 'sequelize-typescript';
-import { ReferralAttributes } from './user.domain';
+import { type ReferralAttributes } from './user.domain';
 
 @Table({
   underscored: true,

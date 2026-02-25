@@ -1,12 +1,12 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { UserAttributes } from '../user/user.attributes';
+import { type UserAttributes } from '../user/user.attributes';
 import {
   KeyServer,
-  KeyServerAttributes,
+  type KeyServerAttributes,
   UserKeysEncryptVersions,
 } from './key-server.domain';
 import { SequelizeKeyServerRepository } from './key-server.repository';
-import { EccKeysDto, KyberKeysDto } from './dto/keys.dto';
+import { type EccKeysDto, type KyberKeysDto } from './dto/keys.dto';
 
 export class InvalidKeyServerException extends BadRequestException {
   constructor(public validationMessage: string) {

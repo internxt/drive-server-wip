@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional } from 'class-validator';
-import { WorkspaceTeam } from '../domains/workspace-team.domain';
+import { type WorkspaceTeam } from '../domains/workspace-team.domain';
 
 export class CreateTeamDto {
   @ApiProperty({

@@ -4,9 +4,9 @@ import { DeviceModel } from './models/device.model';
 import { BackupModel } from './models/backup.model';
 import { Device, DEVICE_LEGACY_NULL_FOLDER_UUID } from './device.domain';
 import { Backup } from './backup.domain';
-import { User } from '../user/user.domain';
+import { type User } from '../user/user.domain';
 import { Op, Sequelize } from 'sequelize';
-import { DeviceAttributes } from './models/device.attributes';
+import { type DeviceAttributes } from './models/device.attributes';
 
 @Injectable()
 export class SequelizeBackupRepository {

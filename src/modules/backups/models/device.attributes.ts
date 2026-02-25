@@ -1,4 +1,4 @@
-import { DevicePlatform } from '../device.domain';
+import { type DevicePlatform } from '../device.domain';
 
 export interface DeviceAttributes {
   id?: number;

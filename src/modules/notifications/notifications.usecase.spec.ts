@@ -1,11 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { Test, type TestingModule } from '@nestjs/testing';
+import { createMock, type DeepMocked } from '@golevelup/ts-jest';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { NotificationsUseCases } from './notifications.usecase';
 import { NotificationRepository } from './notifications.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { NotificationTargetType } from './domain/notification.domain';
-import { CreateNotificationDto } from './dto/create-notification.dto';
+import { type CreateNotificationDto } from './dto/create-notification.dto';
 import {
   newNotification,
   newUser,

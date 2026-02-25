@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { User } from '../user/user.domain';
 import { UserModel } from '../user/user.model';
-import { SendLink, SendLinkAttributes } from './send-link.domain';
+import { SendLink, type SendLinkAttributes } from './send-link.domain';
 import { SendLinkItem } from './send-link-item.domain';
 
 import {

@@ -12,28 +12,28 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import { User } from '../user/user.domain';
-import { UserAttributes } from '../user/user.attributes';
+import { type User } from '../user/user.domain';
+import { type UserAttributes } from '../user/user.attributes';
 import { SequelizeUserRepository } from '../user/user.repository';
 import {
   Folder,
-  FolderOptions,
-  SortableFolderAttributes,
+  type FolderOptions,
+  type SortableFolderAttributes,
 } from './folder.domain';
-import { FolderAttributes } from './folder.attributes';
+import { type FolderAttributes } from './folder.attributes';
 import { SequelizeFolderRepository } from './folder.repository';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
-import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
+import { type WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
 import { v4 } from 'uuid';
-import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
-import { FolderStatsDto } from './dto/responses/folder-stats.dto';
-import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { type UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
+import { type FolderStatsDto } from './dto/responses/folder-stats.dto';
+import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { FileUseCases } from '../file/file.usecase';
-import { File, FileStatus } from '../file/file.domain';
-import { CreateFolderDto } from './dto/create-folder.dto';
-import { FolderModel } from './folder.model';
-import { MoveFolderDto } from './dto/move-folder.dto';
+import { type File, FileStatus } from '../file/file.domain';
+import { type CreateFolderDto } from './dto/create-folder.dto';
+import { type FolderModel } from './folder.model';
+import { type MoveFolderDto } from './dto/move-folder.dto';
 import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';

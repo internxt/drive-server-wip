@@ -1,12 +1,16 @@
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { createMock, type DeepMocked } from '@golevelup/ts-jest';
 import { WorkspacesLogsInterceptor } from './workspaces-logs.interceptor';
-import { SequelizeWorkspaceRepository } from '../repositories/workspaces.repository';
+import { type SequelizeWorkspaceRepository } from '../repositories/workspaces.repository';
 import {
   WorkspaceLogType,
   WorkspaceLogPlatform,
   WorkspaceLogGlobalActionType,
 } from '../attributes/workspace-logs.attributes';
-import { CallHandler, ExecutionContext, Logger } from '@nestjs/common';
+import {
+  type CallHandler,
+  type ExecutionContext,
+  Logger,
+} from '@nestjs/common';
 import { isObservable, lastValueFrom, of } from 'rxjs';
 import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
 import { ClientEnum } from '../../../common/enums/platform.enum';

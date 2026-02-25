@@ -1,12 +1,12 @@
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { createMock, type DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
-import { Logger } from '@nestjs/common';
+import { type Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DeleteExpiredFileVersionsTask } from './delete-expired-file-versions.task';
 import { RedisService } from '../../../externals/redis/redis.service';
 import { DeleteExpiredFileVersionsAction } from '../../file/actions';
 import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
-import { JobExecutionModel } from '../models/job-execution.model';
+import { type JobExecutionModel } from '../models/job-execution.model';
 import { JobName } from '../constants';
 
 describe('DeleteExpiredFileVersionsTask', () => {
@@ -26,7 +26,9 @@ describe('DeleteExpiredFileVersionsTask', () => {
 
     task = moduleRef.get(DeleteExpiredFileVersionsTask);
     jobExecutionRepository = moduleRef.get(SequelizeJobExecutionRepository);
-    deleteExpiredFileVersionsAction = moduleRef.get(DeleteExpiredFileVersionsAction);
+    deleteExpiredFileVersionsAction = moduleRef.get(
+      DeleteExpiredFileVersionsAction,
+    );
     redisService = moduleRef.get(RedisService);
     configService = moduleRef.get(ConfigService);
   });
@@ -94,7 +96,9 @@ describe('DeleteExpiredFileVersionsTask', () => {
       deleteExpiredFileVersionsAction.execute.mockResolvedValue({
         deletedCount: 0,
       });
-      jobExecutionRepository.markAsCompleted.mockResolvedValue(mockCompletedJob);
+      jobExecutionRepository.markAsCompleted.mockResolvedValue(
+        mockCompletedJob,
+      );
 
       await task.startJob();
 
@@ -109,7 +113,9 @@ describe('DeleteExpiredFileVersionsTask', () => {
       deleteExpiredFileVersionsAction.execute.mockResolvedValue({
         deletedCount: 250,
       });
-      jobExecutionRepository.markAsCompleted.mockResolvedValue(mockCompletedJob);
+      jobExecutionRepository.markAsCompleted.mockResolvedValue(
+        mockCompletedJob,
+      );
 
       await task.startJob();
 
@@ -138,7 +144,9 @@ describe('DeleteExpiredFileVersionsTask', () => {
       deleteExpiredFileVersionsAction.execute.mockResolvedValue({
         deletedCount: 10000,
       });
-      jobExecutionRepository.markAsCompleted.mockResolvedValue(mockCompletedJob);
+      jobExecutionRepository.markAsCompleted.mockResolvedValue(
+        mockCompletedJob,
+      );
 
       await task.startJob();
 

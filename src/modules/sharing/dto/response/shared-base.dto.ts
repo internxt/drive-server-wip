@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { User } from '../../../user/user.domain';
+import { type User } from '../../../user/user.domain';
 export class NetworkCredentialsDto {
   @ApiProperty({
     description: 'Network password for the user',

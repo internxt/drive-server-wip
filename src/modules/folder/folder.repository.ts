@@ -2,30 +2,30 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
 import { InjectModel } from '@nestjs/sequelize';
 import {
-  FindOptions,
+  type FindOptions,
   Op,
   QueryTypes,
   Sequelize,
-  WhereOptions,
+  type WhereOptions,
 } from 'sequelize';
 import { v4 } from 'uuid';
 
 import { Folder } from './folder.domain';
-import { FolderAttributes } from './folder.attributes';
+import { type FolderAttributes } from './folder.attributes';
 import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import {
   WorkspaceItemType,
-  WorkspaceItemUserAttributes,
+  type WorkspaceItemUserAttributes,
 } from '../workspaces/attributes/workspace-items-users.attributes';
-import { Literal } from 'sequelize/types/utils';
-import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { type Literal } from 'sequelize/types/utils';
+import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { FileStatus } from '../file/file.domain';
 import { UserModel } from '../user/user.model';
 import { User } from '../user/user.domain';
-import { UserAttributes } from '../user/user.attributes';
+import { type UserAttributes } from '../user/user.attributes';
 import { Pagination } from '../../lib/pagination';
 
 function mapSnakeCaseToCamelCase(data) {

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
 import { InjectModel } from '@nestjs/sequelize';
 import { AttemptChangeEmailStatus } from './attempt-change-email.attributes';
-import { Transaction } from 'sequelize';
+import { type Transaction } from 'sequelize';
 
 @Injectable()
 export class SequelizeAttemptChangeEmailRepository {
