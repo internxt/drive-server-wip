@@ -32,6 +32,7 @@ import { getClientIdFromHeaders } from './common/decorators/client.decorator';
 import { AuthGuard } from './modules/auth/auth.guard';
 import { CacheManagerModule } from './modules/cache-manager/cache-manager.module';
 import { ReferralModule } from './modules/referral/referral.module';
+import { UsageQueueModule } from './modules/usage-queue/usage-queue.module';
 
 @Module({
   imports: [
@@ -147,6 +148,7 @@ import { ReferralModule } from './modules/referral/referral.module';
     GatewayModule,
     CacheManagerModule,
     ReferralModule,
+    UsageQueueModule,
   ],
   controllers: [],
   providers: [
