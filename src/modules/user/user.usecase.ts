@@ -12,6 +12,8 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { emitUsageInvalidated } from '../usage-queue/events/usage-invalidated.event';
 import { v4, validate } from 'uuid';
 import { generateMnemonic } from 'bip39';
 import * as speakeasy from 'speakeasy';
@@ -167,6 +169,7 @@ export class UserUseCases {
     private readonly backupUseCases: BackupUseCase,
     private readonly cacheManager: CacheManagerService,
     private readonly asymmetricEncryptionService: AsymmetricEncryptionService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async getCachedAvatar(user: User): Promise<string | null> {
@@ -1879,25 +1882,25 @@ export class UserUseCases {
   async getUserUsage(
     user: User,
   ): Promise<{ drive: number; backup: number; total: number }> {
-    let totalDriveUsage = 0;
-    const cachedUsage = await this.cacheManager.getUserUsage(user.uuid);
+    const cached = await this.cacheManager.getUserUsage(user.uuid);
 
-    if (cachedUsage) {
-      totalDriveUsage = cachedUsage.usage;
-    } else {
-      const driveUsage = await this.fileUseCases.getUserUsedStorage(user);
-      await this.cacheManager.setUserUsage(user.uuid, driveUsage);
-      totalDriveUsage = driveUsage;
+    if (cached) {
+      return cached;
     }
 
-    const backupUsage = await this.backupUseCases.sumExistentBackupSizes(
-      user.id,
-    );
+    const [driveUsage, backupUsage] = await Promise.all([
+      this.fileUseCases.getUserUsedStorage(user),
+      this.backupUseCases.sumExistentBackupSizes(user.id),
+    ]);
+
+    // Let the queue processor be the sole cache writer to avoid race
+    // conditions where this read-path write overwrites a fresher value.
+    emitUsageInvalidated(this.eventEmitter, user.uuid, user.id, 'cache_miss');
 
     return {
-      drive: totalDriveUsage,
+      drive: driveUsage,
       backup: backupUsage,
-      total: totalDriveUsage + backupUsage,
+      total: driveUsage + backupUsage,
     };
   }
 

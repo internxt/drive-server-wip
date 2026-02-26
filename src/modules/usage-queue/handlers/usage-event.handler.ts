@@ -2,8 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectQueue } from '@nestjs/bullmq';
 import { type Queue } from 'bullmq';
-import { type UsageInvalidatedEvent } from '../events/usage-invalidated.event';
+import {
+  type UsageInvalidatedEvent,
+  USAGE_INVALIDATED_EVENT,
+} from '../events/usage-invalidated.event';
 import { USAGE_QUEUE_NAME } from '../usage-queue.constants';
+
+const DEDUPLICATION_WINDOW_MS = 3000;
 
 @Injectable()
 export class UsageEventHandler {
@@ -13,7 +18,7 @@ export class UsageEventHandler {
     @InjectQueue(USAGE_QUEUE_NAME) private readonly usageQueue: Queue,
   ) {}
 
-  @OnEvent('usage.**')
+  @OnEvent(USAGE_INVALIDATED_EVENT)
   async handleUsageInvalidated(event: UsageInvalidatedEvent) {
     try {
       await this.usageQueue.add(
@@ -24,8 +29,12 @@ export class UsageEventHandler {
           source: event.source,
         },
         {
-          jobId: event.userUuid,
-          delay: 3000,
+          deduplication: {
+            id: event.userUuid,
+            ttl: DEDUPLICATION_WINDOW_MS,
+            extend: true,
+          },
+          delay: DEDUPLICATION_WINDOW_MS,
         },
       );
     } catch (error) {
