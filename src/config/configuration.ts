@@ -34,6 +34,9 @@ export default () => ({
   },
   cache: {
     redisConnectionString: process.env.REDIS_CONNECTION_STRING,
+    bullRedisConnectionString:
+      process.env.BULL_REDIS_CONNECTION_STRING ||
+      process.env.REDIS_CONNECTION_STRING,
   },
   secrets: {
     cryptoSecret: process.env.CRYPTO_SECRET,
