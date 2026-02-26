@@ -6,8 +6,8 @@ import { UsageEventHandler } from './handlers/usage-event.handler';
 import { FileModule } from '../file/file.module';
 import { BackupModule } from '../backups/backup.module';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
-
-export const USAGE_QUEUE_NAME = 'usage-recomputation';
+import { USAGE_QUEUE_NAME } from './usage-queue.constants';
+export { USAGE_QUEUE_NAME } from './usage-queue.constants';
 
 function parseRedisUrl(url: string): {
   host: string;
