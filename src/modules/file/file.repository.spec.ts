@@ -1163,4 +1163,448 @@ describe('FileRepository', () => {
       expect(result).toBe(0);
     });
   });
+
+  describe('deleteByFileId', () => {
+    it('When called, then it should throw as method is not implemented', async () => {
+      await expect(repository.deleteByFileId('any-id')).rejects.toThrow();
+    });
+  });
+
+  describe('findById', () => {
+    it('When a file is found, then it should return the mapped file', async () => {
+      const mockFile = newFile();
+      const model: FileModel = {
+        ...mockFile,
+        toJSON: mockFile.toJSON,
+      } as any;
+
+      jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(model);
+
+      const result = await (repository as SequelizeFileRepository).findById(
+        mockFile.uuid,
+      );
+
+      expect(fileModel.findOne).toHaveBeenCalledWith({
+        where: { uuid: mockFile.uuid },
+      });
+      expect(result).toBeDefined();
+    });
+
+    it('When additional where options are provided, then it should include them in the query', async () => {
+      const mockFile = newFile();
+      const model: FileModel = {
+        ...mockFile,
+        toJSON: mockFile.toJSON,
+      } as any;
+
+      jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(model);
+
+      await (repository as SequelizeFileRepository).findById(mockFile.uuid, {
+        status: FileStatus.EXISTS,
+      } as any);
+
+      expect(fileModel.findOne).toHaveBeenCalledWith({
+        where: { uuid: mockFile.uuid, status: FileStatus.EXISTS },
+      });
+    });
+  });
+
+  describe('findByUuids', () => {
+    it('When files are found by uuids, then it should return an array of files', async () => {
+      const mockFile = newFile();
+      const uuids = [mockFile.uuid, v4()];
+      const model: FileModel = {
+        ...mockFile,
+        toJSON: mockFile.toJSON,
+      } as any;
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([model]);
+
+      const result = await (repository as SequelizeFileRepository).findByUuids(
+        uuids,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          uuid: expect.objectContaining({ [Op.in]: uuids }),
+        }),
+      });
+      expect(result).toHaveLength(1);
+    });
+
+    it('When no files are found, then it should return an empty array', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await (repository as SequelizeFileRepository).findByUuids([
+        v4(),
+      ]);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('findByUuid', () => {
+    it('When a file is found, then it should return the mapped file', async () => {
+      const mockFile = newFile();
+      const model: FileModel = {
+        ...mockFile,
+        toJSON: mockFile.toJSON,
+      } as any;
+
+      jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(model);
+
+      const result = await repository.findByUuid(
+        mockFile.uuid,
+        mockFile.userId,
+        {},
+      );
+
+      expect(fileModel.findOne).toHaveBeenCalledWith({
+        where: { uuid: mockFile.uuid, userId: mockFile.userId },
+      });
+      expect(result).toBeDefined();
+    });
+
+    it('When no file is found, then it should return null', async () => {
+      jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(null);
+
+      const result = await repository.findByUuid(v4(), 1, {});
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('findAllNotDeleted', () => {
+    it('When files are found, then it should return files excluding deleted ones', async () => {
+      const mockFile = newFile();
+      const model: FileModel = {
+        ...mockFile,
+        toJSON: mockFile.toJSON,
+      } as any;
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([model]);
+
+      const result = await (
+        repository as SequelizeFileRepository
+      ).findAllNotDeleted({ userId: mockFile.userId }, 10, 0);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          limit: 10,
+          offset: 0,
+          where: expect.objectContaining({
+            status: expect.objectContaining({ [Op.not]: FileStatus.DELETED }),
+          }),
+        }),
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('When no files are found, then it should return an empty array', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await (
+        repository as SequelizeFileRepository
+      ).findAllNotDeleted({}, 10, 0);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('findAllCursorWithThumbnails', () => {
+    it('When files are found, then it should return them with thumbnail includes', async () => {
+      const mockFile = newFile();
+      const model: FileModel = {
+        ...mockFile,
+        toJSON: mockFile.toJSON,
+      } as any;
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([model]);
+
+      const result = await (
+        repository as SequelizeFileRepository
+      ).findAllCursorWithThumbnails({ userId: mockFile.userId }, 10, 0);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          limit: 10,
+          offset: 0,
+          include: expect.any(Array),
+          subQuery: false,
+        }),
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('When no files are found, then it should return an empty array', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await (
+        repository as SequelizeFileRepository
+      ).findAllCursorWithThumbnails({}, 10, 0);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('findByIds', () => {
+    it('When files are found by ids, then it should return an array of files', async () => {
+      const mockFile = newFile();
+      const model: FileModel = {
+        ...mockFile,
+        toJSON: mockFile.toJSON,
+      } as any;
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([model]);
+
+      const result = await (repository as SequelizeFileRepository).findByIds(
+        mockFile.userId,
+        [mockFile.id],
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: { id: { [Op.in]: [mockFile.id] }, userId: mockFile.userId },
+      });
+      expect(result).toHaveLength(1);
+    });
+
+    it('When no files are found, then it should return an empty array', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await (repository as SequelizeFileRepository).findByIds(
+        1,
+        [999],
+      );
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('findAllByFolderIdAndUserId with pagination', () => {
+    it('When page and perPage are provided, then it should apply offset and limit to the query', async () => {
+      const mockFile = newFile();
+      const model: FileModel = {
+        ...mockFile,
+        toJSON: mockFile.toJSON,
+      } as any;
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([model]);
+
+      await repository.findAllByFolderIdAndUserId(
+        mockFile.folderId,
+        mockFile.userId,
+        { deleted: false, page: 1, perPage: 10 },
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          offset: 10,
+          limit: 10,
+          where: expect.objectContaining({
+            folderId: mockFile.folderId,
+            userId: mockFile.userId,
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('getFilesByFolderUuid', () => {
+    it('When files are found in a folder, then it should return them', async () => {
+      const mockFile = newFile();
+      const model: FileModel = {
+        ...mockFile,
+        toJSON: mockFile.toJSON,
+      } as any;
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([model]);
+
+      const result = await repository.getFilesByFolderUuid(
+        mockFile.folderUuid,
+        FileStatus.EXISTS,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { folderUuid: mockFile.folderUuid, status: FileStatus.EXISTS },
+          include: expect.any(Array),
+        }),
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('When no files are found, then it should return an empty array', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await repository.getFilesByFolderUuid(
+        v4(),
+        FileStatus.EXISTS,
+      );
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('findOneBy', () => {
+    it('When a file is found, then it should return the file', async () => {
+      const mockFile = newFile();
+      const model: FileModel = {
+        ...mockFile,
+        toJSON: mockFile.toJSON,
+      } as any;
+
+      jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(model);
+
+      const result = await repository.findOneBy({ uuid: mockFile.uuid });
+
+      expect(fileModel.findOne).toHaveBeenCalledWith({
+        where: { uuid: mockFile.uuid },
+      });
+      expect(result).toBeDefined();
+    });
+
+    it('When no file is found, then it should return null', async () => {
+      jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(null);
+
+      const result = await repository.findOneBy({ uuid: v4() });
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('updateByUuidAndUserId', () => {
+    it('When called, then it should call update with the given data and where clause', async () => {
+      const mockFile = newFile();
+      const update = { plainName: 'new-name' };
+
+      await repository.updateByUuidAndUserId(
+        mockFile.uuid,
+        mockFile.userId,
+        update,
+      );
+
+      expect(fileModel.update).toHaveBeenCalledWith(update, {
+        where: { userId: mockFile.userId, uuid: mockFile.uuid },
+      });
+    });
+  });
+
+  describe('getFilesWhoseFolderIdDoesNotExist', () => {
+    it('When called, then it should return the count of orphan files', async () => {
+      const count = 3;
+
+      jest.spyOn(fileModel, 'findAndCountAll').mockResolvedValueOnce({
+        rows: [],
+        count,
+      } as any);
+
+      const result = await repository.getFilesWhoseFolderIdDoesNotExist(
+        user.id,
+      );
+
+      expect(result).toBe(count);
+    });
+  });
+
+  describe('getFilesCountWhere', () => {
+    it('When called, then it should return the count of matching files', async () => {
+      const count = 5;
+
+      jest.spyOn(fileModel, 'findAndCountAll').mockResolvedValueOnce({
+        rows: [],
+        count,
+      } as any);
+
+      const result = await repository.getFilesCountWhere({
+        userId: user.id,
+        status: FileStatus.EXISTS,
+      });
+
+      expect(fileModel.findAndCountAll).toHaveBeenCalledWith({
+        where: { userId: user.id, status: FileStatus.EXISTS },
+      });
+      expect(result).toBe(count);
+    });
+  });
+
+  describe('updateFilesStatusToTrashed', () => {
+    it('When called, then it should update files status to trashed using fileIds', async () => {
+      const fileIds = [v4(), v4()];
+
+      await repository.updateFilesStatusToTrashed(user, fileIds);
+
+      expect(fileModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deleted: true,
+          status: FileStatus.TRASHED,
+        }),
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: user.id,
+            fileId: { [Op.in]: fileIds },
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('updateFilesStatusToTrashedByUuid', () => {
+    it('When called, then it should update files status to trashed using uuids', async () => {
+      const fileUuids = [v4(), v4()];
+
+      await repository.updateFilesStatusToTrashedByUuid(user, fileUuids);
+
+      expect(fileModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deleted: true,
+          status: FileStatus.TRASHED,
+        }),
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: user.id,
+            uuid: { [Op.in]: fileUuids },
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('markFilesInFolderAsRemoved', () => {
+    it('When called, then it should mark files as removed and return the updated count', async () => {
+      const parentUuids = [v4(), v4()];
+      const updatedCount = 5;
+
+      jest
+        .spyOn(fileModel, 'update')
+        .mockResolvedValueOnce([updatedCount] as any);
+
+      const result = await (
+        repository as SequelizeFileRepository
+      ).markFilesInFolderAsRemoved(parentUuids);
+
+      expect(fileModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          removed: true,
+          status: FileStatus.DELETED,
+        }),
+        expect.objectContaining({
+          where: expect.objectContaining({
+            folderUuid: { [Op.in]: parentUuids },
+            status: { [Op.not]: FileStatus.DELETED },
+          }),
+        }),
+      );
+      expect(result).toEqual({ updatedCount });
+    });
+
+    it('When no files are updated, then it should return zero count', async () => {
+      jest.spyOn(fileModel, 'update').mockResolvedValueOnce([0] as any);
+
+      const result = await (
+        repository as SequelizeFileRepository
+      ).markFilesInFolderAsRemoved([v4()]);
+
+      expect(result).toEqual({ updatedCount: 0 });
+    });
+  });
 });

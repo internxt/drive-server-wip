@@ -3552,4 +3552,607 @@ describe('FileUseCases', () => {
       expect(result).toEqual({ deletedCount: 150 });
     });
   });
+
+  describe('getByUuid', () => {
+    it('When called with a uuid, then it should delegate to repository findById', async () => {
+      const mockFile = newFile();
+      jest
+        .spyOn(fileRepository as any, 'findById')
+        .mockResolvedValueOnce(mockFile);
+
+      const result = await service.getByUuid(mockFile.uuid);
+
+      expect((fileRepository as any).findById).toHaveBeenCalledWith(
+        mockFile.uuid,
+      );
+      expect(result).toEqual(mockFile);
+    });
+  });
+
+  describe('getFilesAndUserByUuid', () => {
+    it('When called with uuids, then it should delegate to repository getFilesWithUserByUuuid', async () => {
+      const mockFiles = [newFile(), newFile()];
+      const uuids = mockFiles.map((f) => f.uuid);
+
+      jest
+        .spyOn(fileRepository, 'getFilesWithUserByUuuid')
+        .mockResolvedValueOnce(mockFiles);
+
+      const result = await service.getFilesAndUserByUuid(uuids);
+
+      expect(fileRepository.getFilesWithUserByUuuid).toHaveBeenCalledWith(
+        uuids,
+        undefined,
+      );
+      expect(result).toEqual(mockFiles);
+    });
+  });
+
+  describe('getByUuids', () => {
+    it('When called with uuids, then it should delegate to repository findByUuids', async () => {
+      const mockFiles = [newFile()];
+      const uuids = mockFiles.map((f) => f.uuid);
+
+      jest
+        .spyOn(fileRepository as any, 'findByUuids')
+        .mockResolvedValueOnce(mockFiles);
+
+      const result = await service.getByUuids(uuids);
+
+      expect((fileRepository as any).findByUuids).toHaveBeenCalledWith(uuids);
+      expect(result).toEqual(mockFiles);
+    });
+  });
+
+  describe('getZeroSizeFilesInWorkspaceByMember', () => {
+    it('When called, then it should delegate to repository and return count', async () => {
+      const memberId = v4();
+      const workspaceId = v4();
+      const count = 3;
+
+      jest
+        .spyOn(fileRepository, 'getZeroSizeFilesCountInWorkspaceByMember')
+        .mockResolvedValueOnce(count);
+
+      const result = await service.getZeroSizeFilesInWorkspaceByMember(
+        memberId,
+        workspaceId,
+      );
+
+      expect(
+        fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+      ).toHaveBeenCalledWith(memberId, workspaceId);
+      expect(result).toBe(count);
+    });
+  });
+
+  describe('updateFileMetaData ownership check', () => {
+    it('When file is not owned by user, then it should throw ForbiddenException', async () => {
+      const newFileMeta: UpdateFileMetaDto = { plainName: 'new-name' };
+      const mockFile = newFile();
+
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValueOnce(mockFile);
+
+      await expect(
+        service.updateFileMetaData(userMocked, mockFile.uuid, newFileMeta),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getFilesByIds', () => {
+    it('When called, then it should delegate to repository findByIds', async () => {
+      const mockFiles = [newFile()];
+      const fileIds = [1, 2];
+
+      jest
+        .spyOn(fileRepository as any, 'findByIds')
+        .mockResolvedValueOnce(mockFiles);
+
+      const result = await service.getFilesByIds(userMocked, fileIds);
+
+      expect((fileRepository as any).findByIds).toHaveBeenCalledWith(
+        userMocked.id,
+        fileIds,
+      );
+      expect(result).toEqual(mockFiles);
+    });
+  });
+
+  describe('getAllFilesUpdatedAfter', () => {
+    const updatedAfter = new Date();
+    const pagination = { limit: 10, offset: 0 };
+
+    it('When called without bucket, then it should query without bucket filter', async () => {
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce([]);
+
+      await service.getAllFilesUpdatedAfter(
+        userMocked.id,
+        updatedAfter,
+        pagination,
+      );
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        expect.not.objectContaining({ bucket: expect.anything() }),
+        updatedAfter,
+        pagination.limit,
+        pagination.offset,
+        expect.any(Array),
+        undefined,
+      );
+    });
+
+    it('When called with bucket, then it should include bucket in the where clause', async () => {
+      const bucket = 'test-bucket';
+
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce([]);
+
+      await service.getAllFilesUpdatedAfter(
+        userMocked.id,
+        updatedAfter,
+        pagination,
+        bucket,
+      );
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ bucket }),
+        updatedAfter,
+        pagination.limit,
+        pagination.offset,
+        expect.any(Array),
+        undefined,
+      );
+    });
+  });
+
+  describe('getNotTrashedFilesUpdatedAfter', () => {
+    it('When called with bucket, then it should include bucket and EXISTS status in the where clause', async () => {
+      const updatedAfter = new Date();
+      const bucket = 'test-bucket';
+
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce([]);
+
+      await service.getNotTrashedFilesUpdatedAfter(
+        userMocked.id,
+        updatedAfter,
+        { limit: 10, offset: 0 },
+        bucket,
+      );
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ bucket, status: FileStatus.EXISTS }),
+        updatedAfter,
+        10,
+        0,
+        expect.any(Array),
+        undefined,
+      );
+    });
+  });
+
+  describe('getRemovedFilesUpdatedAfter', () => {
+    it('When called with bucket, then it should include bucket and DELETED status in the where clause', async () => {
+      const updatedAfter = new Date();
+      const bucket = 'test-bucket';
+
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce([]);
+
+      await service.getRemovedFilesUpdatedAfter(
+        userMocked.id,
+        updatedAfter,
+        { limit: 10, offset: 0 },
+        bucket,
+      );
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ bucket, status: FileStatus.DELETED }),
+        updatedAfter,
+        10,
+        0,
+        expect.any(Array),
+        undefined,
+      );
+    });
+  });
+
+  describe('getTrashedFilesUpdatedAfter', () => {
+    it('When called with bucket, then it should include bucket and TRASHED status in the where clause', async () => {
+      const updatedAfter = new Date();
+      const bucket = 'test-bucket';
+
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce([]);
+
+      await service.getTrashedFilesUpdatedAfter(
+        userMocked.id,
+        updatedAfter,
+        { limit: 10, offset: 0 },
+        bucket,
+      );
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ bucket, status: FileStatus.TRASHED }),
+        updatedAfter,
+        10,
+        0,
+        expect.any(Array),
+        undefined,
+      );
+    });
+  });
+
+  describe('getFilesUpdatedAfter', () => {
+    it('When no sort is provided, then it should default to updatedAt ASC', async () => {
+      const updatedAfter = new Date();
+
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce([]);
+
+      await service.getFilesUpdatedAfter(userMocked.id, {}, updatedAfter, {
+        limit: 10,
+        offset: 0,
+      });
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: userMocked.id }),
+        updatedAfter,
+        10,
+        0,
+        [['updatedAt', 'ASC']],
+        undefined,
+      );
+    });
+
+    it('When sort is provided, then it should use the provided sort', async () => {
+      const updatedAfter = new Date();
+      const sort: Array<[SortableFileAttributes, 'ASC' | 'DESC']> = [
+        ['plainName', 'ASC'],
+      ];
+
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce([]);
+
+      await service.getFilesUpdatedAfter(userMocked.id, {}, updatedAfter, {
+        limit: 10,
+        offset: 0,
+        sort,
+      });
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: userMocked.id }),
+        updatedAfter,
+        10,
+        0,
+        sort,
+        undefined,
+      );
+    });
+  });
+
+  describe('getFiles', () => {
+    it('When withoutThumbnails is true, then it should call findAllCursor instead of findAllCursorWithThumbnails', async () => {
+      const mockFile = newFile({
+        attributes: { plainName: 'file.txt', thumbnails: [] },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findAllCursor')
+        .mockResolvedValueOnce([mockFile]);
+
+      const result = await service.getFiles(
+        userMocked.id,
+        {},
+        { limit: 10, offset: 0, withoutThumbnails: true },
+      );
+
+      expect(fileRepository.findAllCursor).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: userMocked.id }),
+        10,
+        0,
+        undefined,
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('When files have no plainName, then it should decrypt the file name', async () => {
+      const mockFile = newFile({
+        attributes: { plainName: null, thumbnails: [] },
+      });
+
+      jest
+        .spyOn(fileRepository as any, 'findAllCursorWithThumbnails')
+        .mockResolvedValueOnce([mockFile]);
+      jest.spyOn(cryptoService, 'decryptName').mockReturnValue('decrypted');
+
+      const result = await service.getFiles(
+        userMocked.id,
+        {},
+        {
+          limit: 10,
+          offset: 0,
+        },
+      );
+
+      expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('getFilesInWorkspace', () => {
+    it('When withoutThumbnails is true, then it should call findAllCursorInWorkspace', async () => {
+      const createdBy = v4();
+      const workspaceId = v4();
+      const mockFile = newFile({
+        attributes: { plainName: 'file.txt', thumbnails: [] },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findAllCursorInWorkspace')
+        .mockResolvedValueOnce([mockFile]);
+
+      const result = await service.getFilesInWorkspace(
+        createdBy,
+        workspaceId,
+        {},
+        { limit: 10, offset: 0, withoutThumbnails: true },
+      );
+
+      expect(fileRepository.findAllCursorInWorkspace).toHaveBeenCalledWith(
+        createdBy,
+        workspaceId,
+        {},
+        10,
+        0,
+        undefined,
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('When called without withoutThumbnails, then it should call findAllCursorWithThumbnailsInWorkspace', async () => {
+      const createdBy = v4();
+      const workspaceId = v4();
+      const mockFile = newFile({
+        attributes: { plainName: 'file.txt', thumbnails: [] },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findAllCursorWithThumbnailsInWorkspace')
+        .mockResolvedValueOnce([mockFile]);
+
+      const result = await service.getFilesInWorkspace(
+        createdBy,
+        workspaceId,
+        {},
+        { limit: 10, offset: 0 },
+      );
+
+      expect(
+        fileRepository.findAllCursorWithThumbnailsInWorkspace,
+      ).toHaveBeenCalled();
+      expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('getFilesNotDeleted', () => {
+    it('When called, then it should delegate to repository findAllNotDeleted', async () => {
+      const mockFiles = [newFile()];
+
+      jest
+        .spyOn(fileRepository as any, 'findAllNotDeleted')
+        .mockResolvedValueOnce(mockFiles);
+
+      const result = await service.getFilesNotDeleted(
+        userMocked.id,
+        {},
+        {
+          limit: 10,
+          offset: 0,
+        },
+      );
+
+      expect((fileRepository as any).findAllNotDeleted).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: userMocked.id }),
+        10,
+        0,
+      );
+      expect(result).toEqual(mockFiles);
+    });
+  });
+
+  describe('moveFilesToTrash default fileUuids', () => {
+    it('When called without fileUuids, then it should use empty array as default', async () => {
+      jest.spyOn(fileRepository, 'findByFileIds').mockResolvedValueOnce([]);
+      jest
+        .spyOn(fileRepository, 'updateFilesStatusToTrashed')
+        .mockResolvedValue();
+      jest
+        .spyOn(fileRepository, 'updateFilesStatusToTrashedByUuid')
+        .mockResolvedValue();
+      jest.spyOn(trashUsecases, 'addItemsToTrash').mockResolvedValue(undefined);
+
+      await service.moveFilesToTrash(userMocked, [fileId]);
+
+      expect(
+        fileRepository.updateFilesStatusToTrashedByUuid,
+      ).toHaveBeenCalledWith(userMocked, []);
+    });
+
+    it('When addItemsToTrash fails, then error is caught and function still resolves', async () => {
+      jest.spyOn(fileRepository, 'findByFileIds').mockResolvedValueOnce([]);
+      jest
+        .spyOn(trashUsecases, 'addItemsToTrash')
+        .mockRejectedValue(new Error('trash error'));
+
+      await expect(
+        service.moveFilesToTrash(userMocked, [fileId]),
+      ).resolves.not.toThrow();
+
+      await Promise.resolve();
+    });
+  });
+
+  describe('deleteUserTrashedFilesBatch', () => {
+    it('When called, then it should delegate to repository and return the deleted count', async () => {
+      const limit = 50;
+      const deletedCount = 10;
+
+      jest
+        .spyOn(fileRepository, 'deleteUserTrashedFilesBatch')
+        .mockResolvedValueOnce(deletedCount);
+
+      const result = await service.deleteUserTrashedFilesBatch(
+        userMocked,
+        limit,
+      );
+
+      expect(fileRepository.deleteUserTrashedFilesBatch).toHaveBeenCalledWith(
+        userMocked.id,
+        limit,
+      );
+      expect(result).toBe(deletedCount);
+    });
+  });
+
+  describe('replaceFile status check', () => {
+    it('When file status is not EXISTS, then it should throw BadRequestException', async () => {
+      const mockFile = newFile({
+        attributes: { status: FileStatus.TRASHED },
+      });
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(mockFile);
+
+      await expect(
+        service.replaceFile(userMocked, mockFile.uuid, {
+          fileId: 'new-id',
+          size: BigInt(100),
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When addFileReplacementDelta fails, then error is caught and replace still succeeds', async () => {
+      const mockFile = newFile({
+        attributes: { fileId: 'old-id', bucket: 'bucket' },
+      });
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(mockFile);
+      jest
+        .spyOn(service, 'isFileVersionable')
+        .mockResolvedValueOnce({ versionable: false, limits: null });
+      jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
+      jest
+        .spyOn(service, 'addFileReplacementDelta')
+        .mockRejectedValueOnce(new Error('delta error'));
+      jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
+
+      const result = await service.replaceFile(userMocked, mockFile.uuid, {
+        fileId: 'new-id',
+        size: BigInt(100),
+      });
+
+      expect(result).toBeDefined();
+    });
+
+    it('When network deleteFile fails, then error is caught and replace still succeeds', async () => {
+      const mockFile = newFile({
+        attributes: { fileId: 'old-id', bucket: 'bucket' },
+      });
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(mockFile);
+      jest
+        .spyOn(service, 'isFileVersionable')
+        .mockResolvedValueOnce({ versionable: false, limits: null });
+      jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
+      jest
+        .spyOn(service, 'addFileReplacementDelta')
+        .mockResolvedValueOnce(null);
+      jest
+        .spyOn(bridgeService, 'deleteFile')
+        .mockRejectedValueOnce(new Error('network error'));
+
+      const result = await service.replaceFile(userMocked, mockFile.uuid, {
+        fileId: 'new-id',
+        size: BigInt(100),
+      });
+
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe('addFileReplacementDelta', () => {
+    it('When lock is not acquired, then it should return null', async () => {
+      const file = newFile();
+
+      jest
+        .spyOn(redisService, 'tryAcquireLock')
+        .mockResolvedValueOnce(false as any);
+
+      const result = await service.addFileReplacementDelta(
+        userMocked,
+        file,
+        file,
+      );
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('moveFile wasTrashed', () => {
+    it('When file was trashed before move, then it should remove it from trash', async () => {
+      const trashedFile = newFile({
+        attributes: {
+          userId: userMocked.id,
+          status: FileStatus.TRASHED,
+        },
+      });
+      const destinationFolder = newFolder({
+        attributes: { userId: userMocked.id },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findByUuid')
+        .mockResolvedValueOnce(trashedFile);
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValueOnce(destinationFolder);
+      jest
+        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+        .mockResolvedValueOnce(null);
+      jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
+      jest
+        .spyOn(trashUsecases, 'removeItemsFromTrash')
+        .mockResolvedValueOnce(undefined);
+
+      await service.moveFile(userMocked, trashedFile.uuid, {
+        destinationFolder: destinationFolder.uuid,
+      });
+
+      expect(trashUsecases.removeItemsFromTrash).toHaveBeenCalledWith(
+        [trashedFile.uuid],
+        TrashItemType.File,
+      );
+    });
+  });
 });

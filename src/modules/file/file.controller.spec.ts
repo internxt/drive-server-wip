@@ -12,6 +12,7 @@ import {
   newFolder,
   newUser,
   newVersioningLimits,
+  newWorkspace,
 } from '../../../test/fixtures';
 import { FileUseCases } from './file.usecase';
 import { User } from '../user/user.domain';
@@ -155,6 +156,15 @@ describe('FileController', () => {
         offset: 0,
       });
     });
+
+    it('When getRecentFiles is requested with a limit out of range, then it should throw BadRequestException', async () => {
+      await expect(
+        fileController.getRecentFiles(
+          userMocked,
+          API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND + 1,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
   describe('get file by path', () => {
@@ -200,6 +210,20 @@ describe('FileController', () => {
       expect(
         fileController.getFileMetaByPath(userMocked, longPath),
       ).rejects.toThrow('Path is too deep');
+    });
+
+    it('When get file metadata by path throws an unexpected error, then it should log and not throw', async () => {
+      const filePath = '/test/file.png';
+      jest
+        .spyOn(fileUseCases, 'getFileMetadataByPath')
+        .mockRejectedValue(new Error('Unexpected error'));
+
+      const result = await fileController.getFileMetaByPath(
+        userMocked,
+        filePath,
+      );
+
+      expect(result).toBeUndefined();
     });
   });
 
@@ -310,6 +334,29 @@ describe('FileController', () => {
           '1.0.0',
         ),
       ).rejects.toThrow(InternalServerErrorException);
+    });
+
+    it('When fileId is provided without fileUuid, then it should log a warning and still create the thumbnail', async () => {
+      const dtoWithFileIdOnly: CreateThumbnailDto = {
+        ...createThumbnailDto,
+        fileUuid: undefined,
+      };
+      jest
+        .spyOn(thumbnailUseCases, 'createThumbnail')
+        .mockResolvedValue(thumbnailDto);
+
+      const result = await fileController.createThumbnail(
+        userMocked,
+        dtoWithFileIdOnly,
+        'drive-web',
+        '1.0.0',
+      );
+
+      expect(result).toEqual(thumbnailDto);
+      expect(thumbnailUseCases.createThumbnail).toHaveBeenCalledWith(
+        userMocked,
+        dtoWithFileIdOnly,
+      );
     });
   });
 
@@ -634,6 +681,28 @@ describe('FileController', () => {
         ),
       ).rejects.toThrow(error);
     });
+
+    it('When replaceFile is called with a workspace context, then it should pass workspace info to use case', async () => {
+      const workspace = newWorkspace();
+      const replacedFile = newFile();
+      jest.spyOn(fileUseCases, 'replaceFile').mockResolvedValue(replacedFile);
+
+      await fileController.replaceFile(
+        userMocked,
+        validUuid,
+        replaceFileDto,
+        clientId,
+        requester,
+        workspace,
+      );
+
+      expect(fileUseCases.replaceFile).toHaveBeenCalledWith(
+        userMocked,
+        validUuid,
+        replaceFileDto,
+        { workspace, memberId: requester.uuid },
+      );
+    });
   });
 
   describe('getFiles', () => {
@@ -748,6 +817,31 @@ describe('FileController', () => {
         undefined,
       );
     });
+
+    it('When getFiles returns a file without plainName, then it should decrypt the file name', async () => {
+      const fileWithoutPlainName = newFile({
+        attributes: { plainName: null },
+      });
+      jest
+        .spyOn(fileUseCases, 'getNotTrashedFilesUpdatedAfter')
+        .mockResolvedValue([fileWithoutPlainName]);
+      jest
+        .spyOn(fileUseCases, 'decrypFileName')
+        .mockReturnValue({ plainName: 'decrypted-name' } as any);
+
+      const queryParams: GetFilesDto = {
+        limit: validLimit,
+        offset: validOffset,
+        status: FileStatus.EXISTS,
+      };
+
+      const result = await fileController.getFiles(userMocked, queryParams);
+
+      expect(fileUseCases.decrypFileName).toHaveBeenCalledWith(
+        fileWithoutPlainName,
+      );
+      expect(result[0].plainName).toBe('decrypted-name');
+    });
   });
 
   describe('getLimits', () => {
@@ -788,6 +882,63 @@ describe('FileController', () => {
 
       await expect(fileController.getLimits(userMocked)).rejects.toThrow(
         NotFoundException,
+      );
+    });
+  });
+
+  describe('getFileVersions', () => {
+    it('When getFileVersions is called, then it should return file versions', async () => {
+      const fileUuid = v4();
+      jest.spyOn(fileUseCases, 'getFileVersions').mockResolvedValue([]);
+
+      const result = await fileController.getFileVersions(userMocked, fileUuid);
+
+      expect(result).toEqual([]);
+      expect(fileUseCases.getFileVersions).toHaveBeenCalledWith(
+        userMocked,
+        fileUuid,
+      );
+    });
+  });
+
+  describe('deleteFileVersion', () => {
+    it('When deleteFileVersion is called, then it should call the use case', async () => {
+      const fileUuid = v4();
+      const versionId = v4();
+      jest
+        .spyOn(fileUseCases, 'deleteFileVersion')
+        .mockResolvedValue(undefined);
+
+      await fileController.deleteFileVersion(userMocked, fileUuid, versionId);
+
+      expect(fileUseCases.deleteFileVersion).toHaveBeenCalledWith(
+        userMocked,
+        fileUuid,
+        versionId,
+      );
+    });
+  });
+
+  describe('restoreFileVersion', () => {
+    it('When restoreFileVersion is called, then it should return the restored file', async () => {
+      const fileUuid = v4();
+      const versionId = v4();
+      const restoredFile = newFile();
+      jest
+        .spyOn(fileUseCases, 'restoreFileVersion')
+        .mockResolvedValue(restoredFile);
+
+      const result = await fileController.restoreFileVersion(
+        userMocked,
+        fileUuid,
+        versionId,
+      );
+
+      expect(result).toEqual(restoredFile);
+      expect(fileUseCases.restoreFileVersion).toHaveBeenCalledWith(
+        userMocked,
+        fileUuid,
+        versionId,
       );
     });
   });

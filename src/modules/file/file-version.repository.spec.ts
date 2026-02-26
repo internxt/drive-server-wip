@@ -1,4 +1,5 @@
 import { createMock } from '@golevelup/ts-jest';
+import { QueryTypes } from 'sequelize';
 import { SequelizeFileVersionRepository } from './file-version.repository';
 import { type FileVersionModel } from './file-version.model';
 import { FileVersion, FileVersionStatus } from './file-version.domain';
@@ -415,6 +416,133 @@ describe('SequelizeFileVersionRepository', () => {
         { status: FileVersionStatus.DELETED },
         expect.any(Object),
       );
+    });
+  });
+
+  describe('updateStatusBatch', () => {
+    it('When updating status for multiple versions, then it calls model update with all ids', async () => {
+      const ids = ['id-1', 'id-2', 'id-3'];
+      const status = FileVersionStatus.DELETED;
+
+      jest.spyOn(fileVersionModel, 'update').mockResolvedValue([3] as any);
+
+      await repository.updateStatusBatch(ids, status);
+
+      expect(fileVersionModel.update).toHaveBeenCalledWith(
+        { status },
+        { where: { id: ids } },
+      );
+    });
+  });
+
+  describe('delete', () => {
+    it('When deleting a version, then it calls model destroy with the id', async () => {
+      const versionId = 'version-id';
+
+      jest.spyOn(fileVersionModel, 'destroy').mockResolvedValue(1 as any);
+
+      await repository.delete(versionId);
+
+      expect(fileVersionModel.destroy).toHaveBeenCalledWith({
+        where: { id: versionId },
+      });
+    });
+  });
+
+  describe('deleteUserVersionsBatch', () => {
+    it('When deleting user versions in batch, then it executes the query and returns affected count', async () => {
+      const userId = 'user-uuid';
+      const limit = 10;
+      const affectedRows = 5;
+
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValue([undefined, affectedRows] as any);
+
+      const result = await repository.deleteUserVersionsBatch(userId, limit);
+
+      expect(result).toBe(affectedRows);
+      expect(fileVersionModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: expect.objectContaining({
+            userId,
+            limit,
+            deletedStatus: FileVersionStatus.DELETED,
+            existsStatus: FileVersionStatus.EXISTS,
+          }),
+          type: QueryTypes.UPDATE,
+        }),
+      );
+    });
+  });
+
+  describe('deleteUserVersionsByLimits', () => {
+    it('When deleting user versions by limits, then it executes the query and returns affected count', async () => {
+      const userId = 'user-uuid';
+      const retentionDays = 30;
+      const maxVersions = 5;
+      const limit = 100;
+      const affectedRows = 3;
+
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValue([undefined, affectedRows] as any);
+
+      const result = await repository.deleteUserVersionsByLimits(
+        userId,
+        retentionDays,
+        maxVersions,
+        limit,
+      );
+
+      expect(result).toBe(affectedRows);
+      expect(fileVersionModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: expect.objectContaining({
+            userId,
+            retentionDays,
+            maxVersions,
+            limit,
+            deletedStatus: FileVersionStatus.DELETED,
+            existsStatus: FileVersionStatus.EXISTS,
+          }),
+          type: QueryTypes.UPDATE,
+        }),
+      );
+    });
+  });
+
+  describe('findExpiredVersionIdsByTierLimits', () => {
+    it('When finding expired version ids, then it returns the version ids', async () => {
+      const limit = 50;
+      const queryResults = [{ version_id: 'uuid-1' }, { version_id: 'uuid-2' }];
+
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValue(queryResults as any);
+
+      const result = await repository.findExpiredVersionIdsByTierLimits(limit);
+
+      expect(result).toEqual(['uuid-1', 'uuid-2']);
+      expect(fileVersionModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: { limit },
+          type: QueryTypes.SELECT,
+        }),
+      );
+    });
+
+    it('When no expired versions are found, then it returns an empty array', async () => {
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValue([] as any);
+
+      const result = await repository.findExpiredVersionIdsByTierLimits(50);
+
+      expect(result).toEqual([]);
     });
   });
 
