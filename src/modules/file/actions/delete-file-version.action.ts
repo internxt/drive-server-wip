@@ -4,16 +4,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SequelizeFileVersionRepository } from '../file-version.repository';
 import { SequelizeFileRepository } from '../file.repository';
 import { type User } from '../../user/user.domain';
 import { FileVersionStatus } from '../file-version.domain';
+import { UsageInvalidatedEvent } from '../../usage-queue/events/usage-invalidated.event';
 
 @Injectable()
 export class DeleteFileVersionAction {
   constructor(
     private readonly fileRepository: SequelizeFileRepository,
     private readonly fileVersionRepository: SequelizeFileVersionRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(
@@ -44,6 +47,11 @@ export class DeleteFileVersionAction {
     await this.fileVersionRepository.updateStatus(
       versionId,
       FileVersionStatus.DELETED,
+    );
+
+    this.eventEmitter.emit(
+      'usage.file.version_deleted',
+      new UsageInvalidatedEvent(user.uuid, user.id, 'file.version.delete'),
     );
   }
 }

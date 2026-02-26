@@ -1879,25 +1879,23 @@ export class UserUseCases {
   async getUserUsage(
     user: User,
   ): Promise<{ drive: number; backup: number; total: number }> {
-    let totalDriveUsage = 0;
-    const cachedUsage = await this.cacheManager.getUserUsage(user.uuid);
+    const cached = await this.cacheManager.getUserUsage(user.uuid);
 
-    if (cachedUsage) {
-      totalDriveUsage = cachedUsage.usage;
-    } else {
-      const driveUsage = await this.fileUseCases.getUserUsedStorage(user);
-      await this.cacheManager.setUserUsage(user.uuid, driveUsage);
-      totalDriveUsage = driveUsage;
+    if (cached) {
+      return cached;
     }
 
-    const backupUsage = await this.backupUseCases.sumExistentBackupSizes(
-      user.id,
-    );
+    const [driveUsage, backupUsage] = await Promise.all([
+      this.fileUseCases.getUserUsedStorage(user),
+      this.backupUseCases.sumExistentBackupSizes(user.id),
+    ]);
+
+    await this.cacheManager.setUserUsage(user.uuid, driveUsage, backupUsage);
 
     return {
-      drive: totalDriveUsage,
+      drive: driveUsage,
       backup: backupUsage,
-      total: totalDriveUsage + backupUsage,
+      total: driveUsage + backupUsage,
     };
   }
 
