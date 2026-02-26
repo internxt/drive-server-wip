@@ -5,7 +5,7 @@ import { type User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
-import { USAGE_QUEUE_NAME } from './usage-queue.module';
+import { USAGE_QUEUE_NAME } from './usage-queue.constants';
 
 export interface UsageJobData {
   userUuid: string;

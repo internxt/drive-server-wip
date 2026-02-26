@@ -3,7 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { InjectQueue } from '@nestjs/bullmq';
 import { type Queue } from 'bullmq';
 import { type UsageInvalidatedEvent } from '../events/usage-invalidated.event';
-import { USAGE_QUEUE_NAME } from '../usage-queue.module';
+import { USAGE_QUEUE_NAME } from '../usage-queue.constants';
 
 @Injectable()
 export class UsageEventHandler {
@@ -13,7 +13,7 @@ export class UsageEventHandler {
     @InjectQueue(USAGE_QUEUE_NAME) private readonly usageQueue: Queue,
   ) {}
 
-  @OnEvent('usage.*')
+  @OnEvent('usage.**')
   async handleUsageInvalidated(event: UsageInvalidatedEvent) {
     try {
       await this.usageQueue.add(
