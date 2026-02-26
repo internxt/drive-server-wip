@@ -87,6 +87,7 @@ import { SharingInvite } from '../sharing/sharing.domain';
 import { aes } from '@internxt/lib';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import { PaymentsService } from '../../externals/payments/payments.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as jwtLibrary from '../../lib/jwt';
 import { JsonWebTokenError } from 'jsonwebtoken';
 import { type LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
@@ -141,6 +142,7 @@ describe('User use cases', () => {
   let referralsRepository: SequelizeReferralRepository;
   let userReferralsRepository: SequelizeUserReferralsRepository;
   let notificationService: NotificationService;
+  let eventEmitter: EventEmitter2;
 
   const user = User.build({
     id: 1,
@@ -246,6 +248,7 @@ describe('User use cases', () => {
     );
     notificationService =
       moduleRef.get<NotificationService>(NotificationService);
+    eventEmitter = moduleRef.get<EventEmitter2>(EventEmitter2);
   });
 
   describe('Resetting a user', () => {
@@ -2248,32 +2251,25 @@ describe('User use cases', () => {
 
   describe('getUserUsage', () => {
     it('When cache has user usage data, then it should return the cached data', async () => {
-      const cachedUsage = { usage: 1024 };
-      const backupUsage = 1024;
-      const totalUsage = cachedUsage.usage + backupUsage;
+      const cachedUsage = { drive: 1024, backup: 512, total: 1536 };
 
       jest
         .spyOn(cacheManagerService, 'getUserUsage')
         .mockResolvedValue(cachedUsage);
       jest.spyOn(fileUseCases, 'getUserUsedStorage');
+      jest.spyOn(backupUseCases, 'sumExistentBackupSizes');
       jest.spyOn(cacheManagerService, 'setUserUsage');
-      jest
-        .spyOn(backupUseCases, 'sumExistentBackupSizes')
-        .mockResolvedValue(backupUsage);
 
       const result = await userUseCases.getUserUsage(user);
 
       expect(cacheManagerService.getUserUsage).toHaveBeenCalledWith(user.uuid);
       expect(fileUseCases.getUserUsedStorage).not.toHaveBeenCalled();
+      expect(backupUseCases.sumExistentBackupSizes).not.toHaveBeenCalled();
       expect(cacheManagerService.setUserUsage).not.toHaveBeenCalled();
-      expect(result).toEqual({
-        drive: cachedUsage.usage,
-        backup: backupUsage,
-        total: totalUsage,
-      });
+      expect(result).toEqual(cachedUsage);
     });
 
-    it('When cache does not have user usage data, then it should get data from database and cache it', async () => {
+    it('When cache does not have user usage data, then it should compute from database and emit event for cache fill', async () => {
       const driveUsage = 2048;
       const backupUsage = 1024;
       const totalUsage = driveUsage + backupUsage;
@@ -2282,9 +2278,6 @@ describe('User use cases', () => {
         .spyOn(fileUseCases, 'getUserUsedStorage')
         .mockResolvedValue(driveUsage);
       jest
-        .spyOn(cacheManagerService, 'setUserUsage')
-        .mockResolvedValue(undefined);
-      jest
         .spyOn(backupUseCases, 'sumExistentBackupSizes')
         .mockResolvedValue(backupUsage);
 
@@ -2292,9 +2285,16 @@ describe('User use cases', () => {
 
       expect(cacheManagerService.getUserUsage).toHaveBeenCalledWith(user.uuid);
       expect(fileUseCases.getUserUsedStorage).toHaveBeenCalledWith(user);
-      expect(cacheManagerService.setUserUsage).toHaveBeenCalledWith(
-        user.uuid,
-        driveUsage,
+      expect(backupUseCases.sumExistentBackupSizes).toHaveBeenCalledWith(
+        user.id,
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'usage.invalidated',
+        expect.objectContaining({
+          userUuid: user.uuid,
+          userId: user.id,
+          source: 'cache_miss',
+        }),
       );
       expect(result).toEqual({
         drive: driveUsage,
