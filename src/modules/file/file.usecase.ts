@@ -56,6 +56,8 @@ import { type Usage } from '../usage/usage.domain';
 import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { UsageInvalidatedEvent } from '../usage-queue/events/usage-invalidated.event';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import {
   DeleteFileVersionAction,
@@ -105,6 +107,7 @@ export class FileUseCases {
     private readonly createFileVersionAction: CreateFileVersionAction,
     private readonly restoreFileVersionAction: RestoreFileVersionAction,
     private readonly undoFileVersioningAction: UndoFileVersioningAction,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -215,6 +218,11 @@ export class FileUseCases {
     ]);
 
     await this.fileRepository.deleteFilesByUser(user, [file]);
+
+    this.eventEmitter.emit(
+      'usage.file.deleted',
+      new UsageInvalidatedEvent(user.uuid, user.id, 'file.delete'),
+    );
 
     return { id, uuid };
   }
@@ -363,11 +371,10 @@ export class FileUseCases {
       creationTime: newFileDto.creationTime || newFileDto.date || new Date(),
     });
 
-    await this.cacheManagerService.expireUserUsage(user.uuid).catch((err) => {
-      new Logger('[UPLOAD_FILE/USAGE_CACHE]').error(
-        `Error while cleaning usage cache for user ${user.uuid}: ${err.message}`,
-      );
-    });
+    this.eventEmitter.emit(
+      'usage.file.created',
+      new UsageInvalidatedEvent(user.uuid, user.id, 'file.create'),
+    );
 
     if (!hadFilesBeforeUpload) {
       const isUserFreeTier = tier?.label === PLAN_FREE_INDIVIDUAL_TIER_LABEL;
@@ -806,6 +813,11 @@ export class FileUseCases {
       .catch((err) =>
         Logger.error(`[TRASH] Error adding files to trash: ${err.message}`),
       );
+
+    this.eventEmitter.emit(
+      'usage.file.trashed',
+      new UsageInvalidatedEvent(user.uuid, user.id, 'file.trash'),
+    );
   }
 
   async getEncryptionKeyFromFile(
@@ -932,6 +944,11 @@ export class FileUseCases {
       }
     }
 
+    this.eventEmitter.emit(
+      'usage.file.replaced',
+      new UsageInvalidatedEvent(user.uuid, user.id, 'file.replace'),
+    );
+
     return {
       ...file.toJSON(),
       fileId: newFileId,
@@ -970,7 +987,19 @@ export class FileUseCases {
     user: User,
     limit: number,
   ): Promise<number> {
-    return this.fileRepository.deleteUserTrashedFilesBatch(user.id, limit);
+    const deleted = await this.fileRepository.deleteUserTrashedFilesBatch(
+      user.id,
+      limit,
+    );
+
+    if (deleted > 0) {
+      this.eventEmitter.emit(
+        'usage.file.batch_deleted',
+        new UsageInvalidatedEvent(user.uuid, user.id, 'file.batch_delete'),
+      );
+    }
+
+    return deleted;
   }
 
   async moveFile(
