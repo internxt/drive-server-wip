@@ -70,7 +70,7 @@ export class TrashUseCases {
       };
     }
 
-    await this.performTrashDeletion(trashOwner, filesCount, foldersCount, 100);
+    await this.performTrashDeletion(trashOwner, filesCount, foldersCount, 250);
 
     return {
       message: 'Trash emptied successfully',
@@ -145,35 +145,35 @@ export class TrashUseCases {
     files: File[],
     folders: Folder[],
   ): Promise<void> {
-    const itemsDeletionChunkSize = 10;
+    const itemsDeletionChunkSize = 50;
 
-    for (let i = 0; i < files.length; i += itemsDeletionChunkSize) {
-      await Promise.all([
-        this.removeItemsFromTrash(
-          files.slice(i, i + itemsDeletionChunkSize).map((file) => file.uuid),
-          TrashItemType.File,
-        ),
-        this.fileUseCases.deleteByUser(
-          user,
-          files.slice(i, i + itemsDeletionChunkSize),
-        ),
-      ]);
-    }
+    const deleteFilesInChunks = async () => {
+      for (let i = 0; i < files.length; i += itemsDeletionChunkSize) {
+        const chunk = files.slice(i, i + itemsDeletionChunkSize);
+        await Promise.all([
+          this.removeItemsFromTrash(
+            chunk.map((file) => file.uuid),
+            TrashItemType.File,
+          ),
+          this.fileUseCases.deleteByUser(user, chunk),
+        ]);
+      }
+    };
 
-    for (let i = 0; i < folders.length; i += itemsDeletionChunkSize) {
-      await Promise.all([
-        this.removeItemsFromTrash(
-          folders
-            .slice(i, i + itemsDeletionChunkSize)
-            .map((folder) => folder.uuid),
-          TrashItemType.Folder,
-        ),
-        this.folderUseCases.deleteByUser(
-          user,
-          folders.slice(i, i + itemsDeletionChunkSize),
-        ),
-      ]);
-    }
+    const deleteFoldersInChunks = async () => {
+      for (let i = 0; i < folders.length; i += itemsDeletionChunkSize) {
+        const chunk = folders.slice(i, i + itemsDeletionChunkSize);
+        await Promise.all([
+          this.removeItemsFromTrash(
+            chunk.map((folder) => folder.uuid),
+            TrashItemType.Folder,
+          ),
+          this.folderUseCases.deleteByUser(user, chunk),
+        ]);
+      }
+    };
+
+    await Promise.all([deleteFilesInChunks(), deleteFoldersInChunks()]);
   }
 
   calculateCaducityDate(tierLabel: string, deletedAt: Date = new Date()): Date {
