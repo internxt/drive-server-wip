@@ -32,6 +32,7 @@ import { getClientIdFromHeaders } from './common/decorators/client.decorator';
 import { AuthGuard } from './modules/auth/auth.guard';
 import { CacheManagerModule } from './modules/cache-manager/cache-manager.module';
 import { ReferralModule } from './modules/referral/referral.module';
+import { UsageQueueModule } from './modules/usage-queue/usage-queue.module';
 
 const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
 
@@ -149,6 +150,7 @@ const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
     GatewayModule,
     CacheManagerModule,
     ReferralModule,
+    UsageQueueModule,
   ],
   controllers: [],
   providers: [
