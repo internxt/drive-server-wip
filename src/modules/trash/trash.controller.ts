@@ -110,8 +110,8 @@ export class TrashController {
 
         const result = files.map((file) => ({
           ...file.toJSON(),
-          caducityDate: file.updatedAt
-            ? this.trashUseCases.calculateCaducityDate(
+          expiresAt: file.updatedAt
+            ? this.trashUseCases.calculateExpiryDate(
                 retentionDays,
                 file.updatedAt,
               )
@@ -132,8 +132,8 @@ export class TrashController {
 
         const result = folders.map((folder) => ({
           ...folder.toJSON(),
-          caducityDate: folder.updatedAt
-            ? this.trashUseCases.calculateCaducityDate(
+          expiresAt: folder.updatedAt
+            ? this.trashUseCases.calculateExpiryDate(
                 retentionDays,
                 folder.updatedAt,
               )

@@ -340,14 +340,14 @@ describe('TrashController', () => {
         newFile({ attributes: { status: FileStatus.TRASHED } }),
       ];
       const retentionDays = DEFAULT_TRASH_RETENTION_DAYS;
-      const expectedCaducityDate = new Date('2026-03-01');
+      const expectedExpiresAt = new Date('2026-03-01');
       jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(mockFiles);
       jest
         .spyOn(trashUseCases, 'getTrashRetentionDays')
         .mockResolvedValue(retentionDays);
       jest
-        .spyOn(trashUseCases, 'calculateCaducityDate')
-        .mockReturnValue(expectedCaducityDate);
+        .spyOn(trashUseCases, 'calculateExpiryDate')
+        .mockReturnValue(expectedExpiresAt);
 
       const result = await controller.getTrashedFilesPaginated(
         user,
@@ -367,7 +367,7 @@ describe('TrashController', () => {
       expect(result).toEqual({
         result: mockFiles.map((file) => ({
           ...file.toJSON(),
-          caducityDate: expectedCaducityDate,
+          expiresAt: expectedExpiresAt,
         })),
       });
     });
@@ -377,14 +377,14 @@ describe('TrashController', () => {
         newFolder({ attributes: { deleted: true, removed: false } }),
       ];
       const retentionDays = DEFAULT_TRASH_RETENTION_DAYS;
-      const expectedCaducityDate = new Date('2026-03-01');
+      const expectedExpiresAt = new Date('2026-03-01');
       jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue(mockFolders);
       jest
         .spyOn(trashUseCases, 'getTrashRetentionDays')
         .mockResolvedValue(retentionDays);
       jest
-        .spyOn(trashUseCases, 'calculateCaducityDate')
-        .mockReturnValue(expectedCaducityDate);
+        .spyOn(trashUseCases, 'calculateExpiryDate')
+        .mockReturnValue(expectedExpiresAt);
 
       const result = await controller.getTrashedFilesPaginated(
         user,
@@ -404,12 +404,12 @@ describe('TrashController', () => {
       expect(result).toEqual({
         result: mockFolders.map((folder) => ({
           ...folder.toJSON(),
-          caducityDate: expectedCaducityDate,
+          expiresAt: expectedExpiresAt,
         })),
       });
     });
 
-    it('When type is files and a file has no updatedAt, then caducityDate should be null', async () => {
+    it('When type is files and a file has no updatedAt, then expiresAt should be null', async () => {
       const mockFile = newFile({
         attributes: { status: FileStatus.TRASHED, updatedAt: null },
       });
@@ -417,7 +417,7 @@ describe('TrashController', () => {
       jest
         .spyOn(trashUseCases, 'getTrashRetentionDays')
         .mockResolvedValue(DEFAULT_TRASH_RETENTION_DAYS);
-      jest.spyOn(trashUseCases, 'calculateCaducityDate');
+      jest.spyOn(trashUseCases, 'calculateExpiryDate');
 
       const result = await controller.getTrashedFilesPaginated(
         user,
@@ -425,13 +425,13 @@ describe('TrashController', () => {
         'files',
       );
 
-      expect(trashUseCases.calculateCaducityDate).not.toHaveBeenCalled();
+      expect(trashUseCases.calculateExpiryDate).not.toHaveBeenCalled();
       expect(result).toEqual({
-        result: [{ ...mockFile.toJSON(), caducityDate: null }],
+        result: [{ ...mockFile.toJSON(), expiresAt: null }],
       });
     });
 
-    it('When type is folders and a folder has no updatedAt, then caducityDate should be null', async () => {
+    it('When type is folders and a folder has no updatedAt, then expiresAt should be null', async () => {
       const mockFolder = newFolder({
         attributes: { deleted: true, removed: false, updatedAt: null },
       });
@@ -439,7 +439,7 @@ describe('TrashController', () => {
       jest
         .spyOn(trashUseCases, 'getTrashRetentionDays')
         .mockResolvedValue(DEFAULT_TRASH_RETENTION_DAYS);
-      jest.spyOn(trashUseCases, 'calculateCaducityDate');
+      jest.spyOn(trashUseCases, 'calculateExpiryDate');
 
       const result = await controller.getTrashedFilesPaginated(
         user,
@@ -447,9 +447,9 @@ describe('TrashController', () => {
         'folders',
       );
 
-      expect(trashUseCases.calculateCaducityDate).not.toHaveBeenCalled();
+      expect(trashUseCases.calculateExpiryDate).not.toHaveBeenCalled();
       expect(result).toEqual({
-        result: [{ ...mockFolder.toJSON(), caducityDate: null }],
+        result: [{ ...mockFolder.toJSON(), expiresAt: null }],
       });
     });
 

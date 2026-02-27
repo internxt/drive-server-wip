@@ -138,7 +138,7 @@ export class TrashUseCases {
     return limit ? Number(limit.value) : DEFAULT_TRASH_RETENTION_DAYS;
   }
 
-  calculateCaducityDate(
+  calculateExpiryDate(
     retentionDays: number,
     deletedAt: Date = new Date(),
   ): Date {
