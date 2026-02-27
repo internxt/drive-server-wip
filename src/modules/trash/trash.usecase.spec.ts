@@ -306,16 +306,16 @@ describe('Trash Use Cases', () => {
     });
   });
 
-  describe('calculateCaducityDate', () => {
+  describe('calculateExpiryDate', () => {
     it('When retention is 2 days, then caducity date should be 2 days from the given date', () => {
       const date = new Date('2025-10-30T00:00:00Z');
-      const result = service.calculateCaducityDate(2, date);
+      const result = service.calculateExpiryDate(2, date);
       expect(result).toEqual(new Date('2025-11-01T00:00:00Z'));
     });
 
     it('When retention is 30 days, then caducity date should be 30 days from the given date', () => {
       const date = new Date('2025-10-30T00:00:00Z');
-      const result = service.calculateCaducityDate(30, date);
+      const result = service.calculateExpiryDate(30, date);
       expect(result).toEqual(new Date('2025-11-29T00:00:00Z'));
     });
 
@@ -323,7 +323,7 @@ describe('Trash Use Cases', () => {
       const before = new Date();
       before.setDate(before.getDate() + 15);
 
-      const result = service.calculateCaducityDate(15);
+      const result = service.calculateExpiryDate(15);
 
       const after = new Date();
       after.setDate(after.getDate() + 15);
