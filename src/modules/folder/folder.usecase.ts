@@ -34,8 +34,6 @@ import { type File, FileStatus } from '../file/file.domain';
 import { type CreateFolderDto } from './dto/create-folder.dto';
 import { type FolderModel } from './folder.model';
 import { type MoveFolderDto } from './dto/move-folder.dto';
-import { TrashItemType } from '../trash/trash.attributes';
-import { TrashUseCases } from '../trash/trash.usecase';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 
 const invalidName = /[\\/]|^\s*$/;
@@ -54,8 +52,6 @@ export class FolderUseCases {
     @Inject(forwardRef(() => FileUseCases))
     private readonly fileUsecases: FileUseCases,
     private readonly cryptoService: CryptoService,
-    @Inject(forwardRef(() => TrashUseCases))
-    private readonly trashUsecases: TrashUseCases,
     private readonly featureLimitService: FeatureLimitService,
   ) {}
 
@@ -486,7 +482,6 @@ export class FolderUseCases {
     user: User,
     folderIds: FolderAttributes['id'][],
     folderUuids: FolderAttributes['uuid'][] = [],
-    tierLabel?: string,
   ): Promise<void> {
     const [foldersById, driveRootFolder, foldersByUuid] = await Promise.all([
       this.getFoldersByIds(user, folderIds),
@@ -530,19 +525,6 @@ export class FolderUseCases {
         SharingItemType.Folder,
       ),
     ]);
-
-    if (driveFolders.length > 0) {
-      this.trashUsecases
-        .addItemsToTrash(
-          driveFolders.map((f) => f.uuid),
-          TrashItemType.Folder,
-          tierLabel,
-          user.id,
-        )
-        .catch((err) =>
-          Logger.error(`[TRASH] Error adding folders to trash: ${err.message}`),
-        );
-    }
   }
 
   async getFoldersByParentId(
@@ -930,13 +912,6 @@ export class FolderUseCases {
       folder.id,
       updateData,
     );
-
-    if (wasTrashed && this.trashUsecases) {
-      await this.trashUsecases.removeItemsFromTrash(
-        [folderUuid],
-        TrashItemType.Folder,
-      );
-    }
 
     return updatedFolder;
   }

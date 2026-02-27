@@ -6,22 +6,17 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TrashUseCases } from './trash.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { newUser, newFile, newFolder, newTrash } from '../../../test/fixtures';
+import { newUser, newFile, newFolder } from '../../../test/fixtures';
 import { TrashEmptyRequestedEvent } from './events/trash-empty-requested.event';
-import { SequelizeTrashRepository } from './trash.repository';
-import { TrashItemType } from './trash.attributes';
-import { SequelizeFileRepository } from '../file/file.repository';
-import { SequelizeFolderRepository } from '../folder/folder.repository';
-import { Trash } from './trash.domain';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,
     fileUseCases: FileUseCases,
     folderUseCases: FolderUseCases,
     eventEmitter: EventEmitter2,
-    trashRepository: SequelizeTrashRepository,
-    fileRepository: SequelizeFileRepository,
-    folderRepository: SequelizeFolderRepository;
+    featureLimitService: FeatureLimitService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -35,15 +30,7 @@ describe('Trash Use Cases', () => {
     fileUseCases = module.get<FileUseCases>(FileUseCases);
     folderUseCases = module.get<FolderUseCases>(FolderUseCases);
     eventEmitter = module.get<EventEmitter2>(EventEmitter2);
-    trashRepository = module.get<SequelizeTrashRepository>(
-      SequelizeTrashRepository,
-    );
-    fileRepository = module.get<SequelizeFileRepository>(
-      SequelizeFileRepository,
-    );
-    folderRepository = module.get<SequelizeFolderRepository>(
-      SequelizeFolderRepository,
-    );
+    featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
   });
 
   it('should be defined', () => {
@@ -66,12 +53,6 @@ describe('Trash Use Cases', () => {
         .mockResolvedValueOnce(100)
         .mockResolvedValueOnce(100)
         .mockResolvedValueOnce(50);
-      jest
-        .spyOn(service, 'deleteUserTrashedItemsBatch')
-        .mockResolvedValueOnce(100)
-        .mockResolvedValueOnce(100)
-        .mockResolvedValueOnce(100)
-        .mockResolvedValueOnce(100);
 
       await service.performTrashDeletion(user, filesCount, foldersCount);
 
@@ -130,7 +111,6 @@ describe('Trash Use Cases', () => {
       jest
         .spyOn(folderUseCases, 'deleteUserTrashedFoldersBatch')
         .mockResolvedValue(0);
-      jest.spyOn(service, 'deleteUserTrashedItemsBatch').mockResolvedValue(50);
 
       await service.performTrashDeletion(user, filesCount, 0);
 
@@ -149,7 +129,6 @@ describe('Trash Use Cases', () => {
       jest
         .spyOn(fileUseCases, 'deleteUserTrashedFilesBatch')
         .mockResolvedValue(0);
-      jest.spyOn(service, 'deleteUserTrashedItemsBatch').mockResolvedValue(75);
 
       await service.performTrashDeletion(user, 0, foldersCount);
 
@@ -170,12 +149,6 @@ describe('Trash Use Cases', () => {
         .mockResolvedValueOnce(0);
       jest
         .spyOn(fileUseCases, 'deleteUserTrashedFilesBatch')
-        .mockResolvedValueOnce(50)
-        .mockResolvedValueOnce(0);
-      jest
-        .spyOn(service, 'deleteUserTrashedItemsBatch')
-        .mockResolvedValueOnce(50)
-        .mockResolvedValueOnce(50)
         .mockResolvedValueOnce(50)
         .mockResolvedValueOnce(0);
 
@@ -236,12 +209,6 @@ describe('Trash Use Cases', () => {
       jest
         .spyOn(folderUseCases, 'getTrashFoldersCount')
         .mockResolvedValue(foldersCount);
-      jest
-        .spyOn(folderUseCases, 'deleteUserTrashedFoldersBatch')
-        .mockResolvedValue(100);
-      jest
-        .spyOn(fileUseCases, 'deleteUserTrashedFilesBatch')
-        .mockResolvedValue(100);
       jest.spyOn(eventEmitter, 'emit').mockImplementation();
       jest.spyOn(service, 'performTrashDeletion').mockResolvedValue();
 
@@ -340,600 +307,53 @@ describe('Trash Use Cases', () => {
   });
 
   describe('calculateCaducityDate', () => {
-    it('When user has free tier, then caducity date should be 48 hours from now', () => {
-      const trashedAt = new Date('2025-10-30T00:00:00Z');
-
-      const result = service.calculateCaducityDate(
-        'free_individual',
-        trashedAt,
-      );
-
+    it('When retention is 2 days, then caducity date should be 2 days from the given date', () => {
+      const date = new Date('2025-10-30T00:00:00Z');
+      const result = service.calculateCaducityDate(2, date);
       expect(result).toEqual(new Date('2025-11-01T00:00:00Z'));
     });
 
-    it('When user has essential tier, then caducity date should be 7 days from now', () => {
-      const trashedAt = new Date('2025-10-30T00:00:00Z');
-
-      const result = service.calculateCaducityDate(
-        'essential_individual',
-        trashedAt,
-      );
-
-      expect(result).toEqual(new Date('2025-11-06T00:00:00Z'));
-    });
-
-    it('When user has premium tier, then caducity date should be 15 days from now', () => {
-      const trashedAt = new Date('2025-10-30T00:00:00Z');
-
-      const result = service.calculateCaducityDate(
-        'premium_individual',
-        trashedAt,
-      );
-
-      expect(result).toEqual(new Date('2025-11-14T00:00:00Z'));
-    });
-
-    it('When user has ultimate tier, then caducity date should be 30 days from now', () => {
-      const trashedAt = new Date('2025-10-30T00:00:00Z');
-
-      const result = service.calculateCaducityDate(
-        'ultimate_individual',
-        trashedAt,
-      );
-
+    it('When retention is 30 days, then caducity date should be 30 days from the given date', () => {
+      const date = new Date('2025-10-30T00:00:00Z');
+      const result = service.calculateCaducityDate(30, date);
       expect(result).toEqual(new Date('2025-11-29T00:00:00Z'));
     });
 
-    it('When user has lifetime tier, then caducity date should match its non-lifetime counterpart', () => {
-      const trashedAt = new Date('2025-10-30T00:00:00Z');
+    it('When no date is provided, then caducity date should calculate from current date', () => {
+      const before = new Date();
+      before.setDate(before.getDate() + 15);
 
-      expect(
-        service.calculateCaducityDate(
-          'essential_lifetime_individual',
-          trashedAt,
-        ),
-      ).toEqual(new Date('2025-11-06T00:00:00Z'));
+      const result = service.calculateCaducityDate(15);
 
-      expect(
-        service.calculateCaducityDate('premium_lifetime_individual', trashedAt),
-      ).toEqual(new Date('2025-11-14T00:00:00Z'));
+      const after = new Date();
+      after.setDate(after.getDate() + 15);
 
-      expect(
-        service.calculateCaducityDate(
-          'ultimate_lifetime_individual',
-          trashedAt,
-        ),
-      ).toEqual(new Date('2025-11-29T00:00:00Z'));
-    });
-
-    it('When user has B2C legacy tier, then caducity date should be 2 days from now', () => {
-      const trashedAt = new Date('2025-10-30T00:00:00Z');
-
-      const tiers = [
-        '200gb_individual',
-        '2tb_individual',
-        '5tb_individual',
-        '10tb_individual',
-      ];
-
-      for (const tier of tiers) {
-        const result = service.calculateCaducityDate(tier, trashedAt);
-        expect(result).toEqual(new Date('2025-11-01T00:00:00Z'));
-      }
-    });
-
-    it('When user has standard_business tier, then caducity date should be 15 days from now', () => {
-      const trashedAt = new Date('2025-10-30T00:00:00Z');
-
-      const result = service.calculateCaducityDate(
-        'standard_business',
-        trashedAt,
-      );
-
-      expect(result).toEqual(new Date('2025-11-14T00:00:00Z'));
-    });
-
-    it('When user has pro_business tier, then caducity date should be 30 days from now', () => {
-      const trashedAt = new Date('2025-10-30T00:00:00Z');
-
-      const result = service.calculateCaducityDate('pro_business', trashedAt);
-
-      expect(result).toEqual(new Date('2025-11-29T00:00:00Z'));
-    });
-
-    it('When user tier is unknown, then caducity date should default to 2 days', () => {
-      const trashedAt = new Date('2025-10-30T00:00:00Z');
-
-      const result = service.calculateCaducityDate('unknown_tier', trashedAt);
-
-      expect(result).toEqual(new Date('2025-11-01T00:00:00Z'));
-    });
-
-    it('When user tier is null, then caducity date should default to 2 days', () => {
-      const trashedAt = new Date('2025-10-30T00:00:00Z');
-
-      const result = service.calculateCaducityDate(null, trashedAt);
-
-      expect(result).toEqual(new Date('2025-11-01T00:00:00Z'));
-    });
-
-    it('When user tier is undefined, then caducity date should default to 2 days', () => {
-      const trashedAt = new Date('2025-10-30T00:00:00Z');
-
-      const result = service.calculateCaducityDate(undefined, trashedAt);
-
-      expect(result).toEqual(new Date('2025-11-01T00:00:00Z'));
-    });
-
-    it('When no trashedAt date provided, then should calculate from current date', () => {
-      const beforeCall = new Date();
-      beforeCall.setDate(beforeCall.getDate() + 15);
-
-      const result = service.calculateCaducityDate('premium_individual');
-
-      const afterCall = new Date();
-      afterCall.setDate(afterCall.getDate() + 15);
-
-      expect(result.getTime()).toBeGreaterThanOrEqual(beforeCall.getTime());
-      expect(result.getTime()).toBeLessThanOrEqual(afterCall.getTime());
-    });
-
-    it('When trashedAt is custom date, then should calculate from that date', () => {
-      const customDate = new Date('2025-01-15T10:30:00Z');
-
-      const result = service.calculateCaducityDate(
-        'premium_individual',
-        customDate,
-      );
-
-      expect(result).toEqual(new Date('2025-01-30T10:30:00Z'));
-    });
-
-    it('When trashedAt is in the past, then caducity date should calculate correctly', () => {
-      const pastDate = new Date('2024-01-01T00:00:00Z');
-
-      const result = service.calculateCaducityDate('free_individual', pastDate);
-
-      expect(result).toEqual(new Date('2024-01-03T00:00:00Z'));
+      expect(result.getTime()).toBeGreaterThanOrEqual(before.getTime());
+      expect(result.getTime()).toBeLessThanOrEqual(after.getTime());
     });
   });
 
-  describe('getTrashEntriesByIds', () => {
-    it('When empty array provided, then should return empty array without database call', async () => {
-      const findByItemIdsSpy = jest.spyOn(trashRepository, 'findByItemIds');
+  describe('getTrashRetentionDays', () => {
+    const user = newUser();
 
-      const result = await service.getTrashEntriesByIds([], TrashItemType.File);
-
-      expect(result).toEqual([]);
-      expect(findByItemIdsSpy).not.toHaveBeenCalled();
-    });
-
-    it('When single file ID provided, then should query trash entries for that file', async () => {
-      const fileUuid = 'file-uuid-123';
-      const mockTrashEntry = newTrash({
-        itemId: fileUuid,
-        itemType: TrashItemType.File,
-      });
-
+    it('When user has no limit configured, then should return the default retention days', async () => {
       jest
-        .spyOn(trashRepository, 'findByItemIds')
-        .mockResolvedValue([mockTrashEntry]);
+        .spyOn(featureLimitService, 'getUserLimitByLabel')
+        .mockResolvedValue(null);
 
-      const result = await service.getTrashEntriesByIds(
-        [fileUuid],
-        TrashItemType.File,
-      );
+      const result = await service.getTrashRetentionDays(user);
 
-      expect(trashRepository.findByItemIds).toHaveBeenCalledWith(
-        [fileUuid],
-        TrashItemType.File,
-      );
-      expect(result).toEqual([mockTrashEntry]);
+      expect(result).toBe(DEFAULT_TRASH_RETENTION_DAYS);
     });
 
-    it('When multiple file IDs provided, then should perform batch query', async () => {
-      const fileUuids = ['file-1', 'file-2', 'file-3'];
-      const mockEntries = fileUuids.map((id) =>
-        newTrash({ itemId: id, itemType: TrashItemType.File }),
-      );
-
+    it('When user has a limit configured, then should return that limit value', async () => {
       jest
-        .spyOn(trashRepository, 'findByItemIds')
-        .mockResolvedValue(mockEntries);
+        .spyOn(featureLimitService, 'getUserLimitByLabel')
+        .mockResolvedValue({ value: '30' } as any);
 
-      const result = await service.getTrashEntriesByIds(
-        fileUuids,
-        TrashItemType.File,
-      );
+      const result = await service.getTrashRetentionDays(user);
 
-      expect(trashRepository.findByItemIds).toHaveBeenCalledWith(
-        fileUuids,
-        TrashItemType.File,
-      );
-      expect(result).toHaveLength(3);
-    });
-
-    it('When querying files, then should pass file type to repository', async () => {
-      const fileUuids = ['file-1', 'file-2'];
-
-      jest.spyOn(trashRepository, 'findByItemIds').mockResolvedValue([]);
-
-      await service.getTrashEntriesByIds(fileUuids, TrashItemType.File);
-
-      expect(trashRepository.findByItemIds).toHaveBeenCalledWith(
-        fileUuids,
-        TrashItemType.File,
-      );
-    });
-
-    it('When querying folders, then should pass folder type to repository', async () => {
-      const folderUuids = ['folder-1', 'folder-2'];
-
-      jest.spyOn(trashRepository, 'findByItemIds').mockResolvedValue([]);
-
-      await service.getTrashEntriesByIds(folderUuids, TrashItemType.Folder);
-
-      expect(trashRepository.findByItemIds).toHaveBeenCalledWith(
-        folderUuids,
-        TrashItemType.Folder,
-      );
-    });
-
-    it('When repository throws error, then should propagate error to caller', async () => {
-      const fileUuids = ['file-1'];
-      const dbError = new Error('Database connection failed');
-
-      jest.spyOn(trashRepository, 'findByItemIds').mockRejectedValue(dbError);
-
-      await expect(
-        service.getTrashEntriesByIds(fileUuids, TrashItemType.File),
-      ).rejects.toThrow('Database connection failed');
-    });
-  });
-
-  describe('addItemsToTrash', () => {
-    it('When files with premium tier are trashed, then should create entries with 15 days caducity', async () => {
-      const file1 = newFile();
-      const file2 = newFile();
-      const trashedAt = new Date('2025-10-30T00:00:00Z');
-      const userId = 1;
-
-      jest.spyOn(trashRepository, 'create').mockResolvedValue();
-
-      await service.addItemsToTrash(
-        [file1.uuid, file2.uuid],
-        TrashItemType.File,
-        'premium_individual',
-        userId,
-        trashedAt,
-      );
-
-      expect(trashRepository.create).toHaveBeenCalledTimes(2);
-    });
-
-    it('When folders with free tier are trashed, then should create entries with 48 hours caducity', async () => {
-      const folder1 = newFolder();
-      const folder2 = newFolder();
-      const trashedAt = new Date('2025-10-30T00:00:00Z');
-      const userId = 1;
-
-      jest.spyOn(trashRepository, 'create').mockResolvedValue();
-
-      await service.addItemsToTrash(
-        [folder1.uuid, folder2.uuid],
-        TrashItemType.Folder,
-        'free_individual',
-        userId,
-        trashedAt,
-      );
-
-      expect(trashRepository.create).toHaveBeenCalledTimes(2);
-    });
-
-    it('When items with unknown tier are trashed, then should create entries with 2 days caducity', async () => {
-      const file = newFile();
-      const trashedAt = new Date('2025-10-30T00:00:00Z');
-      const userId = 1;
-
-      jest.spyOn(trashRepository, 'create').mockResolvedValue();
-
-      await service.addItemsToTrash(
-        [file.uuid],
-        TrashItemType.File,
-        'unknown_tier',
-        userId,
-        trashedAt,
-      );
-
-      expect(trashRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          caducityDate: new Date('2025-11-01T00:00:00Z'),
-        }),
-      );
-    });
-
-    it('When custom trashedAt date provided, then should use it for caducity calculation', async () => {
-      const file = newFile();
-      const customDate = new Date('2025-01-15T10:30:00Z');
-      const expectedCaducity = new Date('2025-01-30T10:30:00Z');
-      const userId = 1;
-
-      jest.spyOn(trashRepository, 'create').mockResolvedValue();
-
-      await service.addItemsToTrash(
-        [file.uuid],
-        TrashItemType.File,
-        'premium_individual',
-        userId,
-        customDate,
-      );
-
-      expect(trashRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          caducityDate: expectedCaducity,
-        }),
-      );
-    });
-
-    it('When repository fails to create entry, then should propagate error', async () => {
-      const file = newFile();
-      const dbError = new Error('Duplicate entry violation');
-      const userId = 1;
-
-      jest.spyOn(trashRepository, 'create').mockRejectedValue(dbError);
-
-      await expect(
-        service.addItemsToTrash(
-          [file.uuid],
-          TrashItemType.File,
-          'premium_individual',
-          userId,
-        ),
-      ).rejects.toThrow('Duplicate entry violation');
-    });
-  });
-
-  describe('removeItemsFromTrash', () => {
-    it('When empty array provided, then should return early without calling repository', async () => {
-      const deleteByItemIdsSpy = jest.spyOn(trashRepository, 'deleteByItemIds');
-
-      await service.removeItemsFromTrash([], TrashItemType.File);
-
-      expect(deleteByItemIdsSpy).not.toHaveBeenCalled();
-    });
-
-    it('When multiple file IDs provided, then should batch delete from trash', async () => {
-      const fileIds = ['file-1', 'file-2', 'file-3'];
-
-      jest.spyOn(trashRepository, 'deleteByItemIds').mockResolvedValue();
-
-      await service.removeItemsFromTrash(fileIds, TrashItemType.File);
-
-      expect(trashRepository.deleteByItemIds).toHaveBeenCalledWith(
-        fileIds,
-        TrashItemType.File,
-      );
-    });
-
-    it('When removing files from trash, then should pass file type to repository', async () => {
-      const fileIds = ['file-uuid-1', 'file-uuid-2'];
-
-      jest.spyOn(trashRepository, 'deleteByItemIds').mockResolvedValue();
-
-      await service.removeItemsFromTrash(fileIds, TrashItemType.File);
-
-      expect(trashRepository.deleteByItemIds).toHaveBeenCalledWith(
-        fileIds,
-        TrashItemType.File,
-      );
-    });
-
-    it('When removing folders from trash, then should pass folder type to repository', async () => {
-      const folderIds = ['folder-uuid-1', 'folder-uuid-2'];
-
-      jest.spyOn(trashRepository, 'deleteByItemIds').mockResolvedValue();
-
-      await service.removeItemsFromTrash(folderIds, TrashItemType.Folder);
-
-      expect(trashRepository.deleteByItemIds).toHaveBeenCalledWith(
-        folderIds,
-        TrashItemType.Folder,
-      );
-    });
-
-    it('When repository fails to delete, then should propagate error', async () => {
-      const fileIds = ['file-1', 'file-2'];
-      const dbError = new Error('Database error during delete');
-
-      jest.spyOn(trashRepository, 'deleteByItemIds').mockRejectedValue(dbError);
-
-      await expect(
-        service.removeItemsFromTrash(fileIds, TrashItemType.File),
-      ).rejects.toThrow('Database error during delete');
-    });
-  });
-
-  describe('deleteExpiredItems', () => {
-    it('When empty array provided, then should return zero counts', async () => {
-      const result = await service.deleteExpiredItems([]);
-
-      expect(result).toEqual({
-        filesDeleted: 0,
-        foldersDeleted: 0,
-      });
-      expect(fileRepository.deleteFilesByUuid).not.toHaveBeenCalled();
-      expect(folderRepository.deleteFoldersByUuid).not.toHaveBeenCalled();
-    });
-
-    it('When only files provided, then should delete files only', async () => {
-      const fileItems = [
-        Trash.build({
-          itemId: 'file-1',
-          itemType: TrashItemType.File,
-          caducityDate: new Date('2020-01-01'),
-          userId: 1,
-        }),
-        Trash.build({
-          itemId: 'file-2',
-          itemType: TrashItemType.File,
-          caducityDate: new Date('2020-01-01'),
-          userId: 1,
-        }),
-      ];
-
-      jest.spyOn(fileRepository, 'deleteFilesByUuid').mockResolvedValue(2);
-      jest.spyOn(folderRepository, 'deleteFoldersByUuid').mockResolvedValue(0);
-      jest.spyOn(trashRepository, 'deleteByItemIds').mockResolvedValue();
-
-      const result = await service.deleteExpiredItems(fileItems);
-
-      expect(fileRepository.deleteFilesByUuid).toHaveBeenCalledWith([
-        'file-1',
-        'file-2',
-      ]);
-      expect(folderRepository.deleteFoldersByUuid).not.toHaveBeenCalled();
-      expect(trashRepository.deleteByItemIds).toHaveBeenCalledWith(
-        ['file-1', 'file-2'],
-        TrashItemType.File,
-      );
-      expect(result).toEqual({
-        filesDeleted: 2,
-        foldersDeleted: 0,
-      });
-    });
-
-    it('When only folders provided, then should delete folders only', async () => {
-      const folderItems = [
-        Trash.build({
-          itemId: 'folder-1',
-          itemType: TrashItemType.Folder,
-          caducityDate: new Date('2020-01-01'),
-          userId: 1,
-        }),
-        Trash.build({
-          itemId: 'folder-2',
-          itemType: TrashItemType.Folder,
-          caducityDate: new Date('2020-01-01'),
-          userId: 1,
-        }),
-      ];
-
-      jest.spyOn(fileRepository, 'deleteFilesByUuid').mockResolvedValue(0);
-      jest.spyOn(folderRepository, 'deleteFoldersByUuid').mockResolvedValue(2);
-      jest.spyOn(trashRepository, 'deleteByItemIds').mockResolvedValue();
-
-      const result = await service.deleteExpiredItems(folderItems);
-
-      expect(fileRepository.deleteFilesByUuid).not.toHaveBeenCalled();
-      expect(folderRepository.deleteFoldersByUuid).toHaveBeenCalledWith([
-        'folder-1',
-        'folder-2',
-      ]);
-      expect(trashRepository.deleteByItemIds).toHaveBeenCalledWith(
-        ['folder-1', 'folder-2'],
-        TrashItemType.Folder,
-      );
-      expect(result).toEqual({
-        filesDeleted: 0,
-        foldersDeleted: 2,
-      });
-    });
-
-    it('When mixed files and folders provided, then should delete both types', async () => {
-      const mixedItems = [
-        Trash.build({
-          itemId: 'file-1',
-          itemType: TrashItemType.File,
-          caducityDate: new Date('2020-01-01'),
-          userId: 1,
-        }),
-        Trash.build({
-          itemId: 'file-2',
-          itemType: TrashItemType.File,
-          caducityDate: new Date('2020-01-01'),
-          userId: 1,
-        }),
-        Trash.build({
-          itemId: 'folder-1',
-          itemType: TrashItemType.Folder,
-          caducityDate: new Date('2020-01-01'),
-          userId: 1,
-        }),
-        Trash.build({
-          itemId: 'folder-2',
-          itemType: TrashItemType.Folder,
-          caducityDate: new Date('2020-01-01'),
-          userId: 1,
-        }),
-        Trash.build({
-          itemId: 'folder-3',
-          itemType: TrashItemType.Folder,
-          caducityDate: new Date('2020-01-01'),
-          userId: 1,
-        }),
-      ];
-
-      jest.spyOn(fileRepository, 'deleteFilesByUuid').mockResolvedValue(2);
-      jest.spyOn(folderRepository, 'deleteFoldersByUuid').mockResolvedValue(3);
-      jest.spyOn(trashRepository, 'deleteByItemIds').mockResolvedValue();
-
-      const result = await service.deleteExpiredItems(mixedItems);
-
-      expect(fileRepository.deleteFilesByUuid).toHaveBeenCalledWith([
-        'file-1',
-        'file-2',
-      ]);
-      expect(folderRepository.deleteFoldersByUuid).toHaveBeenCalledWith([
-        'folder-1',
-        'folder-2',
-        'folder-3',
-      ]);
-      expect(trashRepository.deleteByItemIds).toHaveBeenCalledTimes(2);
-      expect(trashRepository.deleteByItemIds).toHaveBeenCalledWith(
-        ['file-1', 'file-2'],
-        TrashItemType.File,
-      );
-      expect(trashRepository.deleteByItemIds).toHaveBeenCalledWith(
-        ['folder-1', 'folder-2', 'folder-3'],
-        TrashItemType.Folder,
-      );
-      expect(result).toEqual({
-        filesDeleted: 2,
-        foldersDeleted: 3,
-      });
-    });
-
-    it('When deletion is executed, then repositories and trash should be called in parallel', async () => {
-      const mixedItems = [
-        Trash.build({
-          itemId: 'file-1',
-          itemType: TrashItemType.File,
-          caducityDate: new Date('2020-01-01'),
-          userId: 1,
-        }),
-        Trash.build({
-          itemId: 'folder-1',
-          itemType: TrashItemType.Folder,
-          caducityDate: new Date('2020-01-01'),
-          userId: 1,
-        }),
-      ];
-
-      const fileDeleteSpy = jest
-        .spyOn(fileRepository, 'deleteFilesByUuid')
-        .mockResolvedValue(1);
-      const folderDeleteSpy = jest
-        .spyOn(folderRepository, 'deleteFoldersByUuid')
-        .mockResolvedValue(1);
-      const trashDeleteSpy = jest
-        .spyOn(trashRepository, 'deleteByItemIds')
-        .mockResolvedValue();
-
-      await service.deleteExpiredItems(mixedItems);
-
-      expect(fileDeleteSpy).toHaveBeenCalled();
-      expect(folderDeleteSpy).toHaveBeenCalled();
-      expect(trashDeleteSpy).toHaveBeenCalledTimes(2);
+      expect(result).toBe(30);
     });
   });
 });

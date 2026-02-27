@@ -29,8 +29,6 @@ import { SharingService } from '../sharing/sharing.service';
 import { type UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { FileUseCases } from '../file/file.usecase';
 import { FileStatus } from '../file/file.domain';
-import { TrashUseCases } from '../trash/trash.usecase';
-import { TrashItemType } from '../trash/trash.attributes';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 
 const folderId = 4;
@@ -42,7 +40,6 @@ describe('FolderUseCases', () => {
   let cryptoService: CryptoService;
   let sharingService: SharingService;
   let fileUsecases: FileUseCases;
-  let trashUsecases: TrashUseCases;
   let featureLimitService: FeatureLimitService;
 
   const userMocked = User.build({
@@ -90,7 +87,6 @@ describe('FolderUseCases', () => {
     cryptoService = module.get<CryptoService>(CryptoService);
     sharingService = module.get<SharingService>(SharingService);
     fileUsecases = module.get<FileUseCases>(FileUseCases);
-    trashUsecases = module.get<TrashUseCases>(TrashUseCases);
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
   });
 
@@ -210,71 +206,29 @@ describe('FolderUseCases', () => {
       jest
         .spyOn(service, 'getFolder')
         .mockResolvedValue({ bucket: rootFolderBucket } as Folder);
-      jest.spyOn(trashUsecases, 'addItemsToTrash');
+      jest.spyOn(folderRepository, 'updateManyByFolderId');
 
-      await service.moveFoldersToTrash(
-        user,
-        [mockDriveFolder.id, mockBackupFolder.id],
-        [],
-        'free_individual',
+      await service.moveFoldersToTrash(user, [
+        mockDriveFolder.id,
+        mockBackupFolder.id,
+      ]);
+
+      expect(folderRepository.updateManyByFolderId).toHaveBeenCalledTimes(2);
+      expect(folderRepository.updateManyByFolderId).toHaveBeenCalledWith(
+        [mockDriveFolder.id],
+        {
+          deleted: true,
+          deletedAt: expect.any(Date),
+        },
       );
-
-      expect(trashUsecases.addItemsToTrash).toHaveBeenCalledTimes(1);
-      expect(trashUsecases.addItemsToTrash).toHaveBeenCalledWith(
-        [mockDriveFolder.uuid],
-        TrashItemType.Folder,
-        'free_individual',
-        user.id,
-      );
-    });
-
-    it('When you trash only backup folders, then the trash bin is not updated', async () => {
-      const rootFolderBucket = 'drive-bucket';
-      const mockBackupFolder = newFolder({
-        attributes: { bucket: 'backup-bucket', parentId: null },
-      });
-      const mockTier = { id: '1', label: 'free_individual' };
-
-      jest
-        .spyOn(service, 'getFoldersByIds')
-        .mockResolvedValue([mockBackupFolder]);
-      jest
-        .spyOn(service, 'getFolder')
-        .mockResolvedValue({ bucket: rootFolderBucket } as Folder);
-      jest
-        .spyOn(featureLimitService, 'getTier')
-        .mockResolvedValueOnce(mockTier);
-      jest.spyOn(trashUsecases, 'addItemsToTrash');
-
-      await service.moveFoldersToTrash(user, [mockBackupFolder.id]);
-
-      expect(trashUsecases.addItemsToTrash).not.toHaveBeenCalled();
-    });
-
-    it('When you trash folders, then the retention period is determined by the user tier', async () => {
-      const rootFolderBucket = 'drive-bucket';
-      const mockFolder = newFolder({
-        attributes: { bucket: rootFolderBucket, parentId: 1 },
-      });
-
-      jest.spyOn(service, 'getFoldersByIds').mockResolvedValue([mockFolder]);
-      jest
-        .spyOn(service, 'getFolder')
-        .mockResolvedValue({ bucket: rootFolderBucket } as Folder);
-      jest.spyOn(trashUsecases, 'addItemsToTrash');
-
-      await service.moveFoldersToTrash(
-        user,
-        [mockFolder.id],
-        [],
-        'essential_individual',
-      );
-
-      expect(trashUsecases.addItemsToTrash).toHaveBeenCalledWith(
-        [mockFolder.uuid],
-        TrashItemType.Folder,
-        'essential_individual',
-        user.id,
+      expect(folderRepository.updateManyByFolderId).toHaveBeenCalledWith(
+        [mockBackupFolder.id],
+        {
+          deleted: true,
+          deletedAt: expect.any(Date),
+          removed: true,
+          removedAt: expect.any(Date),
+        },
       );
     });
   });
