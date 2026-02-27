@@ -1,4 +1,6 @@
 import { Test, type TestingModule } from '@nestjs/testing';
+import { Time } from '../../lib/time';
+import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 import { SequelizeWorkspaceRepository } from './repositories/workspaces.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { UserUseCases } from '../user/user.usecase';
@@ -65,8 +67,7 @@ import {
   WorkspaceLogPlatform,
   WorkspaceLogType,
 } from './attributes/workspace-logs.attributes';
-import { SequelizeTrashRepository } from '../trash/trash.repository';
-import { TrashItemType } from '../trash/trash.attributes';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -95,7 +96,7 @@ describe('WorkspacesUsecases', () => {
   let sharingUseCases: SharingService;
   let paymentsService: PaymentsService;
   let fuzzySearchUseCases: FuzzySearchUseCases;
-  let trashRepository: SequelizeTrashRepository;
+  let featureLimitsService: FeatureLimitService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -125,9 +126,7 @@ describe('WorkspacesUsecases', () => {
     sharingUseCases = module.get<SharingService>(SharingService);
     paymentsService = module.get<PaymentsService>(PaymentsService);
     fuzzySearchUseCases = module.get<FuzzySearchUseCases>(FuzzySearchUseCases);
-    trashRepository = module.get<SequelizeTrashRepository>(
-      SequelizeTrashRepository,
-    );
+    featureLimitsService = module.get<FeatureLimitService>(FeatureLimitService);
   });
 
   it('should be defined', () => {
@@ -3863,12 +3862,15 @@ describe('WorkspacesUsecases', () => {
     const limit = 50;
     const offset = 0;
 
-    it('When files are retrieved, it should return files', async () => {
+    it('When files are retrieved, it should return files with caducityDate from updatedAt', async () => {
       const trashedFiles = [newFile()];
+      const retentionDays = DEFAULT_TRASH_RETENTION_DAYS;
       jest
         .spyOn(fileUseCases, 'getFilesInWorkspace')
         .mockResolvedValue(trashedFiles);
-      jest.spyOn(trashRepository, 'findByItemIds').mockResolvedValue([]);
+      jest
+        .spyOn(featureLimitsService, 'getUserLimitByLabel')
+        .mockResolvedValue(null);
 
       const result = await service.getWorkspaceUserTrashedItems(
         user,
@@ -3879,8 +3881,15 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
+      const expectedCaducityDate = Time.dateWithTimeAdded(
+        retentionDays,
+        'day',
+        trashedFiles[0].updatedAt,
+      );
       expect(result).toEqual({
-        result: [{ ...trashedFiles[0].toJSON(), caducityDate: null }],
+        result: [
+          { ...trashedFiles[0].toJSON(), caducityDate: expectedCaducityDate },
+        ],
       });
       expect(fileUseCases.getFilesInWorkspace).toHaveBeenCalledWith(
         user.uuid,
@@ -3890,12 +3899,15 @@ describe('WorkspacesUsecases', () => {
       );
     });
 
-    it('When folders are retrieved, it should return folders', async () => {
+    it('When folders are retrieved, it should return folders with caducityDate from updatedAt', async () => {
       const trashedFolders = [newFolder({ attributes: { deleted: true } })];
+      const retentionDays = DEFAULT_TRASH_RETENTION_DAYS;
       jest
         .spyOn(folderUseCases, 'getFoldersInWorkspace')
         .mockResolvedValue(trashedFolders);
-      jest.spyOn(trashRepository, 'findByItemIds').mockResolvedValue([]);
+      jest
+        .spyOn(featureLimitsService, 'getUserLimitByLabel')
+        .mockResolvedValue(null);
 
       const result = await service.getWorkspaceUserTrashedItems(
         user,
@@ -3906,8 +3918,15 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
+      const expectedCaducityDate = Time.dateWithTimeAdded(
+        retentionDays,
+        'day',
+        trashedFolders[0].updatedAt,
+      );
       expect(result).toEqual({
-        result: [{ ...trashedFolders[0].toJSON(), caducityDate: null }],
+        result: [
+          { ...trashedFolders[0].toJSON(), caducityDate: expectedCaducityDate },
+        ],
       });
       expect(folderUseCases.getFoldersInWorkspace).toHaveBeenCalledWith(
         user.uuid,
@@ -3917,20 +3936,15 @@ describe('WorkspacesUsecases', () => {
       );
     });
 
-    it('When files have caducityDate, it should return files with expiration date', async () => {
+    it('When user has a tier limit, it should calculate caducityDate with tier retention days', async () => {
       const trashedFiles = [newFile()];
-      const caducityDate = new Date();
+      const retentionDays = 30;
       jest
         .spyOn(fileUseCases, 'getFilesInWorkspace')
         .mockResolvedValue(trashedFiles);
-      jest.spyOn(trashRepository, 'findByItemIds').mockResolvedValue([
-        {
-          itemId: trashedFiles[0].uuid,
-          caducityDate,
-          itemType: TrashItemType.File,
-          userId: user.id,
-        } as any,
-      ]);
+      jest
+        .spyOn(featureLimitsService, 'getUserLimitByLabel')
+        .mockResolvedValue({ value: String(retentionDays) } as any);
 
       const result = await service.getWorkspaceUserTrashedItems(
         user,
@@ -3941,25 +3955,27 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
+      const expectedCaducityDate = Time.dateWithTimeAdded(
+        retentionDays,
+        'day',
+        trashedFiles[0].updatedAt,
+      );
       expect(result).toEqual({
-        result: [{ ...trashedFiles[0].toJSON(), caducityDate }],
+        result: [
+          { ...trashedFiles[0].toJSON(), caducityDate: expectedCaducityDate },
+        ],
       });
     });
 
-    it('When folders have caducityDate, it should return folders with expiration date', async () => {
+    it('When folders have a tier limit, it should calculate caducityDate with tier retention days', async () => {
       const trashedFolders = [newFolder({ attributes: { deleted: true } })];
-      const caducityDate = new Date();
+      const retentionDays = 7;
       jest
         .spyOn(folderUseCases, 'getFoldersInWorkspace')
         .mockResolvedValue(trashedFolders);
-      jest.spyOn(trashRepository, 'findByItemIds').mockResolvedValue([
-        {
-          itemId: trashedFolders[0].uuid,
-          caducityDate,
-          itemType: TrashItemType.Folder,
-          userId: user.id,
-        } as any,
-      ]);
+      jest
+        .spyOn(featureLimitsService, 'getUserLimitByLabel')
+        .mockResolvedValue({ value: String(retentionDays) } as any);
 
       const result = await service.getWorkspaceUserTrashedItems(
         user,
@@ -3970,8 +3986,15 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
+      const expectedCaducityDate = Time.dateWithTimeAdded(
+        retentionDays,
+        'day',
+        trashedFolders[0].updatedAt,
+      );
       expect(result).toEqual({
-        result: [{ ...trashedFolders[0].toJSON(), caducityDate }],
+        result: [
+          { ...trashedFolders[0].toJSON(), caducityDate: expectedCaducityDate },
+        ],
       });
     });
   });
