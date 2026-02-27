@@ -1163,4 +1163,36 @@ describe('FileRepository', () => {
       expect(result).toBe(0);
     });
   });
+
+  describe('findExpiredTrashFileIds', () => {
+    it('When expired trash files exist, then it should return their uuids', async () => {
+      const fileUuids = [v4(), v4(), v4()];
+      const limit = 100;
+
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce(
+          fileUuids.map((uuid) => ({ item_id: uuid })) as any,
+        );
+
+      const result = await repository.findExpiredTrashFileIds(limit);
+
+      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('trash-retention-days'),
+        {
+          replacements: { limit, defaultRetentionDays: expect.any(Number) },
+          type: QueryTypes.SELECT,
+        },
+      );
+      expect(result).toEqual(fileUuids);
+    });
+
+    it('When no expired trash files exist, then it should return empty array', async () => {
+      jest.spyOn(fileModel.sequelize, 'query').mockResolvedValueOnce([] as any);
+
+      const result = await repository.findExpiredTrashFileIds(100);
+
+      expect(result).toEqual([]);
+    });
+  });
 });
