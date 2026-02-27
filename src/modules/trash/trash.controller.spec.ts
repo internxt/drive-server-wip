@@ -409,6 +409,50 @@ describe('TrashController', () => {
       });
     });
 
+    it('When type is files and a file has no updatedAt, then caducityDate should be null', async () => {
+      const mockFile = newFile({
+        attributes: { status: FileStatus.TRASHED, updatedAt: null },
+      });
+      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue([mockFile]);
+      jest
+        .spyOn(trashUseCases, 'getTrashRetentionDays')
+        .mockResolvedValue(DEFAULT_TRASH_RETENTION_DAYS);
+      jest.spyOn(trashUseCases, 'calculateCaducityDate');
+
+      const result = await controller.getTrashedFilesPaginated(
+        user,
+        validPagination,
+        'files',
+      );
+
+      expect(trashUseCases.calculateCaducityDate).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        result: [{ ...mockFile.toJSON(), caducityDate: null }],
+      });
+    });
+
+    it('When type is folders and a folder has no updatedAt, then caducityDate should be null', async () => {
+      const mockFolder = newFolder({
+        attributes: { deleted: true, removed: false, updatedAt: null },
+      });
+      jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue([mockFolder]);
+      jest
+        .spyOn(trashUseCases, 'getTrashRetentionDays')
+        .mockResolvedValue(DEFAULT_TRASH_RETENTION_DAYS);
+      jest.spyOn(trashUseCases, 'calculateCaducityDate');
+
+      const result = await controller.getTrashedFilesPaginated(
+        user,
+        validPagination,
+        'folders',
+      );
+
+      expect(trashUseCases.calculateCaducityDate).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        result: [{ ...mockFolder.toJSON(), caducityDate: null }],
+      });
+    });
+
     it('When sort and order are provided for files, then it should include sort in options', async () => {
       const mockFiles = [
         newFile({ attributes: { status: FileStatus.TRASHED } }),
