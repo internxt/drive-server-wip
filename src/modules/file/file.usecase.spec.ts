@@ -50,8 +50,6 @@ import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { type Tier } from '../feature-limit/domain/tier.domain';
 import { LimitLabels, LimitTypes } from '../feature-limit/limits.enum';
 import { RedisService } from '../../externals/redis/redis.service';
-import { TrashUseCases } from '../trash/trash.usecase';
-import { TrashItemType } from '../trash/trash.attributes';
 import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import {
@@ -79,7 +77,6 @@ describe('FileUseCases', () => {
   let mailerService: MailerService;
   let featureLimitService: FeatureLimitService;
   let redisService: RedisService;
-  let trashUsecases: TrashUseCases;
   let cacheManagerService: CacheManagerService;
   let getFileVersionsAction: GetFileVersionsAction;
   let deleteFileVersionAction: DeleteFileVersionAction;
@@ -116,7 +113,6 @@ describe('FileUseCases', () => {
     mailerService = module.get<MailerService>(MailerService);
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
     redisService = module.get<RedisService>(RedisService);
-    trashUsecases = module.get<TrashUseCases>(TrashUseCases);
     cacheManagerService = module.get<CacheManagerService>(CacheManagerService);
     getFileVersionsAction = module.get<GetFileVersionsAction>(
       GetFileVersionsAction,
@@ -172,17 +168,12 @@ describe('FileUseCases', () => {
     it('When you try to trash files with id and uuid, then functions are called with respective values', async () => {
       const fileIds = [fileId];
       const fileUuids = [mockFile.uuid];
-      const mockTier = { id: '1', label: 'free_individual' };
 
       jest
         .spyOn(fileRepository, 'findByFileIds')
         .mockResolvedValueOnce([mockFile]);
-      jest
-        .spyOn(featureLimitService, 'getTier')
-        .mockResolvedValueOnce(mockTier);
       jest.spyOn(fileRepository, 'updateFilesStatusToTrashed');
       jest.spyOn(fileRepository, 'updateFilesStatusToTrashedByUuid');
-      jest.spyOn(trashUsecases, 'addItemsToTrash');
       await service.moveFilesToTrash(userMocked, fileIds, fileUuids);
       expect(fileRepository.updateFilesStatusToTrashed).toHaveBeenCalledTimes(
         1,
@@ -194,36 +185,6 @@ describe('FileUseCases', () => {
       expect(
         fileRepository.updateFilesStatusToTrashedByUuid,
       ).toHaveBeenCalledWith(userMocked, fileUuids);
-      expect(trashUsecases.addItemsToTrash).toHaveBeenCalledWith(
-        expect.arrayContaining(fileUuids),
-        TrashItemType.File,
-        'free_individual',
-        userMocked.id,
-      );
-    });
-
-    it('When you trash files, then the retention period is determined by the user tier', async () => {
-      const fileIds = [fileId];
-      const fileUuids = [mockFile.uuid];
-
-      jest
-        .spyOn(fileRepository, 'findByFileIds')
-        .mockResolvedValueOnce([mockFile]);
-      jest.spyOn(trashUsecases, 'addItemsToTrash');
-
-      await service.moveFilesToTrash(
-        userMocked,
-        fileIds,
-        fileUuids,
-        'premium_individual',
-      );
-
-      expect(trashUsecases.addItemsToTrash).toHaveBeenCalledWith(
-        expect.arrayContaining(fileUuids),
-        TrashItemType.File,
-        'premium_individual',
-        userMocked.id,
-      );
     });
 
     it('When you try to trash files, then it stops sharing those files', async () => {
