@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
+import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   File,
@@ -141,6 +142,7 @@ export interface FileRepository {
   ): Promise<File[]>;
   deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
   deleteFilesByUuid(fileUuids: string[]): Promise<number>;
+  findExpiredTrashFileIds(limit: number): Promise<string[]>;
   findRecent(
     userId: number,
     daysBack: number,
@@ -972,6 +974,48 @@ export class SequelizeFileRepository implements FileRepository {
     );
 
     return updatedCount;
+  }
+
+  async findExpiredTrashFileIds(limit: number): Promise<string[]> {
+    const query = `
+      WITH retention_config AS (
+        SELECT
+          f.uuid AS item_id,
+          f.updated_at,
+          COALESCE(
+            (SELECT l.value::integer
+             FROM user_overridden_limits uol
+             JOIN limits l ON uol.limit_id = l.id
+             WHERE uol.user_id = u.uuid AND l.label = 'trash-retention-days'),
+            (SELECT l.value::integer
+             FROM tiers_limits tl
+             JOIN limits l ON tl.limit_id = l.id
+             WHERE tl.tier_id = u.tier_id AND l.label = 'trash-retention-days'),
+            :defaultRetentionDays
+          ) AS retention_days
+        FROM files f
+        JOIN users u ON f.user_id = u.id
+        WHERE f.deleted = true AND f.removed = false
+      )
+      SELECT item_id
+      FROM retention_config
+      WHERE updated_at < NOW() - (retention_days || ' days')::INTERVAL
+      ORDER BY updated_at ASC, item_id ASC
+      LIMIT :limit
+    `;
+
+    const results = await this.fileModel.sequelize.query<{ item_id: string }>(
+      query,
+      {
+        replacements: {
+          limit,
+          defaultRetentionDays: DEFAULT_TRASH_RETENTION_DAYS,
+        },
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    return results.map((r) => r.item_id);
   }
 
   async destroyFile(where: Partial<FileModel>): Promise<void> {

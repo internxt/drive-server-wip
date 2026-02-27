@@ -15,7 +15,6 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { SecurityModule } from '../security/security.module';
 import { DeleteExpiredFileVersionsTask } from './tasks/delete-expired-file-versions.task';
 import { DeleteExpiredTrashItemsTask } from './tasks/delete-expired-trash-items.task';
-import { TrashModule } from '../trash/trash.module';
 
 @Module({
   imports: [
@@ -24,7 +23,6 @@ import { TrashModule } from '../trash/trash.module';
     FileModule,
     FolderModule,
     UserModule,
-    TrashModule,
     MailerModule,
     FeatureLimitModule,
     SecurityModule,
