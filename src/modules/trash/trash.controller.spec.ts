@@ -20,6 +20,7 @@ import { Test } from '@nestjs/testing';
 import { FileStatus } from '../file/file.domain';
 import { type BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { v4 } from 'uuid';
+import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 
 const user = newUser();
 const requester = newUser();
@@ -128,13 +129,11 @@ describe('TrashController', () => {
         user,
         [fileItems[1].id],
         [fileItems[0].uuid],
-        undefined,
       );
       expect(folderUseCases.moveFoldersToTrash).toHaveBeenCalledWith(
         user,
         [parseInt(folderItems[0].id)],
         [folderItems[1].uuid],
-        undefined,
       );
     });
 
@@ -340,8 +339,15 @@ describe('TrashController', () => {
       const mockFiles = [
         newFile({ attributes: { status: FileStatus.TRASHED } }),
       ];
+      const retentionDays = DEFAULT_TRASH_RETENTION_DAYS;
+      const expectedCaducityDate = new Date('2026-03-01');
       jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(mockFiles);
-      jest.spyOn(trashUseCases, 'getTrashEntriesByIds').mockResolvedValue([]);
+      jest
+        .spyOn(trashUseCases, 'getTrashRetentionDays')
+        .mockResolvedValue(retentionDays);
+      jest
+        .spyOn(trashUseCases, 'calculateCaducityDate')
+        .mockReturnValue(expectedCaducityDate);
 
       const result = await controller.getTrashedFilesPaginated(
         user,
@@ -361,7 +367,7 @@ describe('TrashController', () => {
       expect(result).toEqual({
         result: mockFiles.map((file) => ({
           ...file.toJSON(),
-          caducityDate: null,
+          caducityDate: expectedCaducityDate,
         })),
       });
     });
@@ -370,8 +376,15 @@ describe('TrashController', () => {
       const mockFolders = [
         newFolder({ attributes: { deleted: true, removed: false } }),
       ];
+      const retentionDays = DEFAULT_TRASH_RETENTION_DAYS;
+      const expectedCaducityDate = new Date('2026-03-01');
       jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue(mockFolders);
-      jest.spyOn(trashUseCases, 'getTrashEntriesByIds').mockResolvedValue([]);
+      jest
+        .spyOn(trashUseCases, 'getTrashRetentionDays')
+        .mockResolvedValue(retentionDays);
+      jest
+        .spyOn(trashUseCases, 'calculateCaducityDate')
+        .mockReturnValue(expectedCaducityDate);
 
       const result = await controller.getTrashedFilesPaginated(
         user,
@@ -391,7 +404,7 @@ describe('TrashController', () => {
       expect(result).toEqual({
         result: mockFolders.map((folder) => ({
           ...folder.toJSON(),
-          caducityDate: null,
+          caducityDate: expectedCaducityDate,
         })),
       });
     });
@@ -401,7 +414,7 @@ describe('TrashController', () => {
         newFile({ attributes: { status: FileStatus.TRASHED } }),
       ];
       jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(mockFiles);
-      jest.spyOn(trashUseCases, 'getTrashEntriesByIds').mockResolvedValue([]);
+      jest.spyOn(trashUseCases, 'getTrashRetentionDays').mockResolvedValue(2);
 
       await controller.getTrashedFilesPaginated(
         user,

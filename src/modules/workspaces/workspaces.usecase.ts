@@ -81,8 +81,11 @@ import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { type WorkspaceLog } from './domains/workspace-log.domain';
 import { type TrashItem } from './interceptors/workspaces-logs.interceptor';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { SequelizeTrashRepository } from '../trash/trash.repository';
-import { TrashItemType } from '../trash/trash.attributes';
+import { Time } from '../../lib/time';
+import {
+  DEFAULT_TRASH_RETENTION_DAYS,
+  LimitLabels,
+} from '../feature-limit/limits.enum';
 @Injectable()
 export class WorkspacesUsecases {
   constructor(
@@ -104,7 +107,6 @@ export class WorkspacesUsecases {
     private readonly avatarService: AvatarService,
     private readonly fuzzySearchUseCases: FuzzySearchUseCases,
     private readonly featureLimitsService: FeatureLimitService,
-    private readonly trashRepository: SequelizeTrashRepository,
   ) {}
 
   async initiateWorkspace(
@@ -696,53 +698,36 @@ export class WorkspacesUsecases {
     offset = 0,
     sort?: SortParamsFile | SortParamsFolder,
   ) {
-    let result: File[] | Folder[];
-
-    if (itemType === WorkspaceItemType.File) {
-      result = await this.fileUseCases.getFilesInWorkspace(
-        user.uuid,
-        workspaceId,
-        {
-          status: FileStatus.TRASHED,
-        },
-        {
-          limit,
-          offset,
-          sort,
-        },
-      );
-    } else {
-      result = await this.folderUseCases.getFoldersInWorkspace(
-        user.uuid,
-        workspaceId,
-        {
-          deleted: true,
-          removed: false,
-        },
-        {
-          limit,
-          offset,
-          sort: sort as SortParamsFolder,
-        },
-      );
-    }
-
-    const itemUuids = result.map((item) => item.uuid);
-    const trashEntries = await this.trashRepository.findByItemIds(
-      itemUuids,
+    const [items, retentionLimit] = await Promise.all([
       itemType === WorkspaceItemType.File
-        ? TrashItemType.File
-        : TrashItemType.Folder,
-    );
+        ? this.fileUseCases.getFilesInWorkspace(
+            user.uuid,
+            workspaceId,
+            { status: FileStatus.TRASHED },
+            { limit, offset, sort },
+          )
+        : this.folderUseCases.getFoldersInWorkspace(
+            user.uuid,
+            workspaceId,
+            { deleted: true, removed: false },
+            { limit, offset, sort: sort as SortParamsFolder },
+          ),
+      this.featureLimitsService.getUserLimitByLabel(
+        LimitLabels.TrashRetentionDays,
+        user,
+      ),
+    ]);
 
-    const trashMap = new Map(
-      trashEntries.map((entry) => [entry.itemId, entry.caducityDate]),
-    );
+    const retentionDays = retentionLimit
+      ? Number(retentionLimit.value)
+      : DEFAULT_TRASH_RETENTION_DAYS;
 
     return {
-      result: result.map((item) => ({
+      result: items.map((item) => ({
         ...item.toJSON(),
-        caducityDate: trashMap.get(item.uuid) || null,
+        caducityDate: item.updatedAt
+          ? Time.dateWithTimeAdded(retentionDays, 'day', item.updatedAt)
+          : null,
       })),
     };
   }
