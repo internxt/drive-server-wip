@@ -52,8 +52,6 @@ import {
   type AuditLogAttributes,
   AuditPerformerType,
 } from '../src/common/audit-logs/audit-logs.attributes';
-import { Trash } from '../src/modules/trash/trash.domain';
-import { TrashItemType } from '../src/modules/trash/trash.attributes';
 import {
   FileVersion,
   type FileVersionAttributes,
@@ -721,23 +719,6 @@ export const newAuditLog = (params?: Partial<AuditLogAttributes>): AuditLog => {
     createdAt: new Date(),
     metadata: params?.metadata || {},
     ...params,
-  });
-};
-
-export const newTrash = (params?: {
-  itemId?: string;
-  itemType?: TrashItemType;
-  caducityDate?: Date;
-  userId?: number;
-}): Trash => {
-  const defaultCaducityDate = new Date();
-  defaultCaducityDate.setDate(defaultCaducityDate.getDate() + 14);
-
-  return Trash.build({
-    itemId: params?.itemId || v4(),
-    itemType: params?.itemType || TrashItemType.File,
-    caducityDate: params?.caducityDate || defaultCaducityDate,
-    userId: params?.userId || 1,
   });
 };
 
