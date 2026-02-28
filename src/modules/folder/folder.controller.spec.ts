@@ -658,6 +658,74 @@ describe('FolderController', () => {
     });
   });
 
+  describe('createBulkFolders', () => {
+    const clientId = 'test-client';
+    const requester = newUser();
+    const parentFolderUuid = v4();
+
+    it('When creating bulk folders with valid data, then it should create and return all folders', async () => {
+      const dto = {
+        parentFolderUuid,
+        folders: [
+          { plainName: 'Folder A' },
+          { plainName: 'Folder B' },
+          { plainName: 'Folder C' },
+        ],
+      };
+
+      const createdFolders = dto.folders.map((f) =>
+        newFolder({ attributes: { plainName: f.plainName } }),
+      );
+
+      jest
+        .spyOn(folderUseCases, 'createBulkFolders')
+        .mockResolvedValue(createdFolders);
+      jest
+        .spyOn(storageNotificationService, 'folderCreated')
+        .mockImplementation(() => {});
+
+      const result = await folderController.createBulkFolders(
+        userMocked,
+        dto,
+        clientId,
+        requester,
+      );
+
+      expect(result.created).toHaveLength(3);
+      expect(result.created).toEqual(
+        createdFolders.map((f) => ({
+          ...f,
+          status: f.getFolderStatus(),
+        })),
+      );
+      expect(folderUseCases.createBulkFolders).toHaveBeenCalledWith(
+        userMocked,
+        dto,
+      );
+      expect(storageNotificationService.folderCreated).toHaveBeenCalledTimes(3);
+    });
+
+    it('When bulk folder creation fails, then it should throw the error', async () => {
+      const dto = {
+        parentFolderUuid,
+        folders: [{ plainName: 'Valid' }, { plainName: 'Invalid/Name' }],
+      };
+
+      jest
+        .spyOn(folderUseCases, 'createBulkFolders')
+        .mockRejectedValue(new BadRequestException('Invalid folder name'));
+
+      await expect(
+        folderController.createBulkFolders(
+          userMocked,
+          dto,
+          clientId,
+          requester,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
   describe('getFolderCount', () => {
     it('When getting folder count without status, then it should return drive folders count', async () => {
       const expectedCount = 25;
