@@ -32,6 +32,7 @@ import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.att
 import { FileUseCases } from '../file/file.usecase';
 import { type File, FileStatus } from '../file/file.domain';
 import { type CreateFolderDto } from './dto/create-folder.dto';
+import { type CreateBulkFoldersDto } from './dto/create-bulk-folders.dto';
 import { type FolderModel } from './folder.model';
 import { type MoveFolderDto } from './dto/move-folder.dto';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
@@ -461,6 +462,74 @@ export class FolderUseCases {
     });
 
     return folder;
+  }
+
+  async createBulkFolders(
+    user: User,
+    dto: CreateBulkFoldersDto,
+  ): Promise<Folder[]> {
+    const parentFolder = await this.folderRepository.findOne({
+      uuid: dto.parentFolderUuid,
+      userId: user.id,
+    });
+
+    if (!parentFolder) {
+      throw new NotFoundException('Parent folder does not exist');
+    }
+
+    for (const item of dto.folders) {
+      if (item.plainName === '' || invalidName.test(item.plainName)) {
+        throw new BadRequestException(
+          `Invalid folder name: "${item.plainName}"`,
+        );
+      }
+    }
+
+    const plainNames = dto.folders.map((f) => f.plainName);
+    const uniqueNames = new Set(plainNames);
+    if (uniqueNames.size !== plainNames.length) {
+      throw new BadRequestException('Duplicate folder names in request');
+    }
+
+    const existingFolders = await this.folderRepository.findByParent(
+      parentFolder.id,
+      {
+        plainName: plainNames,
+        deleted: false,
+        removed: false,
+      },
+    );
+
+    if (existingFolders.length > 0) {
+      const conflictingNames = existingFolders.map((f) => f.plainName);
+      throw new ConflictException(
+        `Folders already exist: ${conflictingNames.join(', ')}`,
+      );
+    }
+
+    const now = new Date();
+    const foldersToCreate = dto.folders.map((item) => ({
+      uuid: v4(),
+      userId: user.id,
+      name: this.cryptoService.encryptName(item.plainName, parentFolder.id),
+      plainName: item.plainName,
+      parentId: parentFolder.id,
+      parentUuid: parentFolder.uuid,
+      encryptVersion: '03-aes' as const,
+      bucket: null,
+      deleted: false,
+      removed: false,
+      createdAt: now,
+      updatedAt: now,
+      removedAt: null,
+      deletedAt: null,
+      modificationTime: item.modificationTime || now,
+      creationTime: item.creationTime || now,
+    }));
+
+    const created = await this.folderRepository.bulkCreate(foldersToCreate);
+
+    return created;
   }
 
   async moveFolderToTrash(folderId: FolderAttributes['id']): Promise<Folder> {
