@@ -36,7 +36,7 @@ async function bootstrap() {
         'x-internxt-workspace',
         'internxt-resources-token',
       ],
-      exposedHeaders: ['sessionId'],
+      exposedHeaders: ['sessionId', 'x-request-id'],
       origin: '*',
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       preflightContinue: false,
