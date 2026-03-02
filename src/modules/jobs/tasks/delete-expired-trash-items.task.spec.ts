@@ -39,13 +39,39 @@ describe('DeleteExpiredTrashItemsTask', () => {
   });
 
   describe('scheduleCleanup', () => {
-    it('When job execution is disabled, then it should not execute the job', async () => {
+    it('When executeCronjobs is false, then it should not execute the job', async () => {
+      configService.get.mockReturnValue(false);
       const startJobSpy = jest.spyOn(task, 'startJob');
 
       await task.scheduleCleanup();
 
+      expect(configService.get).toHaveBeenCalledWith('executeCronjobs', false);
       expect(startJobSpy).not.toHaveBeenCalled();
       expect(redisService.tryAcquireLock).not.toHaveBeenCalled();
+    });
+
+    it('When lock cannot be acquired, then it should not start the job', async () => {
+      configService.get.mockReturnValue(true);
+      redisService.tryAcquireLock.mockResolvedValue(false);
+      const startJobSpy = jest.spyOn(task, 'startJob');
+
+      await task.scheduleCleanup();
+
+      expect(redisService.tryAcquireLock).toHaveBeenCalledWith(
+        'cleanup:expired-trash-items',
+        60 * 1000,
+      );
+      expect(startJobSpy).not.toHaveBeenCalled();
+    });
+
+    it('When lock is acquired, then it should start the job', async () => {
+      configService.get.mockReturnValue(true);
+      redisService.tryAcquireLock.mockResolvedValue(true);
+      const startJobSpy = jest.spyOn(task, 'startJob');
+
+      await task.scheduleCleanup();
+
+      expect(startJobSpy).toHaveBeenCalledTimes(1);
     });
   });
 
