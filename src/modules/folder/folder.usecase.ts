@@ -37,6 +37,8 @@ import { type MoveFolderDto } from './dto/move-folder.dto';
 import { TrashItemType } from '../trash/trash.attributes';
 import { TrashUseCases } from '../trash/trash.usecase';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { UsageInvalidatedEvent } from '../usage-queue/events/usage-invalidated.event';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -57,6 +59,7 @@ export class FolderUseCases {
     @Inject(forwardRef(() => TrashUseCases))
     private readonly trashUsecases: TrashUseCases,
     private readonly featureLimitService: FeatureLimitService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
@@ -543,6 +546,11 @@ export class FolderUseCases {
           Logger.error(`[TRASH] Error adding folders to trash: ${err.message}`),
         );
     }
+
+    this.eventEmitter.emit(
+      'usage.folder.trashed',
+      new UsageInvalidatedEvent(user.uuid, user.id, 'folder.trash'),
+    );
   }
 
   async getFoldersByParentId(

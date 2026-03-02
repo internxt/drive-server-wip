@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { type User } from '../../user/user.domain';
 import { type File } from '../file.domain';
 import { SequelizeFileRepository } from '../file.repository';
 import { SequelizeFileVersionRepository } from '../file-version.repository';
 import { FileVersionStatus } from '../file-version.domain';
 import { FeatureLimitService } from '../../feature-limit/feature-limit.service';
+import { UsageInvalidatedEvent } from '../../usage-queue/events/usage-invalidated.event';
 import { Time } from '../../../lib/time';
 
 @Injectable()
@@ -13,6 +15,7 @@ export class CreateFileVersionAction {
     private readonly fileRepository: SequelizeFileRepository,
     private readonly fileVersionRepository: SequelizeFileVersionRepository,
     private readonly featureLimitService: FeatureLimitService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(
@@ -40,6 +43,11 @@ export class CreateFileVersionAction {
         ...(modificationTime ? { modificationTime } : null),
       }),
     ]);
+
+    this.eventEmitter.emit(
+      'usage.file.version_created',
+      new UsageInvalidatedEvent(user.uuid, user.id, 'file.version.create'),
+    );
   }
 
   private async applyRetentionPolicy(
