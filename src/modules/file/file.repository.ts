@@ -995,12 +995,11 @@ export class SequelizeFileRepository implements FileRepository {
           ) AS retention_days
         FROM files f
         JOIN users u ON f.user_id = u.id
-        WHERE f.deleted = true AND f.removed = false
+        WHERE f.status = 'TRASHED'
       )
       SELECT item_id
       FROM retention_config
       WHERE updated_at < NOW() - (retention_days || ' days')::INTERVAL
-      ORDER BY updated_at ASC, item_id ASC
       LIMIT :limit
     `;
 
