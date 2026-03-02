@@ -346,7 +346,7 @@ describe('TrashController', () => {
         .spyOn(trashUseCases, 'getTrashRetentionDays')
         .mockResolvedValue(retentionDays);
       jest
-        .spyOn(trashUseCases, 'calculateExpiryDate')
+        .spyOn(trashUseCases, 'calculateExpirationDate')
         .mockReturnValue(expectedExpiresAt);
 
       const result = await controller.getTrashedFilesPaginated(
@@ -383,7 +383,7 @@ describe('TrashController', () => {
         .spyOn(trashUseCases, 'getTrashRetentionDays')
         .mockResolvedValue(retentionDays);
       jest
-        .spyOn(trashUseCases, 'calculateExpiryDate')
+        .spyOn(trashUseCases, 'calculateExpirationDate')
         .mockReturnValue(expectedExpiresAt);
 
       const result = await controller.getTrashedFilesPaginated(
@@ -417,7 +417,7 @@ describe('TrashController', () => {
       jest
         .spyOn(trashUseCases, 'getTrashRetentionDays')
         .mockResolvedValue(DEFAULT_TRASH_RETENTION_DAYS);
-      jest.spyOn(trashUseCases, 'calculateExpiryDate');
+      jest.spyOn(trashUseCases, 'calculateExpirationDate');
 
       const result = await controller.getTrashedFilesPaginated(
         user,
@@ -425,7 +425,7 @@ describe('TrashController', () => {
         'files',
       );
 
-      expect(trashUseCases.calculateExpiryDate).not.toHaveBeenCalled();
+      expect(trashUseCases.calculateExpirationDate).not.toHaveBeenCalled();
       expect(result).toEqual({
         result: [{ ...mockFile.toJSON(), expiresAt: null }],
       });
@@ -439,7 +439,7 @@ describe('TrashController', () => {
       jest
         .spyOn(trashUseCases, 'getTrashRetentionDays')
         .mockResolvedValue(DEFAULT_TRASH_RETENTION_DAYS);
-      jest.spyOn(trashUseCases, 'calculateExpiryDate');
+      jest.spyOn(trashUseCases, 'calculateExpirationDate');
 
       const result = await controller.getTrashedFilesPaginated(
         user,
@@ -447,7 +447,7 @@ describe('TrashController', () => {
         'folders',
       );
 
-      expect(trashUseCases.calculateExpiryDate).not.toHaveBeenCalled();
+      expect(trashUseCases.calculateExpirationDate).not.toHaveBeenCalled();
       expect(result).toEqual({
         result: [{ ...mockFolder.toJSON(), expiresAt: null }],
       });
