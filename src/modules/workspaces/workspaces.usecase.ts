@@ -725,7 +725,7 @@ export class WorkspacesUsecases {
     return {
       result: items.map((item) => ({
         ...item.toJSON(),
-        caducityDate: item.updatedAt
+        expiresAt: item.updatedAt
           ? Time.dateWithTimeAdded(retentionDays, 'day', item.updatedAt)
           : null,
       })),

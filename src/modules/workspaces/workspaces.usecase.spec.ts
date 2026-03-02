@@ -3862,7 +3862,7 @@ describe('WorkspacesUsecases', () => {
     const limit = 50;
     const offset = 0;
 
-    it('When files are retrieved, it should return files with caducityDate from updatedAt', async () => {
+    it('When files are retrieved, it should return files with expiresAt from updatedAt', async () => {
       const trashedFiles = [newFile()];
       const retentionDays = DEFAULT_TRASH_RETENTION_DAYS;
       jest
@@ -3881,15 +3881,13 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
-      const expectedCaducityDate = Time.dateWithTimeAdded(
+      const expectedExpiresAt = Time.dateWithTimeAdded(
         retentionDays,
         'day',
         trashedFiles[0].updatedAt,
       );
       expect(result).toEqual({
-        result: [
-          { ...trashedFiles[0].toJSON(), caducityDate: expectedCaducityDate },
-        ],
+        result: [{ ...trashedFiles[0].toJSON(), expiresAt: expectedExpiresAt }],
       });
       expect(fileUseCases.getFilesInWorkspace).toHaveBeenCalledWith(
         user.uuid,
@@ -3899,7 +3897,7 @@ describe('WorkspacesUsecases', () => {
       );
     });
 
-    it('When folders are retrieved, it should return folders with caducityDate from updatedAt', async () => {
+    it('When folders are retrieved, it should return folders with expiresAt from updatedAt', async () => {
       const trashedFolders = [newFolder({ attributes: { deleted: true } })];
       const retentionDays = DEFAULT_TRASH_RETENTION_DAYS;
       jest
@@ -3918,14 +3916,14 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
-      const expectedCaducityDate = Time.dateWithTimeAdded(
+      const expectedExpiresAt = Time.dateWithTimeAdded(
         retentionDays,
         'day',
         trashedFolders[0].updatedAt,
       );
       expect(result).toEqual({
         result: [
-          { ...trashedFolders[0].toJSON(), caducityDate: expectedCaducityDate },
+          { ...trashedFolders[0].toJSON(), expiresAt: expectedExpiresAt },
         ],
       });
       expect(folderUseCases.getFoldersInWorkspace).toHaveBeenCalledWith(
@@ -3936,7 +3934,7 @@ describe('WorkspacesUsecases', () => {
       );
     });
 
-    it('When user has a tier limit, it should calculate caducityDate with tier retention days', async () => {
+    it('When user has a tier limit, it should calculate expiresAt with tier retention days', async () => {
       const trashedFiles = [newFile()];
       const retentionDays = 30;
       jest
@@ -3955,19 +3953,17 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
-      const expectedCaducityDate = Time.dateWithTimeAdded(
+      const expectedExpiresAt = Time.dateWithTimeAdded(
         retentionDays,
         'day',
         trashedFiles[0].updatedAt,
       );
       expect(result).toEqual({
-        result: [
-          { ...trashedFiles[0].toJSON(), caducityDate: expectedCaducityDate },
-        ],
+        result: [{ ...trashedFiles[0].toJSON(), expiresAt: expectedExpiresAt }],
       });
     });
 
-    it('When folders have a tier limit, it should calculate caducityDate with tier retention days', async () => {
+    it('When folders have a tier limit, it should calculate expiresAt with tier retention days', async () => {
       const trashedFolders = [newFolder({ attributes: { deleted: true } })];
       const retentionDays = 7;
       jest
@@ -3986,14 +3982,14 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
-      const expectedCaducityDate = Time.dateWithTimeAdded(
+      const expectedExpiresAt = Time.dateWithTimeAdded(
         retentionDays,
         'day',
         trashedFolders[0].updatedAt,
       );
       expect(result).toEqual({
         result: [
-          { ...trashedFolders[0].toJSON(), caducityDate: expectedCaducityDate },
+          { ...trashedFolders[0].toJSON(), expiresAt: expectedExpiresAt },
         ],
       });
     });
