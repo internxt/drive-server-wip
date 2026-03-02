@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
-import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
+// import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   File,
@@ -990,8 +990,7 @@ export class SequelizeFileRepository implements FileRepository {
             (SELECT l.value::integer
              FROM tiers_limits tl
              JOIN limits l ON tl.limit_id = l.id
-             WHERE tl.tier_id = u.tier_id AND l.label = 'trash-retention-days'),
-            :defaultRetentionDays
+             WHERE tl.tier_id = u.tier_id AND l.label = 'trash-retention-days')
           ) AS retention_days
         FROM files f
         JOIN users u ON f.user_id = u.id
@@ -999,7 +998,8 @@ export class SequelizeFileRepository implements FileRepository {
       )
       SELECT item_id
       FROM retention_config
-      WHERE updated_at < NOW() - (retention_days || ' days')::INTERVAL
+      WHERE retention_days IS NOT NULL
+        AND updated_at < NOW() - (retention_days || ' days')::INTERVAL
       LIMIT :limit
     `;
 
@@ -1007,8 +1007,7 @@ export class SequelizeFileRepository implements FileRepository {
       query,
       {
         replacements: {
-          limit,
-          defaultRetentionDays: DEFAULT_TRASH_RETENTION_DAYS,
+          limit /*, defaultRetentionDays: DEFAULT_TRASH_RETENTION_DAYS */,
         },
         type: QueryTypes.SELECT,
       },
