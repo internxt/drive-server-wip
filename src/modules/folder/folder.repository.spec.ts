@@ -1401,7 +1401,7 @@ describe('SequelizeFolderRepository', () => {
       expect(folderModel.sequelize.query).toHaveBeenCalledWith(
         expect.stringContaining('trash-retention-days'),
         {
-          replacements: { limit, defaultRetentionDays: expect.any(Number) },
+          replacements: { limit },
           type: QueryTypes.SELECT,
         },
       );

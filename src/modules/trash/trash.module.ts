@@ -8,17 +8,15 @@ import { UserModule } from '../user/user.module';
 import { TrashController } from './trash.controller';
 import { TrashUseCases } from './trash.usecase';
 import { FileModel } from '../file/file.model';
-import { TrashModel } from './trash.model';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { SharingModule } from '../sharing/sharing.module';
 import { TrashEventHandler } from './handlers/trash-event.handler';
 import { RedisService } from '../../externals/redis/redis.service';
-import { SequelizeTrashRepository } from './trash.repository';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 
 @Module({
   imports: [
-    SequelizeModule.forFeature([FileModel, TrashModel]),
+    SequelizeModule.forFeature([FileModel]),
     forwardRef(() => FileModule),
     forwardRef(() => FolderModule),
     forwardRef(() => WorkspacesModule),
@@ -28,13 +26,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
     FeatureLimitModule,
   ],
   controllers: [TrashController],
-  providers: [
-    Logger,
-    TrashUseCases,
-    RedisService,
-    TrashEventHandler,
-    SequelizeTrashRepository,
-  ],
-  exports: [TrashUseCases, SequelizeTrashRepository],
+  providers: [Logger, TrashUseCases, RedisService, TrashEventHandler],
+  exports: [TrashUseCases],
 })
 export class TrashModule {}
