@@ -842,7 +842,6 @@ export class SequelizeFolderRepository implements FolderRepository {
       SELECT item_id
       FROM retention_config
       WHERE updated_at < NOW() - (retention_days || ' days')::INTERVAL
-      ORDER BY updated_at ASC, item_id ASC
       LIMIT :limit
     `;
 
