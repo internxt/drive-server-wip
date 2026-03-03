@@ -1,33 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
-import configuration from '../../config/configuration';
+import { ConfigService } from '@nestjs/config';
+import { mockDeep } from 'vitest-mock-extended';
 import { CryptoService } from './crypto.service';
 
 describe('Crypto', () => {
   let cryptoService: CryptoService;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({
-          envFilePath: [`.env.${process.env.NODE_ENV}`],
-          load: [configuration],
-          isGlobal: true,
-        }),
-      ],
-      providers: [
-        {
-          provide: CryptoService,
-          useFactory: async (configService: ConfigService) => {
-            return new CryptoService(configService);
-          },
-          inject: [ConfigService],
-        },
-      ],
-    }).compile();
+    const configService = mockDeep<ConfigService>();
+    configService.get.mockReturnValue('test');
 
-    cryptoService = module.get<CryptoService>(CryptoService);
+    cryptoService = new CryptoService(configService);
   });
 
   describe('check crypto as singleton', () => {
