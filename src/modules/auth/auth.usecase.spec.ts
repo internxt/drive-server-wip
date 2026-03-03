@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DeepMockProxy, mockDeep } from 'vitest-mock-extended';
-import { JwtService } from '@nestjs/jwt';
+import { type DeepMockProxy, mockDeep } from 'vitest-mock-extended';
+import { type JwtService } from '@nestjs/jwt';
 import { AuthUsecases } from './auth.usecase';
-import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { type CacheManagerService } from '../cache-manager/cache-manager.service';
 import { v4 } from 'uuid';
 
 describe('AuthUsecase', () => {

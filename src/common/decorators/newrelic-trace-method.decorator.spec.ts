@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, Mocked } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mocked } from 'vitest';
 import newrelic from 'newrelic';
 import { TraceMethod } from './newrelic-trace-method.decorator';
 

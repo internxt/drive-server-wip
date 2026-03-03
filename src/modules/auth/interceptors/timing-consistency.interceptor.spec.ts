@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DeepMockProxy, mockDeep } from 'vitest-mock-extended';
-import { ExecutionContext, CallHandler } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import { type DeepMockProxy, mockDeep } from 'vitest-mock-extended';
+import { type ExecutionContext, type CallHandler } from '@nestjs/common';
+import { type Reflector } from '@nestjs/core';
 import { lastValueFrom, of } from 'rxjs';
 import { delay } from 'rxjs/operators';
 import { TimingConsistencyInterceptor } from './timing-consistency.interceptor';
 import {
   TIMING_CONSISTENCY_KEY,
-  TimingConsistencyOptions,
+  type TimingConsistencyOptions,
 } from '../decorators/timing-consistency.decorator';
 
 describe('TimingConsistencyInterceptor', () => {

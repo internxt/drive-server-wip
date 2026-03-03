@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DeepMockProxy, mockDeep } from 'vitest-mock-extended';
-import { UserUseCases } from '../user/user.usecase';
+import { type DeepMockProxy, mockDeep } from 'vitest-mock-extended';
+import { type UserUseCases } from '../user/user.usecase';
 import { JwtStrategy } from './jwt.strategy';
 import { newUser } from '../../../test/fixtures';
 import { UnauthorizedException } from '@nestjs/common';
 import { getTokenDefaultIat } from '../../lib/jwt';
-import { CacheManagerService } from '../cache-manager/cache-manager.service';
-import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { type CacheManagerService } from '../cache-manager/cache-manager.service';
+import { type FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { v4 } from 'uuid';
-import { ConfigService } from '@nestjs/config';
+import { type ConfigService } from '@nestjs/config';
 
 describe('Jwt strategy', () => {
   let strategy: JwtStrategy;

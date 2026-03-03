@@ -35,8 +35,15 @@ import {
   DeleteItemsDto,
   DeleteItemType,
 } from './dto/controllers/delete-item.dto';
-import { Folder, SortableFolderAttributes } from '../folder/folder.domain';
-import { File, FileStatus, SortableFileAttributes } from '../file/file.domain';
+import {
+  type Folder,
+  type SortableFolderAttributes,
+} from '../folder/folder.domain';
+import {
+  type File,
+  FileStatus,
+  type SortableFileAttributes,
+} from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { WorkspaceResourcesAction } from '../workspaces/guards/workspaces-resources-in-behalf.types';
@@ -48,7 +55,6 @@ import { Requester } from '../auth/decorators/requester.decorator';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
 import { Version } from '../../common/decorators/version.decorator';
-import { TrashItemType } from './trash.attributes';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -88,6 +94,9 @@ export class TrashController {
     }
 
     try {
+      const retentionDays =
+        await this.trashUseCases.getTrashRetentionDays(user);
+
       if (type === 'files') {
         const files = await this.fileUseCases.getFiles(
           user.id,
@@ -99,19 +108,14 @@ export class TrashController {
           },
         );
 
-        const fileUuids = files.map((f) => f.uuid);
-        const trashEntries = await this.trashUseCases.getTrashEntriesByIds(
-          fileUuids,
-          TrashItemType.File,
-        );
-
-        const trashMap = new Map(
-          trashEntries.map((entry) => [entry.itemId, entry.caducityDate]),
-        );
-
         const result = files.map((file) => ({
           ...file.toJSON(),
-          caducityDate: trashMap.get(file.uuid) || null,
+          expiresAt: file.updatedAt
+            ? this.trashUseCases.calculateExpirationDate(
+                retentionDays,
+                file.updatedAt,
+              )
+            : null,
         }));
 
         return { result };
@@ -126,19 +130,14 @@ export class TrashController {
           },
         );
 
-        const folderUuids = folders.map((f) => f.uuid);
-        const trashEntries = await this.trashUseCases.getTrashEntriesByIds(
-          folderUuids,
-          TrashItemType.Folder,
-        );
-
-        const trashMap = new Map(
-          trashEntries.map((entry) => [entry.itemId, entry.caducityDate]),
-        );
-
         const result = folders.map((folder) => ({
           ...folder.toJSON(),
-          caducityDate: trashMap.get(folder.uuid) || null,
+          expiresAt: folder.updatedAt
+            ? this.trashUseCases.calculateExpirationDate(
+                retentionDays,
+                folder.updatedAt,
+              )
+            : null,
         }));
 
         return { result };
@@ -216,23 +215,11 @@ export class TrashController {
         );
       }
 
-      const tierLabel = tier?.label;
-
       await Promise.all([
         fileIds.length > 0 || fileUuids.length > 0
-          ? this.fileUseCases.moveFilesToTrash(
-              user,
-              fileIds,
-              fileUuids,
-              tierLabel,
-            )
+          ? this.fileUseCases.moveFilesToTrash(user, fileIds, fileUuids)
           : Promise.resolve(),
-        this.folderUseCases.moveFoldersToTrash(
-          user,
-          folderIds,
-          folderUuids,
-          tierLabel,
-        ),
+        this.folderUseCases.moveFoldersToTrash(user, folderIds, folderUuids),
       ]);
 
       this.userUseCases

@@ -47,7 +47,7 @@ import { ClientToPlatformMap, PlatformName } from '../../common/constants';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { Client } from '../../common/decorators/client.decorator';
-import { ClientEnum } from '../../common/enums/platform.enum';
+import { type ClientEnum } from '../../common/enums/platform.enum';
 
 @ApiTags('Auth')
 @Controller('auth')

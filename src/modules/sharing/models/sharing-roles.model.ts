@@ -7,7 +7,7 @@ import {
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
-import { SharingRoleAttributes } from '../sharing.domain';
+import { type SharingRoleAttributes } from '../sharing.domain';
 import { SharingModel, RoleModel } from '.';
 
 @Table({

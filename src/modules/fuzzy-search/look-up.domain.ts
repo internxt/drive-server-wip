@@ -1,6 +1,6 @@
-import { FileModel } from '../file/file.model';
-import { FolderModel } from '../folder/folder.model';
-import { UserModel } from '../user/user.model';
+import { type FileModel } from '../file/file.model';
+import { type FolderModel } from '../folder/folder.model';
+import { type UserModel } from '../user/user.model';
 
 export const itemTypes = ['file', 'folder'] as const;
 

@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { DeepMockProxy, mockDeep } from 'vitest-mock-extended';
+import { type DeepMockProxy, mockDeep } from 'vitest-mock-extended';
 import { newKeyServer, newUser } from './../../../test/fixtures';
 import { AuthController } from './auth.controller';
-import { UserUseCases } from '../user/user.usecase';
-import { KeyServerUseCases } from '../keyserver/key-server.usecase';
-import { CryptoService } from '../../externals/crypto/crypto.service';
+import { type UserUseCases } from '../user/user.usecase';
+import { type KeyServerUseCases } from '../keyserver/key-server.usecase';
+import { type CryptoService } from '../../externals/crypto/crypto.service';
 import { LoginDto } from './dto/login-dto';
 import { LoginAccessDto } from './dto/login-access.dto';
 import {
@@ -14,16 +14,16 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
-import { TwoFactorAuthService } from './two-factor-auth.service';
-import { GeneratedSecret } from 'speakeasy';
+import { type TwoFactorAuthService } from './two-factor-auth.service';
+import { type GeneratedSecret } from 'speakeasy';
 import { UpdateTfaDto } from './dto/update-tfa.dto';
 import { DeleteTfaDto } from './dto/delete-tfa.dto';
 import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
-import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { type FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { PlatformName } from '../../common/constants';
 import { ClientEnum } from '../../common/enums/platform.enum';
-import { AuthUsecases } from './auth.usecase';
+import { type AuthUsecases } from './auth.usecase';
 import { mockLogger } from '../../../test/helpers/mocker.helper';
 
 describe('AuthController', () => {

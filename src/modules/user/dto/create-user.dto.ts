@@ -7,7 +7,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { UserAttributes } from '../user.attributes';
+import { type UserAttributes } from '../user.attributes';
 import { Type } from 'class-transformer';
 import { EccKeysDto, KyberKeysDto } from '../../keyserver/dto/keys.dto';
 

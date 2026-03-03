@@ -7,19 +7,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { SequelizeBackupRepository } from './backup.repository';
-import { User } from '../user/user.domain';
+import { type User } from '../user/user.domain';
 import { BridgeService } from './../../externals/bridge/bridge.service';
 import { CryptoService } from './../../externals/crypto/crypto.service';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
-import { Folder, FolderAttributes } from '../folder/folder.domain';
+import { type Folder, type FolderAttributes } from '../folder/folder.domain';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { BackupModel } from './models/backup.model';
-import { DeviceAttributes } from './models/device.attributes';
-import { CreateDeviceAndFolderDto } from './dto/create-device-and-folder.dto';
-import { CreateDeviceAndAttachFolderDto } from './dto/create-device-and-attach-folder.dto';
-import { DevicePlatform } from './device.domain';
-import { UpdateDeviceAndFolderDto } from './dto/update-device-and-folder.dto';
+import { type BackupModel } from './models/backup.model';
+import { type DeviceAttributes } from './models/device.attributes';
+import { type CreateDeviceAndFolderDto } from './dto/create-device-and-folder.dto';
+import { type CreateDeviceAndAttachFolderDto } from './dto/create-device-and-attach-folder.dto';
+import { type DevicePlatform } from './device.domain';
+import { type UpdateDeviceAndFolderDto } from './dto/update-device-and-folder.dto';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 
 @Injectable()

@@ -1,6 +1,6 @@
 import {
   KeyServer,
-  KeyServerAttributes,
+  type KeyServerAttributes,
   UserKeysEncryptVersions,
 } from './key-server.domain';
 

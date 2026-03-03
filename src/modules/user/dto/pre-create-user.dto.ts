@@ -1,6 +1,6 @@
 import { IsEmail, IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { UserAttributes } from '../user.attributes';
+import { type UserAttributes } from '../user.attributes';
 
 export class PreCreateUserDto {
   @IsNotEmpty()

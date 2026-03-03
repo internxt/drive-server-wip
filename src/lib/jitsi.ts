@@ -1,7 +1,7 @@
-import { JwtHeader } from 'jsonwebtoken';
+import { type JwtHeader } from 'jsonwebtoken';
 import { v4 } from 'uuid';
 import getEnv from '../config/configuration';
-import { User } from '../modules/user/user.domain';
+import { type User } from '../modules/user/user.domain';
 
 export const getJitsiJWTSecret = () => {
   return Buffer.from(getEnv().secrets.jitsiSecret, 'base64').toString('utf8');

@@ -1,4 +1,4 @@
-import { Sequelize, Transaction } from 'sequelize';
+import { type Sequelize, type Transaction } from 'sequelize';
 
 export async function withQueryTimeout<T>(
   sequelize: Sequelize,

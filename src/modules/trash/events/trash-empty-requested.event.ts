@@ -1,4 +1,4 @@
-import { User } from '../../user/user.domain';
+import { type User } from '../../user/user.domain';
 
 export class TrashEmptyRequestedEvent {
   constructor(

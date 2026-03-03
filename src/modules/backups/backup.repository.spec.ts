@@ -1,5 +1,5 @@
 import { newUser } from './../../../test/fixtures';
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { SequelizeBackupRepository } from './backup.repository';
 import { DeviceModel } from './models/device.model';
 import { BackupModel } from './models/backup.model';

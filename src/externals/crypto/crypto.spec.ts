@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ConfigService } from '@nestjs/config';
+import { type ConfigService } from '@nestjs/config';
 import { mockDeep } from 'vitest-mock-extended';
 import { CryptoService } from './crypto.service';
 

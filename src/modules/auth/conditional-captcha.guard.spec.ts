@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { DeepMockProxy, mockDeep } from 'vitest-mock-extended';
+import { type DeepMockProxy, mockDeep } from 'vitest-mock-extended';
 import { ConditionalCaptchaGuard } from './conditional-captcha.guard';
-import { UserUseCases } from '../user/user.usecase';
-import { CaptchaService } from '../../externals/captcha/captcha.service';
+import { type UserUseCases } from '../user/user.usecase';
+import { type CaptchaService } from '../../externals/captcha/captcha.service';
 import {
   BadRequestException,
-  ExecutionContext,
+  type ExecutionContext,
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';

@@ -10,7 +10,7 @@ import {
   ForeignKey,
 } from 'sequelize-typescript';
 import { NotificationModel } from './notification.model';
-import { UserNotificationStatusAttributes } from '../domain/user-notification-status.domain';
+import { type UserNotificationStatusAttributes } from '../domain/user-notification-status.domain';
 
 @Table({
   underscored: true,

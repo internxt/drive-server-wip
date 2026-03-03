@@ -1,7 +1,7 @@
-import { User } from '../../../modules/user/user.domain';
-import { Role, Sharing } from '../sharing.domain';
-import { Folder } from '../../../modules/folder/folder.domain';
-import { File } from '../../../modules/file/file.domain';
+import { type User } from '../../../modules/user/user.domain';
+import { type Role, type Sharing } from '../sharing.domain';
+import { type Folder } from '../../../modules/folder/folder.domain';
+import { type File } from '../../../modules/file/file.domain';
 
 export interface GetItemsReponse {
   folders: FolderWithSharedInfo[];

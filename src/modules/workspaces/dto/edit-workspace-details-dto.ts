@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsPhoneNumber, IsString, Length } from 'class-validator';
-import { Workspace } from '../domains/workspaces.domain';
+import { type Workspace } from '../domains/workspaces.domain';
 
 export class EditWorkspaceDetailsDto {
   @ApiProperty({

@@ -29,7 +29,7 @@ import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
-import { Folder } from './folder.domain';
+import { type Folder } from './folder.domain';
 import { FileStatus } from '../file/file.domain';
 import { validate } from 'uuid';
 import { isNumber } from '../../lib/validators';

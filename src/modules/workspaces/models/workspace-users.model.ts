@@ -10,7 +10,7 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { WorkspaceModel } from './workspace.model';
-import { WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
+import { type WorkspaceUserAttributes } from '../attributes/workspace-users.attributes';
 import { FolderModel } from '../../folder/folder.model';
 
 @Table({

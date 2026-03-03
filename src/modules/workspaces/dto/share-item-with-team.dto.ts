@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty } from 'class-validator';
-import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';
-import { WorkspaceTeam } from '../domains/workspace-team.domain';
+import { type WorkspaceItemUser } from '../domains/workspace-item-user.domain';
+import { type WorkspaceTeam } from '../domains/workspace-team.domain';
 
 export class ShareItemWithTeamDto {
   @ApiProperty({

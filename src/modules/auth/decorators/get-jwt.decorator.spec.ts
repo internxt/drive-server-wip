@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+import { type ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { jwtDecoratorFactory } from './get-jwt.decorator';
 
 describe('jwtDecoratorFactory', () => {

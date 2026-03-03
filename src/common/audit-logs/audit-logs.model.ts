@@ -6,7 +6,7 @@ import {
   PrimaryKey,
 } from 'sequelize-typescript';
 import {
-  AuditLogAttributes,
+  type AuditLogAttributes,
   AuditAction,
   AuditEntityType,
   AuditPerformerType,

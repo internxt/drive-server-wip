@@ -8,7 +8,7 @@ import {
 } from './domain/notification.domain';
 import {
   UserNotificationStatus,
-  UserNotificationStatusAttributes,
+  type UserNotificationStatusAttributes,
 } from './domain/user-notification-status.domain';
 import { Op } from 'sequelize';
 

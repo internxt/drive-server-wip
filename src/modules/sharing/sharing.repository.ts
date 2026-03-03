@@ -12,25 +12,25 @@ import {
   Role,
   SharedWithType,
   Sharing,
-  SharingAttributes,
+  type SharingAttributes,
   SharingInvite,
   SharingRole,
-  SharingRoleAttributes,
-  SharingType,
+  type SharingRoleAttributes,
+  type SharingType,
 } from './sharing.domain';
 import { User } from '../user/user.domain';
 import { Folder } from '../folder/folder.domain';
 import { FolderModel } from '../folder/folder.model';
 import { UserModel } from '../user/user.model';
-import sequelize, { Op, WhereOptions } from 'sequelize';
-import { GetInviteDto, GetInvitesDto } from './dto/get-invites.dto';
+import sequelize, { Op, type WhereOptions } from 'sequelize';
+import { type GetInviteDto, type GetInvitesDto } from './dto/get-invites.dto';
 import { File, FileStatus } from '../file/file.domain';
 import { FileModel } from '../file/file.model';
-import { PreCreatedUserAttributes } from '../user/pre-created-users.attributes';
-import { WorkspaceTeamAttributes } from '../workspaces/attributes/workspace-team.attributes';
+import { type PreCreatedUserAttributes } from '../user/pre-created-users.attributes';
+import { type WorkspaceTeamAttributes } from '../workspaces/attributes/workspace-team.attributes';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
-import { WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
-import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { type WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
+import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 interface SharingRepository {
   getInvitesByItem(

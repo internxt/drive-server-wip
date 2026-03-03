@@ -1,5 +1,5 @@
-import { KeyServerAttributes } from '../keyserver/key-server.domain';
-import { UserAttributes } from './user.attributes';
+import { type KeyServerAttributes } from '../keyserver/key-server.domain';
+import { type UserAttributes } from './user.attributes';
 
 export interface PreCreatedUserAttributes {
   id: UserAttributes['id'];

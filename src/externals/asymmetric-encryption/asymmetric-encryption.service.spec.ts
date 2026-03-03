@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { AsymmetricEncryptionService } from './asymmetric-encryption.service';
 import {
   decryptMessageWithPrivateKey,

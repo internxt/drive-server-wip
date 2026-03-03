@@ -1,11 +1,11 @@
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { createMock, type DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
-import { Logger } from '@nestjs/common';
+import { type Logger } from '@nestjs/common';
 import { DeletedItemsCleanupTask } from './deleted-items-cleanup.task';
 import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
 import { SequelizeFolderRepository } from '../../folder/folder.repository';
 import { JobName } from '../constants';
-import { JobExecutionModel } from '../models/job-execution.model';
+import { type JobExecutionModel } from '../models/job-execution.model';
 import { v4 } from 'uuid';
 import { RedisService } from '../../../externals/redis/redis.service';
 

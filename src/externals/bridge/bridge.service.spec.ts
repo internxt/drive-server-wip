@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mockDeep, DeepMockProxy } from 'vitest-mock-extended';
-import { ConfigService } from '@nestjs/config';
+import { mockDeep, type DeepMockProxy } from 'vitest-mock-extended';
+import { type ConfigService } from '@nestjs/config';
 import { User } from '../../modules/user/user.domain';
-import { CryptoService } from '../crypto/crypto.service';
-import { HttpClient } from '../http/http.service';
+import { type CryptoService } from '../crypto/crypto.service';
+import { type HttpClient } from '../http/http.service';
 import { BridgeService } from './bridge.service';
-import { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { mockLogger } from '../../../test/helpers/mocker.helper';
 
 describe('Bridge Service', () => {

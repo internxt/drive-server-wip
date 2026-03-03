@@ -1,29 +1,36 @@
 import { Injectable } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
+// import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 import { InjectModel } from '@nestjs/sequelize';
-import { File, FileAttributes, FileOptions, FileStatus } from './file.domain';
 import {
-  FindOptions,
+  File,
+  type FileAttributes,
+  type FileOptions,
+  FileStatus,
+} from './file.domain';
+import {
+  type FindOptions,
   Op,
   QueryTypes,
   Sequelize,
-  WhereOptions,
+  type WhereOptions,
 } from 'sequelize';
-import { Literal } from 'sequelize/types/utils';
+import { type Literal } from 'sequelize/types/utils';
 
 import { User } from '../user/user.domain';
 import { UserModel } from './../user/user.model';
 import { Folder } from '../folder/folder.domain';
+import { FolderModel } from '../folder/folder.model';
 import { Pagination } from '../../lib/pagination';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
 import { SharingModel } from '../sharing/models';
 import {
   WorkspaceItemType,
-  WorkspaceItemUserAttributes,
+  type WorkspaceItemUserAttributes,
 } from '../workspaces/attributes/workspace-items-users.attributes';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
-import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
@@ -135,6 +142,14 @@ export interface FileRepository {
   ): Promise<File[]>;
   deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
   deleteFilesByUuid(fileUuids: string[]): Promise<number>;
+  findExpiredTrashFileIds(limit: number): Promise<string[]>;
+  findRecent(
+    userId: number,
+    daysBack: number,
+    limit: number,
+    offset: number,
+    options?: { withThumbnails?: boolean },
+  ): Promise<File[]>;
   sumFileSizeDeltaBetweenDates(
     userId: FileAttributes['userId'],
     sinceDate: Date,
@@ -556,6 +571,55 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
+  async findRecent(
+    userId: number,
+    daysBack: number,
+    limit: number,
+    offset: number,
+    options: { withThumbnails?: boolean } = {},
+  ): Promise<File[]> {
+    const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+    const { withThumbnails = true } = options;
+
+    const thumbnailIncludes = withThumbnails
+      ? [
+          {
+            separate: true,
+            model: this.thumbnailModel,
+            required: false,
+          },
+          {
+            separate: true,
+            model: SharingModel,
+            attributes: ['type', 'id'],
+            required: false,
+          },
+        ]
+      : [];
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where: {
+        userId,
+        status: FileStatus.EXISTS,
+        updatedAt: { [Op.gte]: since },
+      },
+      include: [
+        {
+          model: FolderModel,
+          where: { deleted: false },
+          required: true,
+        },
+        ...thumbnailIncludes,
+      ],
+      subQuery: false,
+      order: [['updatedAt', 'DESC']],
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findAllCursorWithThumbnailsInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
@@ -910,6 +974,46 @@ export class SequelizeFileRepository implements FileRepository {
     );
 
     return updatedCount;
+  }
+
+  async findExpiredTrashFileIds(limit: number): Promise<string[]> {
+    const query = `
+      WITH retention_config AS (
+        SELECT
+          f.uuid AS item_id,
+          f.updated_at,
+          COALESCE(
+            (SELECT l.value::integer
+             FROM user_overridden_limits uol
+             JOIN limits l ON uol.limit_id = l.id
+             WHERE uol.user_id = u.uuid AND l.label = 'trash-retention-days'),
+            (SELECT l.value::integer
+             FROM tiers_limits tl
+             JOIN limits l ON tl.limit_id = l.id
+             WHERE tl.tier_id = u.tier_id AND l.label = 'trash-retention-days')
+          ) AS retention_days
+        FROM files f
+        JOIN users u ON f.user_id = u.id
+        WHERE f.status = 'TRASHED'
+      )
+      SELECT item_id
+      FROM retention_config
+      WHERE retention_days IS NOT NULL
+        AND updated_at < NOW() - (retention_days || ' days')::INTERVAL
+      LIMIT :limit
+    `;
+
+    const results = await this.fileModel.sequelize.query<{ item_id: string }>(
+      query,
+      {
+        replacements: {
+          limit /*, defaultRetentionDays: DEFAULT_TRASH_RETENTION_DAYS */,
+        },
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    return results.map((r) => r.item_id);
   }
 
   async destroyFile(where: Partial<FileModel>): Promise<void> {

@@ -6,7 +6,7 @@ import {
   MaxLength,
   ValidateIf,
 } from 'class-validator';
-import { UserAttributes } from '../user.attributes';
+import { type UserAttributes } from '../user.attributes';
 
 export class UpdateProfileDto {
   @IsOptional()

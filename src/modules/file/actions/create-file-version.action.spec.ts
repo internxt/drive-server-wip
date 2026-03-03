@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { CreateFileVersionAction } from './create-file-version.action';
 import { SequelizeFileRepository } from '../file.repository';
 import { SequelizeFileVersionRepository } from '../file-version.repository';

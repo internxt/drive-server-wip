@@ -1,6 +1,6 @@
 import { Time } from '../../../lib/time';
-import { MailTypes } from './mailTypes';
-import { MailLimitModelAttributes } from './mail-limit.model';
+import { type MailTypes } from './mailTypes';
+import { type MailLimitModelAttributes } from './mail-limit.model';
 
 export class MailLimit implements MailLimitModelAttributes {
   id: number;

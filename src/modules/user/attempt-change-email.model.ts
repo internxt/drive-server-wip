@@ -8,7 +8,7 @@ import {
   Table,
 } from 'sequelize-typescript';
 import {
-  AttemptChangeEmailAttributes,
+  type AttemptChangeEmailAttributes,
   AttemptChangeEmailStatus,
 } from './attempt-change-email.attributes';
 import { Time } from '../../lib/time';

@@ -5,11 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { BridgeService } from '../../externals/bridge/bridge.service';
-import { User } from '../user/user.domain';
+import { type User } from '../user/user.domain';
 import { SequelizeThumbnailRepository } from './thumbnail.repository';
-import { CreateThumbnailDto } from './dto/create-thumbnail.dto';
-import { ThumbnailAttributes } from './thumbnail.attributes';
-import { Thumbnail } from './thumbnail.domain';
+import { type CreateThumbnailDto } from './dto/create-thumbnail.dto';
+import { type ThumbnailAttributes } from './thumbnail.attributes';
+import { type Thumbnail } from './thumbnail.domain';
 import { SequelizeFileRepository } from '../file/file.repository';
 
 @Injectable()

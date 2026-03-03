@@ -8,7 +8,7 @@ import {
   AllowNull,
   HasMany,
 } from 'sequelize-typescript';
-import { NotificationAttributes } from '../domain/notification.domain';
+import { type NotificationAttributes } from '../domain/notification.domain';
 import { UserNotificationStatusModel } from './user-notification-status.model';
 
 @Table({

@@ -4,7 +4,7 @@ import { QueryTypes, Sequelize } from 'sequelize';
 import { FileVersionModel } from './file-version.model';
 import {
   FileVersion,
-  FileVersionAttributes,
+  type FileVersionAttributes,
   FileVersionStatus,
 } from './file-version.domain';
 
@@ -194,20 +194,17 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
       )
     `;
 
-    const result = await this.model.sequelize.query(
-      query,
-      {
-        replacements: {
-          userId,
-          retentionDays,
-          maxVersions,
-          limit,
-          deletedStatus: FileVersionStatus.DELETED,
-          existsStatus: FileVersionStatus.EXISTS,
-        },
-        type: QueryTypes.UPDATE,
+    const result = await this.model.sequelize.query(query, {
+      replacements: {
+        userId,
+        retentionDays,
+        maxVersions,
+        limit,
+        deletedStatus: FileVersionStatus.DELETED,
+        existsStatus: FileVersionStatus.EXISTS,
       },
-    );
+      type: QueryTypes.UPDATE,
+    });
 
     return result[1];
   }

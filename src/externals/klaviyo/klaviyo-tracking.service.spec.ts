@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it, Mocked, vi } from 'vitest';
-import { ConfigService } from '@nestjs/config';
+import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
+import { type ConfigService } from '@nestjs/config';
 import { KlaviyoTrackingService } from './klaviyo-tracking.service';
-import axios, { AxiosResponse } from 'axios';
-import { DeepMockProxy, mockDeep } from 'vitest-mock-extended';
+import axios, { type AxiosResponse } from 'axios';
+import { type DeepMockProxy, mockDeep } from 'vitest-mock-extended';
 import { mockLogger } from '../../../test/helpers/mocker.helper';
 
 vi.mock('axios');

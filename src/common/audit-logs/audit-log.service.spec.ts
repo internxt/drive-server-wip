@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Logger } from '@nestjs/common';
-import { AuditLogService, CreateAuditLogDto } from './audit-log.service';
-import { AuditLogsRepository } from './audit-logs.repository';
+import { type Logger } from '@nestjs/common';
+import { AuditLogService, type CreateAuditLogDto } from './audit-log.service';
+import { type AuditLogsRepository } from './audit-logs.repository';
 import {
   AuditEntityType,
   AuditAction,

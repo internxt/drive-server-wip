@@ -1,18 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mockDeep, MockProxy } from 'vitest-mock-extended';
-import { Logger } from '@nestjs/common';
+import { mockDeep, type MockProxy } from 'vitest-mock-extended';
+import { type Logger } from '@nestjs/common';
 import { StorageNotificationService } from './storage.notifications.service';
-import { NotificationService } from './notification.service';
-import { ApnService } from '../apn/apn.service';
-import { SequelizeUserRepository } from '../../modules/user/user.repository';
+import { type NotificationService } from './notification.service';
+import { type ApnService } from '../apn/apn.service';
+import { type SequelizeUserRepository } from '../../modules/user/user.repository';
 import { NotificationEvent } from './events/notification.event';
 import { newUser } from '../../../test/fixtures';
 import { UserNotificationTokens } from '../../modules/user/user-notification-tokens.domain';
 import { v4 } from 'uuid';
-import { FolderDto } from '../../modules/folder/dto/responses/folder.dto';
-import { FileDto } from '../../modules/file/dto/responses/file.dto';
+import { type FolderDto } from '../../modules/folder/dto/responses/folder.dto';
+import { type FileDto } from '../../modules/file/dto/responses/file.dto';
 import {
-  ItemToTrashDto,
+  type ItemToTrashDto,
   ItemToTrashType,
 } from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
 import { mockLogger } from '../../../test/helpers/mocker.helper';

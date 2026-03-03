@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
-import { ExecutionContext } from '@nestjs/common';
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+import { type ExecutionContext } from '@nestjs/common';
 import { userTierFactory } from './user-tier.decorator';
 import { v4 } from 'uuid';
 

@@ -1,4 +1,4 @@
-import { User } from '../../../modules/user/user.domain';
+import { type User } from '../../../modules/user/user.domain';
 import { Event } from './event';
 
 export interface UserMaybeWithoutUUID {

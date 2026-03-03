@@ -1,6 +1,6 @@
 import { Folder } from '../folder/folder.domain';
-import { Sharing } from '../sharing/sharing.domain';
-import { Thumbnail } from '../thumbnail/thumbnail.domain';
+import { type Sharing } from '../sharing/sharing.domain';
+import { type Thumbnail } from '../thumbnail/thumbnail.domain';
 import { User } from '../user/user.domain';
 import { isStringEmpty } from '../../lib/validators';
 import type { FileDto } from './dto/file.dto';

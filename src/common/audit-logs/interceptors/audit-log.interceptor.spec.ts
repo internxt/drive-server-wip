@@ -1,18 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mockDeep, MockProxy } from 'vitest-mock-extended';
-import { CallHandler, ExecutionContext } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import { mockDeep, type MockProxy } from 'vitest-mock-extended';
+import { type CallHandler, type ExecutionContext } from '@nestjs/common';
+import { type Reflector } from '@nestjs/core';
 import { of, lastValueFrom } from 'rxjs';
 import { AuditLogInterceptor } from './audit-log.interceptor';
-import { AuditLogService } from '../audit-log.service';
-import { AuditLogConfig } from '../decorators/audit-log.decorator';
+import { type AuditLogService } from '../audit-log.service';
+import { type AuditLogConfig } from '../decorators/audit-log.decorator';
 import {
   AuditAction,
   AuditEntityType,
   AuditPerformerType,
 } from '../audit-logs.attributes';
 import { newUser, newWorkspace } from '../../../../test/fixtures';
-import { HttpArgumentsHost } from '@nestjs/common/interfaces';
+import { type HttpArgumentsHost } from '@nestjs/common/interfaces';
 
 describe('AuditLogInterceptor', () => {
   let interceptor: AuditLogInterceptor;

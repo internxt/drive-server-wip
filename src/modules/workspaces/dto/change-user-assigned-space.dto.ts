@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsPositive } from 'class-validator';
-import { WorkspaceInvite } from '../domains/workspace-invite.domain';
+import { type WorkspaceInvite } from '../domains/workspace-invite.domain';
 
 export class ChangeUserAssignedSpaceDto {
   @ApiProperty({

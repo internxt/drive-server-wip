@@ -1,11 +1,15 @@
-import { DeleteWorkspaceDto } from './dto/delete-workspace.dto';
-import { UpdateWorkspaceStorageDto } from './dto/update-workspace-storage.dto';
-import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
-import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
+import { type DeleteWorkspaceDto } from './dto/delete-workspace.dto';
+import { type UpdateWorkspaceStorageDto } from './dto/update-workspace-storage.dto';
+import { type UpdateWorkspaceDto } from './dto/update-workspace.dto';
+import { type InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
 import { GatewayUseCases } from './gateway.usecase';
 import { GatewayController } from './gateway.controller';
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
-import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
+import { type DeepMocked, createMock } from '@golevelup/ts-jest';
+import {
+  BadRequestException,
+  type Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { newFeatureLimit, newUser, newWorkspace } from '../../../test/fixtures';
 import { v4 } from 'uuid';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';

@@ -9,7 +9,7 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
 import { WorkspaceTeamModel } from './workspace-team.model';
-import { WorkspaceTeamUserAttributes } from '../attributes/workspace-team-users.attributes';
+import { type WorkspaceTeamUserAttributes } from '../attributes/workspace-team-users.attributes';
 
 @Table({
   underscored: true,

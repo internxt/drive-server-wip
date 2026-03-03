@@ -1,4 +1,4 @@
-import { User } from '../../src/modules/user/user.domain';
+import { type User } from '../../src/modules/user/user.domain';
 import { Sign } from '../../src/middlewares/passport';
 import getEnv from '../../src/config/configuration';
 

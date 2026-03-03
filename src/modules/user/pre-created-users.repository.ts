@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 
 import { PreCreatedUserModel } from './pre-created-users.model';
-import { PreCreatedUserAttributes } from './pre-created-users.attributes';
+import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { PreCreatedUser } from './pre-created-user.domain';
 import { Op } from 'sequelize';
 

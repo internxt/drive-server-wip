@@ -1,5 +1,5 @@
-import { UserToJsonDto } from './dto/user-to-json.dto';
-import { UserAttributes } from './user.attributes';
+import { type UserToJsonDto } from './dto/user-to-json.dto';
+import { type UserAttributes } from './user.attributes';
 export class User implements UserAttributes {
   id: number;
   userId: string;

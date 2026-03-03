@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { ThumbnailModel } from './thumbnail.model';
-import { Thumbnail } from './thumbnail.domain';
-import { FileAttributes } from '../file/file.domain';
-import { ThumbnailAttributes } from './thumbnail.attributes';
+import { type Thumbnail } from './thumbnail.domain';
+import { type FileAttributes } from '../file/file.domain';
+import { type ThumbnailAttributes } from './thumbnail.attributes';
 
 interface ThumbnailRepository {
   findById(id: Thumbnail['id']): Promise<Thumbnail | null>;

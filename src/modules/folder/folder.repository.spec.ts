@@ -3,7 +3,7 @@ import { CalculateFolderSizeTimeoutException } from './exception/calculate-folde
 import { SequelizeFolderRepository } from './folder.repository';
 import { FolderModel } from './folder.model';
 import { Folder } from './folder.domain';
-import { FolderAttributes } from './folder.attributes';
+import { type FolderAttributes } from './folder.attributes';
 import { newFolder, newUser } from '../../../test/fixtures';
 import { FileStatus } from '../file/file.domain';
 import { Op, QueryTypes } from 'sequelize';
@@ -1382,6 +1382,40 @@ describe('SequelizeFolderRepository', () => {
         }),
       );
       expect(result).toBe(0);
+    });
+  });
+
+  describe('findExpiredTrashFolderIds', () => {
+    it('When expired trash folders exist, then it should return their uuids', async () => {
+      const folderUuids = [v4(), v4(), v4()];
+      const limit = 100;
+
+      jest
+        .spyOn(folderModel.sequelize, 'query')
+        .mockResolvedValueOnce(
+          folderUuids.map((uuid) => ({ item_id: uuid })) as any,
+        );
+
+      const result = await repository.findExpiredTrashFolderIds(limit);
+
+      expect(folderModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('trash-retention-days'),
+        {
+          replacements: { limit },
+          type: QueryTypes.SELECT,
+        },
+      );
+      expect(result).toEqual(folderUuids);
+    });
+
+    it('When no expired trash folders exist, then it should return empty array', async () => {
+      jest
+        .spyOn(folderModel.sequelize, 'query')
+        .mockResolvedValueOnce([] as any);
+
+      const result = await repository.findExpiredTrashFolderIds(100);
+
+      expect(result).toEqual([]);
     });
   });
 });

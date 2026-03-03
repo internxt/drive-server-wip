@@ -1,6 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
-import { mockDeep, MockProxy } from 'vitest-mock-extended';
-import { ConfigService } from '@nestjs/config';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mock,
+  vi,
+} from 'vitest';
+import { mockDeep, type MockProxy } from 'vitest-mock-extended';
+import { type ConfigService } from '@nestjs/config';
 import { RedisService } from './redis.service';
 import { createClient } from 'redis';
 import { mockLogger } from '../../../test/helpers/mocker.helper';

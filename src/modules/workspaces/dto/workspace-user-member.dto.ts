@@ -1,4 +1,4 @@
-import { UserToJsonDto } from '../../user/dto/user-to-json.dto';
+import { type UserToJsonDto } from '../../user/dto/user-to-json.dto';
 
 export interface WorkspaceUserMemberDto {
   [key: string]: unknown;
