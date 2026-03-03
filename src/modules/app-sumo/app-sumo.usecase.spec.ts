@@ -1,24 +1,25 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockDeep, type MockProxy } from 'vitest-mock-extended';
 import { AppSumoUseCase } from './app-sumo.usecase';
 import { type SequelizeAppSumoRepository } from './app-sumo.repository';
 import { type SequelizePlanRepository } from '../plan/plan.repository';
 import { type AppSumoModel } from './app-sumo.model';
 import { PlanNotFoundException } from '../plan/exception/plan-not-found.exception';
-import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import { type PlanModel } from '../plan/plan.model';
 
 describe('AppSumoUseCase', () => {
   let useCase: AppSumoUseCase;
-  let appSumoRepository: DeepMocked<SequelizeAppSumoRepository>;
-  let planRepository: DeepMocked<SequelizePlanRepository>;
-  let appSumo: DeepMocked<AppSumoModel>;
-  let plan: DeepMocked<PlanModel>;
+  let appSumoRepository: MockProxy<SequelizeAppSumoRepository>;
+  let planRepository: MockProxy<SequelizePlanRepository>;
+  let appSumo: MockProxy<AppSumoModel>;
+  let plan: MockProxy<PlanModel>;
 
-  beforeEach(async () => {
-    appSumo = createMock<AppSumoModel>();
-    plan = createMock<PlanModel>();
+  beforeEach(() => {
+    appSumo = mockDeep<AppSumoModel>();
+    plan = mockDeep<PlanModel>();
 
-    appSumoRepository = createMock<SequelizeAppSumoRepository>();
-    planRepository = createMock<SequelizePlanRepository>();
+    appSumoRepository = mockDeep<SequelizeAppSumoRepository>();
+    planRepository = mockDeep<SequelizePlanRepository>();
 
     useCase = new AppSumoUseCase(appSumoRepository, planRepository);
 
@@ -64,7 +65,7 @@ describe('AppSumoUseCase', () => {
       new PlanNotFoundException('Plan not found'),
     );
 
-    const errorLogSpy = jest.spyOn(useCase['logger'], 'log');
+    const errorLogSpy = vi.spyOn(useCase['logger'], 'log');
 
     try {
       await useCase.getByUserId(userId);

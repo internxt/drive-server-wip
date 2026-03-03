@@ -1,13 +1,12 @@
-jest.mock('newrelic');
-
+import { describe, it, expect, vi, beforeEach, type Mocked } from 'vitest';
 import newrelic from 'newrelic';
 import { TraceMethod } from './newrelic-trace-method.decorator';
 
-const mockedNewrelic = newrelic as jest.Mocked<typeof newrelic>;
+vi.mock('newrelic', { spy: true });
+const mockedNewrelic = newrelic as Mocked<typeof newrelic>;
 
 describe('TraceMethod Decorator', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
     mockedNewrelic.startSegment.mockImplementation((name, record, handler) => {
       return handler();
     });
@@ -190,7 +189,7 @@ describe('TraceMethod Decorator', () => {
   });
 
   it('When newrelic.startSegment callback executes, then original method is invoked', () => {
-    const originalMethodSpy = jest.fn().mockReturnValue('spy result');
+    const originalMethodSpy = vi.fn().mockReturnValue('spy result');
 
     class TestClass {
       @TraceMethod()

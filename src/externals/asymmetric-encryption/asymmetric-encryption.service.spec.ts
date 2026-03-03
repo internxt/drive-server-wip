@@ -1,17 +1,37 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { AsymmetricEncryptionService } from './asymmetric-encryption.service';
-import { KyberProvider } from './providers/kyber.provider';
 import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
 } from './openpgp';
+
+vi.mock('@dashlane/pqc-kem-kyber512-node', () => ({
+  default: vi.fn(() => ({
+    keypair: vi.fn().mockResolvedValue({
+      publicKey: new Uint8Array([1, 2, 3]),
+      privateKey: new Uint8Array([4, 5, 6]),
+    }),
+    encapsulate: vi.fn().mockResolvedValue({
+      ciphertext: new Uint8Array([11, 12, 13, 14, 15]),
+      sharedSecret: new Uint8Array([
+        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      ]),
+    }),
+    decapsulate: vi.fn().mockResolvedValue({
+      sharedSecret: new Uint8Array([
+        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      ]),
+    }),
+  })),
+}));
 
 describe('AsymmetricEncryptionService', () => {
   let service: AsymmetricEncryptionService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AsymmetricEncryptionService, KyberProvider],
+      providers: [AsymmetricEncryptionService],
     }).compile();
 
     await module.init();

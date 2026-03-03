@@ -1,5 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { KyberBuilder, KyberProvider } from './providers/kyber.provider';
+import { Injectable } from '@nestjs/common';
+import kemBuilder from '@dashlane/pqc-kem-kyber512-node';
 import { extendSecret, XORhex } from './utils';
 import {
   decryptMessageWithPrivateKey,
@@ -11,13 +11,11 @@ const WORDS_HYBRID_MODE_IN_BASE64 = 'SHlicmlkTW9kZQ=='; // 'HybridMode' in BASE6
 
 @Injectable()
 export class AsymmetricEncryptionService {
-  constructor(
-    @Inject(KyberProvider.provide)
-    private readonly kyberKem: KyberBuilder,
-  ) {}
+  constructor() {}
 
   async generateKyberKeys() {
-    const keys = await this.kyberKem.keypair();
+    const kyberKem = await kemBuilder();
+    const keys = await kyberKem.keypair();
     return {
       publicKey: Buffer.from(keys.publicKey).toString('base64'),
       privateKey: Buffer.from(keys.privateKey).toString('base64'),
@@ -45,7 +43,8 @@ export class AsymmetricEncryptionService {
   async encapsulateKyberSharedSecret(
     publicKey: Uint8Array,
   ): Promise<{ ciphertext: Uint8Array; sharedSecret: Uint8Array }> {
-    return this.kyberKem.encapsulate(publicKey);
+    const kyberKem = await kemBuilder();
+    return kyberKem.encapsulate(publicKey);
   }
 
   /**
@@ -56,10 +55,8 @@ export class AsymmetricEncryptionService {
     ciphertext: Uint8Array,
     privateKey: Uint8Array,
   ): Promise<Uint8Array> {
-    const { sharedSecret } = await this.kyberKem.decapsulate(
-      ciphertext,
-      privateKey,
-    );
+    const kyberKem = await kemBuilder();
+    const { sharedSecret } = await kyberKem.decapsulate(ciphertext, privateKey);
     return sharedSecret;
   }
 

@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwoFactorAuthService } from './two-factor-auth.service';
 import {
   BadRequestException,
@@ -6,8 +7,8 @@ import {
 import * as speakeasy from 'speakeasy';
 import * as qrcode from 'qrcode';
 
-jest.mock('qrcode', () => ({
-  toDataURL: jest.fn(),
+vi.mock('qrcode', () => ({
+  toDataURL: vi.fn(),
 }));
 
 describe('TwoFactorAuthService', () => {
@@ -54,7 +55,7 @@ describe('TwoFactorAuthService', () => {
 
     it('When an invalid code is provided, then it should throw', async () => {
       const secret = speakeasy.generateSecret({ length: 10 }).ascii;
-      jest.spyOn(speakeasy.totp, 'verifyDelta').mockReturnValue(undefined);
+      vi.spyOn(speakeasy.totp, 'verifyDelta').mockReturnValue(undefined);
 
       expect(() =>
         service.validateTwoFactorAuthCode(secret, 'invalidCode'),

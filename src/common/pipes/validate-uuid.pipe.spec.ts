@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it } from 'vitest';
 import { ValidateUUIDPipe } from './validate-uuid.pipe';
 import { BadRequestException, type ArgumentMetadata } from '@nestjs/common';
 

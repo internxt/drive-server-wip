@@ -1,91 +1,112 @@
-import { Test, type TestingModule } from '@nestjs/testing';
-import { createMock, type DeepMocked } from '@golevelup/ts-jest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { type Logger } from '@nestjs/common';
-import { AuditLogService } from './audit-log.service';
-import { AuditLogsRepository } from './audit-logs.repository';
+import { AuditLogService, type CreateAuditLogDto } from './audit-log.service';
+import { type AuditLogsRepository } from './audit-logs.repository';
 import {
-  AuditAction,
   AuditEntityType,
+  AuditAction,
   AuditPerformerType,
 } from './audit-logs.attributes';
-import { v4 } from 'uuid';
+
+const baseDto: CreateAuditLogDto = {
+  entityType: AuditEntityType.User,
+  entityId: 'user-123',
+  action: AuditAction.EmailChanged,
+  performerType: AuditPerformerType.User,
+  performerId: 'performer-456',
+  metadata: { ip: '127.0.0.1' },
+};
 
 describe('AuditLogService', () => {
   let service: AuditLogService;
-  let repository: DeepMocked<AuditLogsRepository>;
-  let logger: DeepMocked<Logger>;
+  let mockRepository: { create: ReturnType<typeof vi.fn> };
+  let loggerWarnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(async () => {
-    logger = createMock<Logger>();
+    mockRepository = { create: vi.fn() };
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [AuditLogService],
-    })
-      .setLogger(logger)
-      .useMocker(() => createMock())
-      .compile();
+    service = new AuditLogService(mockRepository as AuditLogsRepository);
 
-    service = module.get<AuditLogService>(AuditLogService);
-    repository = module.get(AuditLogsRepository);
-  });
-
-  it('When the service is instantiated, then it should be defined', () => {
-    expect(service).toBeDefined();
+    loggerWarnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
   });
 
   describe('log', () => {
-    it('When valid audit log data is provided, then it should create an audit log', async () => {
-      const auditLogDto = {
-        entityType: AuditEntityType.User,
-        entityId: v4(),
-        action: AuditAction.PasswordChanged,
-        performerType: AuditPerformerType.User,
-        performerId: v4(),
-        metadata: { folderUuid: v4() },
-      };
+    it('should call repository.create with the provided dto', async () => {
+      await service.log(baseDto);
 
-      repository.create.mockResolvedValueOnce({} as any);
-
-      await service.log(auditLogDto);
-
-      expect(repository.create).toHaveBeenCalledWith(auditLogDto);
+      expect(mockRepository.create).toHaveBeenCalledOnce();
+      expect(mockRepository.create).toHaveBeenCalledWith(baseDto);
     });
 
-    it('When valid audit log data without metadata is provided, then it should create an audit log', async () => {
-      const auditLogDto = {
-        entityType: AuditEntityType.User,
-        entityId: v4(),
-        action: AuditAction.TfaEnabled,
-        performerType: AuditPerformerType.User,
-        performerId: v4(),
-      };
+    it('should not throw when repository.create fails', async () => {
+      mockRepository.create.mockRejectedValue(new Error('Database error'));
 
-      repository.create.mockResolvedValueOnce({} as any);
-
-      await service.log(auditLogDto);
-
-      expect(repository.create).toHaveBeenCalledWith(auditLogDto);
+      await expect(service.log(baseDto)).resolves.toBeUndefined();
     });
 
-    it('When repository throws an error, then it should log a warning and not throw', async () => {
-      const auditLogDto = {
+    it('should log a warning when repository.create fails', async () => {
+      const dbError = new Error('Connection timeout');
+      mockRepository.create.mockRejectedValue(dbError);
+
+      await service.log(baseDto);
+
+      expect(loggerWarnSpy).toHaveBeenCalledOnce();
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        {
+          action: baseDto.action,
+          entityType: baseDto.entityType,
+          entityId: baseDto.entityId,
+          error: dbError.message,
+        },
+        'Failed to create audit log',
+      );
+    });
+
+    it('should include the correct error message in the warning', async () => {
+      const specificError = new Error('Unique constraint violation');
+      mockRepository.create.mockRejectedValue(specificError);
+
+      await service.log(baseDto);
+
+      const [warnPayload] = loggerWarnSpy.mock.calls[0];
+      expect(warnPayload.error).toBe('Unique constraint violation');
+    });
+
+    it('should not log a warning when repository.create succeeds', async () => {
+      mockRepository.create.mockResolvedValue(undefined);
+
+      await service.log(baseDto);
+
+      expect(loggerWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('should work without optional fields (performerId, metadata)', async () => {
+      const minimalDto: CreateAuditLogDto = {
         entityType: AuditEntityType.User,
-        entityId: v4(),
-        action: AuditAction.EmailChanged,
-        performerType: AuditPerformerType.User,
-        performerId: v4(),
-        metadata: { newEmail: 'new@example.com' },
+        entityId: 'user-999',
+        action: AuditAction.AccountDeactivated,
+        performerType: AuditPerformerType.System,
       };
+      mockRepository.create.mockResolvedValue(undefined);
 
-      const error = new Error('Database connection failed');
-      repository.create.mockRejectedValueOnce(error);
+      await expect(service.log(minimalDto)).resolves.toBeUndefined();
+      expect(mockRepository.create).toHaveBeenCalledWith(minimalDto);
+    });
 
-      const loggerWarnSpy = jest.spyOn(logger, 'warn').mockImplementation();
+    it('should work with a Workspace entity and Gateway performer', async () => {
+      const workspaceDto: CreateAuditLogDto = {
+        entityType: AuditEntityType.Workspace,
+        entityId: 'workspace-123',
+        action: AuditAction.WorkspaceCreated,
+        performerType: AuditPerformerType.Gateway,
+        performerId: 'gateway-001',
+      };
+      mockRepository.create.mockResolvedValue(undefined);
 
-      await service.log(auditLogDto);
-
-      expect(repository.create).toHaveBeenCalledWith(auditLogDto);
-      expect(loggerWarnSpy).toHaveBeenCalled();
+      await expect(service.log(workspaceDto)).resolves.toBeUndefined();
+      expect(mockRepository.create).toHaveBeenCalledWith(workspaceDto);
     });
   });
 });

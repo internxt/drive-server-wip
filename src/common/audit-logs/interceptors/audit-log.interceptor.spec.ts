@@ -1,4 +1,5 @@
-import { createMock, type DeepMocked } from '@golevelup/ts-jest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockDeep, type MockProxy } from 'vitest-mock-extended';
 import { type CallHandler, type ExecutionContext } from '@nestjs/common';
 import { type Reflector } from '@nestjs/core';
 import { of, lastValueFrom } from 'rxjs';
@@ -11,32 +12,37 @@ import {
   AuditPerformerType,
 } from '../audit-logs.attributes';
 import { newUser, newWorkspace } from '../../../../test/fixtures';
+import { type HttpArgumentsHost } from '@nestjs/common/interfaces';
 
 describe('AuditLogInterceptor', () => {
   let interceptor: AuditLogInterceptor;
-  let reflector: DeepMocked<Reflector>;
-  let auditLogService: DeepMocked<AuditLogService>;
+  let reflector: MockProxy<Reflector>;
+  let auditLogService: MockProxy<AuditLogService>;
 
-  const mockHandler = jest.fn();
+  const mockHandler = vi.fn();
 
-  const createContext = (request: any) =>
-    createMock<ExecutionContext>({
-      getHandler: () => mockHandler,
-      switchToHttp: () => ({ getRequest: () => request }),
-    });
+  const createContext = (request: any) => {
+    const context = mockDeep<ExecutionContext>();
+
+    context.getHandler.mockReturnValue(mockHandler);
+
+    context.switchToHttp.mockReturnValue({
+      getRequest: () => request,
+      getResponse: () => ({}) as any,
+      getNext: () => ({}) as any,
+    } satisfies HttpArgumentsHost);
+
+    return context;
+  };
 
   const createCallHandler = (response: any): CallHandler => ({
-    handle: jest.fn().mockReturnValue(of(response)),
+    handle: vi.fn().mockReturnValue(of(response)),
   });
 
   beforeEach(() => {
-    reflector = createMock<Reflector>();
-    auditLogService = createMock<AuditLogService>();
+    reflector = mockDeep<Reflector>();
+    auditLogService = mockDeep<AuditLogService>();
     interceptor = new AuditLogInterceptor(reflector, auditLogService);
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
   });
 
   it('When the interceptor is instantiated, then it should be defined', () => {

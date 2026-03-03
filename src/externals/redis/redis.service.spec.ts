@@ -1,46 +1,49 @@
-import { Test } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
-import { type Logger } from '@nestjs/common';
-import { createMock, type DeepMocked } from '@golevelup/ts-jest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mock,
+  vi,
+} from 'vitest';
+import { mockDeep, type MockProxy } from 'vitest-mock-extended';
+import { type ConfigService } from '@nestjs/config';
 import { RedisService } from './redis.service';
 import { createClient } from 'redis';
+import { mockLogger } from '../../../test/helpers/mocker.helper';
 
-jest.mock('redis', () => ({
-  createClient: jest.fn(),
+vi.mock('redis', () => ({
+  createClient: vi.fn(),
 }));
 
 describe('RedisService', () => {
   let service: RedisService;
-  let configService: DeepMocked<ConfigService>;
+  let configService: MockProxy<ConfigService>;
   let mockRedisClient: any;
 
   beforeEach(async () => {
+    mockLogger();
+    configService = mockDeep<ConfigService>();
+
     mockRedisClient = {
-      connect: jest.fn(),
-      quit: jest.fn(),
-      disconnect: jest.fn(),
-      on: jest.fn(),
-      set: jest.fn(),
-      del: jest.fn(),
+      connect: vi.fn(),
+      quit: vi.fn(),
+      disconnect: vi.fn(),
+      on: vi.fn(),
+      set: vi.fn(),
+      del: vi.fn(),
       isReady: false,
       isOpen: false,
     };
 
-    (createClient as jest.Mock).mockReturnValue(mockRedisClient);
+    (createClient as Mock).mockReturnValue(mockRedisClient);
 
-    const moduleRef = await Test.createTestingModule({
-      providers: [RedisService],
-    })
-      .setLogger(createMock<Logger>())
-      .useMocker(() => createMock())
-      .compile();
-
-    service = moduleRef.get(RedisService);
-    configService = moduleRef.get(ConfigService);
+    service = new RedisService(configService);
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -71,7 +74,7 @@ describe('RedisService', () => {
       configService.get.mockReturnValue(redisUrl);
       mockRedisClient.connect.mockRejectedValue(connectionError);
 
-      const loggerErrorSpy = jest.spyOn(service['logger'], 'error');
+      const loggerErrorSpy = vi.spyOn(service['logger'], 'error');
 
       await expect(service.getClient()).rejects.toThrow();
 
@@ -94,17 +97,15 @@ describe('RedisService', () => {
 
   describe('onModuleDestroy', () => {
     beforeEach(async () => {
-      jest
-        .spyOn(configService, 'get')
-        .mockReturnValue('redis://localhost:6379');
-      jest.spyOn(mockRedisClient, 'connect').mockResolvedValue(undefined);
+      configService.get.mockImplementation(() => 'redis://localhost:6379');
+      vi.spyOn(mockRedisClient, 'connect').mockResolvedValue(undefined);
       mockRedisClient.isReady = true;
       await service.getClient();
     });
 
     it('When module is destroyed and client is open, then it should quit the redis connection', async () => {
       mockRedisClient.isOpen = true;
-      jest.spyOn(mockRedisClient, 'quit').mockResolvedValue(undefined);
+      vi.spyOn(mockRedisClient, 'quit').mockResolvedValue(undefined);
 
       await service.onModuleDestroy();
 
@@ -113,7 +114,7 @@ describe('RedisService', () => {
 
     it('When module is destroyed and client is not open, then it should not call quit', async () => {
       mockRedisClient.isOpen = false;
-      const quitSpy = jest.spyOn(mockRedisClient, 'quit');
+      const quitSpy = vi.spyOn(mockRedisClient, 'quit');
 
       await service.onModuleDestroy();
 
@@ -129,10 +130,8 @@ describe('RedisService', () => {
 
   describe('tryAcquireLock', () => {
     beforeEach(async () => {
-      jest
-        .spyOn(configService, 'get')
-        .mockReturnValue('redis://localhost:6379');
-      jest.spyOn(mockRedisClient, 'connect').mockResolvedValue(undefined);
+      configService.get.mockImplementation(() => 'redis://localhost:6379');
+      vi.spyOn(mockRedisClient, 'connect').mockResolvedValue(undefined);
       mockRedisClient.isReady = true;
       await service.getClient();
     });
@@ -141,7 +140,7 @@ describe('RedisService', () => {
       const key = 'test-lock';
       const ttlMs = 5000;
 
-      jest.spyOn(mockRedisClient, 'set').mockResolvedValue('OK');
+      vi.spyOn(mockRedisClient, 'set').mockResolvedValue('OK');
 
       const result = await service.tryAcquireLock(key, ttlMs);
 
@@ -156,7 +155,7 @@ describe('RedisService', () => {
       const key = 'test-lock';
       const ttlMs = 5000;
 
-      jest.spyOn(mockRedisClient, 'set').mockResolvedValue(null);
+      vi.spyOn(mockRedisClient, 'set').mockResolvedValue(null);
 
       const result = await service.tryAcquireLock(key, ttlMs);
 
@@ -172,7 +171,7 @@ describe('RedisService', () => {
       const ttlMs = 5000;
       const customValue = 'custom-lock-value';
 
-      jest.spyOn(mockRedisClient, 'set').mockResolvedValue('OK');
+      vi.spyOn(mockRedisClient, 'set').mockResolvedValue('OK');
 
       const result = await service.tryAcquireLock(key, ttlMs, customValue);
 

@@ -1,7 +1,7 @@
 import { v4 } from 'uuid';
 import { generateMnemonic } from 'bip39';
+import kemBuilder from '@dashlane/pqc-kem-kyber512-node';
 import { generateNewKeys } from '../../src/externals/asymmetric-encryption/openpgp';
-import { importEsmPackage } from '../../src/lib/import-esm-package';
 
 export interface RegisterUserDto {
   name: string;
@@ -52,9 +52,6 @@ async function generateEccKeys(): Promise<EccKeys> {
 }
 
 async function generateKyberKeys(): Promise<KyberKeys> {
-  const kemBuilder = await importEsmPackage<
-    typeof import('@dashlane/pqc-kem-kyber512-node').default
-  >('@dashlane/pqc-kem-kyber512-node');
   const kem = await kemBuilder();
   const keys = await kem.keypair();
   return {

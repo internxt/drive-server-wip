@@ -1,22 +1,31 @@
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mock,
+  vi,
+} from 'vitest';
 import { type ExecutionContext } from '@nestjs/common';
 import { requesterFactory } from './requester.decorator';
 
 describe('requesterFactory', () => {
-  let mockGetRequest: jest.Mock;
+  let mockGetRequest: Mock;
 
   beforeEach(() => {
-    mockGetRequest = jest.fn();
+    mockGetRequest = vi.fn();
   });
 
   const createMockExecutionContext = (req: any): ExecutionContext =>
     ({
-      switchToHttp: jest.fn().mockReturnValue({
+      switchToHttp: vi.fn().mockReturnValue({
         getRequest: mockGetRequest.mockReturnValue(req),
       }),
     }) as unknown as ExecutionContext;
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('When requester is present, it should return requester', () => {

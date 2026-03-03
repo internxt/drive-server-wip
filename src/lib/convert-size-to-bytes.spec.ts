@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { convertSizeToBytes } from './convert-size-to-bytes';
 
 describe('convertSizeToBytes function', () => {
