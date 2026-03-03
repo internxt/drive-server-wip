@@ -1,24 +1,21 @@
+import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 import { ExecutionContext } from '@nestjs/common';
 import { userTierFactory } from './user-tier.decorator';
 import { v4 } from 'uuid';
 
 describe('userTierFactory', () => {
-  let mockGetRequest: jest.Mock;
+  let mockGetRequest: Mock;
 
   beforeEach(() => {
-    mockGetRequest = jest.fn();
+    mockGetRequest = vi.fn();
   });
 
   const createMockExecutionContext = (req): ExecutionContext =>
     ({
-      switchToHttp: jest.fn().mockReturnValue({
+      switchToHttp: vi.fn().mockReturnValue({
         getRequest: mockGetRequest.mockReturnValue(req),
       }),
     }) as unknown as ExecutionContext;
-
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
 
   it('When authInfo has tier, then return tier object', () => {
     const mockTier = {

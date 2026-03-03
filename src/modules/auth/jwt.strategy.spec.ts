@@ -1,5 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { createMock } from '@golevelup/ts-jest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DeepMockProxy, mockDeep } from 'vitest-mock-extended';
 import { UserUseCases } from '../user/user.usecase';
 import { JwtStrategy } from './jwt.strategy';
 import { newUser } from '../../../test/fixtures';
@@ -8,25 +8,27 @@ import { getTokenDefaultIat } from '../../lib/jwt';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { v4 } from 'uuid';
+import { ConfigService } from '@nestjs/config';
 
 describe('Jwt strategy', () => {
-  let userUseCases: UserUseCases;
   let strategy: JwtStrategy;
-  let cacheManagerService: CacheManagerService;
-  let featureLimitService: FeatureLimitService;
+  let userUseCases: DeepMockProxy<UserUseCases>;
+  let cacheManagerService: DeepMockProxy<CacheManagerService>;
+  let featureLimitService: DeepMockProxy<FeatureLimitService>;
 
-  beforeEach(async () => {
-    const moduleRef: TestingModule = await Test.createTestingModule({
-      providers: [JwtStrategy],
-    })
-      .useMocker(createMock)
-      .compile();
-    userUseCases = moduleRef.get<UserUseCases>(UserUseCases);
-    strategy = moduleRef.get<JwtStrategy>(JwtStrategy);
-    cacheManagerService =
-      moduleRef.get<CacheManagerService>(CacheManagerService);
-    featureLimitService =
-      moduleRef.get<FeatureLimitService>(FeatureLimitService);
+  beforeEach(() => {
+    userUseCases = mockDeep<UserUseCases>();
+    cacheManagerService = mockDeep<CacheManagerService>();
+    featureLimitService = mockDeep<FeatureLimitService>();
+    const configService = mockDeep<ConfigService>();
+    configService.get.mockReturnValue('test');
+
+    strategy = new JwtStrategy(
+      userUseCases,
+      cacheManagerService,
+      featureLimitService,
+      configService,
+    );
   });
 
   it('When token is old version, then fail', async () => {
@@ -36,7 +38,7 @@ describe('Jwt strategy', () => {
   });
 
   it('When user does not exist, then fail', async () => {
-    jest.spyOn(userUseCases, 'getUser').mockResolvedValue(null);
+    userUseCases.getUser.mockResolvedValue(null);
 
     await expect(
       strategy.validate({ payload: { uuid: 'anyUuid' } }),
@@ -50,7 +52,7 @@ describe('Jwt strategy', () => {
     greaterDate.setMinutes(greaterDate.getMinutes() + 1);
     user.lastPasswordChangedAt = greaterDate;
 
-    jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
+    userUseCases.getUser.mockResolvedValue(user);
 
     await expect(
       strategy.validate({ payload: { uuid: 'anyUuid' }, iat: tokenIat }),
@@ -64,7 +66,7 @@ describe('Jwt strategy', () => {
     olderDate.setMinutes(olderDate.getMinutes() - 1);
     user.lastPasswordChangedAt = olderDate;
 
-    jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
+    userUseCases.getUser.mockResolvedValue(user);
 
     const result = await strategy.validate({
       payload: { uuid: 'anyUuid' },
@@ -78,7 +80,7 @@ describe('Jwt strategy', () => {
     const user = newUser();
     user.lastPasswordChangedAt = null;
 
-    jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
+    userUseCases.getUser.mockResolvedValue(user);
 
     const result = await strategy.validate({
       payload: { uuid: 'anyUuid' },
@@ -98,13 +100,10 @@ describe('Jwt strategy', () => {
     olderDate.setMinutes(olderDate.getMinutes() - 1);
     guestUser.lastPasswordChangedAt = olderDate;
 
-    const getUserSpy = jest
-      .spyOn(userUseCases, 'getUser')
-      .mockResolvedValue(guestUser);
+    const getUserSpy = userUseCases.getUser.mockResolvedValue(guestUser);
 
-    const getUserByUsernameSpy = jest
-      .spyOn(userUseCases, 'getUserByUsername')
-      .mockResolvedValue(owner);
+    const getUserByUsernameSpy =
+      userUseCases.getUserByUsername.mockResolvedValue(owner);
 
     const result = await strategy.validate({
       payload: { uuid: anyUuid },
@@ -121,8 +120,8 @@ describe('Jwt strategy', () => {
     const user = newUser();
     user.lastPasswordChangedAt = null;
 
-    jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
-    jest.spyOn(cacheManagerService, 'isJwtBlacklisted').mockResolvedValue(true);
+    userUseCases.getUser.mockResolvedValue(user);
+    cacheManagerService.isJwtBlacklisted.mockResolvedValue(true);
 
     await expect(
       strategy.validate({
@@ -140,8 +139,8 @@ describe('Jwt strategy', () => {
     const user = newUser();
     user.lastPasswordChangedAt = null;
 
-    jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
-    jest.spyOn(cacheManagerService, 'isJwtBlacklisted').mockResolvedValue(null);
+    userUseCases.getUser.mockResolvedValue(user);
+    cacheManagerService.isJwtBlacklisted.mockResolvedValue(null);
 
     const result = await strategy.validate({
       payload: { uuid: user.uuid },
@@ -157,11 +156,8 @@ describe('Jwt strategy', () => {
     const user = newUser();
     user.lastPasswordChangedAt = null;
 
-    jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
-    const isBlacklistedSpy = jest.spyOn(
-      cacheManagerService,
-      'isJwtBlacklisted',
-    );
+    userUseCases.getUser.mockResolvedValue(user);
+    const isBlacklistedSpy = cacheManagerService.isJwtBlacklisted;
 
     const result = await strategy.validate({
       payload: { uuid: user.uuid },
@@ -183,10 +179,8 @@ describe('Jwt strategy', () => {
     user.tierId = tierId;
     user.lastPasswordChangedAt = null;
 
-    jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
-    jest
-      .spyOn(featureLimitService, 'getTier')
-      .mockResolvedValue(mockTier as any);
+    userUseCases.getUser.mockResolvedValue(user);
+    featureLimitService.getTier.mockResolvedValue(mockTier as any);
 
     const result = await strategy.validate({
       payload: { uuid: user.uuid },
@@ -203,8 +197,8 @@ describe('Jwt strategy', () => {
     user.tierId = tierId;
     user.lastPasswordChangedAt = null;
 
-    jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
-    jest.spyOn(featureLimitService, 'getTier').mockResolvedValue(null);
+    userUseCases.getUser.mockResolvedValue(user);
+    featureLimitService.getTier.mockResolvedValue(null);
 
     const result = await strategy.validate({
       payload: { uuid: user.uuid },
@@ -220,8 +214,8 @@ describe('Jwt strategy', () => {
     user.tierId = null;
     user.lastPasswordChangedAt = null;
 
-    jest.spyOn(userUseCases, 'getUser').mockResolvedValue(user);
-    const getTierSpy = jest.spyOn(featureLimitService, 'getTier');
+    userUseCases.getUser.mockResolvedValue(user);
+    const getTierSpy = featureLimitService.getTier;
 
     const result = await strategy.validate({
       payload: { uuid: user.uuid },

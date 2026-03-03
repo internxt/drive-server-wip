@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { DeepMockProxy, mockDeep } from 'vitest-mock-extended';
 import { newKeyServer, newUser } from './../../../test/fixtures';
 import { AuthController } from './auth.controller';
 import { UserUseCases } from '../user/user.usecase';
@@ -8,44 +10,47 @@ import { LoginAccessDto } from './dto/login-access.dto';
 import {
   BadRequestException,
   ConflictException,
-  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
 import { v4 } from 'uuid';
 import { TwoFactorAuthService } from './two-factor-auth.service';
 import { GeneratedSecret } from 'speakeasy';
 import { UpdateTfaDto } from './dto/update-tfa.dto';
 import { DeleteTfaDto } from './dto/delete-tfa.dto';
 import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
-import { Test } from '@nestjs/testing';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { PlatformName } from '../../common/constants';
 import { ClientEnum } from '../../common/enums/platform.enum';
+import { AuthUsecases } from './auth.usecase';
+import { mockLogger } from '../../../test/helpers/mocker.helper';
 
 describe('AuthController', () => {
   let authController: AuthController;
-  let userUseCases: DeepMocked<UserUseCases>;
-  let keyServerUseCases: DeepMocked<KeyServerUseCases>;
-  let cryptoService: DeepMocked<CryptoService>;
-  let twoFactorAuthService: DeepMocked<TwoFactorAuthService>;
-  let featureLimitService: DeepMocked<FeatureLimitService>;
+  let userUseCases: DeepMockProxy<UserUseCases>;
+  let keyServerUseCases: DeepMockProxy<KeyServerUseCases>;
+  let cryptoService: DeepMockProxy<CryptoService>;
+  let twoFactorAuthService: DeepMockProxy<TwoFactorAuthService>;
+  let featureLimitService: DeepMockProxy<FeatureLimitService>;
 
   beforeEach(async () => {
-    const moduleRef = await Test.createTestingModule({
-      controllers: [AuthController],
-    })
-      .setLogger(createMock<Logger>())
-      .useMocker(() => createMock())
-      .compile();
-    authController = moduleRef.get(AuthController);
-    userUseCases = moduleRef.get(UserUseCases);
-    keyServerUseCases = moduleRef.get(KeyServerUseCases);
-    cryptoService = moduleRef.get(CryptoService);
-    twoFactorAuthService = moduleRef.get(TwoFactorAuthService);
-    featureLimitService = moduleRef.get(FeatureLimitService);
+    userUseCases = mockDeep<UserUseCases>();
+    keyServerUseCases = mockDeep<KeyServerUseCases>();
+    cryptoService = mockDeep<CryptoService>();
+    twoFactorAuthService = mockDeep<TwoFactorAuthService>();
+    featureLimitService = mockDeep<FeatureLimitService>();
+    const authUseCases = mockDeep<AuthUsecases>();
+
+    authController = new AuthController(
+      userUseCases,
+      keyServerUseCases,
+      cryptoService,
+      twoFactorAuthService,
+      authUseCases,
+      featureLimitService,
+    );
+    mockLogger();
   });
 
   it('should be defined', () => {
@@ -67,11 +72,12 @@ describe('AuthController', () => {
         encryptVersion: UserKeysEncryptVersions.Kyber,
       });
 
-      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(user);
-      jest
-        .spyOn(keyServerUseCases, 'findUserKeys')
-        .mockResolvedValueOnce({ ecc: eccKeys, kyber: kyberKeys });
-      jest.spyOn(cryptoService, 'encryptText').mockReturnValue('encryptedText');
+      userUseCases.findByEmail.mockResolvedValueOnce(user);
+      keyServerUseCases.findUserKeys.mockResolvedValueOnce({
+        ecc: eccKeys,
+        kyber: kyberKeys,
+      });
+      cryptoService.encryptText.mockReturnValue('encryptedText');
 
       const result = await authController.login(loginDto);
 
@@ -88,7 +94,7 @@ describe('AuthController', () => {
       const loginDto = new LoginDto();
       loginDto.email = 'test@example.com';
 
-      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(null);
+      userUseCases.findByEmail.mockResolvedValueOnce(null);
 
       await expect(authController.login(loginDto)).rejects.toThrow(
         new UnauthorizedException('Wrong login credentials'),
@@ -99,8 +105,17 @@ describe('AuthController', () => {
       const body = { email: 'TEST@EXAMPLE.COM' };
       const emailLowerCase = 'test@example.com';
       const user = newUser({ attributes: { email: emailLowerCase } });
+      const eccKeys = newKeyServer({ userId: user.id });
+      const kyberKeys = newKeyServer({
+        userId: user.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
 
-      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValue(user);
+      userUseCases.findByEmail.mockResolvedValueOnce(user);
+      keyServerUseCases.findUserKeys.mockResolvedValueOnce({
+        ecc: eccKeys,
+        kyber: kyberKeys,
+      });
 
       await authController.login(body);
 
@@ -119,14 +134,14 @@ describe('AuthController', () => {
     it('When valid login access details are provided, then it should return the result of loginAccess', async () => {
       const eccKey = newKeyServer({ ...loginAccessDto });
 
-      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+      keyServerUseCases.parseKeysInput.mockReturnValueOnce({
         ecc: eccKey.toJSON(),
         kyber: null,
       });
 
-      jest
-        .spyOn(userUseCases, 'loginAccess')
-        .mockResolvedValueOnce({ success: true } as any);
+      userUseCases.loginAccess.mockResolvedValueOnce({
+        success: true,
+      } as any);
 
       const result = await authController.loginAccess(loginAccessDto);
 
@@ -146,12 +161,17 @@ describe('AuthController', () => {
     });
 
     it('When an error occurs during login access, then it should throw an error', async () => {
-      userUseCases.loginAccess = jest
-        .fn()
-        .mockRejectedValue(new Error('Login access error'));
+      const eccKey = newKeyServer({ ...loginAccessDto });
+      const expectedError = new Error('Login access error');
+
+      keyServerUseCases.parseKeysInput.mockReturnValueOnce({
+        ecc: eccKey.toJSON(),
+        kyber: null,
+      });
+      userUseCases.loginAccess.mockRejectedValue(expectedError);
 
       await expect(authController.loginAccess(loginAccessDto)).rejects.toThrow(
-        Error,
+        expectedError,
       );
     });
 
@@ -171,12 +191,10 @@ describe('AuthController', () => {
         },
       };
 
-      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+      keyServerUseCases.parseKeysInput.mockReturnValueOnce({
         ecc: eccKey.toJSON(),
         kyber: kyberKey.toJSON(),
       });
-
-      jest.spyOn(userUseCases, 'loginAccess');
 
       await authController.loginAccess(inputWithKyberKeys);
 
@@ -217,12 +235,10 @@ describe('AuthController', () => {
         google_auth_qr: null,
       };
 
-      jest
-        .spyOn(twoFactorAuthService, 'generateTwoFactorAuthSecret')
-        .mockResolvedValueOnce({
-          secret: mockGeneratedSecret,
-          qrCode: qrCode,
-        });
+      twoFactorAuthService.generateTwoFactorAuthSecret.mockResolvedValueOnce({
+        secret: mockGeneratedSecret,
+        qrCode: qrCode,
+      });
 
       const result = await authController.getTfa(user);
 
@@ -246,10 +262,8 @@ describe('AuthController', () => {
       updateTfaDto.key = 'key';
       updateTfaDto.code = 'code';
 
-      jest
-        .spyOn(twoFactorAuthService, 'validateTwoFactorAuthCode')
-        .mockReturnValueOnce(true);
-      jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValueOnce();
+      twoFactorAuthService.validateTwoFactorAuthCode.mockReturnValueOnce(true);
+      userUseCases.updateByUuid.mockResolvedValueOnce();
 
       const result = await authController.putTfa(user, updateTfaDto);
 
@@ -276,13 +290,14 @@ describe('AuthController', () => {
       deleteTfaDto.code = 'code';
       deleteTfaDto.pass = 'pass';
 
-      const validateTfaSpy = jest
-        .spyOn(twoFactorAuthService, 'validateTwoFactorAuthCode')
-        .mockReturnValueOnce(true);
-      const decryptPasswordSpy = jest
-        .spyOn(cryptoService, 'decryptText')
-        .mockReturnValueOnce(user.password);
-      jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValueOnce();
+      const validateTfaSpy =
+        twoFactorAuthService.validateTwoFactorAuthCode.mockReturnValueOnce(
+          true,
+        );
+      const decryptPasswordSpy = cryptoService.decryptText.mockReturnValueOnce(
+        user.password,
+      );
+      userUseCases.updateByUuid.mockResolvedValueOnce();
 
       const result = await authController.deleteTfa(user, deleteTfaDto);
 
@@ -298,14 +313,9 @@ describe('AuthController', () => {
       const deleteTfaDto = new DeleteTfaDto();
       deleteTfaDto.pass = 'pass';
 
-      const validateTfaSpy = jest.spyOn(
-        twoFactorAuthService,
-        'validateTwoFactorAuthCode',
-      );
-      jest
-        .spyOn(cryptoService, 'decryptText')
-        .mockReturnValueOnce(user.password);
-      jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValueOnce();
+      const validateTfaSpy = twoFactorAuthService.validateTwoFactorAuthCode;
+      cryptoService.decryptText.mockReturnValueOnce(user.password);
+      userUseCases.updateByUuid.mockResolvedValueOnce();
 
       const result = await authController.deleteTfa(user, deleteTfaDto);
 
@@ -320,11 +330,9 @@ describe('AuthController', () => {
       const deleteTfaDto = new DeleteTfaDto();
       deleteTfaDto.code = 'code';
 
-      jest
-        .spyOn(twoFactorAuthService, 'validateTwoFactorAuthCode')
-        .mockReturnValueOnce(true);
-      const decryptPasswordSpy = jest.spyOn(cryptoService, 'decryptText');
-      jest.spyOn(userUseCases, 'updateByUuid').mockResolvedValueOnce();
+      twoFactorAuthService.validateTwoFactorAuthCode.mockReturnValueOnce(true);
+      const decryptPasswordSpy = cryptoService.decryptText;
+      userUseCases.updateByUuid.mockResolvedValueOnce();
 
       const result = await authController.deleteTfa(user, deleteTfaDto);
 
@@ -363,12 +371,8 @@ describe('AuthController', () => {
       deleteTfaDto.code = 'code';
       deleteTfaDto.pass = 'invalid-pass';
 
-      jest
-        .spyOn(twoFactorAuthService, 'validateTwoFactorAuthCode')
-        .mockReturnValueOnce(true);
-      jest
-        .spyOn(cryptoService, 'decryptText')
-        .mockReturnValueOnce('invalid-password');
+      twoFactorAuthService.validateTwoFactorAuthCode.mockReturnValueOnce(true);
+      cryptoService.decryptText.mockReturnValueOnce('invalid-password');
 
       await expect(
         authController.deleteTfa(user, deleteTfaDto),
@@ -380,8 +384,6 @@ describe('AuthController', () => {
     it('When credentials need to be checked, then it should call the respective service correctly', async () => {
       const hashedPassword = '$2b$12$qEwggJIve0bWR4GRCb7KXuF0aKi5GI8vfvf';
       const user = newUser();
-
-      jest.spyOn(userUseCases, 'areCredentialsCorrect');
 
       await authController.areCredentialsCorrect(user, {
         hashedPassword,
@@ -411,18 +413,14 @@ describe('AuthController', () => {
         newToken: 'new-jwt-token',
       } as any;
 
-      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+      keyServerUseCases.parseKeysInput.mockReturnValueOnce({
         ecc: eccKey.toJSON(),
         kyber: null,
       });
 
-      jest
-        .spyOn(userUseCases, 'loginAccess')
-        .mockResolvedValueOnce(mockLoginResult);
+      userUseCases.loginAccess.mockResolvedValueOnce(mockLoginResult);
 
-      jest
-        .spyOn(featureLimitService, 'canUserAccessPlatform')
-        .mockResolvedValueOnce(true);
+      featureLimitService.canUserAccessPlatform.mockResolvedValueOnce(true);
 
       const result = await authController.cliLoginAccess(
         loginAccessDto,
@@ -457,18 +455,14 @@ describe('AuthController', () => {
         newToken: 'new-jwt-token',
       } as any;
 
-      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+      keyServerUseCases.parseKeysInput.mockReturnValueOnce({
         ecc: eccKey.toJSON(),
         kyber: null,
       });
 
-      jest
-        .spyOn(userUseCases, 'loginAccess')
-        .mockResolvedValueOnce(mockLoginResult);
+      userUseCases.loginAccess.mockResolvedValueOnce(mockLoginResult);
 
-      jest
-        .spyOn(featureLimitService, 'canUserAccessPlatform')
-        .mockResolvedValueOnce(true);
+      featureLimitService.canUserAccessPlatform.mockResolvedValueOnce(true);
 
       const result = await authController.cliLoginAccess(
         loginAccessDto,
@@ -503,18 +497,14 @@ describe('AuthController', () => {
         newToken: 'new-jwt-token',
       } as any;
 
-      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+      keyServerUseCases.parseKeysInput.mockReturnValueOnce({
         ecc: eccKey.toJSON(),
         kyber: null,
       });
 
-      jest
-        .spyOn(userUseCases, 'loginAccess')
-        .mockResolvedValueOnce(mockLoginResult);
+      userUseCases.loginAccess.mockResolvedValueOnce(mockLoginResult);
 
-      jest
-        .spyOn(featureLimitService, 'canUserAccessPlatform')
-        .mockResolvedValueOnce(true);
+      featureLimitService.canUserAccessPlatform.mockResolvedValueOnce(true);
 
       const result = await authController.cliLoginAccess(
         loginAccessDto,
@@ -549,18 +539,14 @@ describe('AuthController', () => {
         token: 'jwt-token',
       } as any;
 
-      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+      keyServerUseCases.parseKeysInput.mockReturnValueOnce({
         ecc: eccKey.toJSON(),
         kyber: null,
       });
 
-      jest
-        .spyOn(userUseCases, 'loginAccess')
-        .mockResolvedValueOnce(mockLoginResult);
+      userUseCases.loginAccess.mockResolvedValueOnce(mockLoginResult);
 
-      jest
-        .spyOn(featureLimitService, 'canUserAccessPlatform')
-        .mockResolvedValueOnce(false);
+      featureLimitService.canUserAccessPlatform.mockResolvedValueOnce(false);
 
       await expect(
         authController.cliLoginAccess(loginAccessDto, ClientEnum.Cli),
@@ -581,18 +567,14 @@ describe('AuthController', () => {
         token: 'jwt-token',
       } as any;
 
-      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+      keyServerUseCases.parseKeysInput.mockReturnValueOnce({
         ecc: eccKey.toJSON(),
         kyber: null,
       });
 
-      jest
-        .spyOn(userUseCases, 'loginAccess')
-        .mockResolvedValueOnce(mockLoginResult);
+      userUseCases.loginAccess.mockResolvedValueOnce(mockLoginResult);
 
-      jest
-        .spyOn(featureLimitService, 'canUserAccessPlatform')
-        .mockResolvedValueOnce(false);
+      featureLimitService.canUserAccessPlatform.mockResolvedValueOnce(false);
 
       await expect(
         authController.cliLoginAccess(loginAccessDto, ClientEnum.Rclone),
@@ -626,18 +608,14 @@ describe('AuthController', () => {
         },
       };
 
-      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+      keyServerUseCases.parseKeysInput.mockReturnValueOnce({
         ecc: eccKey.toJSON(),
         kyber: kyberKey.toJSON(),
       });
 
-      jest
-        .spyOn(userUseCases, 'loginAccess')
-        .mockResolvedValueOnce(mockLoginResult);
+      userUseCases.loginAccess.mockResolvedValueOnce(mockLoginResult);
 
-      jest
-        .spyOn(featureLimitService, 'canUserAccessPlatform')
-        .mockResolvedValueOnce(true);
+      featureLimitService.canUserAccessPlatform.mockResolvedValueOnce(true);
 
       await authController.cliLoginAccess(inputWithKyberKeys, ClientEnum.Cli);
 

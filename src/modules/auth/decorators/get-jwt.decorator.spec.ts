@@ -1,23 +1,20 @@
+import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { jwtDecoratorFactory } from './get-jwt.decorator';
 
 describe('jwtDecoratorFactory', () => {
-  let mockGetRequest: jest.Mock;
+  let mockGetRequest: Mock;
 
   beforeEach(() => {
-    mockGetRequest = jest.fn();
+    mockGetRequest = vi.fn();
   });
 
   const createMockExecutionContext = (req: any): ExecutionContext =>
     ({
-      switchToHttp: jest.fn().mockReturnValue({
+      switchToHttp: vi.fn().mockReturnValue({
         getRequest: mockGetRequest.mockReturnValue(req),
       }),
     }) as unknown as ExecutionContext;
-
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
 
   it('When authorization header contains valid Bearer token, it should return the token', () => {
     const token =

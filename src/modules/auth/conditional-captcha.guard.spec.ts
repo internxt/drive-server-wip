@@ -1,4 +1,5 @@
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { DeepMockProxy, mockDeep } from 'vitest-mock-extended';
 import { ConditionalCaptchaGuard } from './conditional-captcha.guard';
 import { UserUseCases } from '../user/user.usecase';
 import { CaptchaService } from '../../externals/captcha/captcha.service';
@@ -14,12 +15,12 @@ import { ClientHeaders } from '../../common/decorators/client.decorator';
 
 describe('ConditionalCaptchaGuard', () => {
   let guard: ConditionalCaptchaGuard;
-  let userUseCase: DeepMocked<UserUseCases>;
-  let captchaService: DeepMocked<CaptchaService>;
+  let userUseCase: DeepMockProxy<UserUseCases>;
+  let captchaService: DeepMockProxy<CaptchaService>;
 
   beforeEach(() => {
-    userUseCase = createMock<UserUseCases>();
-    captchaService = createMock<CaptchaService>();
+    userUseCase = mockDeep<UserUseCases>();
+    captchaService = mockDeep<CaptchaService>();
 
     guard = new ConditionalCaptchaGuard(userUseCase, captchaService);
   });
@@ -54,10 +55,10 @@ describe('ConditionalCaptchaGuard', () => {
         ip: '127.0.0.1',
       });
 
-      const captchaServiceSpy = jest.spyOn(captchaService, 'verifyCaptcha');
-      jest
-        .spyOn(userUseCase, 'findByEmail')
-        .mockResolvedValue(buildUserWithErrorLoginCount(0));
+      const captchaServiceSpy = captchaService.verifyCaptcha;
+      userUseCase.findByEmail.mockResolvedValue(
+        buildUserWithErrorLoginCount(0),
+      );
 
       const canUserLogin = await guard.canActivate(context);
 
@@ -78,10 +79,10 @@ describe('ConditionalCaptchaGuard', () => {
           ip: '127.0.0.1',
         });
 
-        jest
-          .spyOn(userUseCase, 'findByEmail')
-          .mockResolvedValue(buildUserWithErrorLoginCount(6));
-        const captchaServiceSpy = jest.spyOn(captchaService, 'verifyCaptcha');
+        userUseCase.findByEmail.mockResolvedValue(
+          buildUserWithErrorLoginCount(6),
+        );
+        const captchaServiceSpy = captchaService.verifyCaptcha;
 
         await expect(guard.canActivate(context)).rejects.toThrow(
           ForbiddenException,
@@ -103,10 +104,10 @@ describe('ConditionalCaptchaGuard', () => {
         ip: '127.0.0.1',
       });
 
-      jest
-        .spyOn(userUseCase, 'findByEmail')
-        .mockResolvedValue(buildUserWithErrorLoginCount(6));
-      jest.spyOn(captchaService, 'verifyCaptcha').mockResolvedValue(false);
+      userUseCase.findByEmail.mockResolvedValue(
+        buildUserWithErrorLoginCount(6),
+      );
+      captchaService.verifyCaptcha.mockResolvedValue(false);
 
       await expect(guard.canActivate(context)).rejects.toThrow(
         UnauthorizedException,
@@ -126,12 +127,11 @@ describe('ConditionalCaptchaGuard', () => {
         ip: '127.0.0.1',
       });
 
-      jest
-        .spyOn(userUseCase, 'findByEmail')
-        .mockResolvedValue(buildUserWithErrorLoginCount(6));
-      const captchaServiceSpy = jest
-        .spyOn(captchaService, 'verifyCaptcha')
-        .mockResolvedValue(true);
+      userUseCase.findByEmail.mockResolvedValue(
+        buildUserWithErrorLoginCount(6),
+      );
+      const captchaServiceSpy =
+        captchaService.verifyCaptcha.mockResolvedValue(true);
 
       const canActivate = await guard.canActivate(context);
 
@@ -154,9 +154,9 @@ describe('ConditionalCaptchaGuard', () => {
         ip: '127.0.0.1',
       });
 
-      jest
-        .spyOn(userUseCase, 'findByEmail')
-        .mockResolvedValue(buildUserWithErrorLoginCount(6));
+      userUseCase.findByEmail.mockResolvedValue(
+        buildUserWithErrorLoginCount(6),
+      );
 
       await expect(guard.canActivate(context)).rejects.toThrow(
         ForbiddenException,
@@ -176,12 +176,11 @@ describe('ConditionalCaptchaGuard', () => {
         ip: '127.0.0.1',
       });
 
-      jest
-        .spyOn(userUseCase, 'findByEmail')
-        .mockResolvedValue(buildUserWithErrorLoginCount(6));
-      const captchaServiceSpy = jest
-        .spyOn(captchaService, 'verifyCaptcha')
-        .mockResolvedValue(true);
+      userUseCase.findByEmail.mockResolvedValue(
+        buildUserWithErrorLoginCount(6),
+      );
+      const captchaServiceSpy =
+        captchaService.verifyCaptcha.mockResolvedValue(true);
 
       await guard.canActivate(context);
 

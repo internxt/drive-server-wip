@@ -1,7 +1,8 @@
-import { createMock } from '@golevelup/ts-jest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DeepMockProxy, mockDeep } from 'vitest-mock-extended';
 import { ExecutionContext, CallHandler } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { of } from 'rxjs';
+import { lastValueFrom, of } from 'rxjs';
 import { delay } from 'rxjs/operators';
 import { TimingConsistencyInterceptor } from './timing-consistency.interceptor';
 import {
@@ -11,10 +12,10 @@ import {
 
 describe('TimingConsistencyInterceptor', () => {
   let interceptor: TimingConsistencyInterceptor;
-  let reflector: Reflector;
+  let reflector: DeepMockProxy<Reflector>;
 
   beforeEach(() => {
-    reflector = createMock<Reflector>();
+    reflector = mockDeep<Reflector>();
     interceptor = new TimingConsistencyInterceptor(reflector);
   });
 
@@ -23,12 +24,12 @@ describe('TimingConsistencyInterceptor', () => {
   });
 
   it('should pass through when no timing options are set', () => {
-    const context = createMock<ExecutionContext>();
-    const next = createMock<CallHandler>();
+    const context = mockDeep<ExecutionContext>();
+    const next = mockDeep<CallHandler>();
     const testData = { test: 'data' };
 
-    jest.spyOn(reflector, 'get').mockReturnValue(undefined);
-    jest.spyOn(next, 'handle').mockReturnValue(of(testData));
+    reflector.get.mockReturnValue(undefined);
+    next.handle.mockReturnValue(of(testData));
 
     const result$ = interceptor.intercept(context, next);
 
@@ -42,60 +43,47 @@ describe('TimingConsistencyInterceptor', () => {
     );
   });
 
-  it('should add delay when response is faster than minimum time', (done) => {
-    const context = createMock<ExecutionContext>();
-    const next = createMock<CallHandler>();
+  it('should add delay when response is faster than minimum time', async () => {
+    const context = mockDeep<ExecutionContext>();
+    const next = mockDeep<CallHandler>();
     const testData = { test: 'data' };
     const minimumTime = 100;
+    const startTime = Date.now();
 
     const timingOptions: TimingConsistencyOptions = {
       minimumResponseTimeMs: minimumTime,
     };
 
-    jest.spyOn(reflector, 'get').mockReturnValue(timingOptions);
-    jest.spyOn(next, 'handle').mockReturnValue(of(testData));
+    reflector.get.mockReturnValue(timingOptions);
+    next.handle.mockReturnValue(of(testData));
 
-    const startTime = Date.now();
-    const result$ = interceptor.intercept(context, next);
+    const result = await lastValueFrom(interceptor.intercept(context, next));
+    const totalElapsed = Date.now() - startTime;
 
-    result$.subscribe(async (result) => {
-      if (result instanceof Promise) {
-        const resolvedResult = await result;
-        const totalElapsed = Date.now() - startTime;
-        expect(resolvedResult).toBe(testData);
-        expect(totalElapsed).toBeGreaterThanOrEqual(minimumTime - 10);
-      } else {
-        expect(result).toBe(testData);
-      }
-
-      done();
-    });
+    expect(result).toBe(testData);
+    expect(totalElapsed).toBeGreaterThanOrEqual(minimumTime - 10);
   });
 
-  it('should not add delay when response already takes longer than minimum time', (done) => {
-    const context = createMock<ExecutionContext>();
-    const next = createMock<CallHandler>();
+  it('should not add delay when response already takes longer than minimum time', async () => {
+    const context = mockDeep<ExecutionContext>();
+    const next = mockDeep<CallHandler>();
     const testData = { test: 'data' };
     const minimumTime = 50;
+    const startTime = Date.now();
 
     const timingOptions: TimingConsistencyOptions = {
       minimumResponseTimeMs: minimumTime,
     };
 
-    jest.spyOn(reflector, 'get').mockReturnValue(timingOptions);
+    reflector.get.mockReturnValue(timingOptions);
+    next.handle.mockReturnValue(
+      of(testData).pipe(delay(minimumTime + 10)) as any,
+    );
 
-    jest
-      .spyOn(next, 'handle')
-      .mockReturnValue(of(testData).pipe(delay(minimumTime + 10)));
+    const result = await lastValueFrom(interceptor.intercept(context, next));
+    const totalElapsed = Date.now() - startTime;
 
-    const startTime = Date.now();
-    const result$ = interceptor.intercept(context, next);
-
-    result$.subscribe((result) => {
-      const elapsed = Date.now() - startTime;
-      expect(result).toBe(testData);
-      expect(elapsed).toBeGreaterThanOrEqual(minimumTime);
-      done();
-    });
+    expect(result).toBe(testData);
+    expect(totalElapsed).toBeGreaterThanOrEqual(minimumTime);
   });
 });
