@@ -20,39 +20,39 @@ import {
 export class AuditLogModel extends Model implements AuditLogAttributes {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
   @Column({
     type: DataType.ENUM(...Object.values(AuditEntityType)),
     allowNull: false,
   })
-  entityType: AuditEntityType;
+  declare entityType: AuditEntityType;
 
   @Column({ type: DataType.UUID, allowNull: false })
-  entityId: string;
+  declare entityId: string;
 
   @Column({
     type: DataType.ENUM(...Object.values(AuditAction)),
     allowNull: false,
   })
-  action: AuditAction;
+  declare action: AuditAction;
 
   @Column({
     type: DataType.ENUM(...Object.values(AuditPerformerType)),
     allowNull: false,
   })
-  performerType: AuditPerformerType;
+  declare performerType: AuditPerformerType;
 
   @Column({ type: DataType.UUID, allowNull: true })
-  performerId?: string;
+  declare performerId?: string;
 
   @Column({ type: DataType.JSONB, allowNull: true })
-  metadata?: Record<string, any>;
+  declare metadata?: Record<string, any>;
 
   @Column({
     type: DataType.DATE,
     allowNull: false,
     defaultValue: DataType.NOW,
   })
-  createdAt: Date;
+  declare createdAt: Date;
 }

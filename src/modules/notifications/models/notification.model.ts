@@ -20,36 +20,36 @@ export class NotificationModel extends Model implements NotificationAttributes {
   @PrimaryKey
   @Default(DataType.UUIDV4)
   @Column(DataType.UUID)
-  id: string;
+  declare id: string;
 
   @AllowNull(false)
   @Column(DataType.TEXT)
-  link: string;
+  declare link: string;
 
   @AllowNull(false)
   @Column(DataType.TEXT)
-  message: string;
+  declare message: string;
 
   @AllowNull(false)
   @Column(DataType.STRING)
-  targetType: string;
+  declare targetType: string;
 
   @AllowNull(true)
   @Column(DataType.STRING)
-  targetValue: string | null;
+  declare targetValue: string | null;
 
   @AllowNull(true)
   @Column(DataType.DATE)
-  expiresAt: Date | null;
+  declare expiresAt: Date | null;
 
   @AllowNull(false)
   @Column(DataType.DATE)
-  createdAt: Date;
+  declare createdAt: Date;
 
   @AllowNull(false)
   @Column(DataType.DATE)
-  updatedAt: Date;
+  declare updatedAt: Date;
 
   @HasMany(() => UserNotificationStatusModel)
-  userNotificationStatuses: UserNotificationStatusModel[];
+  declare userNotificationStatuses: UserNotificationStatusModel[];
 }

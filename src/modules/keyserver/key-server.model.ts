@@ -21,22 +21,22 @@ import { UserModel } from '../user/user.model';
 export class KeyServerModel extends Model implements KeyServerAttributes {
   @PrimaryKey
   @AutoIncrement
-  @Column
-  id: number;
+  @Column(DataType.INTEGER)
+  declare id: number;
 
   @ForeignKey(() => UserModel)
   @Column(DataType.INTEGER)
-  userId: number;
+  declare userId: number;
 
   @Column(DataType.STRING(2000))
-  publicKey: string;
+  declare publicKey: string;
 
   @Column(DataType.STRING(3200))
-  privateKey: string;
+  declare privateKey: string;
 
   @Column(DataType.STRING(476))
-  revocationKey: string;
+  declare revocationKey: string;
 
   @Column(DataType.STRING)
-  encryptVersion: UserKeysEncryptVersions;
+  declare encryptVersion: UserKeysEncryptVersions;
 }

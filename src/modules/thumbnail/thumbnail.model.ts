@@ -20,44 +20,44 @@ import { FileModel } from '../file/file.model';
 export class ThumbnailModel extends Model implements ThumbnailAttributes {
   @PrimaryKey
   @AutoIncrement
-  @Column
-  id: number;
+  @Column(DataType.INTEGER)
+  declare id: number;
 
   @ForeignKey(() => FileModel)
   @Column(DataType.INTEGER)
-  fileId: number;
+  declare fileId: number;
 
   @ForeignKey(() => FileModel)
   @Column(DataType.UUID)
-  fileUuid: string;
+  declare fileUuid: string;
 
   @BelongsTo(() => FileModel, { foreignKey: 'fileUuid', targetKey: 'uuid' })
-  fileByUuid: FileModel;
+  declare fileByUuid: FileModel;
 
-  @Column
-  type: string;
+  @Column(DataType.STRING)
+  declare type: string;
 
-  @Column
-  size: number;
+  @Column(DataType.INTEGER)
+  declare size: number;
 
-  @Column
-  bucketId: string;
+  @Column(DataType.STRING)
+  declare bucketId: string;
 
-  @Column
-  bucketFile: string;
+  @Column(DataType.STRING)
+  declare bucketFile: string;
 
-  @Column
-  encryptVersion: string;
+  @Column(DataType.STRING)
+  declare encryptVersion: string;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 
-  @Column
-  maxWidth: number;
+  @Column(DataType.INTEGER)
+  declare maxWidth: number;
 
-  @Column
-  maxHeight: number;
+  @Column(DataType.INTEGER)
+  declare maxHeight: number;
 }

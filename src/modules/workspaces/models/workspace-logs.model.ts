@@ -21,59 +21,59 @@ import { WorkspaceModel } from './workspace.model';
 export class WorkspaceLogModel extends Model {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
   @ForeignKey(() => WorkspaceModel)
   @Column({ type: DataType.UUID, allowNull: false })
-  workspaceId: string;
+  declare workspaceId: string;
 
   @BelongsTo(() => WorkspaceModel, {
     foreignKey: 'workspaceId',
     targetKey: 'id',
     as: 'workspace',
   })
-  workspace: WorkspaceModel;
+  declare workspace: WorkspaceModel;
 
   @ForeignKey(() => UserModel)
   @Column({ type: DataType.UUID, allowNull: false })
-  creator: string;
+  declare creator: string;
 
   @BelongsTo(() => UserModel, {
     foreignKey: 'creator',
     targetKey: 'uuid',
     as: 'user',
   })
-  user: UserModel;
+  declare user: UserModel;
 
   @Column({
     type: DataType.STRING,
     allowNull: false,
   })
-  type: WorkspaceLogAttributes['type'];
+  declare type: WorkspaceLogAttributes['type'];
 
   @Column(DataType.STRING)
-  platform: string;
+  declare platform: string;
 
   @Column(DataType.STRING)
-  entityId: string;
+  declare entityId: string;
 
   @BelongsTo(() => FileModel, {
     foreignKey: 'entity_id',
     targetKey: 'uuid',
     as: 'file',
   })
-  file?: FileModel;
+  declare file?: FileModel;
 
   @BelongsTo(() => FolderModel, {
     foreignKey: 'entity_id',
     targetKey: 'uuid',
     as: 'folder',
   })
-  folder?: FolderModel;
+  declare folder?: FolderModel;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }

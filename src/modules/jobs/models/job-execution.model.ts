@@ -14,25 +14,25 @@ import {
 export class JobExecutionModel extends Model {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
   @Column({ type: DataType.STRING(100), allowNull: false })
-  name: string;
+  declare name: string;
 
   @Column({
     type: DataType.ENUM('running', 'completed', 'failed'),
     defaultValue: 'running',
   })
-  status: 'running' | 'completed' | 'failed';
+  declare status: 'running' | 'completed' | 'failed';
 
   @Column({ type: DataType.DATE, allowNull: true })
-  startedAt: Date;
+  declare startedAt: Date;
 
   @Column({ type: DataType.DATE, allowNull: true })
-  completedAt: Date;
+  declare completedAt: Date;
 
   @Column({ type: DataType.JSON, allowNull: true })
-  metadata: {
+  declare metadata: {
     [key: string]: any;
   };
 }

@@ -31,84 +31,84 @@ import { Sequelize } from 'sequelize';
 export class FileModel extends Model implements FileAttributes {
   @PrimaryKey
   @AutoIncrement
-  @Column
-  id: number;
+  @Column(DataType.INTEGER)
+  declare id: number;
 
   @Unique
   @Column(DataType.UUIDV4)
-  uuid: string;
+  declare uuid: string;
 
   @AllowNull
   @Column(DataType.STRING(24))
-  fileId: string;
+  declare fileId: string;
 
   @Index
-  @Column
-  name: string;
+  @Column(DataType.STRING)
+  declare name: string;
 
   @Index
-  @Column
-  plainName: string;
+  @Column(DataType.STRING)
+  declare plainName: string;
 
-  @Column
-  type: string;
+  @Column(DataType.STRING)
+  declare type: string;
 
   @Column(DataType.BIGINT.UNSIGNED)
-  size: bigint;
+  declare size: bigint;
 
   @Column(DataType.STRING(24))
-  bucket: string;
+  declare bucket: string;
 
   @ForeignKey(() => FolderModel)
   @Column(DataType.INTEGER)
-  folderId: number;
+  declare folderId: number;
 
   @BelongsTo(() => FolderModel)
-  folder: FolderModel;
+  declare folder: FolderModel;
 
   @ForeignKey(() => FolderModel)
   @Column(DataType.UUIDV4)
-  folderUuid: string;
+  declare folderUuid: string;
 
-  @Column
-  encryptVersion: string;
+  @Column(DataType.STRING)
+  declare encryptVersion: string;
 
   @ForeignKey(() => UserModel)
-  @Column
-  userId: number;
+  @Column(DataType.INTEGER)
+  declare userId: number;
 
   @BelongsTo(() => UserModel)
-  user: UserModel;
+  declare user: UserModel;
 
   @Default(Sequelize.fn('NOW'))
-  @Column
-  creationTime: Date;
+  @Column(DataType.DATE)
+  declare creationTime: Date;
 
   @Default(Sequelize.fn('NOW'))
-  @Column
-  modificationTime: Date;
+  @Column(DataType.DATE)
+  declare modificationTime: Date;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
-
-  @Default(false)
-  @Column
-  removed: boolean;
-
-  @AllowNull
-  @Column
-  removedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 
   @Default(false)
-  @Column
-  deleted: boolean;
+  @Column(DataType.BOOLEAN)
+  declare removed: boolean;
 
   @AllowNull
-  @Column
-  deletedAt: Date;
+  @Column(DataType.DATE)
+  declare removedAt: Date;
+
+  @Default(false)
+  @Column(DataType.BOOLEAN)
+  declare deleted: boolean;
+
+  @AllowNull
+  @Column(DataType.DATE)
+  declare deletedAt: Date;
 
   @Column({
     type: DataType.ENUM,
@@ -116,20 +116,20 @@ export class FileModel extends Model implements FileAttributes {
     defaultValue: FileStatus.EXISTS,
     allowNull: false,
   })
-  status: FileStatus;
+  declare status: FileStatus;
 
   @HasOne(() => WorkspaceItemUserModel, {
     foreignKey: 'itemId',
     sourceKey: 'uuid',
   })
-  workspaceUser: WorkspaceItemUserModel;
+  declare workspaceUser: WorkspaceItemUserModel;
 
   @HasMany(() => ThumbnailModel, {
     foreignKey: 'fileUuid',
     sourceKey: 'uuid',
   })
-  thumbnails: ThumbnailModel[];
+  declare thumbnails: ThumbnailModel[];
 
   @HasMany(() => SharingModel, { sourceKey: 'uuid', foreignKey: 'itemId' })
-  sharings: Sharing[];
+  declare sharings: Sharing[];
 }

@@ -26,29 +26,29 @@ export class AttemptChangeEmailModel
   @PrimaryKey
   @AutoIncrement
   @Column(DataType.INTEGER)
-  id: AttemptChangeEmailAttributes['id'];
+  declare id: AttemptChangeEmailAttributes['id'];
 
   @Column(DataType.UUID)
-  userUuid: AttemptChangeEmailAttributes['userUuid'];
+  declare userUuid: AttemptChangeEmailAttributes['userUuid'];
 
   @Column(DataType.STRING)
-  newEmail: AttemptChangeEmailAttributes['newEmail'];
+  declare newEmail: AttemptChangeEmailAttributes['newEmail'];
 
   @Default(Time.dateWithTimeAdded(7, 'day'))
   @Column(DataType.DATE)
-  expiresAt: Date;
+  declare expiresAt: Date;
 
   @Default(AttemptChangeEmailStatus.PENDING)
   @Column(DataType.ENUM(...Object.values(AttemptChangeEmailStatus)))
-  status: AttemptChangeEmailAttributes['status'];
+  declare status: AttemptChangeEmailAttributes['status'];
 
   @Default(Sequelize.fn('now'))
   @Column(DataType.DATE)
-  createdAt: AttemptChangeEmailAttributes['createdAt'];
+  declare createdAt: AttemptChangeEmailAttributes['createdAt'];
 
   @Default(Sequelize.fn('now'))
   @Column(DataType.DATE)
-  updatedAt: AttemptChangeEmailAttributes['updatedAt'];
+  declare updatedAt: AttemptChangeEmailAttributes['updatedAt'];
 
   get isExpired() {
     return Time.now(this.expiresAt) < Time.now();

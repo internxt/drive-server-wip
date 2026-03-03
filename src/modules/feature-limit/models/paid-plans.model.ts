@@ -20,24 +20,24 @@ export class PaidPlansModel extends Model {
   @PrimaryKey
   @AutoIncrement
   @Column(DataType.INTEGER)
-  id: string;
+  declare id: number;
 
   @AllowNull(false)
   @Column(DataType.STRING)
-  planId: string;
+  declare planId: string;
 
   @ForeignKey(() => TierModel)
   @AllowNull(false)
   @Column(DataType.UUIDV4)
-  tierId: string;
+  declare tierId: string;
 
   @BelongsTo(() => TierModel, {
     foreignKey: 'tier_id',
     targetKey: 'id',
     as: 'tier',
   })
-  tier: TierModel;
+  declare tier: TierModel;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 }

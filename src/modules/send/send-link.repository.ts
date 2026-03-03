@@ -26,49 +26,49 @@ import { Op } from 'sequelize';
 })
 export class SendLinkModel extends Model {
   @PrimaryKey
-  @Column
-  id: string;
+  @Column(DataType.UUIDV4)
+  declare id: string;
 
-  @Column
-  views: number;
+  @Column(DataType.INTEGER)
+  declare views: number;
 
   @ForeignKey(() => UserModel)
-  @Column
-  userId: number;
+  @Column(DataType.INTEGER)
+  declare userId: number;
 
   @BelongsTo(() => UserModel)
-  user: UserModel;
+  declare user: UserModel;
 
-  @Column
-  sender: string;
+  @Column(DataType.STRING)
+  declare sender: string;
 
-  @Column
-  receivers: string;
+  @Column(DataType.STRING)
+  declare receivers: string;
 
-  @Column
-  code: string;
+  @Column(DataType.STRING)
+  declare code: string;
 
-  @Column
-  title: string;
+  @Column(DataType.STRING)
+  declare title: string;
 
-  @Column
-  subject: string;
+  @Column(DataType.STRING)
+  declare subject: string;
 
-  @Column
-  expirationAt: Date;
+  @Column(DataType.DATE)
+  declare expirationAt: Date;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 
   @AllowNull
   @Column(DataType.TEXT)
-  hashedPassword: string;
+  declare hashedPassword: string;
 
   @HasMany(() => SendLinkItemModel)
-  items: SendLinkItemModel[];
+  declare items: SendLinkItemModel[];
 }
 
 @Table({
@@ -78,43 +78,43 @@ export class SendLinkModel extends Model {
 })
 export class SendLinkItemModel extends Model {
   @PrimaryKey
-  @Column
-  id: string;
+  @Column(DataType.UUIDV4)
+  declare id: string;
 
-  @Column
-  name: string;
+  @Column(DataType.STRING)
+  declare name: string;
 
-  @Column
-  type: string;
+  @Column(DataType.STRING)
+  declare type: string;
 
   @ForeignKey(() => SendLinkModel)
-  @Column
-  linkId: string;
+  @Column(DataType.STRING)
+  declare linkId: string;
 
   @BelongsTo(() => SendLinkModel)
-  link: any;
+  declare link: any;
 
   @AllowNull
-  @Column
-  networkId: string;
+  @Column(DataType.STRING)
+  declare networkId: string;
 
   @Column(DataType.STRING(64))
-  encryptionKey: string;
+  declare encryptionKey: string;
 
   @Column(DataType.INTEGER.UNSIGNED)
-  size: number;
+  declare size: number;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 
   @Column(DataType.INTEGER)
-  version: number;
+  declare version: number;
 
-  @Column
-  parent_folder: string;
+  @Column(DataType.STRING)
+  declare parent_folder: string;
 }
 
 export interface SendRepository {

@@ -35,21 +35,21 @@ export class FriendInvitationModel
   @AutoIncrement
   @AllowNull(false)
   @Column(DataType.INTEGER)
-  id: number;
+  declare id: number;
 
   @AllowNull(false)
   @Column(DataType.INTEGER)
   @ForeignKey(() => UserModel)
-  host: FriendInvitationAttributes['host'];
+  declare host: FriendInvitationAttributes['host'];
 
   @AllowNull(false)
   @Column(DataType.STRING)
-  guestEmail: FriendInvitationAttributes['guestEmail'];
+  declare guestEmail: FriendInvitationAttributes['guestEmail'];
 
   @AllowNull(false)
   @Default(false)
   @Column(DataType.BOOLEAN)
-  accepted: boolean;
+  declare accepted: boolean;
 }
 
 interface SharedWorkspaceRepository {

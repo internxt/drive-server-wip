@@ -20,31 +20,31 @@ import { type LimitAttributes } from '../domain/limits.attributes';
 export class Limitmodel extends Model implements LimitAttributes {
   @PrimaryKey
   @Column(DataType.UUIDV4)
-  id: string;
+  declare id: string;
 
   @AllowNull(false)
   @Column(DataType.STRING)
-  label: LimitLabels;
+  declare label: LimitLabels;
 
   @AllowNull(false)
   @Column({
     type: DataType.ENUM,
     values: Object.values(LimitTypes),
   })
-  type: LimitTypes;
+  declare type: LimitTypes;
 
   @AllowNull(false)
   @Column(DataType.STRING)
-  value: string;
+  declare value: string;
 
   @BelongsToMany(() => TierModel, {
     through: () => TierLimitsModel,
   })
-  tiers: TierModel[];
+  declare tiers: TierModel[];
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }

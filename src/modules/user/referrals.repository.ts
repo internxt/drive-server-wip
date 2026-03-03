@@ -22,29 +22,29 @@ export class ReferralModel extends Model implements ReferralAttributes {
   @PrimaryKey
   @AutoIncrement
   @Column(DataType.INTEGER)
-  id: ReferralAttributes['id'];
+  declare id: ReferralAttributes['id'];
 
   @AllowNull(false)
   @Unique
   @Column(DataType.STRING)
-  key: ReferralAttributes['key'];
+  declare key: ReferralAttributes['key'];
 
   @AllowNull(false)
   @Column(DataType.ENUM('storage'))
-  type: ReferralAttributes['type'];
+  declare type: ReferralAttributes['type'];
 
   @AllowNull(false)
   @Column(DataType.INTEGER)
-  credit: ReferralAttributes['credit'];
+  declare credit: ReferralAttributes['credit'];
 
   @AllowNull(false)
   @Column(DataType.INTEGER)
-  steps: ReferralAttributes['steps'];
+  declare steps: ReferralAttributes['steps'];
 
   @Default(true)
   @AllowNull(false)
   @Column(DataType.BOOLEAN)
-  enabled: ReferralAttributes['enabled'];
+  declare enabled: ReferralAttributes['enabled'];
 }
 
 interface ReferralsRepository {

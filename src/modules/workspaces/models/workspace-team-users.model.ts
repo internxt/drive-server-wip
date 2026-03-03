@@ -22,32 +22,32 @@ export class WorkspaceTeamUserModel
 {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
   @ForeignKey(() => WorkspaceTeamModel)
   @Column(DataType.UUID)
-  teamId: string;
+  declare teamId: string;
 
   @ForeignKey(() => UserModel)
   @Column(DataType.UUID)
-  memberId: string;
+  declare memberId: string;
 
   @BelongsTo(() => WorkspaceTeamModel, {
     foreignKey: 'teamId',
     targetKey: 'id',
   })
-  team: WorkspaceTeamModel;
+  declare team: WorkspaceTeamModel;
 
   @BelongsTo(() => UserModel, {
     foreignKey: 'memberId',
     targetKey: 'uuid',
     as: 'member',
   })
-  member: UserModel;
+  declare member: UserModel;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }

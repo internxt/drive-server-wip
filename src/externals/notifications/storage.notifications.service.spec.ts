@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockDeep, type MockProxy } from 'vitest-mock-extended';
-import { type Logger } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { StorageNotificationService } from './storage.notifications.service';
 import { type NotificationService } from './notification.service';
 import { type ApnService } from '../apn/apn.service';

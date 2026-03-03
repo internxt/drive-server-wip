@@ -30,35 +30,35 @@ export interface MailLimitModelAttributes {
 export class MailLimitModel extends Model implements MailLimitModelAttributes {
   @PrimaryKey
   @AutoIncrement
-  @Column
-  id: number;
+  @Column(DataType.INTEGER)
+  declare id: number;
 
   @ForeignKey(() => UserModel)
-  @Column
-  userId: number;
+  @Column(DataType.INTEGER)
+  declare userId: number;
 
   @BelongsTo(() => UserModel)
-  user: UserModel;
+  declare user: UserModel;
 
   @AllowNull(false)
   @Column({
     type: DataType.ENUM,
     values: Object.values(MailTypes),
   })
-  mailType: MailTypes;
+  declare mailType: MailTypes;
 
   @AllowNull(false)
   @Default(0)
   @Column(DataType.INTEGER)
-  attemptsCount: number;
+  declare attemptsCount: number;
 
   @AllowNull(false)
   @Default(0)
   @Column(DataType.INTEGER)
-  attemptsLimit: number;
+  declare attemptsLimit: number;
 
   @AllowNull(false)
   @Default(new Date())
   @Column(DataType.DATE)
-  lastMailSent: Date;
+  declare lastMailSent: Date;
 }

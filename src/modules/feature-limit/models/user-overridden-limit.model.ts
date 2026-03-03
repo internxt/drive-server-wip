@@ -18,25 +18,25 @@ import { Limitmodel } from './limit.model';
 export class UserOverriddenLimitModel extends Model {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
   @ForeignKey(() => UserModel)
   @Column(DataType.UUID)
-  userId: string;
+  declare userId: string;
 
   @ForeignKey(() => Limitmodel)
   @Column(DataType.UUID)
-  limitId: string;
+  declare limitId: string;
 
   @BelongsTo(() => UserModel)
-  user: UserModel;
+  declare user: UserModel;
 
   @BelongsTo(() => Limitmodel)
-  limit: Limitmodel;
+  declare limit: Limitmodel;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }

@@ -30,41 +30,41 @@ export class PlanModel extends Model<PlanModel> implements PlanAttributes {
     primaryKey: true,
     autoIncrement: true,
   })
-  id: number;
+  declare id: number;
 
   @ForeignKey(() => UserModel)
   @Column({
     type: DataType.INTEGER,
   })
-  userId: number;
+  declare userId: number;
 
   @Column({
     type: DataType.STRING,
   })
-  name: string;
+  declare name: string;
 
   @Column({
     type: DataType.STRING,
   })
-  type: PlanTypes;
+  declare type: PlanTypes;
 
   @Column({
     type: DataType.DATE,
   })
-  createdAt: Date;
+  declare createdAt: Date;
 
   @Column({
     type: DataType.DATE,
   })
-  updatedAt: Date;
+  declare updatedAt: Date;
 
   @Column({
     type: DataType.BIGINT.UNSIGNED,
     allowNull: false,
     defaultValue: 0,
   })
-  limit: number;
+  declare limit: number;
 
   @BelongsTo(() => UserModel)
-  user: UserModel;
+  declare user: UserModel;
 }

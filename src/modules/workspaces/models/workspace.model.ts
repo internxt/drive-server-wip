@@ -24,76 +24,76 @@ import { FolderModel } from '../../folder/folder.model';
 export class WorkspaceModel extends Model implements WorkspaceAttributes {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
   @ForeignKey(() => UserModel)
   @Column(DataType.UUID)
-  ownerId: string;
+  declare ownerId: string;
 
   @BelongsTo(() => UserModel, {
     foreignKey: 'ownerId',
     targetKey: 'uuid',
     as: 'owner',
   })
-  owner: UserModel;
+  declare owner: UserModel;
 
   @Column(DataType.STRING)
-  address: string;
+  declare address: string;
 
   @Column(DataType.STRING)
-  name: string;
+  declare name: string;
 
   @Column(DataType.STRING)
-  description: string;
+  declare description: string;
 
   @Column(DataType.BOOLEAN)
-  setupCompleted: boolean;
+  declare setupCompleted: boolean;
 
   @AllowNull
   @Column(DataType.STRING)
-  avatar: string;
+  declare avatar: string;
 
   @ForeignKey(() => WorkspaceTeamModel)
   @Column(DataType.UUID)
-  defaultTeamId: string;
+  declare defaultTeamId: string;
 
   @ForeignKey(() => FolderModel)
   @Column(DataType.UUID)
-  rootFolderId?: string;
+  declare rootFolderId?: string;
 
   @Column(DataType.INTEGER)
-  numberOfSeats: number;
+  declare numberOfSeats: number;
 
   @Column(DataType.STRING)
-  phoneNumber: string;
+  declare phoneNumber: string;
 
   @HasOne(() => FolderModel, 'uuid')
-  rootFolder: FolderModel;
+  declare rootFolder: FolderModel;
 
   @BelongsTo(() => WorkspaceTeamModel, {
     foreignKey: 'defaultTeamId',
     targetKey: 'id',
     as: 'defaultTeam',
   })
-  defaultTeam: WorkspaceTeamModel;
+  declare defaultTeam: WorkspaceTeamModel;
 
   @ForeignKey(() => UserModel)
   @Column(DataType.UUID)
-  workspaceUserId: string;
+  declare workspaceUserId: string;
 
   @BelongsTo(() => UserModel, {
     foreignKey: 'workspaceUserId',
     targetKey: 'uuid',
     as: 'workpaceUser',
   })
-  workpaceUser: UserModel;
+  declare workpaceUser: UserModel;
 
   @HasMany(() => WorkspaceUserModel)
-  workspaceUsers: WorkspaceUserModel[];
+  declare workspaceUsers: WorkspaceUserModel[];
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }
