@@ -13,7 +13,7 @@ import { createMock, type DeepMocked } from '@golevelup/ts-jest';
 import { newUser } from '../../../test/fixtures';
 import { v4 } from 'uuid';
 
-jest.mock('../common/decorators/client.decorator', () => ({
+jest.mock('../../common/decorators/client.decorator', () => ({
   getClientIdFromHeaders: jest.fn().mockReturnValue('drive-web'),
 }));
 
