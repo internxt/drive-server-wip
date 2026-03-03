@@ -21,24 +21,24 @@ export class UserNotificationTokensModel
 {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
   @ForeignKey(() => UserModel)
   @Column({ type: DataType.UUID, allowNull: false })
-  userId: string;
+  declare userId: string;
 
   @BelongsTo(() => UserModel)
-  user: UserModel;
+  declare user: UserModel;
 
   @Column({ type: DataType.STRING, allowNull: false })
-  token: string;
+  declare token: string;
 
   @Column({ type: DataType.ENUM('macos', 'android', 'ios'), allowNull: false })
-  type: 'macos' | 'android' | 'ios';
+  declare type: 'macos' | 'android' | 'ios';
 
-  @Column({ allowNull: false, defaultValue: DataType.NOW })
-  createdAt: Date;
+  @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
+  declare createdAt: Date;
 
-  @Column({ allowNull: false, defaultValue: DataType.NOW })
-  updatedAt: Date;
+  @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
+  declare updatedAt: Date;
 }

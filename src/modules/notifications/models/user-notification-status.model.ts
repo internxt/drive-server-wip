@@ -21,34 +21,34 @@ export class UserNotificationStatusModel extends Model<UserNotificationStatusAtt
   @PrimaryKey
   @Default(DataType.UUIDV4)
   @Column(DataType.UUID)
-  id: string;
+  declare id: string;
 
   @AllowNull(false)
   @Column(DataType.STRING)
-  userId: string;
+  declare userId: string;
 
   @AllowNull(false)
   @ForeignKey(() => NotificationModel)
   @Column(DataType.UUID)
-  notificationId: string;
+  declare notificationId: string;
 
   @AllowNull(false)
   @Default(DataType.NOW)
   @Column(DataType.DATE)
-  deliveredAt: Date;
+  declare deliveredAt: Date;
 
   @AllowNull(true)
   @Column(DataType.DATE)
-  readAt: Date | null;
+  declare readAt: Date | null;
 
   @AllowNull(false)
   @Column(DataType.DATE)
-  createdAt: Date;
+  declare createdAt: Date;
 
   @AllowNull(false)
   @Column(DataType.DATE)
-  updatedAt: Date;
+  declare updatedAt: Date;
 
   @BelongsTo(() => NotificationModel)
-  notification: NotificationModel;
+  declare notification: NotificationModel;
 }

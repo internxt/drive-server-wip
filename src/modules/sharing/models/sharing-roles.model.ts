@@ -18,29 +18,29 @@ import { SharingModel, RoleModel } from '.';
 export class SharingRolesModel extends Model implements SharingRoleAttributes {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: SharingRoleAttributes['id'];
+  declare id: SharingRoleAttributes['id'];
 
   @ForeignKey(() => SharingModel)
   @Column(DataType.UUIDV4)
-  sharingId: SharingRoleAttributes['sharingId'];
+  declare sharingId: SharingRoleAttributes['sharingId'];
 
   @BelongsTo(() => SharingModel, {
     foreignKey: 'sharing_id',
     targetKey: 'id',
     as: 'sharing',
   })
-  sharing: SharingModel;
+  declare sharing: SharingModel;
 
   @ForeignKey(() => RoleModel)
   @Column(DataType.UUIDV4)
-  roleId: SharingRoleAttributes['roleId'];
+  declare roleId: SharingRoleAttributes['roleId'];
 
   @BelongsTo(() => RoleModel)
-  role: RoleModel;
+  declare role: RoleModel;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }

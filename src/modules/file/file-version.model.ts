@@ -25,27 +25,27 @@ export class FileVersionModel extends Model implements FileVersionAttributes {
   @PrimaryKey
   @Default(Sequelize.literal('uuid_generate_v4()'))
   @Column(DataType.UUIDV4)
-  id: string;
+  declare id: string;
 
   @ForeignKey(() => FileModel)
   @Column(DataType.UUIDV4)
-  fileId: string;
+  declare fileId: string;
 
   @BelongsTo(() => FileModel, 'fileId')
-  file: FileModel;
+  declare file: FileModel;
 
   @ForeignKey(() => UserModel)
   @Column(DataType.STRING(36))
-  userId: string;
+  declare userId: string;
 
   @BelongsTo(() => UserModel, 'userId')
-  user: UserModel;
+  declare user: UserModel;
 
   @Column(DataType.STRING)
-  networkFileId: string;
+  declare networkFileId: string;
 
   @Column(DataType.BIGINT.UNSIGNED)
-  size: bigint;
+  declare size: bigint;
 
   @Column({
     type: DataType.ENUM,
@@ -53,17 +53,17 @@ export class FileVersionModel extends Model implements FileVersionAttributes {
     defaultValue: FileVersionStatus.EXISTS,
     allowNull: false,
   })
-  status: FileVersionStatus;
+  declare status: FileVersionStatus;
 
   @Default(Sequelize.fn('NOW'))
-  @Column
-  modificationTime: Date;
+  @Column(DataType.DATE)
+  declare modificationTime: Date;
 
   @Default(Sequelize.fn('NOW'))
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
   @Default(Sequelize.fn('NOW'))
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }

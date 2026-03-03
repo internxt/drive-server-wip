@@ -29,83 +29,83 @@ import { DeviceModel } from '../backups/models/device.model';
 export class FolderModel extends Model implements FolderAttributes {
   @PrimaryKey
   @AutoIncrement
-  @Column
-  id: number;
+  @Column(DataType.INTEGER)
+  declare id: number;
 
   @Index
-  @Column
-  uuid: string;
+  @Column(DataType.UUIDV4)
+  declare uuid: string;
 
   @ForeignKey(() => FolderModel)
-  @Column
-  parentId: number;
+  @Column(DataType.INTEGER)
+  declare parentId: number;
 
   @BelongsTo(() => FolderModel)
-  parent: FolderModel;
+  declare parent: FolderModel;
 
   @ForeignKey(() => FolderModel)
   @Column(DataType.UUIDV4)
-  parentUuid: FolderAttributes['uuid'];
+  declare parentUuid: FolderAttributes['uuid'];
 
   @Index
-  @Column
-  name: string;
+  @Column(DataType.STRING)
+  declare name: string;
 
   @Column(DataType.STRING(24))
-  bucket: string;
+  declare bucket: string;
 
   @ForeignKey(() => UserModel)
-  @Column
-  userId: number;
+  @Column(DataType.INTEGER)
+  declare userId: number;
 
   @BelongsTo(() => UserModel)
-  user: UserModel;
+  declare user: UserModel;
 
   @HasOne(() => DeviceModel)
-  device: DeviceModel;
+  declare device: DeviceModel;
 
-  @Column
-  encryptVersion: '03-aes';
+  @Column(DataType.STRING)
+  declare encryptVersion: '03-aes';
 
   @Index
-  @Column
-  plainName: string;
+  @Column(DataType.STRING)
+  declare plainName: string;
 
   @Default(false)
-  @Column
-  deleted: boolean;
+  @Column(DataType.BOOLEAN)
+  declare deleted: boolean;
 
   @Default(false)
-  @Column
-  removed: boolean;
+  @Column(DataType.BOOLEAN)
+  declare removed: boolean;
 
   @Default(Sequelize.fn('NOW'))
-  @Column
-  creationTime: Date;
+  @Column(DataType.DATE)
+  declare creationTime: Date;
 
   @Default(Sequelize.fn('NOW'))
-  @Column
-  modificationTime: Date;
+  @Column(DataType.DATE)
+  declare modificationTime: Date;
 
   @AllowNull
-  @Column
-  deletedAt: Date;
+  @Column(DataType.DATE)
+  declare deletedAt: Date;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 
-  @Column
-  removedAt: Date;
+  @Column(DataType.DATE)
+  declare removedAt: Date;
 
   @HasMany(() => SharingModel, { sourceKey: 'uuid', foreignKey: 'itemId' })
-  sharings: Sharing[];
+  declare sharings: Sharing[];
 
   @HasOne(() => WorkspaceItemUserModel, {
     foreignKey: 'itemId',
     sourceKey: 'uuid',
   })
-  workspaceUser: WorkspaceItemUserModel;
+  declare workspaceUser: WorkspaceItemUserModel;
 }

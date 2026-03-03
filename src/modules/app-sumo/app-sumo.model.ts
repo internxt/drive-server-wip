@@ -25,29 +25,29 @@ export class AppSumoModel
     primaryKey: true,
     autoIncrement: true,
   })
-  id: number;
+  declare id: number;
 
   @ForeignKey(() => UserModel)
   @Column({
     type: DataType.INTEGER,
   })
-  userId: number;
+  declare userId: number;
 
   @Column({
     type: DataType.STRING,
     allowNull: false,
   })
-  planId: string;
+  declare planId: string;
 
   @Column({
     type: DataType.STRING(36),
     allowNull: false,
   })
-  uuid: string;
+  declare uuid: string;
 
   @Column({
     type: DataType.STRING(36),
     allowNull: false,
   })
-  invoiceItemUuid: string;
+  declare invoiceItemUuid: string;
 }

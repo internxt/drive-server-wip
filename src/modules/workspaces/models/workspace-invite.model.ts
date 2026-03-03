@@ -21,34 +21,34 @@ export class WorkspaceInviteModel
 {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
   @ForeignKey(() => WorkspaceModel)
   @Column({ type: DataType.UUID, allowNull: false })
-  workspaceId: string;
+  declare workspaceId: string;
 
   @BelongsTo(() => WorkspaceModel, {
     foreignKey: 'workspaceId',
     targetKey: 'id',
     as: 'workspace',
   })
-  workspace: WorkspaceModel;
+  declare workspace: WorkspaceModel;
 
   @Column({ type: DataType.UUID, allowNull: false })
-  invitedUser: string;
+  declare invitedUser: string;
 
   @Column({ type: DataType.STRING, allowNull: false })
-  encryptionAlgorithm: string;
+  declare encryptionAlgorithm: string;
 
   @Column({ type: DataType.STRING, allowNull: false })
-  encryptionKey: string;
+  declare encryptionKey: string;
 
   @Column({ type: DataType.BIGINT.UNSIGNED, allowNull: false })
-  spaceLimit: number;
+  declare spaceLimit: number;
 
-  @Column({ allowNull: false, defaultValue: DataType.NOW })
-  createdAt: Date;
+  @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
+  declare createdAt: Date;
 
-  @Column({ allowNull: false, defaultValue: DataType.NOW })
-  updatedAt: Date;
+  @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
+  declare updatedAt: Date;
 }

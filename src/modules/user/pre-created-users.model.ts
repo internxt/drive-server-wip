@@ -22,46 +22,46 @@ export class PreCreatedUserModel
 {
   @PrimaryKey
   @AutoIncrement
-  @Column
-  id: number;
+  @Column(DataType.INTEGER)
+  declare id: number;
 
   @Column(DataType.UUIDV4)
-  uuid: string;
+  declare uuid: string;
 
   @AllowNull(false)
-  @Column
-  email: string;
+  @Column(DataType.STRING)
+  declare email: string;
 
   @Unique
-  @Column
-  username: string;
+  @Column(DataType.STRING)
+  declare username: string;
 
   @Column(DataType.STRING(920))
-  publicKey: string;
+  declare publicKey: string;
 
   @Column(DataType.STRING(1356))
-  privateKey: string;
+  declare privateKey: string;
 
   @Column(DataType.STRING(476))
-  revocationKey: string;
+  declare revocationKey: string;
 
   @Column(DataType.STRING)
-  encryptVersion: KeyServerAttributes['encryptVersion'];
+  declare encryptVersion: KeyServerAttributes['encryptVersion'];
 
   @AllowNull(true)
   @Column(DataType.STRING(4000))
-  privateKyberKey?: string;
+  declare privateKyberKey?: string;
 
   @AllowNull(true)
   @Column(DataType.STRING(2000))
-  publicKyberKey?: string;
+  declare publicKyberKey?: string;
 
-  @Column
-  password: string;
+  @Column(DataType.STRING)
+  declare password: string;
 
-  @Column
-  mnemonic: string;
+  @Column(DataType.STRING)
+  declare mnemonic: string;
 
-  @Column
-  hKey: Buffer;
+  @Column(DataType.BLOB)
+  declare hKey: Buffer;
 }

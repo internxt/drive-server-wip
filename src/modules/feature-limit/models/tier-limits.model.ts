@@ -18,22 +18,22 @@ import { Limitmodel } from './limit.model';
 export class TierLimitsModel extends Model {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
   @ForeignKey(() => TierModel)
   @Column(DataType.UUIDV4)
-  tierId: string;
+  declare tierId: string;
 
   @ForeignKey(() => Limitmodel)
   @Column(DataType.UUIDV4)
-  limitId: string;
+  declare limitId: string;
 
   @BelongsTo(() => Limitmodel)
-  limit: Limitmodel;
+  declare limit: Limitmodel;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }

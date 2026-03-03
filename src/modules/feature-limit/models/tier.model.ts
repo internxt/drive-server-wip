@@ -23,18 +23,18 @@ export interface TierAttributes {
 export class TierModel extends Model implements TierAttributes {
   @PrimaryKey
   @Column(DataType.UUIDV4)
-  id: string;
+  declare id: string;
 
   @AllowNull(false)
   @Column(DataType.STRING)
-  label: string;
+  declare label: string;
 
   @Column(DataType.STRING)
-  context: string;
+  declare context: string;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }

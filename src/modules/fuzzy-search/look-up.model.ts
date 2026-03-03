@@ -6,6 +6,7 @@ import {
   Index,
   BelongsTo,
   ForeignKey,
+  DataType,
 } from 'sequelize-typescript';
 import { ItemType, type LookUpAttributes } from './look-up.domain';
 import { FileModel } from '../file/file.model';
@@ -20,50 +21,50 @@ import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-use
 })
 export class LookUpModel extends Model implements LookUpAttributes {
   @PrimaryKey
-  @Column
-  id: string;
+  @Column(DataType.UUIDV4)
+  declare id: string;
 
-  @Column
-  itemId: string;
+  @Column(DataType.UUIDV4)
+  declare itemId: string;
 
-  @Column
-  itemType: ItemType;
+  @Column(DataType.STRING)
+  declare itemType: ItemType;
 
   @Index
   @ForeignKey(() => UserModel)
-  @Column
-  userId: string;
+  @Column(DataType.UUIDV4)
+  declare userId: string;
 
-  @Column
-  name: string;
+  @Column(DataType.STRING)
+  declare name: string;
 
-  @Column
-  tokenizedName: string;
+  @Column(DataType.STRING)
+  declare tokenizedName: string;
 
   @BelongsTo(() => UserModel, {
     foreignKey: 'userId',
     targetKey: 'uuid',
   })
-  user: UserModel;
+  declare user: UserModel;
 
   @BelongsTo(() => FileModel, {
     foreignKey: 'itemId',
     targetKey: 'uuid',
     as: 'file',
   })
-  file: FileModel;
+  declare file: FileModel;
 
   @BelongsTo(() => FolderModel, {
     foreignKey: 'itemId',
     targetKey: 'uuid',
     as: 'folder',
   })
-  folder: FolderModel;
+  declare folder: FolderModel;
 
   @BelongsTo(() => WorkspaceItemUserModel, {
     foreignKey: 'itemId',
     targetKey: 'itemId',
     as: 'workspaceItemUser',
   })
-  workspaceItemUser: WorkspaceItemUserModel;
+  declare workspaceItemUser: WorkspaceItemUserModel;
 }

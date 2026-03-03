@@ -21,59 +21,60 @@ import { type BackupAttributes } from './backup.attributes';
 export class BackupModel extends Model implements BackupAttributes {
   @PrimaryKey
   @AutoIncrement
-  @Column
-  id: number;
+  @Column(DataType.INTEGER)
+  declare id: number;
 
   @ForeignKey(() => UserModel)
-  @Column
-  userId: number;
+  @Column(DataType.INTEGER)
+  declare userId: number;
+
   @AllowNull
   @Column(DataType.TEXT)
-  path: string;
+  declare path: string;
 
   @AllowNull
   @Column(DataType.STRING(24))
-  fileId: string;
+  declare fileId: string;
 
   @ForeignKey(() => DeviceModel)
   @Column(DataType.INTEGER)
-  deviceId: number;
+  declare deviceId: number;
 
   @AllowNull
   @Column(DataType.STRING)
-  hash: string;
+  declare hash: string;
 
   @AllowNull
-  @Column
-  interval: number;
+  @Column(DataType.INTEGER)
+  declare interval: number;
 
   @AllowNull
   @Column(DataType.BIGINT.UNSIGNED)
-  size: number;
+  declare size: number;
 
   @AllowNull
   @Column(DataType.STRING(24))
-  bucket: string;
+  declare bucket: string;
 
   @AllowNull
   @Column(DataType.DATE)
-  lastBackupAt: Date;
+  declare lastBackupAt: Date;
 
   @Default(true)
-  @Column
-  enabled: boolean;
+  @Column(DataType.BOOLEAN)
+  declare enabled: boolean;
 
   @AllowNull
   @Column(DataType.STRING)
-  encrypt_version: string;
+  declare encrypt_version: string;
 
   @AllowNull
   @Column(DataType.DATE)
-  createdAt: Date;
+  declare createdAt: Date;
 
   @AllowNull
   @Column(DataType.DATE)
-  updatedAt: Date;
+  declare updatedAt: Date;
 
   @BelongsTo(() => UserModel)
   user: UserModel;

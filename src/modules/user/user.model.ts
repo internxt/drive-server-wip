@@ -25,121 +25,121 @@ import { UserNotificationTokensModel } from './user-notification-tokens.model';
 export class UserModel extends Model implements UserAttributes {
   @PrimaryKey
   @AutoIncrement
-  @Column
-  id: number;
+  @Column(DataType.INTEGER)
+  declare id: number;
 
   @Column(DataType.STRING(60))
-  userId: string;
+  declare userId: string;
 
-  @Column
-  name: string;
+  @Column(DataType.STRING)
+  declare name: string;
 
-  @Column
-  lastname: string;
+  @Column(DataType.STRING)
+  declare lastname: string;
 
   @AllowNull(false)
-  @Column
-  email: string;
+  @Column(DataType.STRING)
+  declare email: string;
 
   @Unique
-  @Column
-  username: string;
+  @Column(DataType.STRING)
+  declare username: string;
 
-  @Column
-  bridgeUser: string;
+  @Column(DataType.STRING)
+  declare bridgeUser: string;
 
-  @Column
-  password: string;
+  @Column(DataType.STRING)
+  declare password: string;
 
-  @Column
-  mnemonic: string;
+  @Column(DataType.STRING)
+  declare mnemonic: string;
 
   @ForeignKey(() => FolderModel)
-  @Column
-  rootFolderId: number;
+  @Column(DataType.INTEGER)
+  declare rootFolderId: number;
 
   @BelongsTo(() => FolderModel)
-  rootFolder: FolderModel;
+  declare rootFolder: FolderModel;
 
-  @Column
-  hKey: Buffer;
+  @Column(DataType.BLOB)
+  declare hKey: Buffer;
 
-  @Column
-  secret_2FA: string;
+  @Column(DataType.STRING)
+  declare secret_2FA: string;
 
-  @Column
-  errorLoginCount: number;
+  @Column(DataType.INTEGER)
+  declare errorLoginCount: number;
 
   @Default(false)
   @AllowNull
-  @Column
-  isEmailActivitySended: number;
+  @Column(DataType.INTEGER)
+  declare isEmailActivitySended: number;
 
   @AllowNull
-  @Column
-  referralCode: string;
+  @Column(DataType.STRING)
+  declare referralCode: string;
 
   @AllowNull
-  @Column
-  referrer: string;
+  @Column(DataType.STRING)
+  declare referrer: string;
 
   @AllowNull
-  @Column
-  syncDate: Date;
+  @Column(DataType.DATE)
+  declare syncDate: Date;
 
   @Unique
-  @Column
-  uuid: string;
+  @Column(DataType.UUIDV4)
+  declare uuid: string;
 
   @AllowNull
-  @Column
-  lastResend: Date;
+  @Column(DataType.DATE)
+  declare lastResend: Date;
 
   @Default(0)
-  @Column
-  credit: number;
+  @Column(DataType.INTEGER)
+  declare credit: number;
 
   @Default(false)
-  @Column
-  welcomePack: boolean;
+  @Column(DataType.BOOLEAN)
+  declare welcomePack: boolean;
 
   @Default(true)
-  @Column
-  registerCompleted: boolean;
+  @Column(DataType.BOOLEAN)
+  declare registerCompleted: boolean;
 
   @AllowNull
-  @Column
-  backupsBucket: string;
+  @Column(DataType.STRING)
+  declare backupsBucket: string;
 
   @Default(false)
-  @Column
-  sharedWorkspace: boolean;
+  @Column(DataType.BOOLEAN)
+  declare sharedWorkspace: boolean;
 
   @AllowNull
-  @Column
-  avatar: string;
+  @Column(DataType.STRING)
+  declare avatar: string;
 
   @AllowNull
-  @Column
-  lastPasswordChangedAt: Date;
+  @Column(DataType.DATE)
+  declare lastPasswordChangedAt: Date;
 
   @AllowNull
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 
   @AllowNull
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
   @AllowNull
-  @Column
-  tierId: string;
+  @Column(DataType.STRING)
+  declare tierId: string;
 
   @Default(false)
   @AllowNull(false)
-  @Column
-  emailVerified: boolean;
+  @Column(DataType.BOOLEAN)
+  declare emailVerified: boolean;
 
   @HasMany(() => UserNotificationTokensModel)
-  notificationTokens: UserNotificationTokensModel[];
+  declare notificationTokens: UserNotificationTokensModel[];
 }

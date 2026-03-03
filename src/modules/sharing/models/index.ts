@@ -34,19 +34,19 @@ import { SharingRolesModel } from './sharing-roles.model';
 export class RoleModel extends Model implements RoleAttributes {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
-  @Column
-  name: string;
+  @Column(DataType.STRING)
+  declare name: string;
 
   @HasMany(() => SharingRolesModel, 'roleId')
-  role: SharingRolesModel;
+  declare role: SharingRolesModel;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }
 
 @Table({
@@ -57,26 +57,26 @@ export class RoleModel extends Model implements RoleAttributes {
 export class PermissionModel extends Model implements PermissionAttributes {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
   @ForeignKey(() => RoleModel)
   @Column({ type: DataType.UUID })
-  roleId: string;
+  declare roleId: string;
 
   @BelongsTo(() => RoleModel, {
     foreignKey: 'roleId',
     targetKey: 'id',
   })
-  role: RoleModel;
+  declare role: RoleModel;
 
-  @Column
-  name: SharingActionName;
+  @Column(DataType.ENUM(...Object.values(SharingActionName)))
+  declare name: SharingActionName;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }
 
 @Table({
@@ -87,88 +87,86 @@ export class PermissionModel extends Model implements PermissionAttributes {
 export class SharingModel extends Model implements SharingAttributes {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
   @Column(DataType.UUIDV4)
-  itemId: SharingAttributes['itemId'];
+  declare itemId: SharingAttributes['itemId'];
 
   @BelongsTo(() => FolderModel, {
     foreignKey: 'itemId',
     targetKey: 'uuid',
   })
-  folder: FolderModel;
+  declare folder: FolderModel;
 
   @BelongsTo(() => FileModel, {
     foreignKey: 'itemId',
     targetKey: 'uuid',
   })
-  file: FileModel;
+  declare file: FileModel;
 
   @Column(DataType.STRING)
-  itemType: SharingAttributes['itemType'];
+  declare itemType: SharingAttributes['itemType'];
 
   @ForeignKey(() => UserModel)
   @Column(DataType.UUIDV4)
-  ownerId: SharingAttributes['ownerId'];
+  declare ownerId: SharingAttributes['ownerId'];
 
   @BelongsTo(() => UserModel, {
     foreignKey: 'owner_id',
     targetKey: 'uuid',
     as: 'owner',
   })
-  owner: UserModel;
+  declare owner: UserModel;
 
   @Column(DataType.UUIDV4)
-  sharedWith: SharingAttributes['sharedWith'];
+  declare sharedWith: SharingAttributes['sharedWith'];
 
   @BelongsTo(() => UserModel, {
     foreignKey: 'shared_with',
     targetKey: 'uuid',
     as: 'invited',
   })
-  sharedWithUser: UserModel;
+  declare sharedWithUser: UserModel;
 
   @BelongsTo(() => WorkspaceTeamModel, {
     foreignKey: 'shared_with',
     targetKey: 'id',
     as: 'sharedWithTeam',
   })
-  sharedWithTeam: WorkspaceTeamModel;
+  declare sharedWithTeam: WorkspaceTeamModel;
 
   @AllowNull(false)
   @Default(SharedWithType.Individual)
-  @Column(
-    DataType.ENUM(SharedWithType.Individual, SharedWithType.WorkspaceTeam),
-  )
-  sharedWithType: SharedWithType;
+  @Column(DataType.ENUM(...Object.values(SharedWithType)))
+  declare sharedWithType: SharedWithType;
 
   @Column({ type: DataType.STRING, allowNull: true, defaultValue: null })
-  encryptedCode: SharingAttributes['encryptedCode'];
+  declare encryptedCode: SharingAttributes['encryptedCode'];
 
   @Column(DataType.STRING)
-  encryptionAlgorithm: SharingAttributes['encryptionAlgorithm'];
+  declare encryptionAlgorithm: SharingAttributes['encryptionAlgorithm'];
 
   @Column(DataType.STRING)
-  encryptionKey: SharingAttributes['encryptionKey'];
+  declare encryptionKey: SharingAttributes['encryptionKey'];
 
   @Column({ type: DataType.STRING, allowNull: true, defaultValue: null })
-  encryptedPassword: SharingAttributes['encryptedPassword'];
+  declare encryptedPassword: SharingAttributes['encryptedPassword'];
 
   @AllowNull(false)
   @Column(DataType.ENUM('public', 'private'))
-  type: SharingAttributes['type'];
+  declare type: SharingAttributes['type'];
 
   @HasOne(() => SharingRolesModel, {
     foreignKey: 'sharingId',
     sourceKey: 'id',
   })
-  role: RoleModel;
+  declare role: RoleModel;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }
 
 @Table({
@@ -182,31 +180,31 @@ export class SharingInviteModel
 {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
   @Column(DataType.UUIDV4)
-  itemId: SharingInviteAttributes['itemId'];
+  declare itemId: SharingInviteAttributes['itemId'];
 
   @Column(DataType.STRING)
-  itemType: SharingInviteAttributes['itemType'];
+  declare itemType: SharingInviteAttributes['itemType'];
 
   @ForeignKey(() => UserModel)
   @Column(DataType.UUIDV4)
-  sharedWith: SharingInviteAttributes['sharedWith'];
+  declare sharedWith: SharingInviteAttributes['sharedWith'];
 
   @BelongsTo(() => UserModel, {
     foreignKey: 'sharedWith',
     targetKey: 'uuid',
     as: 'invited',
   })
-  sharedWithUser: UserModel;
+  declare sharedWithUser: UserModel;
 
   @BelongsTo(() => PreCreatedUserModel, {
     foreignKey: 'sharedWith',
     targetKey: 'uuid',
     as: 'preCreatedUser',
   })
-  sharedWithPreCreatedUser: PreCreatedUserModel;
+  declare sharedWithPreCreatedUser: PreCreatedUserModel;
 
   @BelongsTo(() => FileModel, {
     foreignKey: 'itemId',
@@ -214,7 +212,7 @@ export class SharingInviteModel
     constraints: false,
     as: 'file',
   })
-  file: FileModel;
+  declare file: FileModel;
 
   @BelongsTo(() => FolderModel, {
     foreignKey: 'itemId',
@@ -222,28 +220,28 @@ export class SharingInviteModel
     constraints: false,
     as: 'folder',
   })
-  folder: FolderModel;
+  declare folder: FolderModel;
 
   @Column(DataType.STRING)
-  encryptionKey: SharingInviteAttributes['encryptionKey'];
+  declare encryptionKey: SharingInviteAttributes['encryptionKey'];
 
   @Column(DataType.STRING)
-  encryptionAlgorithm: SharingInviteAttributes['encryptionAlgorithm'];
+  declare encryptionAlgorithm: SharingInviteAttributes['encryptionAlgorithm'];
 
   @Column(DataType.STRING)
-  type: SharingInviteAttributes['type'];
+  declare type: SharingInviteAttributes['type'];
 
   @ForeignKey(() => RoleModel)
   @Column(DataType.UUIDV4)
-  roleId: SharingInviteAttributes['roleId'];
+  declare roleId: SharingInviteAttributes['roleId'];
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
   @AllowNull
-  @Column
-  expirationAt?: Date;
+  @Column(DataType.DATE)
+  declare expirationAt?: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }

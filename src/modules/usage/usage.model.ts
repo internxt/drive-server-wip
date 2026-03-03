@@ -19,36 +19,36 @@ import { UserModel } from '../user/user.model';
 export class UsageModel extends Model {
   @PrimaryKey
   @Column(DataType.UUID)
-  id: string;
+  declare id: string;
 
   @ForeignKey(() => UserModel)
   @AllowNull(false)
   @Column(DataType.UUID)
-  userId: string;
+  declare userId: string;
 
   @Default(0)
   @AllowNull(false)
   @Column(DataType.BIGINT)
-  delta: number;
+  declare delta: number;
 
   @AllowNull(false)
   @Column(DataType.DATEONLY)
-  period: Date;
+  declare period: Date;
 
   @AllowNull(false)
   @Column(DataType.STRING)
-  type: string;
+  declare type: string;
 
   @AllowNull(false)
   @Default(DataType.NOW)
   @Column(DataType.DATE)
-  createdAt: Date;
+  declare createdAt: Date;
 
   @AllowNull(false)
   @Default(DataType.NOW)
   @Column(DataType.DATE)
-  updatedAt: Date;
+  declare updatedAt: Date;
 
   @BelongsTo(() => UserModel)
-  user: UserModel;
+  declare user: UserModel;
 }

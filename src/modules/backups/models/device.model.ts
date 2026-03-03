@@ -25,17 +25,17 @@ import { DevicePlatform } from '../device.domain';
 export class DeviceModel extends Model implements DeviceAttributes {
   @PrimaryKey
   @AutoIncrement
-  @Column
-  id: number;
+  @Column(DataType.INTEGER)
+  declare id: number;
 
   @AllowNull
   @Index
   @Column(DataType.STRING)
-  mac: string;
+  declare mac: string;
 
   @ForeignKey(() => UserModel)
-  @Column
-  userId: number;
+  @Column(DataType.INTEGER)
+  declare userId: number;
 
   @AllowNull(false)
   @ForeignKey(() => FolderModel)
@@ -44,46 +44,46 @@ export class DeviceModel extends Model implements DeviceAttributes {
     type: DataType.UUID,
     field: 'folder_uuid',
   })
-  folderUuid: string;
+  declare folderUuid: string;
 
   @AllowNull(false)
   @Default('UNKNOWN_KEY')
   @Column(DataType.STRING)
-  key: string;
+  declare key: string;
 
   @AllowNull(false)
   @Default('UNKNOWN_HOSTNAME')
   @Column(DataType.STRING)
-  hostname: string;
+  declare hostname: string;
 
   @AllowNull
   @Column(DataType.STRING)
-  name: string;
+  declare name: string;
 
   @AllowNull
   @Column(DataType.STRING(20))
-  platform: DevicePlatform;
+  declare platform: DevicePlatform;
 
   @AllowNull
   @Column(DataType.DATE)
-  createdAt: Date;
+  declare createdAt: Date;
 
   @AllowNull
   @Column(DataType.DATE)
-  updatedAt: Date;
+  declare updatedAt: Date;
 
   @BelongsTo(() => UserModel)
-  user: UserModel;
+  declare user: UserModel;
 
   @BelongsTo(() => FolderModel, {
     foreignKey: 'folderUuid',
     targetKey: 'uuid',
   })
-  folder: FolderModel;
+  declare folder: FolderModel;
 
   @HasMany(() => BackupModel, {
     foreignKey: 'deviceId',
     as: 'backups',
   })
-  backups: BackupModel[];
+  declare backups: BackupModel[];
 }

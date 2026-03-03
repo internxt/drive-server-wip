@@ -24,58 +24,58 @@ export class WorkspaceUserModel
 {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
   @ForeignKey(() => UserModel)
   @Column(DataType.UUID)
-  memberId: string;
+  declare memberId: string;
 
   @BelongsTo(() => UserModel, {
     foreignKey: 'memberId',
     targetKey: 'uuid',
     as: 'member',
   })
-  member: UserModel;
+  declare member: UserModel;
 
   @ForeignKey(() => FolderModel)
   @Column(DataType.UUID)
-  rootFolderId?: string;
+  declare rootFolderId?: string;
 
   @HasOne(() => FolderModel, 'uuid')
-  rootFolder: FolderModel;
+  declare rootFolder: FolderModel;
 
   @Column(DataType.STRING)
-  key: string;
+  declare key: string;
 
   @ForeignKey(() => WorkspaceModel)
   @Column(DataType.UUID)
-  workspaceId: string;
+  declare workspaceId: string;
 
   @BelongsTo(() => WorkspaceModel, {
     foreignKey: 'workspaceId',
     targetKey: 'id',
     as: 'workspace',
   })
-  workspace: WorkspaceModel;
+  declare workspace: WorkspaceModel;
 
   @Column(DataType.BIGINT.UNSIGNED)
-  spaceLimit: number;
+  declare spaceLimit: number;
 
   @Column(DataType.BIGINT.UNSIGNED)
-  driveUsage: number;
+  declare driveUsage: number;
 
   @Column(DataType.BIGINT.UNSIGNED)
-  backupsUsage: number;
+  declare backupsUsage: number;
 
   @Column(DataType.BOOLEAN)
-  deactivated: boolean;
+  declare deactivated: boolean;
 
   @Column(DataType.DATE)
-  lastUsageSyncAt: Date;
+  declare lastUsageSyncAt: Date;
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }

@@ -44,29 +44,29 @@ export class UserReferralModel extends Model implements UserReferralAttributes {
   @PrimaryKey
   @AutoIncrement
   @Column(DataType.INTEGER)
-  id: UserReferralAttributes['id'];
+  declare id: UserReferralAttributes['id'];
 
   @Column(DataType.INTEGER)
   @ForeignKey(() => UserModel)
-  userId: UserReferralAttributes['userId'];
+  declare userId: UserReferralAttributes['userId'];
 
   @Column(DataType.INTEGER)
   @ForeignKey(() => ReferralModel)
-  referralId: UserReferralAttributes['referralId'];
+  declare referralId: UserReferralAttributes['referralId'];
 
   @AllowNull(true)
   @Column(DataType.STRING)
-  referred: UserReferralAttributes['referred'];
+  declare referred: UserReferralAttributes['referred'];
 
   @Default(false)
   @AllowNull(false)
   @Column(DataType.BOOLEAN)
-  applied: UserReferralAttributes['applied'];
+  declare applied: UserReferralAttributes['applied'];
 
   @Default(Date.now())
   @AllowNull(false)
   @Column(DataType.DATE)
-  startDate: UserReferralAttributes['startDate'];
+  declare startDate: UserReferralAttributes['startDate'];
 }
 
 interface UserReferralsRepository {

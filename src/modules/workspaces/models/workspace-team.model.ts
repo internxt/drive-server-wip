@@ -24,39 +24,39 @@ export class WorkspaceTeamModel
 {
   @PrimaryKey
   @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4 })
-  id: string;
+  declare id: string;
 
   @ForeignKey(() => WorkspaceModel)
   @Column(DataType.UUID)
-  workspaceId: string;
+  declare workspaceId: string;
 
   @ForeignKey(() => UserModel)
   @Column(DataType.UUID)
-  managerId: string;
+  declare managerId: string;
 
   @Column(DataType.STRING)
-  name: string;
+  declare name: string;
 
   @BelongsTo(() => UserModel, {
     foreignKey: 'managerId',
     targetKey: 'uuid',
     as: 'manager',
   })
-  manager: UserModel;
+  declare manager: UserModel;
 
   @BelongsTo(() => WorkspaceModel, {
     foreignKey: 'workspaceId',
     targetKey: 'id',
     as: 'workspace',
   })
-  workspace: WorkspaceModel;
+  declare workspace: WorkspaceModel;
 
   @HasMany(() => WorkspaceTeamUserModel, 'teamId')
-  teamUsers: WorkspaceTeamUserModel[];
+  declare teamUsers: WorkspaceTeamUserModel[];
 
-  @Column
-  createdAt: Date;
+  @Column(DataType.DATE)
+  declare createdAt: Date;
 
-  @Column
-  updatedAt: Date;
+  @Column(DataType.DATE)
+  declare updatedAt: Date;
 }
