@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
-// import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   type FindOptions,
@@ -130,7 +129,7 @@ interface FolderRepository {
   ): Promise<void>;
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
   deleteFoldersByUuid(folderUuids: string[]): Promise<number>;
-  findExpiredTrashFolderIds(limit: number): Promise<string[]>;
+  findExpiredTrashFolderIds(startDate: Date, limit: number): Promise<string[]>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
   calculateFolderSize(folderUuid: string): Promise<number>;
   calculateFolderStats(folderUuid: string): Promise<{
@@ -818,7 +817,10 @@ export class SequelizeFolderRepository implements FolderRepository {
     return updatedCount;
   }
 
-  async findExpiredTrashFolderIds(limit: number): Promise<string[]> {
+  async findExpiredTrashFolderIds(
+    startDate: Date,
+    limit: number,
+  ): Promise<string[]> {
     const query = `
       WITH retention_config AS (
         SELECT
@@ -842,6 +844,10 @@ export class SequelizeFolderRepository implements FolderRepository {
       FROM retention_config
       WHERE retention_days IS NOT NULL
         AND updated_at < NOW() - (retention_days || ' days')::INTERVAL
+        AND (
+          updated_at >= :startDate::timestamp
+          OR :startDate::timestamp < NOW() - (retention_days || ' days')::INTERVAL
+        )
       LIMIT :limit
     `;
 
@@ -849,7 +855,8 @@ export class SequelizeFolderRepository implements FolderRepository {
       item_id: string;
     }>(query, {
       replacements: {
-        limit /*, defaultRetentionDays: DEFAULT_TRASH_RETENTION_DAYS */,
+        limit,
+        startDate,
       },
       type: QueryTypes.SELECT,
     });

@@ -6,10 +6,13 @@ import { ConfigService } from '@nestjs/config';
 import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
 import { SequelizeFileRepository } from '../../file/file.repository';
 import { SequelizeFolderRepository } from '../../folder/folder.repository';
+import { Time } from '../../../lib/time';
+import { TRASH_EXPIRATION_START_DATE } from '../../trash/trash-expiration.utils';
 
 @Injectable()
 export class DeleteExpiredTrashItemsTask {
   private readonly logger = new Logger(DeleteExpiredTrashItemsTask.name);
+  private readonly startDate = TRASH_EXPIRATION_START_DATE;
   private readonly lockTtl = 60 * 1000; // 1 minute
   private readonly lockKey = 'cleanup:expired-trash-items';
   private readonly batchSize = 100;
@@ -26,13 +29,17 @@ export class DeleteExpiredTrashItemsTask {
     name: JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
   })
   async scheduleCleanup() {
-    // const shouldExecuteCronjobs = this.configService.get<boolean>(
-    //   'executeCronjobs',
-    //   false,
-    // );
-    const shouldExecuteCronjobs = false;
+    const shouldExecuteCronjobs = this.configService.get<boolean>(
+      'executeCronjobs',
+      false,
+    );
 
     if (!shouldExecuteCronjobs) {
+      return;
+    }
+
+    if (Time.daysSince(this.startDate) < 1) {
+      this.logger.log('Skipping cleanup');
       return;
     }
 
@@ -135,6 +142,7 @@ export class DeleteExpiredTrashItemsTask {
 
     do {
       const fileIds = await this.fileRepository.findExpiredTrashFileIds(
+        this.startDate,
         this.batchSize,
       );
 
@@ -151,6 +159,7 @@ export class DeleteExpiredTrashItemsTask {
 
     do {
       const folderIds = await this.folderRepository.findExpiredTrashFolderIds(
+        this.startDate,
         this.batchSize,
       );
 

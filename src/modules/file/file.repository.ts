@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
-// import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   File,
@@ -142,7 +141,7 @@ export interface FileRepository {
   ): Promise<File[]>;
   deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
   deleteFilesByUuid(fileUuids: string[]): Promise<number>;
-  findExpiredTrashFileIds(limit: number): Promise<string[]>;
+  findExpiredTrashFileIds(startDate: Date, limit: number): Promise<string[]>;
   findRecent(
     userId: number,
     daysBack: number,
@@ -976,7 +975,10 @@ export class SequelizeFileRepository implements FileRepository {
     return updatedCount;
   }
 
-  async findExpiredTrashFileIds(limit: number): Promise<string[]> {
+  async findExpiredTrashFileIds(
+    startDate: Date,
+    limit: number,
+  ): Promise<string[]> {
     const query = `
       WITH retention_config AS (
         SELECT
@@ -1000,6 +1002,10 @@ export class SequelizeFileRepository implements FileRepository {
       FROM retention_config
       WHERE retention_days IS NOT NULL
         AND updated_at < NOW() - (retention_days || ' days')::INTERVAL
+        AND (
+          updated_at >= :startDate::timestamp
+          OR :startDate::timestamp < NOW() - (retention_days || ' days')::INTERVAL
+        )
       LIMIT :limit
     `;
 
@@ -1007,7 +1013,8 @@ export class SequelizeFileRepository implements FileRepository {
       query,
       {
         replacements: {
-          limit /*, defaultRetentionDays: DEFAULT_TRASH_RETENTION_DAYS */,
+          startDate,
+          limit,
         },
         type: QueryTypes.SELECT,
       },

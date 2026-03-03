@@ -81,7 +81,7 @@ import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { type WorkspaceLog } from './domains/workspace-log.domain';
 import { type TrashItem } from './interceptors/workspaces-logs.interceptor';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { Time } from '../../lib/time';
+import { calculateTrashExpirationDate } from '../trash/trash-expiration.utils';
 import {
   DEFAULT_TRASH_RETENTION_DAYS,
   LimitLabels,
@@ -726,7 +726,7 @@ export class WorkspacesUsecases {
       result: items.map((item) => ({
         ...item.toJSON(),
         expiresAt: item.updatedAt
-          ? Time.dateWithTimeAdded(retentionDays, 'day', item.updatedAt)
+          ? calculateTrashExpirationDate(retentionDays, item.updatedAt)
           : null,
       })),
     };
