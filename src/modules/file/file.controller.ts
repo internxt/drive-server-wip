@@ -12,6 +12,7 @@ import {
   Post,
   Put,
   Query,
+  UseFilters,
   UseGuards,
   UseInterceptors,
   UsePipes,
@@ -58,6 +59,7 @@ import { RequestLoggerInterceptor } from '../../middlewares/requests-logger.inte
 import { Version } from '../../common/decorators/version.decorator';
 import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.decorator';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
+import { UniqueConstraintFilter } from '../../common/filters/unique-constraint.filter';
 
 @ApiTags('File')
 @Controller('files')
@@ -78,6 +80,7 @@ export class FileController {
   @RequiredSharingPermissions(SharingActionName.UploadFile)
   @UseGuards(SharingPermissionsGuard, UploadGuard)
   @UseInterceptors(RequestLoggerInterceptor)
+  @UseFilters(UniqueConstraintFilter)
   async createFile(
     @UserDecorator() user: User,
     @Body() createFileDto: CreateFileDto,

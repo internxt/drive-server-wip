@@ -14,6 +14,7 @@ import {
   Post,
   Put,
   Query,
+  UseFilters,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -43,6 +44,7 @@ import { CheckFileExistenceInFolderDto } from './dto/files-existence-in-folder.d
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
+import { UniqueConstraintFilter } from '../../common/filters/unique-constraint.filter';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../../common/decorators/client.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
@@ -91,6 +93,7 @@ export class FolderController {
   })
   @ApiBearerAuth()
   @ApiOkResponse({ type: FolderDto })
+  @UseFilters(UniqueConstraintFilter)
   async createFolder(
     @UserDecorator() user: User,
     @Body() createFolderDto: CreateFolderDto,
@@ -688,6 +691,7 @@ export class FolderController {
   @ApiOkResponse({ type: FolderDto })
   @WorkspacesInBehalfValidationFolder()
   @RequiredSharingPermissions(SharingActionName.RenameItems)
+  @UseFilters(UniqueConstraintFilter)
   async updateFolderMetadata(
     @Param('uuid', ValidateUUIDPipe)
     folderUuid: string,
