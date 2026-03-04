@@ -1019,15 +1019,18 @@ export class SequelizeFileRepository implements FileRepository {
       LIMIT :limit;
     `;
 
-    const results = await this.fileModel.sequelize.query<{ item_id: string }>(
-      query,
-      {
-        replacements: {
-          startDate,
-          limit,
-        },
-        type: QueryTypes.SELECT,
-      },
+    const results = await withQueryTimeout(
+      this.fileModel.sequelize,
+      20000,
+      (transaction) =>
+        this.fileModel.sequelize.query<{ item_id: string }>(query, {
+          replacements: {
+            startDate,
+            limit,
+          },
+          type: QueryTypes.SELECT,
+          transaction,
+        }),
     );
 
     return results.map((r) => r.item_id);

@@ -863,15 +863,19 @@ export class SequelizeFolderRepository implements FolderRepository {
       LIMIT :limit
     `;
 
-    const results = await this.folderModel.sequelize.query<{
-      item_id: string;
-    }>(query, {
-      replacements: {
-        limit,
-        startDate,
-      },
-      type: QueryTypes.SELECT,
-    });
+    const results = await withQueryTimeout(
+      this.folderModel.sequelize,
+      20000,
+      (transaction) =>
+        this.folderModel.sequelize.query<{ item_id: string }>(query, {
+          replacements: {
+            limit,
+            startDate,
+          },
+          type: QueryTypes.SELECT,
+          transaction,
+        }),
+    );
 
     return results.map((r) => r.item_id);
   }
