@@ -1,13 +1,13 @@
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import {
-  ExecutionContext,
+  type ExecutionContext,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { UserUseCases } from '../../user/user.usecase';
-import { SharingService } from '../../sharing/sharing.service';
-import { WorkspacesUsecases } from '../../workspaces/workspaces.usecase';
+import { type Reflector } from '@nestjs/core';
+import { type UserUseCases } from '../../user/user.usecase';
+import { type SharingService } from '../../sharing/sharing.service';
+import { type WorkspacesUsecases } from '../../workspaces/workspaces.usecase';
 import { SharingPermissionsGuard } from './sharing-permissions.guard';
 
 import { verifyWithDefaultSecret } from '../../../lib/jwt';
@@ -17,7 +17,7 @@ import {
 } from '../../sharing/sharing.domain';
 import {
   PermissionsMetadataName,
-  PermissionsOptions,
+  type PermissionsOptions,
 } from './sharing-permissions.decorator';
 
 import {
@@ -27,7 +27,7 @@ import {
   newWorkspaceTeam,
 } from '../../../../test/fixtures';
 import { v4 } from 'uuid';
-import { SharingAccessTokenData } from './sharings-token.interface';
+import { type SharingAccessTokenData } from './sharings-token.interface';
 
 jest.mock('../../../lib/jwt');
 

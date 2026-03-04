@@ -1,11 +1,11 @@
-import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
-import { SequelizeSharingRepository } from '../sharing/sharing.repository';
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { type SequelizeFeatureLimitsRepository } from './feature-limit.repository';
+import { type SequelizeSharingRepository } from '../sharing/sharing.repository';
+import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import { PaymentRequiredException } from './exceptions/payment-required.exception';
 import { FeatureLimitUsecases } from './feature-limit.usecase';
 import { newFeatureLimit, newUser } from '../../../test/fixtures';
 import { LimitLabels, LimitTypes } from './limits.enum';
-import { Sharing } from '../sharing/sharing.domain';
+import { type Sharing } from '../sharing/sharing.domain';
 import { InternalServerErrorException } from '@nestjs/common';
 
 describe('FeatureLimitUsecases', () => {

@@ -15,11 +15,11 @@ import {
   Unique,
 } from 'sequelize-typescript';
 import { FolderModel } from '../folder/folder.model';
-import { FileAttributes, FileStatus } from './file.domain';
+import { type FileAttributes, FileStatus } from './file.domain';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { UserModel } from '../user/user.model';
 import { SharingModel } from '../sharing/models';
-import { Sharing } from '../sharing/sharing.domain';
+import { type Sharing } from '../sharing/sharing.domain';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Sequelize } from 'sequelize';
 

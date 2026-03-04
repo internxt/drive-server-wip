@@ -1,12 +1,12 @@
 import { createMock } from '@golevelup/ts-jest';
-import { ExecutionContext, CallHandler } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import { type ExecutionContext, type CallHandler } from '@nestjs/common';
+import { type Reflector } from '@nestjs/core';
 import { of } from 'rxjs';
 import { delay } from 'rxjs/operators';
 import { TimingConsistencyInterceptor } from './timing-consistency.interceptor';
 import {
   TIMING_CONSISTENCY_KEY,
-  TimingConsistencyOptions,
+  type TimingConsistencyOptions,
 } from '../decorators/timing-consistency.decorator';
 
 describe('TimingConsistencyInterceptor', () => {

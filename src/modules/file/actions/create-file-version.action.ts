@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { User } from '../../user/user.domain';
-import { File } from '../file.domain';
+import { type User } from '../../user/user.domain';
+import { type File } from '../file.domain';
 import { SequelizeFileRepository } from '../file.repository';
 import { SequelizeFileVersionRepository } from '../file-version.repository';
 import { FileVersionStatus } from '../file-version.domain';

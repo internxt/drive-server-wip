@@ -1,6 +1,6 @@
 import { createMock } from '@golevelup/ts-jest';
 import { SequelizeFileVersionRepository } from './file-version.repository';
-import { FileVersionModel } from './file-version.model';
+import { type FileVersionModel } from './file-version.model';
 import { FileVersion, FileVersionStatus } from './file-version.domain';
 import { newFileVersion } from '../../../test/fixtures';
 

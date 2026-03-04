@@ -8,7 +8,7 @@ import {
   BelongsTo,
 } from 'sequelize-typescript';
 import { UserModel } from './user.model';
-import { UserNotificationTokenAttributes } from './user-notification-tokens.attribute';
+import { type UserNotificationTokenAttributes } from './user-notification-tokens.attribute';
 
 @Table({
   tableName: 'user_notification_tokens',

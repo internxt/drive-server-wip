@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOrCreateOptions, Op, Transaction } from 'sequelize';
+import { type FindOrCreateOptions, Op, type Transaction } from 'sequelize';
 
 import { Folder } from '../folder/folder.domain';
 
-import { UserAttributes } from './user.attributes';
+import { type UserAttributes } from './user.attributes';
 import { User } from './user.domain';
 import { UserModel } from './user.model';
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 
-export interface UserRepository {
+interface UserRepository {
   findById(id: number): Promise<User | null>;
   findByUuid(uuid: User['uuid']): Promise<User | null>;
   findByUuids(uuid: User['uuid'][]): Promise<User[]>;

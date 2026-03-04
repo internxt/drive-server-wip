@@ -1,12 +1,11 @@
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { createMock, type DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
-import { Logger } from '@nestjs/common';
+import { type Logger } from '@nestjs/common';
 import { DeletedItemsCleanupTask } from './deleted-items-cleanup.task';
 import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
 import { SequelizeFolderRepository } from '../../folder/folder.repository';
-import { SequelizeFileRepository } from '../../file/file.repository';
 import { JobName } from '../constants';
-import { JobExecutionModel } from '../models/job-execution.model';
+import { type JobExecutionModel } from '../models/job-execution.model';
 import { v4 } from 'uuid';
 import { RedisService } from '../../../externals/redis/redis.service';
 
@@ -14,7 +13,6 @@ describe('DeletedItemsCleanupTask', () => {
   let task: DeletedItemsCleanupTask;
   let jobExecutionRepository: DeepMocked<SequelizeJobExecutionRepository>;
   let folderRepository: DeepMocked<SequelizeFolderRepository>;
-  let fileRepository: DeepMocked<SequelizeFileRepository>;
   let redisService: DeepMocked<RedisService>;
 
   beforeEach(async () => {
@@ -28,7 +26,6 @@ describe('DeletedItemsCleanupTask', () => {
     task = moduleRef.get(DeletedItemsCleanupTask);
     jobExecutionRepository = moduleRef.get(SequelizeJobExecutionRepository);
     folderRepository = moduleRef.get(SequelizeFolderRepository);
-    fileRepository = moduleRef.get(SequelizeFileRepository);
     redisService = moduleRef.get(RedisService);
   });
 

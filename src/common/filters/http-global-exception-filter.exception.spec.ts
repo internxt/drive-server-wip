@@ -1,19 +1,19 @@
 import {
-  ArgumentsHost,
+  type ArgumentsHost,
   HttpException,
   HttpStatus,
-  Logger,
+  type Logger,
 } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { BaseExceptionFilter, HttpAdapterHost } from '@nestjs/core';
 import { ValidationError } from 'sequelize';
 import { AxiosError } from 'axios';
 import { HttpGlobalExceptionFilter } from './http-global-exception-filter.exception';
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { newUser } from '../../test/fixtures';
+import { createMock, type DeepMocked } from '@golevelup/ts-jest';
+import { newUser } from '../../../test/fixtures';
 import { v4 } from 'uuid';
 
-jest.mock('../common/decorators/client.decorator', () => ({
+jest.mock('../../common/decorators/client.decorator', () => ({
   getClientIdFromHeaders: jest.fn().mockReturnValue('drive-web'),
 }));
 

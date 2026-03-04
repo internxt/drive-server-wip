@@ -1,6 +1,5 @@
 import { v4 } from 'uuid';
 import { Chance } from 'chance';
-import { generateKeyPairSync } from 'crypto';
 import { Folder } from '../src/modules/folder/folder.domain';
 import { User } from '../src/modules/user/user.domain';
 import {
@@ -16,7 +15,7 @@ import { File, FileStatus } from '../src/modules/file/file.domain';
 import { MailTypes } from '../src/modules/security/mail-limit/mailTypes';
 import { MailLimit } from '../src/modules/security/mail-limit/mail-limit.domain';
 import {
-  LimitLabels,
+  type LimitLabels,
   LimitTypes,
 } from '../src/modules/feature-limit/limits.enum';
 import { Limit } from '../src/modules/feature-limit/domain/limit.domain';
@@ -29,19 +28,19 @@ import { WorkspaceTeamUser } from '../src/modules/workspaces/domains/workspace-t
 import {
   WorkspaceItemContext,
   WorkspaceItemType,
-  WorkspaceItemUserAttributes,
+  type WorkspaceItemUserAttributes,
 } from '../src/modules/workspaces/attributes/workspace-items-users.attributes';
-import { UserAttributes } from '../src/modules/user/user.attributes';
+import { type UserAttributes } from '../src/modules/user/user.attributes';
 import { WorkspaceItemUser } from '../src/modules/workspaces/domains/workspace-item-user.domain';
 import { PreCreatedUser } from '../src/modules/user/pre-created-user.domain';
 import { UserNotificationTokens } from '../src/modules/user/user-notification-tokens.domain';
-import { UserNotificationTokenAttributes } from '../src/modules/user/user-notification-tokens.attribute';
+import { type UserNotificationTokenAttributes } from '../src/modules/user/user-notification-tokens.attribute';
 import {
   KeyServer,
-  KeyServerAttributes,
+  type KeyServerAttributes,
   UserKeysEncryptVersions,
 } from '../src/modules/keyserver/key-server.domain';
-import { DeviceAttributes } from '../src/modules/backups/models/device.attributes';
+import { type DeviceAttributes } from '../src/modules/backups/models/device.attributes';
 import { Device, DevicePlatform } from '../src/modules/backups/device.domain';
 import { Usage, UsageType } from '../src/modules/usage/usage.domain';
 import { Notification } from '../src/modules/notifications/domain/notification.domain';
@@ -50,14 +49,12 @@ import { AuditLog } from '../src/common/audit-logs/audit-logs.domain';
 import {
   AuditAction,
   AuditEntityType,
-  AuditLogAttributes,
+  type AuditLogAttributes,
   AuditPerformerType,
 } from '../src/common/audit-logs/audit-logs.attributes';
-import { Trash } from '../src/modules/trash/trash.domain';
-import { TrashItemType } from '../src/modules/trash/trash.attributes';
 import {
   FileVersion,
-  FileVersionAttributes,
+  type FileVersionAttributes,
   FileVersionStatus,
 } from '../src/modules/file/file-version.domain';
 
@@ -542,18 +539,6 @@ export const newWorkspaceItemUser = (params?: {
   return workspaceItemUser;
 };
 
-export function generateBase64PrivateKeyStub(): string {
-  const { privateKey } = generateKeyPairSync('rsa', {
-    modulusLength: 4096,
-  });
-  const stringPrivateKey = privateKey.export({
-    format: 'pem',
-    type: 'pkcs1',
-  }) as string;
-  const base64privateKey = Buffer.from(stringPrivateKey).toString('base64');
-  return base64privateKey;
-}
-
 export const newNotificationToken = (
   params: { attributes: Partial<UserNotificationTokenAttributes> } = null,
 ): UserNotificationTokens => {
@@ -737,23 +722,6 @@ export const newAuditLog = (params?: Partial<AuditLogAttributes>): AuditLog => {
   });
 };
 
-export const newTrash = (params?: {
-  itemId?: string;
-  itemType?: TrashItemType;
-  caducityDate?: Date;
-  userId?: number;
-}): Trash => {
-  const defaultCaducityDate = new Date();
-  defaultCaducityDate.setDate(defaultCaducityDate.getDate() + 14);
-
-  return Trash.build({
-    itemId: params?.itemId || v4(),
-    itemType: params?.itemType || TrashItemType.File,
-    caducityDate: params?.caducityDate || defaultCaducityDate,
-    userId: params?.userId || 1,
-  });
-};
-
 export const newFileVersion = (params?: {
   attributes?: Partial<FileVersionAttributes>;
 }): FileVersion => {
@@ -781,7 +749,7 @@ export const newFileVersion = (params?: {
   return fileVersion;
 };
 
-export type VersioningLimits = {
+type VersioningLimits = {
   enabled: boolean;
   maxFileSize: number;
   retentionDays: number;

@@ -1,6 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { Logger } from '@nestjs/common';
+import { Test, type TestingModule } from '@nestjs/testing';
+import { createMock, type DeepMocked } from '@golevelup/ts-jest';
+import { type Logger } from '@nestjs/common';
 import { AuditLogService } from './audit-log.service';
 import { AuditLogsRepository } from './audit-logs.repository';
 import {

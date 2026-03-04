@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { RestoreFileVersionAction } from './restore-file-version.action';
 import { SequelizeFileVersionRepository } from '../file-version.repository';
@@ -92,9 +92,7 @@ describe('RestoreFileVersionAction', () => {
       jest
         .spyOn(fileVersionRepository, 'updateStatusBatch')
         .mockResolvedValue(undefined);
-      jest
-        .spyOn(fileVersionRepository, 'delete')
-        .mockResolvedValue(undefined);
+      jest.spyOn(fileVersionRepository, 'delete').mockResolvedValue(undefined);
       jest
         .spyOn(fileRepository, 'updateByUuidAndUserId')
         .mockResolvedValue(undefined);
@@ -223,9 +221,7 @@ describe('RestoreFileVersionAction', () => {
       jest
         .spyOn(fileVersionRepository, 'updateStatusBatch')
         .mockResolvedValue(undefined);
-      jest
-        .spyOn(fileVersionRepository, 'delete')
-        .mockResolvedValue(undefined);
+      jest.spyOn(fileVersionRepository, 'delete').mockResolvedValue(undefined);
       jest
         .spyOn(fileRepository, 'updateByUuidAndUserId')
         .mockResolvedValue(undefined);

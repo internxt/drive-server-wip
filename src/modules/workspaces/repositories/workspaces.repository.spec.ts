@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/sequelize';
 import { SequelizeWorkspaceRepository } from './workspaces.repository';
 import { WorkspaceModel } from '../models/workspace.model';
@@ -22,7 +22,7 @@ import {
   WorkspaceLogType,
 } from '../attributes/workspace-logs.attributes';
 import { v4 } from 'uuid';
-import { WorkspaceLog } from '../domains/workspace-log.domain';
+import { type WorkspaceLog } from '../domains/workspace-log.domain';
 import { WorkspaceItemType } from '../attributes/workspace-items-users.attributes';
 import { WorkspaceItemUserModel } from '../models/workspace-items-users.model';
 import { WorkspaceItemUser } from '../domains/workspace-item-user.domain';

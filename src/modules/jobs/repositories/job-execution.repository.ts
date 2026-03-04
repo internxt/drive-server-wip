@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { JobExecutionModel } from '../models/job-execution.model';
-import { JobName, JobStatus } from '../constants';
+import { type JobName, JobStatus } from '../constants';
 
-export interface JobExecutionRepository {
+interface JobExecutionRepository {
   startJob(name: string, metadata?: any): Promise<JobExecutionModel>;
   markAsCompleted(
     jobId: string,

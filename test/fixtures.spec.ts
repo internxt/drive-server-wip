@@ -1,6 +1,6 @@
 import { v4 } from 'uuid';
 import {
-  LimitLabels,
+  type LimitLabels,
   LimitTypes,
 } from '../src/modules/feature-limit/limits.enum';
 import { FileStatus } from '../src/modules/file/file.domain';

@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
-import { Logger, NotFoundException } from '@nestjs/common';
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { type Logger, NotFoundException } from '@nestjs/common';
+import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import { FeatureLimitService } from './feature-limit.service';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
 import { LimitLabels, LimitTypes } from './limits.enum';

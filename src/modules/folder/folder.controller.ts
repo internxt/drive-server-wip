@@ -14,6 +14,7 @@ import {
   Post,
   Put,
   Query,
+  UseFilters,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -29,7 +30,7 @@ import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.decorator';
 import { User } from '../user/user.domain';
 import { FileUseCases } from '../file/file.usecase';
-import { Folder } from './folder.domain';
+import { type Folder } from './folder.domain';
 import { FileStatus } from '../file/file.domain';
 import { validate } from 'uuid';
 import { isNumber } from '../../lib/validators';
@@ -43,6 +44,7 @@ import { CheckFileExistenceInFolderDto } from './dto/files-existence-in-folder.d
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
+import { UniqueConstraintFilter } from '../../common/filters/unique-constraint.filter';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../../common/decorators/client.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
@@ -68,7 +70,7 @@ import { GetFilesInFoldersDto } from './dto/get-files-in-folder.dto';
 import { GetFoldersInFoldersDto } from './dto/get-folders-in-folder.dto';
 import { GetFoldersQueryDto } from './dto/get-folders.dto';
 
-export class BadRequestWrongFolderIdException extends BadRequestException {
+class BadRequestWrongFolderIdException extends BadRequestException {
   constructor() {
     super('Folder id should be a number and higher than 0');
 
@@ -91,6 +93,7 @@ export class FolderController {
   })
   @ApiBearerAuth()
   @ApiOkResponse({ type: FolderDto })
+  @UseFilters(UniqueConstraintFilter)
   async createFolder(
     @UserDecorator() user: User,
     @Body() createFolderDto: CreateFolderDto,
@@ -688,6 +691,7 @@ export class FolderController {
   @ApiOkResponse({ type: FolderDto })
   @WorkspacesInBehalfValidationFolder()
   @RequiredSharingPermissions(SharingActionName.RenameItems)
+  @UseFilters(UniqueConstraintFilter)
   async updateFolderMetadata(
     @Param('uuid', ValidateUUIDPipe)
     folderUuid: string,

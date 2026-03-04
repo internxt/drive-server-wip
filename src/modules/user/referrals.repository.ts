@@ -11,7 +11,7 @@ import {
   AllowNull,
   Unique,
 } from 'sequelize-typescript';
-import { ReferralAttributes } from './user.domain';
+import { type ReferralAttributes } from './user.domain';
 
 @Table({
   underscored: true,
@@ -47,7 +47,7 @@ export class ReferralModel extends Model implements ReferralAttributes {
   enabled: ReferralAttributes['enabled'];
 }
 
-export interface ReferralsRepository {
+interface ReferralsRepository {
   findOne: (
     where: Partial<ReferralAttributes>,
   ) => Promise<ReferralAttributes | null>;

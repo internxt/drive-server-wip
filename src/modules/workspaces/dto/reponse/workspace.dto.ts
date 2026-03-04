@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { UserToJsonDto } from '../../../user/dto/user-to-json.dto';
-import { WorkspaceAttributes } from '../../attributes/workspace.attributes';
+import { type WorkspaceAttributes } from '../../attributes/workspace.attributes';
 import { Workspace } from '../../domains/workspaces.domain';
 
 export class WorkspaceAttributesDto implements WorkspaceAttributes {
@@ -47,7 +47,7 @@ export class WorkspaceAttributesDto implements WorkspaceAttributes {
   updatedAt: Date;
 }
 
-export class WorkspaceUserToJSONDTO {
+class WorkspaceUserToJSONDTO {
   @ApiProperty()
   id: string;
 

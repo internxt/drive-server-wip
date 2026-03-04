@@ -1,6 +1,6 @@
 import { IsNotEmpty, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { WorkspaceInviteAttributes } from '../attributes/workspace-invite.attribute';
+import { type WorkspaceInviteAttributes } from '../attributes/workspace-invite.attribute';
 
 export class AcceptWorkspaceInviteDto {
   @ApiProperty({

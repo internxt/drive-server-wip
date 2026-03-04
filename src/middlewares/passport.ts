@@ -1,4 +1,4 @@
-import jwt, { JwtHeader } from 'jsonwebtoken';
+import jwt, { type JwtHeader } from 'jsonwebtoken';
 
 export function SignEmail(
   email: string,

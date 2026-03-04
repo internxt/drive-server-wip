@@ -1,9 +1,12 @@
 import { InjectModel } from '@nestjs/sequelize';
 import { Injectable } from '@nestjs/common';
 
-import { MailLimitModel, MailLimitModelAttributes } from './mail-limit.model';
+import {
+  MailLimitModel,
+  type MailLimitModelAttributes,
+} from './mail-limit.model';
 import { MailLimit } from './mail-limit.domain';
-import { MailTypes } from './mailTypes';
+import { type MailTypes } from './mailTypes';
 
 @Injectable()
 export class SequelizeMailLimitRepository {

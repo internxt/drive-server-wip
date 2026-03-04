@@ -7,9 +7,9 @@ import { NotificationRepository } from './notifications.repository';
 import {
   Notification,
   NotificationTargetType,
-  NotificationWithStatus,
+  type NotificationWithStatus,
 } from './domain/notification.domain';
-import { CreateNotificationDto } from './dto/create-notification.dto';
+import { type CreateNotificationDto } from './dto/create-notification.dto';
 import { v4 } from 'uuid';
 import { Time } from '../../lib/time';
 import { SequelizeUserRepository } from '../user/user.repository';

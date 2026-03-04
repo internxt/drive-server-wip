@@ -9,7 +9,7 @@ import {
   AutoIncrement,
 } from 'sequelize-typescript';
 
-import { ThumbnailAttributes } from './thumbnail.attributes';
+import { type ThumbnailAttributes } from './thumbnail.attributes';
 import { FileModel } from '../file/file.model';
 
 @Table({

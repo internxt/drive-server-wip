@@ -1,7 +1,14 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
-import { FileUseCases, VersionableFileExtension } from './file.usecase';
-import { SequelizeFileRepository, FileRepository } from './file.repository';
+import {
+  FileUseCases,
+  RECENT_FILES_DAYS,
+  VersionableFileExtension,
+} from './file.usecase';
+import {
+  SequelizeFileRepository,
+  type FileRepository,
+} from './file.repository';
 import { SequelizeFileVersionRepository } from './file-version.repository';
 import {
   BadRequestException,
@@ -12,11 +19,11 @@ import {
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import {
   File,
-  FileAttributes,
+  type FileAttributes,
   FileStatus,
-  SortableFileAttributes,
+  type SortableFileAttributes,
 } from './file.domain';
-import { User } from '../user/user.domain';
+import { type User } from '../user/user.domain';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
@@ -33,19 +40,17 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { v4 } from 'uuid';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
-import { CreateFileDto } from './dto/create-file.dto';
-import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { type CreateFileDto } from './dto/create-file.dto';
+import { type UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { Tier } from '../feature-limit/domain/tier.domain';
+import { type Tier } from '../feature-limit/domain/tier.domain';
 import { LimitLabels, LimitTypes } from '../feature-limit/limits.enum';
 import { RedisService } from '../../externals/redis/redis.service';
 import { UserUseCases } from '../user/user.usecase';
-import { TrashUseCases } from '../trash/trash.usecase';
-import { TrashItemType } from '../trash/trash.attributes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import {
   DeleteFileVersionAction,
@@ -72,13 +77,13 @@ describe('FileUseCases', () => {
   let mailerService: MailerService;
   let featureLimitService: FeatureLimitService;
   let redisService: RedisService;
-  let trashUsecases: TrashUseCases;
   let cacheManagerService: CacheManagerService;
   let getFileVersionsAction: GetFileVersionsAction;
   let deleteFileVersionAction: DeleteFileVersionAction;
   let createFileVersionAction: CreateFileVersionAction;
   let restoreFileVersionAction: RestoreFileVersionAction;
   let undoFileVersioningAction: UndoFileVersioningAction;
+  let userUsecases: UserUseCases;
 
   const userMocked = newUser({
     attributes: {
@@ -108,7 +113,6 @@ describe('FileUseCases', () => {
     mailerService = module.get<MailerService>(MailerService);
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
     redisService = module.get<RedisService>(RedisService);
-    trashUsecases = module.get<TrashUseCases>(TrashUseCases);
     cacheManagerService = module.get<CacheManagerService>(CacheManagerService);
     getFileVersionsAction = module.get<GetFileVersionsAction>(
       GetFileVersionsAction,
@@ -125,6 +129,7 @@ describe('FileUseCases', () => {
     undoFileVersioningAction = module.get<UndoFileVersioningAction>(
       UndoFileVersioningAction,
     );
+    userUsecases = module.get<UserUseCases>(UserUseCases);
   });
 
   afterEach(() => {
@@ -163,17 +168,12 @@ describe('FileUseCases', () => {
     it('When you try to trash files with id and uuid, then functions are called with respective values', async () => {
       const fileIds = [fileId];
       const fileUuids = [mockFile.uuid];
-      const mockTier = { id: '1', label: 'free_individual' };
 
       jest
         .spyOn(fileRepository, 'findByFileIds')
         .mockResolvedValueOnce([mockFile]);
-      jest
-        .spyOn(featureLimitService, 'getTier')
-        .mockResolvedValueOnce(mockTier);
       jest.spyOn(fileRepository, 'updateFilesStatusToTrashed');
       jest.spyOn(fileRepository, 'updateFilesStatusToTrashedByUuid');
-      jest.spyOn(trashUsecases, 'addItemsToTrash');
       await service.moveFilesToTrash(userMocked, fileIds, fileUuids);
       expect(fileRepository.updateFilesStatusToTrashed).toHaveBeenCalledTimes(
         1,
@@ -185,36 +185,6 @@ describe('FileUseCases', () => {
       expect(
         fileRepository.updateFilesStatusToTrashedByUuid,
       ).toHaveBeenCalledWith(userMocked, fileUuids);
-      expect(trashUsecases.addItemsToTrash).toHaveBeenCalledWith(
-        expect.arrayContaining(fileUuids),
-        TrashItemType.File,
-        'free_individual',
-        userMocked.id,
-      );
-    });
-
-    it('When you trash files, then the retention period is determined by the user tier', async () => {
-      const fileIds = [fileId];
-      const fileUuids = [mockFile.uuid];
-
-      jest
-        .spyOn(fileRepository, 'findByFileIds')
-        .mockResolvedValueOnce([mockFile]);
-      jest.spyOn(trashUsecases, 'addItemsToTrash');
-
-      await service.moveFilesToTrash(
-        userMocked,
-        fileIds,
-        fileUuids,
-        'premium_individual',
-      );
-
-      expect(trashUsecases.addItemsToTrash).toHaveBeenCalledWith(
-        expect.arrayContaining(fileUuids),
-        TrashItemType.File,
-        'premium_individual',
-        userMocked.id,
-      );
     });
 
     it('When you try to trash files, then it stops sharing those files', async () => {
@@ -1035,6 +1005,224 @@ describe('FileUseCases', () => {
       });
     });
 
+    describe('Empty files creation in workspace', () => {
+      it('When creating empty file with workspace options, then it should check workspace limit', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const workspaceOwner = newUser();
+        const workspace = newWorkspace({
+          attributes: { ownerId: workspaceOwner.uuid },
+        });
+        const emptyFileDto: CreateFileDto = {
+          ...newFileDto,
+          size: BigInt(0),
+        };
+        const workspaceOptions = {
+          workspace,
+          memberId: userMocked.uuid,
+        };
+
+        const mockLimit = newFeatureLimit({
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+          value: '1000',
+        });
+
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+        jest
+          .spyOn(userUsecases, 'findByUuid')
+          .mockResolvedValue(workspaceOwner);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountInWorkspaceByMember')
+          .mockResolvedValue(5);
+
+        const createdFile = newFile({
+          attributes: {
+            ...emptyFileDto,
+            id: 1,
+            folderId: folder.id,
+            folderUuid: folder.uuid,
+            userId: userMocked.id,
+            uuid: v4(),
+            status: FileStatus.EXISTS,
+          },
+        });
+
+        jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+
+        const result = await service.createFile(
+          userMocked,
+          emptyFileDto,
+          undefined,
+          workspaceOptions,
+        );
+
+        expect(result).toEqual(createdFile);
+        expect(
+          fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+        ).toHaveBeenCalledWith(userMocked.uuid, workspace.id);
+        expect(
+          fileRepository.getZeroSizeFilesCountByUser,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('When creating empty file with workspace options and limit is reached, then it should throw', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const workspaceOwner = newUser();
+        const workspace = newWorkspace({
+          attributes: { ownerId: workspaceOwner.uuid },
+        });
+        const emptyFileDto: CreateFileDto = {
+          ...newFileDto,
+          size: BigInt(0),
+        };
+        const workspaceOptions = {
+          workspace,
+          memberId: userMocked.uuid,
+        };
+
+        const mockLimit = newFeatureLimit({
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+          value: '1000',
+        });
+
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+        jest
+          .spyOn(userUsecases, 'findByUuid')
+          .mockResolvedValue(workspaceOwner);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountInWorkspaceByMember')
+          .mockResolvedValue(1000);
+
+        await expect(
+          service.createFile(
+            userMocked,
+            emptyFileDto,
+            undefined,
+            workspaceOptions,
+          ),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(
+          fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+        ).toHaveBeenCalledWith(userMocked.uuid, workspace.id);
+        expect(
+          fileRepository.getZeroSizeFilesCountByUser,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('When creating empty file without workspace options, then it should check individual limit', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const emptyFileDto: CreateFileDto = {
+          ...newFileDto,
+          size: BigInt(0),
+        };
+
+        const mockLimit = newFeatureLimit({
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+          value: '1000',
+        });
+
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+          .mockResolvedValue(5);
+
+        const createdFile = newFile({
+          attributes: {
+            ...emptyFileDto,
+            id: 1,
+            folderId: folder.id,
+            folderUuid: folder.uuid,
+            userId: userMocked.id,
+            uuid: v4(),
+            status: FileStatus.EXISTS,
+          },
+        });
+
+        jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+
+        const result = await service.createFile(userMocked, emptyFileDto);
+
+        expect(result).toEqual(createdFile);
+        expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+          LimitLabels.MaxZeroSizeFiles,
+          userMocked,
+        );
+        expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
+          userMocked.id,
+        );
+        expect(
+          fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('When creating non-empty file with workspace options, then it should not check limits', async () => {
+        const folder = newFolder({ attributes: { userId: userMocked.id } });
+        const workspace = newWorkspace();
+        const fileDto: CreateFileDto = {
+          ...newFileDto,
+          size: BigInt(1024),
+        };
+        const workspaceOptions = {
+          workspace,
+          memberId: userMocked.uuid,
+        };
+
+        jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
+        jest
+          .spyOn(fileRepository, 'findByPlainNameAndFolderId')
+          .mockResolvedValueOnce(null);
+
+        const createdFile = newFile({
+          attributes: {
+            ...fileDto,
+            id: 1,
+            folderId: folder.id,
+            folderUuid: folder.uuid,
+            userId: userMocked.id,
+            uuid: v4(),
+            status: FileStatus.EXISTS,
+          },
+        });
+
+        jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
+
+        await service.createFile(
+          userMocked,
+          fileDto,
+          undefined,
+          workspaceOptions,
+        );
+
+        expect(
+          fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+        ).not.toHaveBeenCalled();
+        expect(
+          fileRepository.getZeroSizeFilesCountByUser,
+        ).not.toHaveBeenCalled();
+      });
+    });
+
     describe('first upload email functionality', () => {
       it('When user has no previous files, then should send first upload email', async () => {
         const folder = newFolder({ attributes: { userId: userMocked.id } });
@@ -1240,6 +1428,67 @@ describe('FileUseCases', () => {
       expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
         userMocked.id,
       );
+    });
+  });
+
+  describe('checkWorkspaceEmptyFilesLimit', () => {
+    it('When workspace owner limit is enforced, then it should throw', async () => {
+      const workspaceOwner = newUser();
+      const member = newUser();
+      const workspace = newWorkspace({
+        attributes: { ownerId: workspaceOwner.uuid },
+      });
+      const mockLimit = newFeatureLimit({
+        value: '10',
+        label: LimitLabels.MaxZeroSizeFiles,
+        type: LimitTypes.Counter,
+      });
+
+      jest.spyOn(userUsecases, 'findByUuid').mockResolvedValue(workspaceOwner);
+      jest
+        .spyOn(featureLimitService, 'getUserLimitByLabel')
+        .mockResolvedValue(mockLimit);
+      jest
+        .spyOn(fileRepository, 'getZeroSizeFilesCountInWorkspaceByMember')
+        .mockResolvedValue(10);
+
+      await expect(
+        service.checkWorkspaceEmptyFilesLimit(member.uuid, workspace),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When workspace owner limit is NOT enforced, then it should not throw', async () => {
+      const workspaceOwner = newUser();
+      const member = newUser();
+      const workspace = newWorkspace({
+        attributes: { ownerId: workspaceOwner.uuid },
+      });
+      const mockLimit = newFeatureLimit({
+        value: '1000',
+        label: LimitLabels.MaxZeroSizeFiles,
+        type: LimitTypes.Counter,
+      });
+
+      jest.spyOn(userUsecases, 'findByUuid').mockResolvedValue(workspaceOwner);
+      jest
+        .spyOn(featureLimitService, 'getUserLimitByLabel')
+        .mockResolvedValue(mockLimit);
+      jest
+        .spyOn(fileRepository, 'getZeroSizeFilesCountInWorkspaceByMember')
+        .mockResolvedValue(5);
+
+      await expect(
+        service.checkWorkspaceEmptyFilesLimit(member.uuid, workspace),
+      ).resolves.not.toThrow();
+
+      expect(userUsecases.findByUuid).toHaveBeenCalledWith(workspace.ownerId);
+      expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+        LimitLabels.MaxZeroSizeFiles,
+        workspaceOwner,
+      );
+      expect(
+        fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+      ).toHaveBeenCalledWith(member.uuid, workspace.id);
     });
   });
 
@@ -2405,6 +2654,163 @@ describe('FileUseCases', () => {
         );
       });
     });
+
+    describe('Empty file replacement in workspace', () => {
+      it('When replacing with empty file with workspace options, then it should check workspace limit', async () => {
+        const workspaceOwner = newUser();
+        const member = newUser();
+        const requester = newUser();
+        const workspace = newWorkspace({
+          attributes: { ownerId: workspaceOwner.uuid },
+        });
+        const mockFile = newFile({
+          owner: member,
+          attributes: {
+            fileId: 'old-file-id',
+            size: BigInt(100),
+          },
+        });
+        const replaceData = {
+          size: BigInt(0),
+        };
+        const workspaceOptions = {
+          workspace,
+          memberId: requester.uuid,
+        };
+        const mockLimit = newFeatureLimit({
+          value: '1000',
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+        });
+
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+        jest
+          .spyOn(userUsecases, 'findByUuid')
+          .mockResolvedValue(workspaceOwner);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountInWorkspaceByMember')
+          .mockResolvedValue(0);
+        jest
+          .spyOn(service, 'isFileVersionable')
+          .mockResolvedValue({ versionable: false, limits: null });
+        const updateSpy = jest
+          .spyOn(fileRepository, 'updateByUuidAndUserId')
+          .mockResolvedValue();
+        jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
+
+        const result = await service.replaceFile(
+          member,
+          mockFile.uuid,
+          replaceData,
+          workspaceOptions,
+        );
+
+        expect(
+          fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+        ).toHaveBeenCalledWith(requester.uuid, workspace.id);
+        expect(updateSpy).toHaveBeenCalledWith(
+          mockFile.uuid,
+          member.id,
+          expect.objectContaining({
+            fileId: null,
+            size: BigInt(0),
+          }),
+        );
+        expect(result.fileId).toBeNull();
+        expect(result.size).toBe(BigInt(0));
+      });
+
+      it('When replacing with empty file without workspace options, then it should check individual limit', async () => {
+        const mockFile = newFile({
+          attributes: {
+            fileId: 'old-file-id',
+            size: BigInt(100),
+          },
+        });
+        const replaceData = {
+          size: BigInt(0),
+        };
+        const mockLimit = newFeatureLimit({
+          value: '1000',
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+        });
+
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+          .mockResolvedValue(0);
+        jest
+          .spyOn(service, 'isFileVersionable')
+          .mockResolvedValue({ versionable: false, limits: null });
+        jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
+        jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
+
+        await service.replaceFile(userMocked, mockFile.uuid, replaceData);
+
+        expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
+          LimitLabels.MaxZeroSizeFiles,
+          userMocked,
+        );
+        expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
+          userMocked.id,
+        );
+        expect(
+          fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('When replacing with non-empty file with workspace options, then it should not check limits', async () => {
+        const workspaceOwner = newUser();
+        const member = newUser();
+        const requester = newUser();
+        const workspace = newWorkspace({
+          attributes: { ownerId: workspaceOwner.uuid },
+        });
+        const mockFile = newFile({
+          owner: member,
+          attributes: {
+            fileId: 'old-file-id',
+            size: BigInt(100),
+          },
+        });
+        const replaceData = {
+          fileId: 'new-file-id',
+          size: BigInt(1024),
+        };
+        const workspaceOptions = {
+          workspace,
+          memberId: requester.uuid,
+        };
+
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+        jest
+          .spyOn(service, 'isFileVersionable')
+          .mockResolvedValue({ versionable: false, limits: null });
+        jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
+        jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
+
+        await service.replaceFile(
+          member,
+          mockFile.uuid,
+          replaceData,
+          workspaceOptions,
+        );
+
+        expect(
+          fileRepository.getZeroSizeFilesCountInWorkspaceByMember,
+        ).not.toHaveBeenCalled();
+        expect(
+          fileRepository.getZeroSizeFilesCountByUser,
+        ).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('addOldAttributes', () => {
@@ -2553,6 +2959,83 @@ describe('FileUseCases', () => {
         folder.uuid,
         searchFilter,
       );
+    });
+  });
+
+  describe('getRecentFiles', () => {
+    it('When called with options, then it should call findRecent with correct params', async () => {
+      const file = newFile({
+        owner: userMocked,
+        attributes: { thumbnails: [], sharings: [] },
+      });
+      jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([file]);
+
+      const result = await service.getRecentFiles(userMocked.id, {
+        limit: 10,
+        offset: 0,
+      });
+
+      expect(result).toHaveLength(1);
+      expect(fileRepository.findRecent).toHaveBeenCalledWith(
+        userMocked.id,
+        RECENT_FILES_DAYS,
+        10,
+        0,
+        { withThumbnails: true },
+      );
+    });
+
+    it('When called without options, then it should use defaults', async () => {
+      jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([]);
+
+      await service.getRecentFiles(userMocked.id);
+
+      expect(fileRepository.findRecent).toHaveBeenCalledWith(
+        userMocked.id,
+        RECENT_FILES_DAYS,
+        20,
+        0,
+        { withThumbnails: true },
+      );
+    });
+
+    it('When called with withThumbnails false, then it should pass it to repository', async () => {
+      jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([]);
+
+      await service.getRecentFiles(userMocked.id, { withThumbnails: false });
+
+      expect(fileRepository.findRecent).toHaveBeenCalledWith(
+        userMocked.id,
+        RECENT_FILES_DAYS,
+        20,
+        0,
+        { withThumbnails: false },
+      );
+    });
+
+    it('When files have plainName, then it should not decrypt', async () => {
+      const file = newFile({
+        owner: userMocked,
+        attributes: { plainName: 'report.pdf', thumbnails: [], sharings: [] },
+      });
+      jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([file]);
+
+      const result = await service.getRecentFiles(userMocked.id, { limit: 10 });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].plainName).toBe('report.pdf');
+    });
+
+    it('When files have no plainName, then it should decrypt the file name', async () => {
+      const file = newFile({
+        owner: userMocked,
+        attributes: { plainName: null, thumbnails: [], sharings: [] },
+      });
+      jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([file]);
+
+      const result = await service.getRecentFiles(userMocked.id, { limit: 10 });
+
+      expect(result).toHaveLength(1);
     });
   });
 

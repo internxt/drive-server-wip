@@ -1,4 +1,4 @@
-import { BackupAttributes } from './models/backup.attributes';
+import { type BackupAttributes } from './models/backup.attributes';
 
 export class Backup implements BackupAttributes {
   id?: number;

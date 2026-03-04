@@ -1,25 +1,17 @@
 import { Injectable, forwardRef, Inject } from '@nestjs/common';
-import { Folder } from '../folder/folder.domain';
-import { User } from '../user/user.domain';
-import { File } from '../file/file.domain';
+import { type Folder } from '../folder/folder.domain';
+import { type User } from '../user/user.domain';
+import { type File } from '../file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TrashEmptyRequestedEvent } from './events/trash-empty-requested.event';
-import { SequelizeTrashRepository } from './trash.repository';
-import { TrashItemType } from './trash.attributes';
-import { Trash } from './trash.domain';
-import { Time, TimeUnit } from '../../lib/time';
-
-const TRASH_RETENTION_BY_TIER: Record<
-  string,
-  { amount: number; unit: TimeUnit }
-> = {
-  free_individual: { amount: 1, unit: 'day' },
-  essential_individual: { amount: 7, unit: 'day' },
-  premium_individual: { amount: 14, unit: 'day' },
-  ultimate_individual: { amount: 30, unit: 'day' },
-};
+import { Time } from '../../lib/time';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import {
+  DEFAULT_TRASH_RETENTION_DAYS,
+  LimitLabels,
+} from '../feature-limit/limits.enum';
 
 export interface EmptyTrashResult {
   message: string;
@@ -34,7 +26,7 @@ export class TrashUseCases {
     @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUseCases: FolderUseCases,
     private readonly eventEmitter: EventEmitter2,
-    private readonly trashRepository: SequelizeTrashRepository,
+    private readonly featureLimitService: FeatureLimitService,
   ) {}
 
   /**
@@ -78,7 +70,6 @@ export class TrashUseCases {
     chunkSize?: number,
   ): Promise<void> {
     const emptyTrashChunkSize = chunkSize ?? 100;
-    const totalTrashItems = filesCount + foldersCount;
 
     const deleteFolders = async (): Promise<void> => {
       let foldersProcessed = 0;
@@ -108,20 +99,7 @@ export class TrashUseCases {
       }
     };
 
-    const deleteTrashItems = async (): Promise<void> => {
-      let trashProcessed = 0;
-      while (trashProcessed < totalTrashItems) {
-        const processedCount = await this.deleteUserTrashedItemsBatch(
-          trashOwner,
-          emptyTrashChunkSize,
-        );
-        if (processedCount === 0) break;
-
-        trashProcessed += processedCount;
-      }
-    };
-
-    await Promise.all([deleteFolders(), deleteFiles(), deleteTrashItems()]);
+    await Promise.all([deleteFolders(), deleteFiles()]);
   }
 
   /**
@@ -138,93 +116,32 @@ export class TrashUseCases {
     const itemsDeletionChunkSize = 10;
 
     for (let i = 0; i < files.length; i += itemsDeletionChunkSize) {
-      await Promise.all([
-        this.removeItemsFromTrash(
-          files.slice(i, i + itemsDeletionChunkSize).map((file) => file.uuid),
-          TrashItemType.File,
-        ),
-        this.fileUseCases.deleteByUser(
-          user,
-          files.slice(i, i + itemsDeletionChunkSize),
-        ),
-      ]);
+      await this.fileUseCases.deleteByUser(
+        user,
+        files.slice(i, i + itemsDeletionChunkSize),
+      );
     }
 
     for (let i = 0; i < folders.length; i += itemsDeletionChunkSize) {
-      await Promise.all([
-        this.removeItemsFromTrash(
-          folders
-            .slice(i, i + itemsDeletionChunkSize)
-            .map((folder) => folder.uuid),
-          TrashItemType.Folder,
-        ),
-        this.folderUseCases.deleteByUser(
-          user,
-          folders.slice(i, i + itemsDeletionChunkSize),
-        ),
-      ]);
+      await this.folderUseCases.deleteByUser(
+        user,
+        folders.slice(i, i + itemsDeletionChunkSize),
+      );
     }
   }
 
-  calculateCaducityDate(
-    tierLabel: string,
-    deletedAt: Date = new Date(),
-  ): Date | null {
-    const retentionConfig = TRASH_RETENTION_BY_TIER[tierLabel];
-    if (!retentionConfig) {
-      return null;
-    }
-    return Time.dateWithTimeAdded(
-      retentionConfig.amount,
-      retentionConfig.unit,
-      deletedAt,
+  async getTrashRetentionDays(user: User): Promise<number> {
+    const limit = await this.featureLimitService.getUserLimitByLabel(
+      LimitLabels.TrashRetentionDays,
+      user,
     );
+    return limit ? Number(limit.value) : DEFAULT_TRASH_RETENTION_DAYS;
   }
 
-  async addItemsToTrash(
-    itemIds: string[],
-    itemType: TrashItemType,
-    tierLabel: string,
-    userId: number,
+  calculateExpirationDate(
+    retentionDays: number,
     deletedAt: Date = new Date(),
-  ): Promise<void> {
-    const caducityDate = this.calculateCaducityDate(tierLabel, deletedAt);
-    if (!caducityDate) {
-      return;
-    }
-    await Promise.all(
-      itemIds.map((itemId) =>
-        this.trashRepository.create(
-          Trash.build({ itemId, itemType, caducityDate, userId }),
-        ),
-      ),
-    );
-  }
-
-  async removeItemsFromTrash(
-    itemIds: string[],
-    itemType: TrashItemType,
-  ): Promise<void> {
-    if (itemIds.length === 0) {
-      return;
-    }
-    await this.trashRepository.deleteByItemIds(itemIds, itemType);
-  }
-
-  async getTrashEntriesByIds(
-    itemIds: string[],
-    itemType: TrashItemType,
-  ): Promise<Trash[]> {
-    if (itemIds.length === 0) {
-      return [];
-    }
-    return this.trashRepository.findByItemIds(itemIds, itemType);
-  }
-
-  async deleteUserTrashedItemsBatch(
-    user: User,
-    batchSize: number,
-  ): Promise<number> {
-    return this.trashRepository.deleteByUserId(user.id, batchSize);
+  ): Date {
+    return Time.dateWithTimeAdded(retentionDays, 'day', deletedAt);
   }
 }

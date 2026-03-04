@@ -4,10 +4,10 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
+import { type InitializeWorkspaceDto } from './dto/initialize-workspace.dto';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { User } from '../user/user.domain';
+import { type User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
@@ -16,9 +16,9 @@ import { MailerService } from '../../externals/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
 import { JWT_1DAY_EXPIRATION } from '../auth/constants';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
-import { Workspace } from '../workspaces/domains/workspaces.domain';
+import { type Workspace } from '../workspaces/domains/workspaces.domain';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
-import { Limit } from '../feature-limit/domain/limit.domain';
+import { type Limit } from '../feature-limit/domain/limit.domain';
 import { FeatureNameLimitMap } from './constants';
 import { FileUseCases } from '../file/file.usecase';
 
@@ -342,11 +342,10 @@ export class GatewayUseCases {
       );
     }
 
-    const limits =
-      await this.featureLimitService.getFileVersioningLimitsByTier(
-        user.uuid,
-        user.tierId,
-      );
+    const limits = await this.featureLimitService.getFileVersioningLimitsByTier(
+      user.uuid,
+      user.tierId,
+    );
 
     Logger.log(
       `[GATEWAY/UPDATE_TIER] Starting file versioning validation for user ${user.uuid}: enabled=${limits.enabled}, retentionDays=${limits.retentionDays}, maxVersions=${limits.maxVersions}`,
@@ -364,8 +363,9 @@ export class GatewayUseCases {
         );
       }
     } else {
-      const { deletedCount } =
-        await this.fileUseCases.undoFileVersioning(user.uuid);
+      const { deletedCount } = await this.fileUseCases.undoFileVersioning(
+        user.uuid,
+      );
       if (deletedCount > 0) {
         Logger.log(
           `[GATEWAY/UPDATE_TIER] Deleted ${deletedCount} file versions (full cleanup) for user ${user.uuid} due to tier change`,

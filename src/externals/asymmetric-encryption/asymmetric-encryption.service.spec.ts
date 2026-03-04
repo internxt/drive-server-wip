@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { AsymmetricEncryptionService } from './asymmetric-encryption.service';
 import { KyberProvider } from './providers/kyber.provider';
 import {

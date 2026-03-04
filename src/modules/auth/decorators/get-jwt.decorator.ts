@@ -1,6 +1,6 @@
 import {
   createParamDecorator,
-  ExecutionContext,
+  type ExecutionContext,
   UnauthorizedException,
 } from '@nestjs/common';
 

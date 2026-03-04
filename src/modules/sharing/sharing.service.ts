@@ -11,92 +11,92 @@ import {
 import { v4, validate as validateUuid } from 'uuid';
 
 import {
-  Item,
+  type Item,
   Role,
   SharedWithType,
   Sharing,
-  SharingActionName,
-  SharingAttributes,
+  type SharingActionName,
+  type SharingAttributes,
   SharingInvite,
-  SharingRole,
+  type SharingRole,
   SharingType,
 } from './sharing.domain';
-import { ReferralKey, User } from '../user/user.domain';
-import { CreateInviteDto } from './dto/create-invite.dto';
+import { ReferralKey, type User } from '../user/user.domain';
+import { type CreateInviteDto } from './dto/create-invite.dto';
 import { SequelizeSharingRepository } from './sharing.repository';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { File, FileAttributes, FileStatus } from '../file/file.domain';
-import { Folder } from '../folder/folder.domain';
+import { File, type FileAttributes, FileStatus } from '../file/file.domain';
+import { type Folder } from '../folder/folder.domain';
 import { UserNotFoundError, UserUseCases } from '../user/user.usecase';
-import { AcceptInviteDto } from './dto/accept-invite.dto';
-import { UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
+import { type AcceptInviteDto } from './dto/accept-invite.dto';
+import { type UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
 import getEnv from '../../config/configuration';
 import {
   generateTokenWithPlainSecret,
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
 import {
-  FileWithSharedInfo,
-  FolderWithSharedInfo,
-  GetFilesResponse,
-  GetFoldersReponse,
-  GetItemsReponse,
+  type FileWithSharedInfo,
+  type FolderWithSharedInfo,
+  type GetFilesResponse,
+  type GetFoldersReponse,
+  type GetItemsReponse,
 } from './dto/get-items-and-shared-folders.dto';
-import { GetInviteDto, GetInvitesDto } from './dto/get-invites.dto';
+import { type GetInviteDto, type GetInvitesDto } from './dto/get-invites.dto';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { Sign } from '../../middlewares/passport';
-import { CreateSharingDto } from './dto/create-sharing.dto';
+import { type CreateSharingDto } from './dto/create-sharing.dto';
 import { aes } from '@internxt/lib';
 import { Environment } from '@internxt/inxt-js';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
-import { Workspace } from '../workspaces/domains/workspaces.domain';
-import { WorkspaceTeamAttributes } from '../workspaces/attributes/workspace-team.attributes';
-import { ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
+import { type Workspace } from '../workspaces/domains/workspaces.domain';
+import { type WorkspaceTeamAttributes } from '../workspaces/attributes/workspace-team.attributes';
+import { type ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
 import {
-  GetFilesInSharedFolderResponseDto,
-  GetFoldersInSharedFolderResponseDto,
+  type GetFilesInSharedFolderResponseDto,
+  type GetFoldersInSharedFolderResponseDto,
 } from './dto/response/get-folders-in-shared-folder.dto';
 import { SequelizeFileRepository } from '../file/file.repository';
 
-export class UserAlreadyHasRole extends BadRequestException {
+class UserAlreadyHasRole extends BadRequestException {
   constructor() {
     super('User already has a role');
     Object.setPrototypeOf(this, UserAlreadyHasRole.prototype);
   }
 }
 
-export class OwnerCannotBeSharedWithError extends BadRequestException {
+class OwnerCannotBeSharedWithError extends BadRequestException {
   constructor() {
     super('Owner cannot share the folder with itself');
     Object.setPrototypeOf(this, OwnerCannotBeSharedWithError.prototype);
   }
 }
 
-export class OwnerCannotBeRemovedWithError extends Error {
+class OwnerCannotBeRemovedWithError extends Error {
   constructor() {
     super('Owner cannot be removed from the item sharing');
     Object.setPrototypeOf(this, OwnerCannotBeRemovedWithError.prototype);
   }
 }
 
-export class InvalidPermissionsError extends ForbiddenException {
+class InvalidPermissionsError extends ForbiddenException {
   constructor() {
     super('You dont have permissions on this item');
     Object.setPrototypeOf(this, InvalidPermissionsError.prototype);
   }
 }
 
-export class SharedFolderInTheTrashError extends ForbiddenException {
+class SharedFolderInTheTrashError extends ForbiddenException {
   constructor() {
     super('This folder is in the trash');
     Object.setPrototypeOf(this, SharedFolderInTheTrashError.prototype);
   }
 }
 
-export class SharedFolderRemovedError extends ForbiddenException {
+class SharedFolderRemovedError extends ForbiddenException {
   constructor() {
     super('This folder has been removed');
     Object.setPrototypeOf(this, SharedFolderRemovedError.prototype);

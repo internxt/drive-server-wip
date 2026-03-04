@@ -1,5 +1,5 @@
-import { User } from '../../user/user.domain';
-import { LimitLabels, LimitTypes } from '../limits.enum';
+import { type User } from '../../user/user.domain';
+import { type LimitLabels, type LimitTypes } from '../limits.enum';
 
 export interface LimitAttributes {
   id: string;

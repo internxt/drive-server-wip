@@ -3,7 +3,7 @@ import {
   IsEnum,
   IsString,
   IsDateString,
-  ValidationArguments,
+  type ValidationArguments,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { LargePaginationDto } from '../../../common/dto/basic-pagination.dto';

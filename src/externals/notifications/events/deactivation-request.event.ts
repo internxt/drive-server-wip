@@ -1,5 +1,5 @@
-import { Request } from 'express';
-import { User } from '../../../modules/user/user.domain';
+import { type Request } from 'express';
+import { type User } from '../../../modules/user/user.domain';
 import { Event } from './event';
 
 export class DeactivationRequestEvent extends Event {

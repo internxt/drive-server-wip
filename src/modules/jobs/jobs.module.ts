@@ -14,6 +14,7 @@ import { MailerModule } from '../../externals/mailer/mailer.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { SecurityModule } from '../security/security.module';
 import { DeleteExpiredFileVersionsTask } from './tasks/delete-expired-file-versions.task';
+import { DeleteExpiredTrashItemsTask } from './tasks/delete-expired-trash-items.task';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { DeleteExpiredFileVersionsTask } from './tasks/delete-expired-file-versi
     RetroActiveDeleteItemsCleanupTask,
     InactiveUsersEmailTask,
     DeleteExpiredFileVersionsTask,
+    DeleteExpiredTrashItemsTask,
   ],
 })
 export class JobsModule {}

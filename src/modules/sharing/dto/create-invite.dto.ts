@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty } from 'class-validator';
-import { SharingInvite } from '../sharing.domain';
-import { User } from '../../user/user.domain';
+import { type SharingInvite } from '../sharing.domain';
+import { type User } from '../../user/user.domain';
 
 export class CreateInviteDto {
   @ApiProperty({

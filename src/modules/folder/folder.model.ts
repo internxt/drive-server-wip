@@ -14,9 +14,9 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.model';
-import { FolderAttributes } from './folder.attributes';
+import { type FolderAttributes } from './folder.attributes';
 import { SharingModel } from '../sharing/models';
-import { Sharing } from '../sharing/sharing.domain';
+import { type Sharing } from '../sharing/sharing.domain';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Sequelize } from 'sequelize';
 import { DeviceModel } from '../backups/models/device.model';

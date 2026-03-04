@@ -12,6 +12,7 @@ import {
   Post,
   Put,
   Query,
+  UseFilters,
   UseGuards,
   UseInterceptors,
   UsePipes,
@@ -31,7 +32,7 @@ import { FileUseCases } from './file.usecase';
 import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';
 import { isNumber } from '../../lib/validators';
 import API_LIMITS from '../../lib/http/limits';
-import { File, FileStatus } from './file.domain';
+import { type File } from './file.domain';
 import { ReplaceFileDto } from './dto/replace-file.dto';
 import { MoveFileDto } from './dto/move-file.dto';
 import { UpdateFileMetaDto } from './dto/update-file-meta.dto';
@@ -56,6 +57,9 @@ import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { RequestLoggerInterceptor } from '../../middlewares/requests-logger.interceptor';
 import { Version } from '../../common/decorators/version.decorator';
+import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.decorator';
+import { Workspace } from '../workspaces/domains/workspaces.domain';
+import { UniqueConstraintFilter } from '../../common/filters/unique-constraint.filter';
 
 @ApiTags('File')
 @Controller('files')
@@ -76,6 +80,7 @@ export class FileController {
   @RequiredSharingPermissions(SharingActionName.UploadFile)
   @UseGuards(SharingPermissionsGuard, UploadGuard)
   @UseInterceptors(RequestLoggerInterceptor)
+  @UseFilters(UniqueConstraintFilter)
   async createFile(
     @UserDecorator() user: User,
     @Body() createFileDto: CreateFileDto,
@@ -261,12 +266,19 @@ export class FileController {
     @Body() fileData: ReplaceFileDto,
     @Client() clientId: string,
     @Requester() requester: User,
+    @WorkspaceDecorator() workspace?: Workspace,
   ): Promise<FileDto> {
     try {
       const file = await this.fileUseCases.replaceFile(
         user,
         fileUuid,
         fileData,
+        workspace
+          ? {
+              workspace,
+              memberId: requester.uuid,
+            }
+          : null,
       );
 
       this.storageNotificationService.fileUpdated({
@@ -434,17 +446,10 @@ export class FileController {
       );
     }
 
-    const files = this.fileUseCases.getFiles(
-      user.id,
-      {
-        status: FileStatus.EXISTS,
-      },
-      {
-        limit,
-        offset: 0,
-        sort: [['updatedAt', 'DESC']],
-      },
-    );
+    const files = this.fileUseCases.getRecentFiles(user.id, {
+      limit,
+      offset: 0,
+    });
 
     return files;
   }

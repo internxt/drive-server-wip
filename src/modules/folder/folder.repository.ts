@@ -1,31 +1,32 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
+// import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 import { InjectModel } from '@nestjs/sequelize';
 import {
-  FindOptions,
+  type FindOptions,
   Op,
   QueryTypes,
   Sequelize,
-  WhereOptions,
+  type WhereOptions,
 } from 'sequelize';
 import { v4 } from 'uuid';
 
 import { Folder } from './folder.domain';
-import { FolderAttributes } from './folder.attributes';
+import { type FolderAttributes } from './folder.attributes';
 import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import {
   WorkspaceItemType,
-  WorkspaceItemUserAttributes,
+  type WorkspaceItemUserAttributes,
 } from '../workspaces/attributes/workspace-items-users.attributes';
-import { Literal } from 'sequelize/types/utils';
-import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { type Literal } from 'sequelize/types/utils';
+import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { FileStatus } from '../file/file.domain';
 import { UserModel } from '../user/user.model';
 import { User } from '../user/user.domain';
-import { UserAttributes } from '../user/user.attributes';
+import { type UserAttributes } from '../user/user.attributes';
 import { Pagination } from '../../lib/pagination';
 
 function mapSnakeCaseToCamelCase(data) {
@@ -43,7 +44,7 @@ function mapSnakeCaseToCamelCase(data) {
 
 type FindInTreeResponse = Pick<Folder, 'parentId' | 'id' | 'plainName'>;
 
-export interface FolderRepository {
+interface FolderRepository {
   createWithAttributes(
     newFolder: Omit<FolderAttributes, 'id'>,
   ): Promise<Folder>;
@@ -128,6 +129,8 @@ export interface FolderRepository {
     update: Partial<Folder>,
   ): Promise<void>;
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
+  deleteFoldersByUuid(folderUuids: string[]): Promise<number>;
+  findExpiredTrashFolderIds(limit: number): Promise<string[]>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
   calculateFolderSize(folderUuid: string): Promise<number>;
   calculateFolderStats(folderUuid: string): Promise<{
@@ -780,13 +783,13 @@ export class SequelizeFolderRepository implements FolderRepository {
   ): Promise<number> {
     const result = await this.folderModel.sequelize.query(
       `
-      UPDATE folders 
+      UPDATE folders
       SET removed = true, removed_at = NOW(), updated_at = NOW()
       WHERE uuid IN (
-        SELECT uuid 
-        FROM folders 
-        WHERE user_id = :userId 
-          AND deleted = true 
+        SELECT uuid
+        FROM folders
+        WHERE user_id = :userId
+          AND deleted = true
           AND removed = false
         LIMIT :limit
       )
@@ -797,6 +800,64 @@ export class SequelizeFolderRepository implements FolderRepository {
       },
     );
     return result[1];
+  }
+
+  async deleteFoldersByUuid(folderUuids: string[]): Promise<number> {
+    const deletedDate = new Date();
+    const [updatedCount] = await this.folderModel.update(
+      {
+        removed: true,
+        removedAt: deletedDate,
+        updatedAt: deletedDate,
+      },
+      {
+        where: {
+          uuid: { [Op.in]: folderUuids },
+          removed: false,
+        },
+      },
+    );
+
+    return updatedCount;
+  }
+
+  async findExpiredTrashFolderIds(limit: number): Promise<string[]> {
+    const query = `
+      WITH retention_config AS (
+        SELECT
+          fo.uuid AS item_id,
+          fo.updated_at,
+          COALESCE(
+            (SELECT l.value::integer
+             FROM user_overridden_limits uol
+             JOIN limits l ON uol.limit_id = l.id
+             WHERE uol.user_id = u.uuid AND l.label = 'trash-retention-days'),
+            (SELECT l.value::integer
+             FROM tiers_limits tl
+             JOIN limits l ON tl.limit_id = l.id
+             WHERE tl.tier_id = u.tier_id AND l.label = 'trash-retention-days')
+          ) AS retention_days
+        FROM folders fo
+        JOIN users u ON fo.user_id = u.id
+        WHERE fo.deleted = true AND fo.removed = false
+      )
+      SELECT item_id
+      FROM retention_config
+      WHERE retention_days IS NOT NULL
+        AND updated_at < NOW() - (retention_days || ' days')::INTERVAL
+      LIMIT :limit
+    `;
+
+    const results = await this.folderModel.sequelize.query<{
+      item_id: string;
+    }>(query, {
+      replacements: {
+        limit /*, defaultRetentionDays: DEFAULT_TRASH_RETENTION_DAYS */,
+      },
+      type: QueryTypes.SELECT,
+    });
+
+    return results.map((r) => r.item_id);
   }
 
   async findAllCursorWhereUpdatedAfter(

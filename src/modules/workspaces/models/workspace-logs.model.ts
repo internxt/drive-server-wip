@@ -10,7 +10,7 @@ import {
   BelongsTo,
 } from 'sequelize-typescript';
 import { UserModel } from '../../user/user.model';
-import { WorkspaceLogAttributes } from '../attributes/workspace-logs.attributes';
+import { type WorkspaceLogAttributes } from '../attributes/workspace-logs.attributes';
 import { WorkspaceModel } from './workspace.model';
 
 @Table({

@@ -11,7 +11,7 @@ import {
 import { WorkspaceModel } from './workspace.model';
 import { UserModel } from '../../user/user.model';
 import { WorkspaceTeamUserModel } from './workspace-team-users.model';
-import { WorkspaceTeamAttributes } from '../attributes/workspace-team.attributes';
+import { type WorkspaceTeamAttributes } from '../attributes/workspace-team.attributes';
 
 @Table({
   underscored: true,

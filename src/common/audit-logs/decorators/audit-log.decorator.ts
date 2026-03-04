@@ -1,8 +1,8 @@
 import { applyDecorators, SetMetadata, UseInterceptors } from '@nestjs/common';
 import {
-  AuditAction,
-  AuditEntityType,
-  AuditPerformerType,
+  type AuditAction,
+  type AuditEntityType,
+  type AuditPerformerType,
 } from '../audit-logs.attributes';
 import { AuditLogInterceptor } from '../interceptors/audit-log.interceptor';
 

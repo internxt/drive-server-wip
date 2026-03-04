@@ -1,4 +1,4 @@
-export interface TierAttributes {
+interface TierAttributes {
   id: string;
   label: string;
   context?: string;

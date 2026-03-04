@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { Logger } from '@nestjs/common';
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { type Logger } from '@nestjs/common';
+import { createMock, type DeepMocked } from '@golevelup/ts-jest';
 import { RedisService } from './redis.service';
 import { createClient } from 'redis';
 

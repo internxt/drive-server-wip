@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/sequelize';
 import { createMock } from '@golevelup/ts-jest';
 import {
@@ -7,9 +7,12 @@ import {
   newUser,
   newWorkspace,
 } from '../../../test/fixtures';
-import { FileAttributes, FileStatus } from './file.domain';
+import { type FileAttributes, FileStatus } from './file.domain';
 import { FileModel } from './file.model';
-import { FileRepository, SequelizeFileRepository } from './file.repository';
+import {
+  type FileRepository,
+  SequelizeFileRepository,
+} from './file.repository';
 import { Op, QueryTypes } from 'sequelize';
 import { v4 } from 'uuid';
 import { UserModel } from '../user/user.model';
@@ -527,6 +530,69 @@ describe('FileRepository', () => {
     });
   });
 
+  describe('findRecent', () => {
+    const mockFile = newFile();
+    const toJson = {
+      id: mockFile.id,
+      uuid: mockFile.uuid,
+      name: mockFile.name,
+      folderId: mockFile.folderId,
+      folderUuid: mockFile.folderUuid,
+      userId: mockFile.userId,
+      status: mockFile.status,
+      plainName: mockFile.plainName,
+      type: mockFile.type,
+      deleted: false,
+      removed: false,
+    };
+    const model: FileModel = {
+      ...mockFile,
+      toJSON: () => ({ ...toJson }),
+    } as any;
+
+    it('When recent files are found, then it should return them', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([model]);
+
+      const result = await repository.findRecent(1, 7, 10, 0);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          limit: 10,
+          offset: 0,
+          where: expect.objectContaining({
+            userId: 1,
+            status: FileStatus.EXISTS,
+          }),
+          order: [['updatedAt', 'DESC']],
+        }),
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('When no recent files are found, then it should return empty array', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      const result = await repository.findRecent(1, 7, 10, 0);
+
+      expect(fileModel.findAll).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([]);
+    });
+
+    it('When thumbnails are excluded, then it should not include thumbnail models', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findRecent(1, 7, 10, 0, { withThumbnails: false });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.arrayContaining([
+            expect.objectContaining({ required: true }),
+          ]),
+        }),
+      );
+    });
+  });
+
   describe('findAll', () => {
     it('When files are found then it should return an array of files', async () => {
       const file1 = v4();
@@ -1012,6 +1078,121 @@ describe('FileRepository', () => {
         },
       });
       expect(result).toBe(count);
+    });
+  });
+
+  describe('deleteFilesByUuid', () => {
+    it('When file UUIDs are provided, then it should mark them as removed and deleted', async () => {
+      const fileUuids = [v4(), v4(), v4()];
+      const updatedCount = 3;
+
+      jest
+        .spyOn(fileModel, 'update')
+        .mockResolvedValueOnce([updatedCount] as any);
+
+      const result = await repository.deleteFilesByUuid(fileUuids);
+
+      expect(fileModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          removed: true,
+          status: FileStatus.DELETED,
+        }),
+        expect.objectContaining({
+          where: {
+            uuid: { [Op.in]: fileUuids },
+            status: { [Op.not]: FileStatus.DELETED },
+          },
+        }),
+      );
+      expect(result).toBe(updatedCount);
+    });
+
+    it('When single file UUID is provided, then it should process it', async () => {
+      const fileUuid = v4();
+      const updatedCount = 1;
+
+      jest
+        .spyOn(fileModel, 'update')
+        .mockResolvedValueOnce([updatedCount] as any);
+
+      const result = await repository.deleteFilesByUuid([fileUuid]);
+
+      expect(fileModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          removed: true,
+          status: FileStatus.DELETED,
+        }),
+        expect.objectContaining({
+          where: {
+            uuid: { [Op.in]: [fileUuid] },
+            status: { [Op.not]: FileStatus.DELETED },
+          },
+        }),
+      );
+      expect(result).toBe(1);
+    });
+
+    it('When no files match the UUIDs, then it should return zero', async () => {
+      const fileUuids = [v4(), v4()];
+      const updatedCount = 0;
+
+      jest
+        .spyOn(fileModel, 'update')
+        .mockResolvedValueOnce([updatedCount] as any);
+
+      const result = await repository.deleteFilesByUuid(fileUuids);
+
+      expect(result).toBe(0);
+    });
+
+    it('When files already deleted, then it should not update them', async () => {
+      const fileUuids = [v4(), v4()];
+
+      jest.spyOn(fileModel, 'update').mockResolvedValueOnce([0] as any);
+
+      const result = await repository.deleteFilesByUuid(fileUuids);
+
+      expect(fileModel.update).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: { [Op.not]: FileStatus.DELETED },
+          }),
+        }),
+      );
+      expect(result).toBe(0);
+    });
+  });
+
+  describe('findExpiredTrashFileIds', () => {
+    it('When expired trash files exist, then it should return their uuids', async () => {
+      const fileUuids = [v4(), v4(), v4()];
+      const limit = 100;
+
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce(
+          fileUuids.map((uuid) => ({ item_id: uuid })) as any,
+        );
+
+      const result = await repository.findExpiredTrashFileIds(limit);
+
+      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('trash-retention-days'),
+        {
+          replacements: { limit },
+          type: QueryTypes.SELECT,
+        },
+      );
+      expect(result).toEqual(fileUuids);
+    });
+
+    it('When no expired trash files exist, then it should return empty array', async () => {
+      jest.spyOn(fileModel.sequelize, 'query').mockResolvedValueOnce([] as any);
+
+      const result = await repository.findExpiredTrashFileIds(100);
+
+      expect(result).toEqual([]);
     });
   });
 });

@@ -8,12 +8,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { User } from '../user/user.domain';
+import { type User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { Time } from '../../lib/time';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { Tier } from '../feature-limit/domain/tier.domain';
+import { type Tier } from '../feature-limit/domain/tier.domain';
 
 export interface JwtAuthInfo {
   platform?: string;

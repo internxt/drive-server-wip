@@ -1,6 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { Logger } from '@nestjs/common';
+import { Test, type TestingModule } from '@nestjs/testing';
+import { createMock, type DeepMocked } from '@golevelup/ts-jest';
+import { type Logger } from '@nestjs/common';
 import { StorageNotificationService } from './storage.notifications.service';
 import { NotificationService } from './notification.service';
 import { ApnService } from '../apn/apn.service';
@@ -9,10 +9,10 @@ import { NotificationEvent } from './events/notification.event';
 import { newUser } from '../../../test/fixtures';
 import { UserNotificationTokens } from '../../modules/user/user-notification-tokens.domain';
 import { v4 } from 'uuid';
-import { FolderDto } from '../../modules/folder/dto/responses/folder.dto';
-import { FileDto } from '../../modules/file/dto/responses/file.dto';
+import { type FolderDto } from '../../modules/folder/dto/responses/folder.dto';
+import { type FileDto } from '../../modules/file/dto/responses/file.dto';
 import {
-  ItemToTrashDto,
+  type ItemToTrashDto,
   ItemToTrashType,
 } from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
 

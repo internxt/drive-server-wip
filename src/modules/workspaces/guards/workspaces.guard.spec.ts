@@ -1,9 +1,9 @@
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import {
   BadRequestException,
-  ExecutionContext,
+  type ExecutionContext,
   ForbiddenException,
-  Logger,
+  type Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -19,10 +19,10 @@ import {
   newWorkspaceTeam,
   newWorkspaceUser,
 } from '../../../../test/fixtures';
-import { WorkspaceUser } from '../domains/workspace-user.domain';
-import { WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
+import { type WorkspaceUser } from '../domains/workspace-user.domain';
+import { type WorkspaceTeamUser } from '../domains/workspace-team-user.domain';
 import { v4 } from 'uuid';
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 
 describe('WorkspaceGuard', () => {
   let guard: WorkspaceGuard;

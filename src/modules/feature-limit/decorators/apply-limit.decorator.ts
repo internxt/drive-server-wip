@@ -1,4 +1,4 @@
-import { LimitLabels } from '../limits.enum';
+import { type LimitLabels } from '../limits.enum';
 
 interface DataSource {
   sourceKey: 'body' | 'params' | 'query' | 'headers';

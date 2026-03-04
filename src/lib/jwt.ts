@@ -1,4 +1,4 @@
-import { JwtPayload, sign, verify } from 'jsonwebtoken';
+import { type JwtPayload, sign, verify } from 'jsonwebtoken';
 import getEnv from '../config/configuration';
 import { SignWithRS256AndHeader } from '../middlewares/passport';
 import {
@@ -6,7 +6,7 @@ import {
   getJitsiJWTPayload,
   getJitsiJWTSecret,
 } from './jitsi';
-import { User } from '../modules/user/user.domain';
+import { type User } from '../modules/user/user.domain';
 
 export function generateTokenWithPlainSecret(
   payload: Record<string, unknown>,

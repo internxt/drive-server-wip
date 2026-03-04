@@ -1,15 +1,15 @@
 import {
   Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
+  type NestInterceptor,
+  type ExecutionContext,
+  type CallHandler,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Observable } from 'rxjs';
+import { type Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import {
   TIMING_CONSISTENCY_KEY,
-  TimingConsistencyOptions,
+  type TimingConsistencyOptions,
 } from '../decorators/timing-consistency.decorator';
 
 @Injectable()

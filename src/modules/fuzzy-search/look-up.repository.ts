@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { ItemType, LookUp } from './look-up.domain';
+import { type ItemType, type LookUp } from './look-up.domain';
 import { InjectModel } from '@nestjs/sequelize';
 import { LookUpModel } from './look-up.model';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
-import { UserAttributes } from '../user/user.attributes';
+import { type UserAttributes } from '../user/user.attributes';
 import { Op, Sequelize } from 'sequelize';
 import { FolderModel } from '../folder/folder.model';
 import { FileModel } from '../file/file.model';
-import { WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 type LookUpResult = Array<{
   id: string;

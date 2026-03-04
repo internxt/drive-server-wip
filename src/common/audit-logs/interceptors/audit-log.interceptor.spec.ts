@@ -1,10 +1,10 @@
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { CallHandler, ExecutionContext } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import { createMock, type DeepMocked } from '@golevelup/ts-jest';
+import { type CallHandler, type ExecutionContext } from '@nestjs/common';
+import { type Reflector } from '@nestjs/core';
 import { of, lastValueFrom } from 'rxjs';
 import { AuditLogInterceptor } from './audit-log.interceptor';
-import { AuditLogService } from '../audit-log.service';
-import { AuditLogConfig } from '../decorators/audit-log.decorator';
+import { type AuditLogService } from '../audit-log.service';
+import { type AuditLogConfig } from '../decorators/audit-log.decorator';
 import {
   AuditAction,
   AuditEntityType,

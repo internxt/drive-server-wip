@@ -5,8 +5,8 @@ import {
   S3Client,
   DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
-import { User } from '../../modules/user/user.domain';
-import { Workspace } from '../../modules/workspaces/domains/workspaces.domain';
+import { type User } from '../../modules/user/user.domain';
+import { type Workspace } from '../../modules/workspaces/domains/workspaces.domain';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()

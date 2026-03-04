@@ -1,7 +1,7 @@
 import { IsNotEmpty, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { CreateUserDto } from './create-user.dto';
-import { SharingInvite } from '../../sharing/sharing.domain';
+import { type SharingInvite } from '../../sharing/sharing.domain';
 
 export class RegisterPreCreatedUserDto extends CreateUserDto {
   @IsNotEmpty()

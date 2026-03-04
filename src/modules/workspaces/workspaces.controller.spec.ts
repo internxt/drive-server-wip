@@ -1,11 +1,11 @@
-import { DeepMocked, createMock } from '@golevelup/ts-jest';
+import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { WorkspacesController } from './workspaces.controller';
-import { WorkspacesUsecases } from './workspaces.usecase';
+import { type WorkspacesUsecases } from './workspaces.usecase';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import {
   newUser,
@@ -15,13 +15,13 @@ import {
   newWorkspaceUser,
 } from '../../../test/fixtures';
 import { v4 } from 'uuid';
-import { WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
-import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
+import { type WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
+import { type CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
-import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
-import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
-import { WorkspaceLog } from './domains/workspace-log.domain';
-import { GetWorkspaceLogsDto } from './dto/get-workspace-logs';
+import { type StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import { type CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
+import { type WorkspaceLog } from './domains/workspace-log.domain';
+import { type GetWorkspaceLogsDto } from './dto/get-workspace-logs';
 import {
   WorkspaceLogPlatform,
   WorkspaceLogType,

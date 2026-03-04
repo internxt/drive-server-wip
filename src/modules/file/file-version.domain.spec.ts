@@ -1,6 +1,6 @@
 import {
   FileVersion,
-  FileVersionAttributes,
+  type FileVersionAttributes,
   FileVersionStatus,
 } from './file-version.domain';
 

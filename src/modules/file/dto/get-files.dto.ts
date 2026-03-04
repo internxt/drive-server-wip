@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
 import {
-  FileAttributes,
+  type FileAttributes,
   FileStatus,
   SortableFileAttributes,
 } from '../file.domain';

@@ -42,7 +42,7 @@ export class SequelizeUsageRepository {
 
     return withQueryTimeout(
       this.usageModel.sequelize,
-      8000,
+      15000,
       async (transaction) => {
         const selectResult = await this.usageModel.sequelize.query(
           `
@@ -152,7 +152,7 @@ export class SequelizeUsageRepository {
 
     return withQueryTimeout(
       this.usageModel.sequelize,
-      8000,
+      15000,
       async (transaction) => {
         const result = (await this.usageModel.sequelize.query(query, {
           replacements: { userUuid },

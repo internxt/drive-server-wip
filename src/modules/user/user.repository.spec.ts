@@ -1,9 +1,9 @@
 import { createMock } from '@golevelup/ts-jest';
-import { SequelizeUserRepository, UserModel } from './user.repository';
+import { SequelizeUserRepository, type UserModel } from './user.repository';
 import { User } from './user.domain';
 import { newUser, newNotificationToken } from '../../../test/fixtures';
-import { Op, Transaction } from 'sequelize';
-import { UserNotificationTokensModel } from './user-notification-tokens.model';
+import { Op, type Transaction } from 'sequelize';
+import { type UserNotificationTokensModel } from './user-notification-tokens.model';
 import { UserNotificationTokens } from './user-notification-tokens.domain';
 import { v4 } from 'uuid';
 import { randomInt } from 'crypto';

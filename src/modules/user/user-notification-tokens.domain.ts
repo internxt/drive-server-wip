@@ -1,4 +1,4 @@
-import { UserNotificationTokenAttributes } from './user-notification-tokens.attribute';
+import { type UserNotificationTokenAttributes } from './user-notification-tokens.attribute';
 
 export class UserNotificationTokens implements UserNotificationTokenAttributes {
   id: string;

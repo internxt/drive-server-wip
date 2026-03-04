@@ -16,15 +16,18 @@ import {
   ReferralModel,
   SequelizeReferralRepository,
 } from './referrals.repository';
-import { ReferralAttributes, UserReferralAttributes } from './user.domain';
+import {
+  type ReferralAttributes,
+  type UserReferralAttributes,
+} from './user.domain';
 import { UserModel } from './user.model';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { ConfigService } from '@nestjs/config';
 import { SequelizeUserRepository } from './user.repository';
-import { UserAttributes } from './user.attributes';
+import { type UserAttributes } from './user.attributes';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
-import { AppSumoModel } from '../app-sumo/app-sumo.model';
+import { type AppSumoModel } from '../app-sumo/app-sumo.model';
 import { AppSumoNotFoundException } from '../app-sumo/exception/app-sumo-not-found.exception';
 import { Constans } from '../../lib/contants';
 import { ReferralsNotAvailableException } from './exception/referrals-not-available.exception';
@@ -66,7 +69,7 @@ export class UserReferralModel extends Model implements UserReferralAttributes {
   startDate: UserReferralAttributes['startDate'];
 }
 
-export interface UserReferralsRepository {
+interface UserReferralsRepository {
   findOneWhere(
     where: Partial<UserReferralAttributes>,
   ): Promise<UserReferralAttributes | null>;

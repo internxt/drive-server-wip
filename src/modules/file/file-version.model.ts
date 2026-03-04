@@ -11,7 +11,7 @@ import {
 import { FileModel } from './file.model';
 import { UserModel } from '../user/user.model';
 import {
-  FileVersionAttributes,
+  type FileVersionAttributes,
   FileVersionStatus,
 } from './file-version.domain';
 import { Sequelize } from 'sequelize';

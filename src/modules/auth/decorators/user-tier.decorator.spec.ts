@@ -1,4 +1,4 @@
-import { ExecutionContext } from '@nestjs/common';
+import { type ExecutionContext } from '@nestjs/common';
 import { userTierFactory } from './user-tier.decorator';
 import { v4 } from 'uuid';
 

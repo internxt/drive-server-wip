@@ -1,4 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
+import { Time } from '../../lib/time';
+import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 import { SequelizeWorkspaceRepository } from './repositories/workspaces.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { UserUseCases } from '../user/user.usecase';
@@ -28,20 +30,20 @@ import {
   ConflictException,
   ForbiddenException,
   InternalServerErrorException,
-  Logger,
+  type Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PreCreatedUser } from '../user/pre-created-user.domain';
+import { type PreCreatedUser } from '../user/pre-created-user.domain';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeWorkspaceTeamRepository } from './repositories/team.repository';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import { WorkspaceTeamUser } from './domains/workspace-team-user.domain';
-import { EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
+import { type EditWorkspaceDetailsDto } from './dto/edit-workspace-details-dto';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
+import { type CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
 import { FileUseCases } from '../file/file.usecase';
-import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
+import { type CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { FileStatus } from '../file/file.domain';
 import { v4 } from 'uuid';
 import { SharingService } from '../sharing/sharing.service';
@@ -50,21 +52,22 @@ import {
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
 import { Role, SharedWithType } from '../sharing/sharing.domain';
-import { WorkspaceAttributes } from './attributes/workspace.attributes';
+import { type WorkspaceAttributes } from './attributes/workspace.attributes';
 import * as jwtUtils from '../../lib/jwt';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import {
-  FileWithSharedInfo,
-  FolderWithSharedInfo,
+  type FileWithSharedInfo,
+  type FolderWithSharedInfo,
 } from '../sharing/dto/get-items-and-shared-folders.dto';
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
-import { FuzzySearchResult } from '../fuzzy-search/dto/fuzzy-search-result.dto';
+import { type FuzzySearchResult } from '../fuzzy-search/dto/fuzzy-search-result.dto';
 import { FolderStatus } from '../folder/folder.domain';
-import { WorkspaceLog } from './domains/workspace-log.domain';
+import { type WorkspaceLog } from './domains/workspace-log.domain';
 import {
   WorkspaceLogPlatform,
   WorkspaceLogType,
 } from './attributes/workspace-logs.attributes';
+import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 
 jest.mock('../../middlewares/passport', () => {
   const originalModule = jest.requireActual('../../middlewares/passport');
@@ -93,6 +96,7 @@ describe('WorkspacesUsecases', () => {
   let sharingUseCases: SharingService;
   let paymentsService: PaymentsService;
   let fuzzySearchUseCases: FuzzySearchUseCases;
+  let featureLimitsService: FeatureLimitService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -122,6 +126,7 @@ describe('WorkspacesUsecases', () => {
     sharingUseCases = module.get<SharingService>(SharingService);
     paymentsService = module.get<PaymentsService>(PaymentsService);
     fuzzySearchUseCases = module.get<FuzzySearchUseCases>(FuzzySearchUseCases);
+    featureLimitsService = module.get<FeatureLimitService>(FeatureLimitService);
   });
 
   it('should be defined', () => {
@@ -2688,6 +2693,195 @@ describe('WorkspacesUsecases', () => {
 
       expect(result).toEqual({ ...createdFile, item: createdItemFile });
     });
+
+    it('When creating empty file in workspace and limit not reached, then it should succeed', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        attributes: {
+          spaceLimit: 10240,
+          driveUsage: 0,
+          rootFolderId: 'root-folder-uuid',
+        },
+        workspaceId: workspace.id,
+        member: user,
+      });
+      const folderItem = newWorkspaceItemUser({ createdBy: user.uuid });
+      const createdFile = newFile({ owner: user });
+      const createdItemFile = newWorkspaceItemUser({
+        createdBy: user.uuid,
+        itemType: WorkspaceItemType.File,
+      });
+      const emptyFileDto = {
+        ...createFileDto,
+        size: BigInt(0),
+      };
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(folderItem);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue({} as any);
+      jest.spyOn(fileUseCases, 'createFile').mockResolvedValue(createdFile);
+      jest
+        .spyOn(workspaceRepository, 'createItem')
+        .mockResolvedValue(createdItemFile);
+
+      const result = await service.createFile(user, workspace.id, emptyFileDto);
+
+      expect(fileUseCases.createFile).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ size: BigInt(0) }),
+        undefined,
+        {
+          workspace,
+          memberId: workspaceUser.memberId,
+        },
+      );
+      expect(result).toEqual({ ...createdFile, item: createdItemFile });
+    });
+
+    it('When creating empty file in workspace and limit reached, then it should throw', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        attributes: {
+          spaceLimit: 10240,
+          driveUsage: 0,
+        },
+        workspaceId: workspace.id,
+        member: user,
+      });
+      const folderItem = newWorkspaceItemUser({ createdBy: user.uuid });
+      const emptyFileDto = {
+        ...createFileDto,
+        size: BigInt(0),
+      };
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(folderItem);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue({} as any);
+      jest
+        .spyOn(fileUseCases, 'createFile')
+        .mockRejectedValue(
+          new BadRequestException(
+            'You can not have more empty files in this workspace',
+          ),
+        );
+
+      await expect(
+        service.createFile(user, workspace.id, emptyFileDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When creating empty file in workspace, then it should pass workspace options to fileUseCases.createFile', async () => {
+      const user = newUser();
+      const fileSize = 0;
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        attributes: {
+          spaceLimit: 10240,
+          driveUsage: 0,
+          rootFolderId: createFileDto.folderUuid,
+        },
+        workspaceId: workspace.id,
+        member: user,
+      });
+      const folderItem = newWorkspaceItemUser({ createdBy: user.uuid });
+      const createdFile = newFile({ owner: user });
+      const createdItemFile = newWorkspaceItemUser({
+        createdBy: user.uuid,
+        itemType: WorkspaceItemType.File,
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(folderItem);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue({} as any);
+      const createFileSpy = jest
+        .spyOn(fileUseCases, 'createFile')
+        .mockResolvedValue(createdFile);
+      jest
+        .spyOn(workspaceRepository, 'createItem')
+        .mockResolvedValue(createdItemFile);
+
+      await service.createFile(user, workspace.id, {
+        ...createFileDto,
+        size: BigInt(fileSize),
+      });
+
+      expect(createFileSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ size: BigInt(fileSize) }),
+        undefined,
+        {
+          workspace,
+          memberId: workspaceUser.memberId,
+        },
+      );
+    });
+
+    it('When creating non-empty file in workspace, then it should pass workspace options to fileUseCases.createFile', async () => {
+      const user = newUser();
+      const fileSize = 2000;
+      const workspace = newWorkspace();
+      const workspaceUser = newWorkspaceUser({
+        attributes: {
+          spaceLimit: fileSize + 1,
+          rootFolderId: createFileDto.folderUuid,
+        },
+        workspaceId: workspace.id,
+        member: user,
+      });
+      const folderItem = newWorkspaceItemUser({ createdBy: user.uuid });
+      const createdFile = newFile({ owner: user });
+      const createdItemFile = newWorkspaceItemUser({
+        createdBy: user.uuid,
+        itemType: WorkspaceItemType.File,
+      });
+
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(workspaceUser);
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(workspaceRepository, 'getItemBy')
+        .mockResolvedValue(folderItem);
+      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValue({} as any);
+      const createFileSpy = jest
+        .spyOn(fileUseCases, 'createFile')
+        .mockResolvedValue(createdFile);
+      jest
+        .spyOn(workspaceRepository, 'createItem')
+        .mockResolvedValue(createdItemFile);
+
+      await service.createFile(user, workspace.id, {
+        ...createFileDto,
+        size: BigInt(fileSize),
+      });
+
+      expect(createFileSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ size: BigInt(fileSize) }),
+        undefined,
+        {
+          workspace,
+          memberId: workspaceUser.memberId,
+        },
+      );
+    });
   });
 
   describe('getPersonalWorkspaceFoldersInFolder', () => {
@@ -3668,11 +3862,15 @@ describe('WorkspacesUsecases', () => {
     const limit = 50;
     const offset = 0;
 
-    it('When files are retrieved, it should return files', async () => {
+    it('When files are retrieved, it should return files with expiresAt from updatedAt', async () => {
       const trashedFiles = [newFile()];
+      const retentionDays = DEFAULT_TRASH_RETENTION_DAYS;
       jest
         .spyOn(fileUseCases, 'getFilesInWorkspace')
         .mockResolvedValue(trashedFiles);
+      jest
+        .spyOn(featureLimitsService, 'getUserLimitByLabel')
+        .mockResolvedValue(null);
 
       const result = await service.getWorkspaceUserTrashedItems(
         user,
@@ -3683,7 +3881,14 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
-      expect(result).toEqual({ result: trashedFiles });
+      const expectedExpiresAt = Time.dateWithTimeAdded(
+        retentionDays,
+        'day',
+        trashedFiles[0].updatedAt,
+      );
+      expect(result).toEqual({
+        result: [{ ...trashedFiles[0].toJSON(), expiresAt: expectedExpiresAt }],
+      });
       expect(fileUseCases.getFilesInWorkspace).toHaveBeenCalledWith(
         user.uuid,
         workspaceId,
@@ -3692,11 +3897,15 @@ describe('WorkspacesUsecases', () => {
       );
     });
 
-    it('When folders are retrieved, it should return folders', async () => {
+    it('When folders are retrieved, it should return folders with expiresAt from updatedAt', async () => {
       const trashedFolders = [newFolder({ attributes: { deleted: true } })];
+      const retentionDays = DEFAULT_TRASH_RETENTION_DAYS;
       jest
         .spyOn(folderUseCases, 'getFoldersInWorkspace')
         .mockResolvedValue(trashedFolders);
+      jest
+        .spyOn(featureLimitsService, 'getUserLimitByLabel')
+        .mockResolvedValue(null);
 
       const result = await service.getWorkspaceUserTrashedItems(
         user,
@@ -3707,13 +3916,82 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
-      expect(result).toEqual({ result: trashedFolders });
+      const expectedExpiresAt = Time.dateWithTimeAdded(
+        retentionDays,
+        'day',
+        trashedFolders[0].updatedAt,
+      );
+      expect(result).toEqual({
+        result: [
+          { ...trashedFolders[0].toJSON(), expiresAt: expectedExpiresAt },
+        ],
+      });
       expect(folderUseCases.getFoldersInWorkspace).toHaveBeenCalledWith(
         user.uuid,
         workspaceId,
         { deleted: true, removed: false },
         { limit, offset, sort: ['plainName', 'ASC'] },
       );
+    });
+
+    it('When user has a tier limit, it should calculate expiresAt with tier retention days', async () => {
+      const trashedFiles = [newFile()];
+      const retentionDays = 30;
+      jest
+        .spyOn(fileUseCases, 'getFilesInWorkspace')
+        .mockResolvedValue(trashedFiles);
+      jest
+        .spyOn(featureLimitsService, 'getUserLimitByLabel')
+        .mockResolvedValue({ value: String(retentionDays) } as any);
+
+      const result = await service.getWorkspaceUserTrashedItems(
+        user,
+        workspaceId,
+        WorkspaceItemType.File,
+        limit,
+        offset,
+        ['plainName', 'ASC'] as any,
+      );
+
+      const expectedExpiresAt = Time.dateWithTimeAdded(
+        retentionDays,
+        'day',
+        trashedFiles[0].updatedAt,
+      );
+      expect(result).toEqual({
+        result: [{ ...trashedFiles[0].toJSON(), expiresAt: expectedExpiresAt }],
+      });
+    });
+
+    it('When folders have a tier limit, it should calculate expiresAt with tier retention days', async () => {
+      const trashedFolders = [newFolder({ attributes: { deleted: true } })];
+      const retentionDays = 7;
+      jest
+        .spyOn(folderUseCases, 'getFoldersInWorkspace')
+        .mockResolvedValue(trashedFolders);
+      jest
+        .spyOn(featureLimitsService, 'getUserLimitByLabel')
+        .mockResolvedValue({ value: String(retentionDays) } as any);
+
+      const result = await service.getWorkspaceUserTrashedItems(
+        user,
+        workspaceId,
+        WorkspaceItemType.Folder,
+        limit,
+        offset,
+        ['plainName', 'ASC'] as any,
+      );
+
+      const expectedExpiresAt = Time.dateWithTimeAdded(
+        retentionDays,
+        'day',
+        trashedFolders[0].updatedAt,
+      );
+      expect(result).toEqual({
+        result: [
+          { ...trashedFolders[0].toJSON(), expiresAt: expectedExpiresAt },
+        ],
+      });
     });
   });
 

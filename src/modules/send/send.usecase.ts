@@ -4,15 +4,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { User } from '../user/user.domain';
+import { type User } from '../user/user.domain';
 import { SequelizeSendRepository } from './send-link.repository';
-import { SendLink, SendLinkAttributes } from './send-link.domain';
+import { SendLink, type SendLinkAttributes } from './send-link.domain';
 import { SendLinkItem } from './send-link-item.domain';
 import { v4 as uuidv4, validate } from 'uuid';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { SendLinkCreatedEvent } from '../../externals/notifications/events/send-link-created.event';
 import { CryptoService } from '../../externals/crypto/crypto.service';
-import { SendLinkItemDto } from './dto/create-send-link.dto';
+import { type SendLinkItemDto } from './dto/create-send-link.dto';
 
 @Injectable()
 export class SendUseCases {

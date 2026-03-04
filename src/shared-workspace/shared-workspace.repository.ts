@@ -11,9 +11,9 @@ import {
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
-import { UserAttributes } from '../modules/user/user.attributes';
+import { type UserAttributes } from '../modules/user/user.attributes';
 import { UserModel } from '../modules/user/user.model';
-import { Transaction } from 'sequelize';
+import { type Transaction } from 'sequelize';
 
 interface FriendInvitationAttributes {
   id: number;
@@ -52,7 +52,7 @@ export class FriendInvitationModel
   accepted: boolean;
 }
 
-export interface SharedWorkspaceRepository {
+interface SharedWorkspaceRepository {
   updateByHostAndGuest(
     host: FriendInvitationAttributes['host'],
     guest: FriendInvitationAttributes['guestEmail'],

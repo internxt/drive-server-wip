@@ -10,7 +10,7 @@ import {
 import { LimitTypes, LimitLabels } from '../limits.enum';
 import { TierModel } from './tier.model';
 import { TierLimitsModel } from './tier-limits.model';
-import { LimitAttributes } from '../domain/limits.attributes';
+import { type LimitAttributes } from '../domain/limits.attributes';
 
 @Table({
   underscored: true,

@@ -1,7 +1,7 @@
 import {
-  WorkspaceLogAttributes,
-  WorkspaceLogPlatform,
-  WorkspaceLogType,
+  type WorkspaceLogAttributes,
+  type WorkspaceLogPlatform,
+  type WorkspaceLogType,
 } from '../attributes/workspace-logs.attributes';
 
 export class WorkspaceLog implements WorkspaceLogAttributes {

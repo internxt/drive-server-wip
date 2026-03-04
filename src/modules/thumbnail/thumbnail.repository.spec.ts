@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/sequelize';
 import { SequelizeThumbnailRepository } from './thumbnail.repository';
 import { ThumbnailModel } from './thumbnail.model';
