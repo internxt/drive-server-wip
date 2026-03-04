@@ -55,6 +55,7 @@ import { Requester } from '../auth/decorators/requester.decorator';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
 import { Version } from '../../common/decorators/version.decorator';
+import { calculateTrashExpirationDate } from './trash-expiration.utils';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -111,10 +112,7 @@ export class TrashController {
         const result = files.map((file) => ({
           ...file.toJSON(),
           expiresAt: file.updatedAt
-            ? this.trashUseCases.calculateExpirationDate(
-                retentionDays,
-                file.updatedAt,
-              )
+            ? calculateTrashExpirationDate(retentionDays, file.updatedAt)
             : null,
         }));
 
@@ -133,10 +131,7 @@ export class TrashController {
         const result = folders.map((folder) => ({
           ...folder.toJSON(),
           expiresAt: folder.updatedAt
-            ? this.trashUseCases.calculateExpirationDate(
-                retentionDays,
-                folder.updatedAt,
-              )
+            ? calculateTrashExpirationDate(retentionDays, folder.updatedAt)
             : null,
         }));
 

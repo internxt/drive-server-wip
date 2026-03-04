@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
-// import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   File,
@@ -142,7 +141,7 @@ export interface FileRepository {
   ): Promise<File[]>;
   deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
   deleteFilesByUuid(fileUuids: string[]): Promise<number>;
-  findExpiredTrashFileIds(limit: number): Promise<string[]>;
+  findExpiredTrashFileIds(startDate: Date, limit: number): Promise<string[]>;
   findRecent(
     userId: number,
     daysBack: number,
@@ -976,38 +975,56 @@ export class SequelizeFileRepository implements FileRepository {
     return updatedCount;
   }
 
-  async findExpiredTrashFileIds(limit: number): Promise<string[]> {
+  async findExpiredTrashFileIds(
+    startDate: Date,
+    limit: number,
+  ): Promise<string[]> {
+    // TODO: This uses overriden limits only. Uncomment and use tier retention when released
     const query = `
-      WITH retention_config AS (
+      WITH trash_retention_limit AS (
+        SELECT id, value::integer AS retention_days
+        FROM limits
+        WHERE label = 'trash-retention-days'
+      ),
+      -- tier_retention AS (
+      --   SELECT tl.tier_id, trl.retention_days
+      --   FROM tiers_limits tl
+      --   JOIN trash_retention_limit trl ON tl.limit_id = trl.id
+      -- ),
+      user_retention AS (
         SELECT
-          f.uuid AS item_id,
-          f.updated_at,
+          u.id AS user_id,
           COALESCE(
-            (SELECT l.value::integer
-             FROM user_overridden_limits uol
-             JOIN limits l ON uol.limit_id = l.id
-             WHERE uol.user_id = u.uuid AND l.label = 'trash-retention-days'),
-            (SELECT l.value::integer
-             FROM tiers_limits tl
-             JOIN limits l ON tl.limit_id = l.id
-             WHERE tl.tier_id = u.tier_id AND l.label = 'trash-retention-days')
+            uol_lr.retention_days
+            -- , tr.retention_days
           ) AS retention_days
-        FROM files f
-        JOIN users u ON f.user_id = u.id
-        WHERE f.status = 'TRASHED'
+        FROM users u
+        LEFT JOIN user_overridden_limits uol
+          ON uol.user_id = u.uuid::text
+        LEFT JOIN trash_retention_limit uol_lr
+          ON uol.limit_id = uol_lr.id
+        -- LEFT JOIN tier_retention tr
+        --   ON tr.tier_id = u.tier_id
+        WHERE COALESCE(
+          uol_lr.retention_days
+          -- , tr.retention_days
+        ) IS NOT NULL
       )
-      SELECT item_id
-      FROM retention_config
-      WHERE retention_days IS NOT NULL
-        AND updated_at < NOW() - (retention_days || ' days')::INTERVAL
-      LIMIT :limit
+      SELECT f.uuid AS item_id
+      FROM files f
+      JOIN user_retention ur ON f.user_id = ur.user_id
+      WHERE f.status = 'TRASHED'
+        AND f.updated_at < NOW() - INTERVAL '7 days'
+        AND GREATEST(f.updated_at, :startDate::timestamptz) < NOW() - (ur.retention_days || ' days')::INTERVAL
+      LIMIT :limit;
     `;
 
     const results = await this.fileModel.sequelize.query<{ item_id: string }>(
       query,
       {
         replacements: {
-          limit /*, defaultRetentionDays: DEFAULT_TRASH_RETENTION_DAYS */,
+          startDate,
+          limit,
         },
         type: QueryTypes.SELECT,
       },

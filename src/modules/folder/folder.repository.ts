@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
-// import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   type FindOptions,
@@ -130,7 +129,7 @@ interface FolderRepository {
   ): Promise<void>;
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
   deleteFoldersByUuid(folderUuids: string[]): Promise<number>;
-  findExpiredTrashFolderIds(limit: number): Promise<string[]>;
+  findExpiredTrashFolderIds(startDate: Date, limit: number): Promise<string[]>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
   calculateFolderSize(folderUuid: string): Promise<number>;
   calculateFolderStats(folderUuid: string): Promise<{
@@ -818,30 +817,49 @@ export class SequelizeFolderRepository implements FolderRepository {
     return updatedCount;
   }
 
-  async findExpiredTrashFolderIds(limit: number): Promise<string[]> {
+  async findExpiredTrashFolderIds(
+    startDate: Date,
+    limit: number,
+  ): Promise<string[]> {
+    // TODO: This uses overriden limits only. Uncomment and use tier retention when released
     const query = `
-      WITH retention_config AS (
+      WITH trash_retention_limit AS (
+        SELECT id, value::integer AS retention_days
+        FROM limits
+        WHERE label = 'trash-retention-days'
+      ),
+      -- tier_retention AS (
+      --   SELECT tl.tier_id, trl.retention_days
+      --   FROM tiers_limits tl
+      --   JOIN trash_retention_limit trl ON tl.limit_id = trl.id
+      -- ),
+      user_retention AS (
         SELECT
-          fo.uuid AS item_id,
-          fo.updated_at,
+          u.id AS user_id,
           COALESCE(
-            (SELECT l.value::integer
-             FROM user_overridden_limits uol
-             JOIN limits l ON uol.limit_id = l.id
-             WHERE uol.user_id = u.uuid AND l.label = 'trash-retention-days'),
-            (SELECT l.value::integer
-             FROM tiers_limits tl
-             JOIN limits l ON tl.limit_id = l.id
-             WHERE tl.tier_id = u.tier_id AND l.label = 'trash-retention-days')
+            uol_lr.retention_days
+            -- , tr.retention_days
           ) AS retention_days
-        FROM folders fo
-        JOIN users u ON fo.user_id = u.id
-        WHERE fo.deleted = true AND fo.removed = false
+        FROM users u
+        LEFT JOIN user_overridden_limits uol
+          ON uol.user_id = u.uuid::text
+        LEFT JOIN trash_retention_limit uol_lr
+          ON uol.limit_id = uol_lr.id
+        -- LEFT JOIN tier_retention tr
+        --   ON tr.tier_id = u.tier_id
+        WHERE COALESCE(
+          uol_lr.retention_days
+          -- , tr.retention_days
+        ) IS NOT NULL
       )
-      SELECT item_id
-      FROM retention_config
-      WHERE retention_days IS NOT NULL
-        AND updated_at < NOW() - (retention_days || ' days')::INTERVAL
+      SELECT fo.uuid AS item_id
+      FROM folders fo
+      JOIN user_retention ur ON fo.user_id = ur.user_id
+      WHERE fo.deleted = true
+        AND fo.removed = false
+        -- Minimal retention period of 7 days
+        AND fo.updated_at < NOW() - INTERVAL '7 days'
+        AND GREATEST(fo.updated_at, :startDate::timestamptz) < NOW() - (ur.retention_days || ' days')::INTERVAL
       LIMIT :limit
     `;
 
@@ -849,7 +867,8 @@ export class SequelizeFolderRepository implements FolderRepository {
       item_id: string;
     }>(query, {
       replacements: {
-        limit /*, defaultRetentionDays: DEFAULT_TRASH_RETENTION_DAYS */,
+        limit,
+        startDate,
       },
       type: QueryTypes.SELECT,
     });

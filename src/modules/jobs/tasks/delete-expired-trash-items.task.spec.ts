@@ -40,6 +40,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
 
   describe('scheduleCleanup', () => {
     it('When job execution is disabled, then it should not execute the job', async () => {
+      configService.get.mockReturnValue(false);
       const startJobSpy = jest.spyOn(task, 'startJob');
 
       await task.scheduleCleanup();

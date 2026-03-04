@@ -1,5 +1,5 @@
 import { Test, type TestingModule } from '@nestjs/testing';
-import { Time } from '../../lib/time';
+import { calculateTrashExpirationDate } from '../trash/trash-expiration.utils';
 import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 import { SequelizeWorkspaceRepository } from './repositories/workspaces.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
@@ -3881,9 +3881,8 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
-      const expectedExpiresAt = Time.dateWithTimeAdded(
+      const expectedExpiresAt = calculateTrashExpirationDate(
         retentionDays,
-        'day',
         trashedFiles[0].updatedAt,
       );
       expect(result).toEqual({
@@ -3916,9 +3915,8 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
-      const expectedExpiresAt = Time.dateWithTimeAdded(
+      const expectedExpiresAt = calculateTrashExpirationDate(
         retentionDays,
-        'day',
         trashedFolders[0].updatedAt,
       );
       expect(result).toEqual({
@@ -3953,9 +3951,8 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
-      const expectedExpiresAt = Time.dateWithTimeAdded(
+      const expectedExpiresAt = calculateTrashExpirationDate(
         retentionDays,
-        'day',
         trashedFiles[0].updatedAt,
       );
       expect(result).toEqual({
@@ -3982,9 +3979,8 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
-      const expectedExpiresAt = Time.dateWithTimeAdded(
+      const expectedExpiresAt = calculateTrashExpirationDate(
         retentionDays,
-        'day',
         trashedFolders[0].updatedAt,
       );
       expect(result).toEqual({

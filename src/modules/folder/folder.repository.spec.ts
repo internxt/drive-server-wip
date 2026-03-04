@@ -1389,6 +1389,7 @@ describe('SequelizeFolderRepository', () => {
     it('When expired trash folders exist, then it should return their uuids', async () => {
       const folderUuids = [v4(), v4(), v4()];
       const limit = 100;
+      const startDate = new Date('2026-03-03');
 
       jest
         .spyOn(folderModel.sequelize, 'query')
@@ -1396,12 +1397,15 @@ describe('SequelizeFolderRepository', () => {
           folderUuids.map((uuid) => ({ item_id: uuid })) as any,
         );
 
-      const result = await repository.findExpiredTrashFolderIds(limit);
+      const result = await repository.findExpiredTrashFolderIds(
+        startDate,
+        limit,
+      );
 
       expect(folderModel.sequelize.query).toHaveBeenCalledWith(
         expect.stringContaining('trash-retention-days'),
         {
-          replacements: { limit },
+          replacements: { limit, startDate },
           type: QueryTypes.SELECT,
         },
       );
@@ -1413,7 +1417,10 @@ describe('SequelizeFolderRepository', () => {
         .spyOn(folderModel.sequelize, 'query')
         .mockResolvedValueOnce([] as any);
 
-      const result = await repository.findExpiredTrashFolderIds(100);
+      const result = await repository.findExpiredTrashFolderIds(
+        new Date('2026-03-03'),
+        100,
+      );
 
       expect(result).toEqual([]);
     });

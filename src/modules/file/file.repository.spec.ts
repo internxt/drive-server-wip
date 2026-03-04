@@ -1168,6 +1168,7 @@ describe('FileRepository', () => {
     it('When expired trash files exist, then it should return their uuids', async () => {
       const fileUuids = [v4(), v4(), v4()];
       const limit = 100;
+      const startDate = new Date('2026-03-03');
 
       jest
         .spyOn(fileModel.sequelize, 'query')
@@ -1175,12 +1176,12 @@ describe('FileRepository', () => {
           fileUuids.map((uuid) => ({ item_id: uuid })) as any,
         );
 
-      const result = await repository.findExpiredTrashFileIds(limit);
+      const result = await repository.findExpiredTrashFileIds(startDate, limit);
 
       expect(fileModel.sequelize.query).toHaveBeenCalledWith(
         expect.stringContaining('trash-retention-days'),
         {
-          replacements: { limit },
+          replacements: { startDate, limit },
           type: QueryTypes.SELECT,
         },
       );
@@ -1190,7 +1191,10 @@ describe('FileRepository', () => {
     it('When no expired trash files exist, then it should return empty array', async () => {
       jest.spyOn(fileModel.sequelize, 'query').mockResolvedValueOnce([] as any);
 
-      const result = await repository.findExpiredTrashFileIds(100);
+      const result = await repository.findExpiredTrashFileIds(
+        new Date('2026-03-03'),
+        100,
+      );
 
       expect(result).toEqual([]);
     });

@@ -6,7 +6,6 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TrashEmptyRequestedEvent } from './events/trash-empty-requested.event';
-import { Time } from '../../lib/time';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import {
   DEFAULT_TRASH_RETENTION_DAYS,
@@ -136,12 +135,5 @@ export class TrashUseCases {
       user,
     );
     return limit ? Number(limit.value) : DEFAULT_TRASH_RETENTION_DAYS;
-  }
-
-  calculateExpirationDate(
-    retentionDays: number,
-    deletedAt: Date = new Date(),
-  ): Date {
-    return Time.dateWithTimeAdded(retentionDays, 'day', deletedAt);
   }
 }
