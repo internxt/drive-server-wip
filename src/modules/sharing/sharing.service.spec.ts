@@ -2470,29 +2470,26 @@ describe('Sharing Use Cases', () => {
     const limit = 10;
     const order: [string, string][] = [['createdAt', 'DESC']];
 
-    const buildFolderWithSharedInfo = (overrides?: {
-      avatar?: string;
-      plainName?: string | null;
-    }) => {
+    const buildFolderWithSharedInfo = (overrides?: { avatar?: string; plainName?: string | null }) => {
       let plainName = folder.plainName;
       if (overrides && 'plainName' in overrides) {
         plainName = overrides.plainName;
       }
       return {
-        id: v4(),
-        encryptionKey: 'enc-key',
-        createdAt: new Date(),
-        folder: {
-          ...folder,
-          plainName,
-          user: {
-            uuid: user.uuid,
-            userId: user.userId,
-            bridgeUser: user.bridgeUser,
-            avatar: overrides?.avatar ?? null,
-          },
+      id: v4(),
+      encryptionKey: 'enc-key',
+      createdAt: new Date(),
+      folder: {
+        ...folder,
+        plainName,
+        user: {
+          uuid: user.uuid,
+          userId: user.userId,
+          bridgeUser: user.bridgeUser,
+          avatar: overrides?.avatar ?? null,
         },
-      };
+      },
+    };
     };
 
     it('When user requests shared folders, then it returns folders with shared info', async () => {
@@ -2500,12 +2497,7 @@ describe('Sharing Use Cases', () => {
         buildFolderWithSharedInfo(),
       ] as any);
 
-      const result = await sharingService.getSharedFolders(
-        user,
-        offset,
-        limit,
-        order,
-      );
+      const result = await sharingService.getSharedFolders(user, offset, limit, order);
 
       expect(result.folders).toHaveLength(1);
       expect(result.files).toEqual([]);
@@ -2520,12 +2512,7 @@ describe('Sharing Use Cases', () => {
         'https://example.com/avatar.jpg',
       );
 
-      const result = await sharingService.getSharedFolders(
-        user,
-        offset,
-        limit,
-        order,
-      );
+      const result = await sharingService.getSharedFolders(user, offset, limit, order);
 
       expect(usersUsecases.getAvatarUrl).toHaveBeenCalledWith('avatar-key');
       expect(result.folders[0].user.avatar).toBe(
@@ -2541,12 +2528,7 @@ describe('Sharing Use Cases', () => {
         plainName: 'Decrypted Name',
       } as any);
 
-      const result = await sharingService.getSharedFolders(
-        user,
-        offset,
-        limit,
-        order,
-      );
+      const result = await sharingService.getSharedFolders(user, offset, limit, order);
 
       expect(result.folders[0].plainName).toBe('Decrypted Name');
     });
@@ -2558,16 +2540,8 @@ describe('Sharing Use Cases', () => {
     const file = newFile({ owner });
     const folder = newFolder({ owner });
     const role = newRole();
-    const fileSharing = newSharing({
-      owner,
-      item: file,
-      sharedWith: sharedUser,
-    });
-    const folderSharing = newSharing({
-      owner,
-      item: folder,
-      sharedWith: sharedUser,
-    });
+    const fileSharing = newSharing({ owner, item: file, sharedWith: sharedUser });
+    const folderSharing = newSharing({ owner, item: folder, sharedWith: sharedUser });
 
     it('When item is a file and user is owner, then it returns users with roles', async () => {
       fileUsecases.getByUuid.mockResolvedValue(file);
@@ -2576,11 +2550,7 @@ describe('Sharing Use Cases', () => {
       ]);
       usersUsecases.findByUuids.mockResolvedValue([sharedUser]);
 
-      const result = await sharingService.getItemSharedWith(
-        owner,
-        file.uuid,
-        'file',
-      );
+      const result = await sharingService.getItemSharedWith(owner, file.uuid, 'file');
 
       expect(result).toBeDefined();
       expect(result.length).toBeGreaterThan(0);
@@ -2593,11 +2563,7 @@ describe('Sharing Use Cases', () => {
       ]);
       usersUsecases.findByUuids.mockResolvedValue([sharedUser]);
 
-      const result = await sharingService.getItemSharedWith(
-        owner,
-        folder.uuid,
-        'folder',
-      );
+      const result = await sharingService.getItemSharedWith(owner, folder.uuid, 'folder');
 
       expect(result).toBeDefined();
       expect(result.length).toBeGreaterThan(0);
@@ -2646,11 +2612,7 @@ describe('Sharing Use Cases', () => {
       ]);
       usersUsecases.findByUuids.mockResolvedValue([sharedUser]);
 
-      const result = await sharingService.getItemSharedWith(
-        owner,
-        file.uuid,
-        'file',
-      );
+      const result = await sharingService.getItemSharedWith(owner, file.uuid, 'file');
 
       expect(usersUsecases.getUser).not.toHaveBeenCalled();
       const ownerEntry = result.find((r) => r.role.name === 'OWNER');
@@ -2666,11 +2628,7 @@ describe('Sharing Use Cases', () => {
       usersUsecases.findByUuids.mockResolvedValue([sharedUser]);
       usersUsecases.getUser.mockResolvedValue(owner);
 
-      const result = await sharingService.getItemSharedWith(
-        sharedUser,
-        file.uuid,
-        'file',
-      );
+      const result = await sharingService.getItemSharedWith(sharedUser, file.uuid, 'file');
 
       expect(usersUsecases.getUser).toHaveBeenCalledWith(owner.uuid);
       const ownerEntry = result.find((r) => r.role.name === 'OWNER');
@@ -2696,11 +2654,7 @@ describe('Sharing Use Cases', () => {
       usersUsecases.findByUuids.mockResolvedValue([sharedUser]);
 
       const result = await sharingService.getSharedWithByItemId(
-        owner,
-        folder.uuid,
-        offset,
-        limit,
-        order,
+        owner, folder.uuid, offset, limit, order,
       );
 
       expect(result).toBeDefined();
@@ -2720,13 +2674,7 @@ describe('Sharing Use Cases', () => {
       sharingRepository.findSharingsWithRolesByItem.mockResolvedValue([]);
 
       await expect(
-        sharingService.getSharedWithByItemId(
-          owner,
-          folder.uuid,
-          offset,
-          limit,
-          order,
-        ),
+        sharingService.getSharedWithByItemId(owner, folder.uuid, offset, limit, order),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -2739,23 +2687,13 @@ describe('Sharing Use Cases', () => {
       ]);
 
       await expect(
-        sharingService.getSharedWithByItemId(
-          outsider,
-          folder.uuid,
-          offset,
-          limit,
-          order,
-        ),
+        sharingService.getSharedWithByItemId(outsider, folder.uuid, offset, limit, order),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('When shared user has avatar, then it returns the avatar', async () => {
       const userWithAvatar = newUser({ attributes: { avatar: 'avatar-key' } });
-      const avatarSharing = newSharing({
-        owner,
-        item: folder,
-        sharedWith: userWithAvatar,
-      });
+      const avatarSharing = newSharing({ owner, item: folder, sharedWith: userWithAvatar });
 
       folderUseCases.getByUuid.mockResolvedValue(folder);
       sharingRepository.findSharingsWithRolesByItem.mockResolvedValue([
@@ -2767,11 +2705,7 @@ describe('Sharing Use Cases', () => {
       );
 
       const result = await sharingService.getSharedWithByItemId(
-        owner,
-        folder.uuid,
-        offset,
-        limit,
-        order,
+        owner, folder.uuid, offset, limit, order,
       );
 
       expect(usersUsecases.getAvatarUrl).toHaveBeenCalledWith('avatar-key');
@@ -2802,11 +2736,7 @@ describe('Sharing Use Cases', () => {
       usersUsecases.getAvatarUrl.mockResolvedValue(null);
 
       const result = await sharingService.getFoldersInSharedFolder(
-        folder.uuid,
-        null,
-        owner,
-        page,
-        perPage,
+        folder.uuid, null, owner, page, perPage,
       );
 
       expect(result.role).toBe('OWNER');
@@ -2820,13 +2750,7 @@ describe('Sharing Use Cases', () => {
       folderUseCases.getByUuid.mockResolvedValue(trashedFolder);
 
       await expect(
-        sharingService.getFoldersInSharedFolder(
-          trashedFolder.uuid,
-          null,
-          owner,
-          page,
-          perPage,
-        ),
+        sharingService.getFoldersInSharedFolder(trashedFolder.uuid, null, owner, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -2837,13 +2761,7 @@ describe('Sharing Use Cases', () => {
       folderUseCases.getByUuid.mockResolvedValue(removedFolder);
 
       await expect(
-        sharingService.getFoldersInSharedFolder(
-          removedFolder.uuid,
-          null,
-          owner,
-          page,
-          perPage,
-        ),
+        sharingService.getFoldersInSharedFolder(removedFolder.uuid, null, owner, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -2862,11 +2780,7 @@ describe('Sharing Use Cases', () => {
       usersUsecases.getAvatarUrl.mockResolvedValue(null);
 
       const result = await sharingService.getFoldersInSharedFolder(
-        folder.uuid,
-        null,
-        sharedUser,
-        page,
-        perPage,
+        folder.uuid, null, sharedUser, page, perPage,
       );
 
       expect(result.items).toBeDefined();
@@ -2881,13 +2795,7 @@ describe('Sharing Use Cases', () => {
       sharingRepository.findOneSharing.mockResolvedValue(null);
 
       await expect(
-        sharingService.getFoldersInSharedFolder(
-          folder.uuid,
-          null,
-          outsider,
-          page,
-          perPage,
-        ),
+        sharingService.getFoldersInSharedFolder(folder.uuid, null, outsider, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -2905,13 +2813,7 @@ describe('Sharing Use Cases', () => {
       (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
 
       await expect(
-        sharingService.getFoldersInSharedFolder(
-          folder.uuid,
-          'token',
-          sharedUser,
-          page,
-          perPage,
-        ),
+        sharingService.getFoldersInSharedFolder(folder.uuid, 'token', sharedUser, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -2930,32 +2832,19 @@ describe('Sharing Use Cases', () => {
       (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
 
       await expect(
-        sharingService.getFoldersInSharedFolder(
-          folder.uuid,
-          'token',
-          sharedUser,
-          page,
-          perPage,
-        ),
+        sharingService.getFoldersInSharedFolder(folder.uuid, 'token', sharedUser, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('When folder has no parent, then parent is null', async () => {
-      const noParentFolder = newFolder({
-        owner,
-        attributes: { parentId: null },
-      });
+      const noParentFolder = newFolder({ owner, attributes: { parentId: null } });
 
       folderUseCases.getByUuid.mockResolvedValue(noParentFolder);
       folderUseCases.getFoldersWithParent.mockResolvedValue([]);
       usersUsecases.getAvatarUrl.mockResolvedValue(null);
 
       const result = await sharingService.getFoldersInSharedFolder(
-        noParentFolder.uuid,
-        null,
-        owner,
-        page,
-        perPage,
+        noParentFolder.uuid, null, owner, page, perPage,
       );
 
       expect(result.parent.uuid).toBeNull();
@@ -2985,11 +2874,7 @@ describe('Sharing Use Cases', () => {
       usersUsecases.getAvatarUrl.mockResolvedValue(null);
 
       const result = await sharingService.getFilesInSharedFolder(
-        folder.uuid,
-        null,
-        owner,
-        page,
-        perPage,
+        folder.uuid, null, owner, page, perPage,
       );
 
       expect(result.role).toBe('OWNER');
@@ -3003,13 +2888,7 @@ describe('Sharing Use Cases', () => {
       folderUseCases.getByUuid.mockResolvedValue(trashedFolder);
 
       await expect(
-        sharingService.getFilesInSharedFolder(
-          trashedFolder.uuid,
-          null,
-          owner,
-          page,
-          perPage,
-        ),
+        sharingService.getFilesInSharedFolder(trashedFolder.uuid, null, owner, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -3020,13 +2899,7 @@ describe('Sharing Use Cases', () => {
       folderUseCases.getByUuid.mockResolvedValue(removedFolder);
 
       await expect(
-        sharingService.getFilesInSharedFolder(
-          removedFolder.uuid,
-          null,
-          owner,
-          page,
-          perPage,
-        ),
+        sharingService.getFilesInSharedFolder(removedFolder.uuid, null, owner, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -3045,11 +2918,7 @@ describe('Sharing Use Cases', () => {
       usersUsecases.getAvatarUrl.mockResolvedValue(null);
 
       const result = await sharingService.getFilesInSharedFolder(
-        folder.uuid,
-        null,
-        sharedUser,
-        page,
-        perPage,
+        folder.uuid, null, sharedUser, page, perPage,
       );
 
       expect(result.items).toBeDefined();
@@ -3064,13 +2933,7 @@ describe('Sharing Use Cases', () => {
       sharingRepository.findOneSharing.mockResolvedValue(null);
 
       await expect(
-        sharingService.getFilesInSharedFolder(
-          folder.uuid,
-          null,
-          outsider,
-          page,
-          perPage,
-        ),
+        sharingService.getFilesInSharedFolder(folder.uuid, null, outsider, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -3090,13 +2953,7 @@ describe('Sharing Use Cases', () => {
       (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
 
       await expect(
-        sharingService.getFilesInSharedFolder(
-          folder.uuid,
-          'token',
-          sharedUser,
-          page,
-          perPage,
-        ),
+        sharingService.getFilesInSharedFolder(folder.uuid, 'token', sharedUser, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -3115,13 +2972,7 @@ describe('Sharing Use Cases', () => {
       (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
 
       await expect(
-        sharingService.getFilesInSharedFolder(
-          folder.uuid,
-          'token',
-          sharedUser,
-          page,
-          perPage,
-        ),
+        sharingService.getFilesInSharedFolder(folder.uuid, 'token', sharedUser, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
   });
@@ -3148,10 +2999,7 @@ describe('Sharing Use Cases', () => {
       );
 
       const result = await sharingService.getFoldersFromPublicFolder(
-        folder.uuid,
-        null,
-        page,
-        perPage,
+        folder.uuid, null, page, perPage,
       );
 
       expect(result.items).toHaveLength(1);
@@ -3165,12 +3013,7 @@ describe('Sharing Use Cases', () => {
       folderUseCases.getByUuid.mockResolvedValue(trashedFolder);
 
       await expect(
-        sharingService.getFoldersFromPublicFolder(
-          trashedFolder.uuid,
-          null,
-          page,
-          perPage,
-        ),
+        sharingService.getFoldersFromPublicFolder(trashedFolder.uuid, null, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -3181,29 +3024,17 @@ describe('Sharing Use Cases', () => {
       folderUseCases.getByUuid.mockResolvedValue(removedFolder);
 
       await expect(
-        sharingService.getFoldersFromPublicFolder(
-          removedFolder.uuid,
-          null,
-          page,
-          perPage,
-        ),
+        sharingService.getFoldersFromPublicFolder(removedFolder.uuid, null, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('When navigation credentials are invalid, then it fails', async () => {
       folderUseCases.getByUuid.mockResolvedValue(folder);
       folderUseCases.getFolder.mockResolvedValue(parentFolder);
-      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(
-        'invalid-string',
-      );
+      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue('invalid-string');
 
       await expect(
-        sharingService.getFoldersFromPublicFolder(
-          folder.uuid,
-          'some-token',
-          page,
-          perPage,
-        ),
+        sharingService.getFoldersFromPublicFolder(folder.uuid, 'some-token', page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -3222,12 +3053,7 @@ describe('Sharing Use Cases', () => {
       (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
 
       await expect(
-        sharingService.getFoldersFromPublicFolder(
-          folder.uuid,
-          'some-token',
-          page,
-          perPage,
-        ),
+        sharingService.getFoldersFromPublicFolder(folder.uuid, 'some-token', page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -3247,20 +3073,12 @@ describe('Sharing Use Cases', () => {
       (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
 
       await expect(
-        sharingService.getFoldersFromPublicFolder(
-          folder.uuid,
-          'some-token',
-          page,
-          perPage,
-        ),
+        sharingService.getFoldersFromPublicFolder(folder.uuid, 'some-token', page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('When folder has no parent, then parent fields are null', async () => {
-      const noParentFolder = newFolder({
-        owner,
-        attributes: { parentId: null },
-      });
+      const noParentFolder = newFolder({ owner, attributes: { parentId: null } });
       const noParentSharing = newSharing({ owner, item: noParentFolder });
 
       folderUseCases.getByUuid.mockResolvedValue(noParentFolder);
@@ -3272,10 +3090,7 @@ describe('Sharing Use Cases', () => {
       );
 
       const result = await sharingService.getFoldersFromPublicFolder(
-        noParentFolder.uuid,
-        null,
-        page,
-        perPage,
+        noParentFolder.uuid, null, page, perPage,
       );
 
       expect(result.parent.uuid).toBeNull();
@@ -3307,11 +3122,7 @@ describe('Sharing Use Cases', () => {
       fileUsecases.getEncryptionKeyFromFile.mockResolvedValue('encrypted-key');
 
       const result = await sharingService.getFilesFromPublicFolder(
-        folder.uuid,
-        null,
-        code,
-        page,
-        perPage,
+        folder.uuid, null, code, page, perPage,
       );
 
       expect(result.items).toHaveLength(1);
@@ -3325,13 +3136,7 @@ describe('Sharing Use Cases', () => {
       folderUseCases.getByUuid.mockResolvedValue(trashedFolder);
 
       await expect(
-        sharingService.getFilesFromPublicFolder(
-          trashedFolder.uuid,
-          null,
-          code,
-          page,
-          perPage,
-        ),
+        sharingService.getFilesFromPublicFolder(trashedFolder.uuid, null, code, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -3342,13 +3147,7 @@ describe('Sharing Use Cases', () => {
       folderUseCases.getByUuid.mockResolvedValue(removedFolder);
 
       await expect(
-        sharingService.getFilesFromPublicFolder(
-          removedFolder.uuid,
-          null,
-          code,
-          page,
-          perPage,
-        ),
+        sharingService.getFilesFromPublicFolder(removedFolder.uuid, null, code, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -3358,31 +3157,17 @@ describe('Sharing Use Cases', () => {
       sharingRepository.findOneSharing.mockResolvedValue(null);
 
       await expect(
-        sharingService.getFilesFromPublicFolder(
-          folder.uuid,
-          null,
-          code,
-          page,
-          perPage,
-        ),
+        sharingService.getFilesFromPublicFolder(folder.uuid, null, code, page, perPage),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('When navigation credentials are invalid, then it fails', async () => {
       folderUseCases.getByUuid.mockResolvedValue(folder);
       folderUseCases.getFolder.mockResolvedValue(parentFolder);
-      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(
-        'invalid-string',
-      );
+      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue('invalid-string');
 
       await expect(
-        sharingService.getFilesFromPublicFolder(
-          folder.uuid,
-          'some-token',
-          code,
-          page,
-          perPage,
-        ),
+        sharingService.getFilesFromPublicFolder(folder.uuid, 'some-token', code, page, perPage),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -3402,13 +3187,7 @@ describe('Sharing Use Cases', () => {
       (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
 
       await expect(
-        sharingService.getFilesFromPublicFolder(
-          folder.uuid,
-          'some-token',
-          code,
-          page,
-          perPage,
-        ),
+        sharingService.getFilesFromPublicFolder(folder.uuid, 'some-token', code, page, perPage),
       ).rejects.toThrow(NotFoundException);
     });
   });
