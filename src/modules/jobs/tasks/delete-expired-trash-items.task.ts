@@ -6,7 +6,6 @@ import { ConfigService } from '@nestjs/config';
 import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
 import { SequelizeFileRepository } from '../../file/file.repository';
 import { SequelizeFolderRepository } from '../../folder/folder.repository';
-import { Time } from '../../../lib/time';
 import { TRASH_EXPIRATION_START_DATE } from '../../trash/trash-expiration.utils';
 
 @Injectable()
@@ -35,11 +34,6 @@ export class DeleteExpiredTrashItemsTask {
     );
 
     if (!shouldExecuteCronjobs) {
-      return;
-    }
-
-    if (Time.daysSince(this.startDate) < 1) {
-      this.logger.log('Skipping cleanup');
       return;
     }
 
