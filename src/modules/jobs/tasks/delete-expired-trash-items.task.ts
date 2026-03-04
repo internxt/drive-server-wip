@@ -28,11 +28,12 @@ export class DeleteExpiredTrashItemsTask {
     name: JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
   })
   async scheduleCleanup() {
-    const shouldExecuteCronjobs = this.configService.get<boolean>(
+    /* const shouldExecuteCronjobs = this.configService.get<boolean>(
       'executeCronjobs',
       false,
-    );
+    ); */
 
+    const shouldExecuteCronjobs = false;
     if (!shouldExecuteCronjobs) {
       return;
     }
