@@ -897,14 +897,14 @@ describe('SequelizeFolderRepository', () => {
     it('When counting folders with conditions, then it should return count', async () => {
       const whereConditions = { userId: 1, deleted: false };
       const mockCount = 5;
-      jest.spyOn(folderModel, 'findAndCountAll').mockResolvedValueOnce({
+      jest.spyOn(folderModel, 'count').mockResolvedValueOnce({
         count: mockCount,
         rows: [],
       } as any);
 
       const result = await repository.getFoldersCountWhere(whereConditions);
 
-      expect(folderModel.findAndCountAll).toHaveBeenCalledWith({
+      expect(folderModel.count).toHaveBeenCalledWith({
         where: whereConditions,
       });
       expect(result).toBe(mockCount);
@@ -916,7 +916,7 @@ describe('SequelizeFolderRepository', () => {
       const userId = 1;
       const mockCount = 3;
 
-      jest.spyOn(folderModel, 'findAndCountAll').mockResolvedValueOnce({
+      jest.spyOn(folderModel, 'count').mockResolvedValueOnce({
         count: mockCount,
         rows: [],
       } as any);
@@ -924,7 +924,7 @@ describe('SequelizeFolderRepository', () => {
       const result =
         await repository.getFoldersWhoseParentIdDoesNotExist(userId);
 
-      expect(folderModel.findAndCountAll).toHaveBeenCalledWith({
+      expect(folderModel.count).toHaveBeenCalledWith({
         where: {
           parentId: {
             [Op.not]: null,
