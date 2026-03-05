@@ -841,16 +841,9 @@ export class SequelizeFolderRepository implements FolderRepository {
             -- , tr.retention_days
           ) AS retention_days
         FROM users u
-        LEFT JOIN user_overridden_limits uol
-          ON uol.user_id = u.uuid::text
-        LEFT JOIN trash_retention_limit uol_lr
-          ON uol.limit_id = uol_lr.id
-        -- LEFT JOIN tier_retention tr
-        --   ON tr.tier_id = u.tier_id
-        WHERE COALESCE(
-          uol_lr.retention_days
-          -- , tr.retention_days
-        ) IS NOT NULL
+        JOIN user_overridden_limits uol ON uol.user_id = u.uuid::text
+        JOIN trash_retention_limit uol_lr ON uol.limit_id = uol_lr.id
+        -- LEFT JOIN tier_retention tr ON tr.tier_id = u.tier_id
       )
       SELECT fo.uuid AS item_id
       FROM folders fo
