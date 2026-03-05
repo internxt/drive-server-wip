@@ -1065,14 +1065,11 @@ describe('FileRepository', () => {
       const userId = 123;
       const count = 2;
 
-      jest.spyOn(fileModel, 'findAndCountAll').mockResolvedValueOnce({
-        rows: [],
-        count,
-      } as any);
+      jest.spyOn(fileModel, 'count').mockResolvedValueOnce(count);
 
       const result = await repository.getZeroSizeFilesCountByUser(userId);
 
-      expect(fileModel.findAndCountAll).toHaveBeenCalledWith({
+      expect(fileModel.count).toHaveBeenCalledWith({
         where: {
           userId,
           size: 0,

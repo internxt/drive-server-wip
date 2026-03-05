@@ -493,7 +493,7 @@ export class SequelizeFileRepository implements FileRepository {
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
   ): Promise<number> {
-    const { count } = await this.fileModel.findAndCountAll({
+    const count = await this.fileModel.count({
       where: {
         size: 0,
         status: {
@@ -795,7 +795,7 @@ export class SequelizeFileRepository implements FileRepository {
   async getFilesWhoseFolderIdDoesNotExist(
     userId: File['userId'],
   ): Promise<number> {
-    const { count } = await this.fileModel.findAndCountAll({
+    const count = await this.fileModel.count({
       where: {
         folderId: {
           [Op.not]: null,
@@ -811,13 +811,13 @@ export class SequelizeFileRepository implements FileRepository {
   }
 
   async getFilesCountWhere(where: Partial<File>): Promise<number> {
-    const { count } = await this.fileModel.findAndCountAll({ where });
+    const count = await this.fileModel.count({ where });
 
     return count;
   }
 
   async getZeroSizeFilesCountByUser(userId: User['id']): Promise<number> {
-    const { count } = await this.fileModel.findAndCountAll({
+    const count = await this.fileModel.count({
       where: {
         userId,
         size: 0,

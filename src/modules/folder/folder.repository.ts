@@ -671,7 +671,7 @@ export class SequelizeFolderRepository implements FolderRepository {
    * @returns The number of folders that match the condition
    */
   async getFoldersCountWhere(where: Partial<Folder>): Promise<number> {
-    const { count } = await this.folderModel.findAndCountAll({ where });
+    const count = await this.folderModel.count({ where });
     return count;
   }
 
@@ -683,7 +683,7 @@ export class SequelizeFolderRepository implements FolderRepository {
   async getFoldersWhoseParentIdDoesNotExist(
     userId: FolderAttributes['userId'],
   ): Promise<number> {
-    const { count } = await this.folderModel.findAndCountAll({
+    const count = await this.folderModel.count({
       where: {
         parentId: {
           [Op.not]: null,
