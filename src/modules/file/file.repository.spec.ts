@@ -1,4 +1,8 @@
 import { Test, type TestingModule } from '@nestjs/testing';
+
+jest.mock('../../lib/query-timeout', () => ({
+  withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
+}));
 import { getModelToken } from '@nestjs/sequelize';
 import { createMock } from '@golevelup/ts-jest';
 import {
@@ -1183,6 +1187,7 @@ describe('FileRepository', () => {
         {
           replacements: { startDate, limit },
           type: QueryTypes.SELECT,
+          transaction: expect.any(Object),
         },
       );
       expect(result).toEqual(fileUuids);
