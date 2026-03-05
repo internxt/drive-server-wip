@@ -32,7 +32,6 @@ import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.att
 import { FileUseCases } from '../file/file.usecase';
 import { type File, FileStatus } from '../file/file.domain';
 import { type CreateFolderDto } from './dto/create-folder.dto';
-import { type CreateBulkFoldersDto } from './dto/create-bulk-folders.dto';
 import { type FolderModel } from './folder.model';
 import { type MoveFolderDto } from './dto/move-folder.dto';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
@@ -422,10 +421,9 @@ export class FolderUseCases {
     return folder;
   }
 
-  async createBulkFolders(
-    user: User,
-    dto: CreateBulkFoldersDto,
-  ): Promise<Folder[]> {
+  async createBulkFolders(user: User, dto: CreateFolderDto): Promise<Folder[]> {
+    const folders = dto.folders;
+
     const parentFolder = await this.folderRepository.findOne({
       uuid: dto.parentFolderUuid,
       userId: user.id,
@@ -435,7 +433,7 @@ export class FolderUseCases {
       throw new NotFoundException('Parent folder does not exist');
     }
 
-    for (const item of dto.folders) {
+    for (const item of folders) {
       if (item.plainName === '' || invalidName.test(item.plainName)) {
         throw new BadRequestException(
           `Invalid folder name: "${item.plainName}"`,
@@ -443,7 +441,7 @@ export class FolderUseCases {
       }
     }
 
-    const plainNames = dto.folders.map((f) => f.plainName);
+    const plainNames = folders.map((f) => f.plainName);
     const uniqueNames = new Set(plainNames);
     if (uniqueNames.size !== plainNames.length) {
       throw new BadRequestException('Duplicate folder names in request');
@@ -466,7 +464,7 @@ export class FolderUseCases {
     }
 
     const now = new Date();
-    const foldersToCreate = dto.folders.map((item) => ({
+    const foldersToCreate = folders.map((item) => ({
       uuid: v4(),
       userId: user.id,
       name: this.cryptoService.encryptName(item.plainName, parentFolder.id),
