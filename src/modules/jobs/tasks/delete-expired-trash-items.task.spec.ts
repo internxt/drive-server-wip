@@ -10,6 +10,13 @@ import { SequelizeFolderRepository } from '../../folder/folder.repository';
 import { type JobExecutionModel } from '../models/job-execution.model';
 import { JobName } from '../constants';
 
+jest.mock('newrelic', () => ({
+  startBackgroundTransaction: jest.fn((_name, _group, cb) => cb()),
+  getTransaction: jest.fn(() => ({ end: jest.fn() })),
+  noticeError: jest.fn(),
+  addCustomAttribute: jest.fn(),
+}));
+
 describe('DeleteExpiredTrashItemsTask', () => {
   let task: DeleteExpiredTrashItemsTask;
   let jobExecutionRepository: DeepMocked<SequelizeJobExecutionRepository>;

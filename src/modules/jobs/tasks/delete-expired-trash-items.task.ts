@@ -1,3 +1,4 @@
+import newrelic from 'newrelic';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { JobName } from '../constants';
@@ -28,12 +29,11 @@ export class DeleteExpiredTrashItemsTask {
     name: JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
   })
   async scheduleCleanup() {
-    /* const shouldExecuteCronjobs = this.configService.get<boolean>(
+    const shouldExecuteCronjobs = this.configService.get<boolean>(
       'executeCronjobs',
       false,
-    ); */
+    );
 
-    const shouldExecuteCronjobs = false;
     if (!shouldExecuteCronjobs) {
       return;
     }
@@ -54,7 +54,21 @@ export class DeleteExpiredTrashItemsTask {
       this.logger.log(
         'Lock acquired! Starting expired trash items cleanup job',
       );
-      await this.startJob();
+      await newrelic.startBackgroundTransaction(
+        JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
+        'Job',
+        async () => {
+          const transaction = newrelic.getTransaction();
+          try {
+            await this.startJob();
+          } catch (error) {
+            newrelic.noticeError(error);
+            throw error;
+          } finally {
+            transaction.end();
+          }
+        },
+      );
     } catch (error) {
       this.logger.error(
         `Expired trash items cleanup job could not be setup. error: ${JSON.stringify(
@@ -100,6 +114,9 @@ export class DeleteExpiredTrashItemsTask {
           `[${startedJob.id}] Deleted ${folderIds.length} expired folders. Total: ${totalFoldersDeleted}`,
         );
       }
+
+      newrelic.addCustomAttribute('filesDeleted', totalFilesDeleted);
+      newrelic.addCustomAttribute('foldersDeleted', totalFoldersDeleted);
 
       await this.jobExecutionRepository.markAsCompleted(startedJob.id, {
         filesDeleted: totalFilesDeleted,
