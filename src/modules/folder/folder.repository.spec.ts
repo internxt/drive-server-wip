@@ -1,4 +1,8 @@
 import { createMock } from '@golevelup/ts-jest';
+
+jest.mock('../../lib/query-timeout', () => ({
+  withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
+}));
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { SequelizeFolderRepository } from './folder.repository';
 import { FolderModel } from './folder.model';
@@ -1407,6 +1411,7 @@ describe('SequelizeFolderRepository', () => {
         {
           replacements: { limit, startDate },
           type: QueryTypes.SELECT,
+          transaction: expect.any(Object),
         },
       );
       expect(result).toEqual(folderUuids);
