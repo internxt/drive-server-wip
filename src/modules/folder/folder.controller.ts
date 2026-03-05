@@ -39,7 +39,6 @@ import { MoveFolderDto } from './dto/move-folder.dto';
 import { UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { WorkspacesInBehalfValidationFolder } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { CreateFolderDto } from './dto/create-folder.dto';
-import { CreateBulkFoldersDto } from './dto/create-bulk-folders.dto';
 import { CheckFoldersExistenceDto } from './dto/folder-existence-in-folder.dto';
 import { CheckFileExistenceInFolderDto } from './dto/files-existence-in-folder.dto';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
@@ -54,7 +53,7 @@ import { getPathDepth } from '../../lib/path';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
 import { Requester } from '../auth/decorators/requester.decorator';
 import {
-  CreateBulkFoldersResponseDto,
+  type CreateBulkFoldersResponseDto,
   ExistentFoldersDto,
   FolderDto,
   FoldersDto,
@@ -91,7 +90,9 @@ export class FolderController {
 
   @Post('/')
   @ApiOperation({
-    summary: 'Create Folder',
+    summary: 'Create one or multiple folders',
+    description:
+      'Creates a single folder when `plainName` is provided, or multiple when `folders` array is provided.',
   })
   @ApiBearerAuth()
   @ApiOkResponse({ type: FolderDto })
@@ -101,7 +102,28 @@ export class FolderController {
     @Body() createFolderDto: CreateFolderDto,
     @Client() clientId: string,
     @Requester() requester: User,
-  ): Promise<FolderDto> {
+  ): Promise<FolderDto | CreateBulkFoldersResponseDto> {
+    if (createFolderDto.folders?.length) {
+      const folders = await this.folderUseCases.createBulkFolders(
+        user,
+        createFolderDto,
+      );
+
+      const created = folders.map((folder) => {
+        const folderDto = { ...folder, status: folder.getFolderStatus() };
+
+        this.storageNotificationService.folderCreated({
+          payload: folderDto,
+          user: requester,
+          clientId,
+        });
+
+        return folderDto;
+      });
+
+      return { created };
+    }
+
     const folder = await this.folderUseCases.createFolder(
       user,
       createFolderDto,
@@ -116,35 +138,6 @@ export class FolderController {
     });
 
     return folderDto;
-  }
-
-  @Post('/bulk')
-  @ApiOperation({
-    summary: 'Create multiple folders in the same parent',
-  })
-  @ApiBearerAuth()
-  @ApiOkResponse({ type: CreateBulkFoldersResponseDto })
-  async createBulkFolders(
-    @UserDecorator() user: User,
-    @Body() dto: CreateBulkFoldersDto,
-    @Client() clientId: string,
-    @Requester() requester: User,
-  ): Promise<CreateBulkFoldersResponseDto> {
-    const folders = await this.folderUseCases.createBulkFolders(user, dto);
-
-    const created = folders.map((folder) => {
-      const folderDto = { ...folder, status: folder.getFolderStatus() };
-
-      this.storageNotificationService.folderCreated({
-        payload: folderDto,
-        user: requester,
-        clientId,
-      });
-
-      return folderDto;
-    });
-
-    return { created };
   }
 
   @Get('/count')
