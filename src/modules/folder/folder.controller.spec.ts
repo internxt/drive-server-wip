@@ -608,7 +608,7 @@ describe('FolderController', () => {
       parentFolderUuid: v4(),
     };
 
-    it('When creating a folder with valid data, then it should create and return the folder', async () => {
+    it('When creating a single folder with valid data, then it should create and return the folder', async () => {
       const createdFolder = newFolder({
         attributes: { plainName: createFolderDto.plainName },
       });
@@ -656,14 +656,9 @@ describe('FolderController', () => {
         ),
       ).rejects.toThrow(BadRequestException);
     });
-  });
 
-  describe('createBulkFolders', () => {
-    const clientId = 'test-client';
-    const requester = newUser();
-    const parentFolderUuid = v4();
-
-    it('When creating bulk folders with valid data, then it should create and return all folders', async () => {
+    it('When creating bulk folders via folders array, then it should create and return all folders', async () => {
+      const parentFolderUuid = v4();
       const dto = {
         parentFolderUuid,
         folders: [
@@ -684,12 +679,12 @@ describe('FolderController', () => {
         .spyOn(storageNotificationService, 'folderCreated')
         .mockImplementation(() => {});
 
-      const result = await folderController.createBulkFolders(
+      const result = (await folderController.createFolder(
         userMocked,
         dto,
         clientId,
         requester,
-      );
+      )) as { created: any[] };
 
       expect(result.created).toHaveLength(3);
       expect(result.created).toEqual(
@@ -706,6 +701,7 @@ describe('FolderController', () => {
     });
 
     it('When bulk folder creation fails, then it should throw the error', async () => {
+      const parentFolderUuid = v4();
       const dto = {
         parentFolderUuid,
         folders: [{ plainName: 'Valid' }, { plainName: 'Invalid/Name' }],
@@ -716,12 +712,7 @@ describe('FolderController', () => {
         .mockRejectedValue(new BadRequestException('Invalid folder name'));
 
       await expect(
-        folderController.createBulkFolders(
-          userMocked,
-          dto,
-          clientId,
-          requester,
-        ),
+        folderController.createFolder(userMocked, dto, clientId, requester),
       ).rejects.toThrow(BadRequestException);
     });
   });
