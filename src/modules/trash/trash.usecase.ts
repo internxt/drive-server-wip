@@ -7,10 +7,7 @@ import { FileUseCases } from '../file/file.usecase';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TrashEmptyRequestedEvent } from './events/trash-empty-requested.event';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import {
-  DEFAULT_TRASH_RETENTION_DAYS,
-  LimitLabels,
-} from '../feature-limit/limits.enum';
+import { LimitLabels } from '../feature-limit/limits.enum';
 
 export interface EmptyTrashResult {
   message: string;
@@ -129,11 +126,11 @@ export class TrashUseCases {
     }
   }
 
-  async getTrashRetentionDays(user: User): Promise<number> {
+  async getTrashRetentionDays(user: User): Promise<number | null> {
     const limit = await this.featureLimitService.getUserLimitByLabel(
       LimitLabels.TrashRetentionDays,
       user,
     );
-    return limit ? Number(limit.value) : DEFAULT_TRASH_RETENTION_DAYS;
+    return limit ? Number(limit.value) : null;
   }
 }

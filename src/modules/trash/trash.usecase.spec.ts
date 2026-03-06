@@ -9,7 +9,6 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { newUser, newFile, newFolder } from '../../../test/fixtures';
 import { TrashEmptyRequestedEvent } from './events/trash-empty-requested.event';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,
@@ -316,7 +315,7 @@ describe('Trash Use Cases', () => {
 
       const result = await service.getTrashRetentionDays(user);
 
-      expect(result).toBe(DEFAULT_TRASH_RETENTION_DAYS);
+      expect(result).toBe(null);
     });
 
     it('When user has a limit configured, then should return that limit value', async () => {

@@ -20,7 +20,6 @@ import { Test } from '@nestjs/testing';
 import { FileStatus } from '../file/file.domain';
 import { type BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { v4 } from 'uuid';
-import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 import * as TrashExpirationUtils from './trash-expiration.utils';
 
 const user = newUser();
@@ -290,6 +289,7 @@ describe('TrashController', () => {
   });
 
   describe('getTrashedFilesPaginated', () => {
+    const retentionDays = 30;
     const validPagination: BasicPaginationDto = { limit: 10, offset: 0 };
 
     it('When pagination is missing limit, then it should throw BadRequestException', async () => {
@@ -344,7 +344,6 @@ describe('TrashController', () => {
       const mockFiles = [
         newFile({ attributes: { status: FileStatus.TRASHED } }),
       ];
-      const retentionDays = DEFAULT_TRASH_RETENTION_DAYS;
       const expectedExpiresAt = new Date('2026-03-01');
       jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(mockFiles);
       jest
@@ -381,7 +380,6 @@ describe('TrashController', () => {
       const mockFolders = [
         newFolder({ attributes: { deleted: true, removed: false } }),
       ];
-      const retentionDays = DEFAULT_TRASH_RETENTION_DAYS;
       const expectedExpiresAt = new Date('2026-03-01');
       jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue(mockFolders);
       jest
@@ -421,7 +419,7 @@ describe('TrashController', () => {
       jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue([mockFile]);
       jest
         .spyOn(trashUseCases, 'getTrashRetentionDays')
-        .mockResolvedValue(DEFAULT_TRASH_RETENTION_DAYS);
+        .mockResolvedValue(retentionDays);
       jest.spyOn(TrashExpirationUtils, 'calculateTrashExpirationDate');
 
       const result = await controller.getTrashedFilesPaginated(
@@ -445,7 +443,7 @@ describe('TrashController', () => {
       jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue([mockFolder]);
       jest
         .spyOn(trashUseCases, 'getTrashRetentionDays')
-        .mockResolvedValue(DEFAULT_TRASH_RETENTION_DAYS);
+        .mockResolvedValue(retentionDays);
       jest.spyOn(TrashExpirationUtils, 'calculateTrashExpirationDate');
 
       const result = await controller.getTrashedFilesPaginated(
