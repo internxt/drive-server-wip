@@ -82,10 +82,7 @@ import { type WorkspaceLog } from './domains/workspace-log.domain';
 import { type TrashItem } from './interceptors/workspaces-logs.interceptor';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { calculateTrashExpirationDate } from '../trash/trash-expiration.utils';
-import {
-  DEFAULT_TRASH_RETENTION_DAYS,
-  LimitLabels,
-} from '../feature-limit/limits.enum';
+import { LimitLabels } from '../feature-limit/limits.enum';
 @Injectable()
 export class WorkspacesUsecases {
   constructor(
@@ -698,7 +695,7 @@ export class WorkspacesUsecases {
     offset = 0,
     sort?: SortParamsFile | SortParamsFolder,
   ) {
-    const [items, retentionLimit] = await Promise.all([
+    const [items, workspaceResourcesOwner] = await Promise.all([
       itemType === WorkspaceItemType.File
         ? this.fileUseCases.getFilesInWorkspace(
             user.uuid,
@@ -712,20 +709,19 @@ export class WorkspacesUsecases {
             { deleted: true, removed: false },
             { limit, offset, sort: sort as SortParamsFolder },
           ),
-      this.featureLimitsService.getUserLimitByLabel(
-        LimitLabels.TrashRetentionDays,
-        user,
-      ),
+      this.workspaceRepository.findWorkspaceResourcesOwner(workspaceId),
     ]);
 
-    const retentionDays = retentionLimit
-      ? Number(retentionLimit.value)
-      : DEFAULT_TRASH_RETENTION_DAYS;
+    const retentionLimit = await this.featureLimitsService.getUserLimitByLabel(
+      LimitLabels.TrashRetentionDays,
+      workspaceResourcesOwner,
+    );
+    const retentionDays = retentionLimit ? Number(retentionLimit.value) : null;
 
     return {
       result: items.map((item) => ({
         ...item.toJSON(),
-        expiresAt: item.updatedAt
+        expiresAt: retentionDays
           ? calculateTrashExpirationDate(retentionDays, item.updatedAt)
           : null,
       })),
