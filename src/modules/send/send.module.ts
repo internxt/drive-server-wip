@@ -2,6 +2,8 @@ import { forwardRef, Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
+import { HttpClientModule } from '../../externals/http/http.module';
+import { NewsletterService } from '../../externals/newsletter';
 import { FileModule } from '../file/file.module';
 import { FolderModule } from '../folder/folder.module';
 import { FolderModel } from '../folder/folder.model';
@@ -31,8 +33,14 @@ import { CaptchaService } from '../../externals/captcha/captcha.service';
     FolderModule,
     NotificationModule,
     CryptoModule,
+    HttpClientModule,
   ],
   controllers: [SendController],
-  providers: [SequelizeSendRepository, SendUseCases, CaptchaService],
+  providers: [
+    SequelizeSendRepository,
+    SendUseCases,
+    CaptchaService,
+    NewsletterService,
+  ],
 })
 export class SendModule {}
