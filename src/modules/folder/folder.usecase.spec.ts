@@ -1093,11 +1093,103 @@ describe('FolderUseCases', () => {
     });
   });
 
+  describe('getTrashedFolders', () => {
+    const createdBy = newUser().id;
+
+    it('When called with null cutoffDate, then it should get all trashed folders without date filter', async () => {
+      const trashedFolder = newFolder({
+        attributes: { plainName: 'my-folder', deleted: true },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findTrashedNotExpired')
+        .mockResolvedValue([trashedFolder]);
+
+      const result = await service.getTrashedFolders(createdBy, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(folderRepository.findTrashedNotExpired).toHaveBeenCalledWith(
+        createdBy,
+        null,
+        20,
+        0,
+        undefined,
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('When called with a cutoffDate, then it should pass it to the repository', async () => {
+      const cutoffDate = new Date('2026-03-04');
+      const trashedFolder = newFolder({
+        attributes: { plainName: 'my-folder', deleted: true },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findTrashedNotExpired')
+        .mockResolvedValue([trashedFolder]);
+
+      await service.getTrashedFolders(createdBy, cutoffDate, {
+        limit: 10,
+        offset: 5,
+      });
+
+      expect(folderRepository.findTrashedNotExpired).toHaveBeenCalledWith(
+        createdBy,
+        cutoffDate,
+        10,
+        5,
+        undefined,
+      );
+    });
+
+    it('When folders have no plainName, then it should decrypt them', async () => {
+      const encryptedFolder = newFolder({
+        attributes: { plainName: null },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findTrashedNotExpired')
+        .mockResolvedValue([encryptedFolder]);
+
+      const decryptSpy = jest
+        .spyOn(service, 'decryptFolderName')
+        .mockReturnValue({ ...encryptedFolder, plainName: 'decrypted' } as any);
+
+      await service.getTrashedFolders(createdBy, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(decryptSpy).toHaveBeenCalledWith(encryptedFolder);
+    });
+
+    it('When folders already have plainName, then it should not decrypt them', async () => {
+      const decryptedFolder = newFolder({
+        attributes: { plainName: 'my-folder' },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findTrashedNotExpired')
+        .mockResolvedValue([decryptedFolder]);
+
+      const decryptSpy = jest.spyOn(service, 'decryptFolderName');
+
+      await service.getTrashedFolders(createdBy, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(decryptSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getTrashedFoldersInWorkspace', () => {
     const createdBy = userMocked.uuid;
     const workspace = newWorkspace();
 
-    it('When called with null cutoffDate, then it should return all trashed folders without date filter', async () => {
+    it('When called with null cutoffDate, then it should get all trashed folders without date filter', async () => {
       const trashedFolder = newFolder({
         attributes: { plainName: 'my-folder', deleted: true },
       });

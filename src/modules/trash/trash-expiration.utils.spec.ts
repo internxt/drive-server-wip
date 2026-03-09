@@ -2,6 +2,7 @@ import { Time } from '../../lib/time';
 import {
   calculateTrashExpirationDate,
   TRASH_EXPIRATION_START_DATE,
+  getTrashNotExpiredCutoffDate,
 } from './trash-expiration.utils';
 
 describe('calculateTrashExpirationDate', () => {
@@ -35,5 +36,35 @@ describe('calculateTrashExpirationDate', () => {
     expect(result).toEqual(
       Time.dateWithTimeAdded(15, 'day', TRASH_EXPIRATION_START_DATE),
     );
+  });
+});
+
+describe('getTrashNotExpiredCutoffDate', () => {
+  beforeAll(() => {
+    jest.useFakeTimers();
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
+  it('When cutoff date is before or equal to the expiration start date, then it should return null', () => {
+    jest.setSystemTime(new Date('2026-03-20T00:00:00Z'));
+
+    const result = getTrashNotExpiredCutoffDate(15);
+
+    const expectedCutoff = Time.dateWithTimeAdded(-15, 'day', new Date());
+    expect(TRASH_EXPIRATION_START_DATE >= expectedCutoff).toBe(true);
+    expect(result).toBeNull();
+  });
+
+  it('When cutoff date is after the expiration start date, then it should return the cutoff date', () => {
+    jest.setSystemTime(new Date('2026-05-01T00:00:00Z'));
+
+    const result = getTrashNotExpiredCutoffDate(15);
+
+    const expectedCutoff = Time.dateWithTimeAdded(-15, 'day', new Date());
+
+    expect(result).toEqual(expectedCutoff);
   });
 });

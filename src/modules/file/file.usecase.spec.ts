@@ -1732,28 +1732,30 @@ describe('FileUseCases', () => {
     });
   });
 
-  describe('getTrashedFilesInWorkspace', () => {
-    const createdBy = v4();
-    const workspace = newWorkspace();
+  describe('getTrashedFiles', () => {
+    const userId = 123;
 
     it('When called with null cutoffDate, then it should return all trashed files without date filter', async () => {
       const trashedFile = newFile({
         attributes: { plainName: 'my-file', thumbnails: [], sharings: [] },
       });
+
       jest
-        .spyOn(fileRepository, 'findTrashedNotExpiredInWorkspace')
+        .spyOn(fileRepository, 'findTrashedNotExpired')
         .mockResolvedValue([trashedFile]);
 
-      const result = await service.getTrashedFilesInWorkspace(
-        createdBy,
-        workspace.id,
-        null,
-        { limit: 20, offset: 0 },
-      );
+      const result = await service.getTrashedFiles(userId, null, {
+        limit: 20,
+        offset: 0,
+      });
 
-      expect(
-        fileRepository.findTrashedNotExpiredInWorkspace,
-      ).toHaveBeenCalledWith(createdBy, workspace.id, null, 20, 0, undefined);
+      expect(fileRepository.findTrashedNotExpired).toHaveBeenCalledWith(
+        userId,
+        null,
+        20,
+        0,
+        undefined,
+      );
       expect(result).toHaveLength(1);
     });
 
@@ -1762,9 +1764,124 @@ describe('FileUseCases', () => {
       const trashedFile = newFile({
         attributes: { plainName: 'my-file', thumbnails: [], sharings: [] },
       });
+
+      jest
+        .spyOn(fileRepository, 'findTrashedNotExpired')
+        .mockResolvedValue([trashedFile]);
+
+      await service.getTrashedFiles(userId, cutoffDate, {
+        limit: 10,
+        offset: 5,
+      });
+
+      expect(fileRepository.findTrashedNotExpired).toHaveBeenCalledWith(
+        userId,
+        cutoffDate,
+        10,
+        5,
+        undefined,
+      );
+    });
+
+    it('When files have no plainName, then it should decrypt them', async () => {
+      const encryptedFile = newFile({
+        attributes: { plainName: null, thumbnails: [], sharings: [] },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findTrashedNotExpired')
+        .mockResolvedValue([encryptedFile]);
+
+      const decryptSpy = jest
+        .spyOn(service, 'decrypFileName' as any)
+        .mockReturnValue({ ...encryptedFile, plainName: 'decrypted' });
+
+      await service.getTrashedFiles(userId, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(decryptSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('When files already have plainName, then it should not decrypt them', async () => {
+      const decryptedFile = newFile({
+        attributes: { plainName: 'my-file', thumbnails: [], sharings: [] },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findTrashedNotExpired')
+        .mockResolvedValue([decryptedFile]);
+
+      const decryptSpy = jest.spyOn(service, 'decrypFileName' as any);
+
+      await service.getTrashedFiles(userId, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(decryptSpy).not.toHaveBeenCalled();
+    });
+
+    it('When files are returned, then addOldAttributes should be applied to each file', async () => {
+      const file = newFile({
+        attributes: { plainName: 'file', thumbnails: [], sharings: [] },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findTrashedNotExpired')
+        .mockResolvedValue([file]);
+
+      const addOldSpy = jest
+        .spyOn(service as any, 'addOldAttributes')
+        .mockReturnValue(file);
+
+      await service.getTrashedFiles(userId, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(addOldSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('When options are not provided, then it should use default pagination values', async () => {
+      const file = newFile({
+        attributes: { plainName: 'file', thumbnails: [], sharings: [] },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findTrashedNotExpired')
+        .mockResolvedValue([file]);
+
+      await service.getTrashedFiles(userId, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(fileRepository.findTrashedNotExpired).toHaveBeenCalledWith(
+        userId,
+        null,
+        20,
+        0,
+        undefined,
+      );
+    });
+  });
+
+  describe('getTrashedFilesInWorkspace', () => {
+    const createdBy = v4();
+    const workspace = newWorkspace();
+
+    it('When called, then it should query the repository with the provided parameters', async () => {
+      const file = newFile({
+        attributes: { plainName: 'file', thumbnails: [], sharings: [] },
+      });
+
       jest
         .spyOn(fileRepository, 'findTrashedNotExpiredInWorkspace')
-        .mockResolvedValue([trashedFile]);
+        .mockResolvedValue([file]);
+
+      const cutoffDate = new Date('2026-03-04');
 
       await service.getTrashedFilesInWorkspace(
         createdBy,
@@ -1785,15 +1902,80 @@ describe('FileUseCases', () => {
       );
     });
 
+    it('When options are not provided, then it should use default pagination', async () => {
+      const file = newFile({
+        attributes: { plainName: 'file', thumbnails: [], sharings: [] },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findTrashedNotExpiredInWorkspace')
+        .mockResolvedValue([file]);
+
+      await service.getTrashedFilesInWorkspace(createdBy, workspace.id, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(
+        fileRepository.findTrashedNotExpiredInWorkspace,
+      ).toHaveBeenCalledWith(createdBy, workspace.id, null, 20, 0, undefined);
+    });
+
+    it('When files are returned, then addOldAttributes should be applied to each file', async () => {
+      const file1 = newFile({
+        attributes: { plainName: 'file1', thumbnails: [], sharings: [] },
+      });
+
+      const file2 = newFile({
+        attributes: { plainName: 'file2', thumbnails: [], sharings: [] },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findTrashedNotExpiredInWorkspace')
+        .mockResolvedValue([file1, file2]);
+
+      const addOldSpy = jest
+        .spyOn(service as any, 'addOldAttributes')
+        .mockImplementation((f) => f);
+
+      await service.getTrashedFilesInWorkspace(createdBy, workspace.id, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(addOldSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('When files already have plainName, then it should not decrypt them', async () => {
+      const file = newFile({
+        attributes: { plainName: 'my-file', thumbnails: [], sharings: [] },
+      });
+
+      jest
+        .spyOn(fileRepository, 'findTrashedNotExpiredInWorkspace')
+        .mockResolvedValue([file]);
+
+      const decryptSpy = jest.spyOn(service as any, 'decrypFileName');
+
+      await service.getTrashedFilesInWorkspace(createdBy, workspace.id, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(decryptSpy).not.toHaveBeenCalled();
+    });
+
     it('When files have no plainName, then it should decrypt them', async () => {
       const encryptedFile = newFile({
         attributes: { plainName: null, thumbnails: [], sharings: [] },
       });
+
       jest
         .spyOn(fileRepository, 'findTrashedNotExpiredInWorkspace')
         .mockResolvedValue([encryptedFile]);
+
       const decryptSpy = jest
-        .spyOn(service, 'decrypFileName' as any)
+        .spyOn(service as any, 'decrypFileName')
         .mockReturnValue({ ...encryptedFile, plainName: 'decrypted' });
 
       await service.getTrashedFilesInWorkspace(createdBy, workspace.id, null, {
@@ -1802,23 +1984,6 @@ describe('FileUseCases', () => {
       });
 
       expect(decryptSpy).toHaveBeenCalledTimes(1);
-    });
-
-    it('When files already have plainName, then it should not decrypt them', async () => {
-      const decryptedFile = newFile({
-        attributes: { plainName: 'my-file', thumbnails: [], sharings: [] },
-      });
-      jest
-        .spyOn(fileRepository, 'findTrashedNotExpiredInWorkspace')
-        .mockResolvedValue([decryptedFile]);
-      const decryptSpy = jest.spyOn(service, 'decrypFileName' as any);
-
-      await service.getTrashedFilesInWorkspace(createdBy, workspace.id, null, {
-        limit: 20,
-        offset: 0,
-      });
-
-      expect(decryptSpy).not.toHaveBeenCalled();
     });
   });
 

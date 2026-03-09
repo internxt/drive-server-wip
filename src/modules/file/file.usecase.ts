@@ -691,7 +691,7 @@ export class FileUseCases {
       limit: number;
       offset: number;
       sort?: SortParamsFile;
-    } = { limit: 20, offset: 0 },
+    },
   ): Promise<File[]> {
     const filesWithMaybePlainName =
       await this.fileRepository.findTrashedNotExpired(
@@ -719,7 +719,7 @@ export class FileUseCases {
       limit: number;
       offset: number;
       sort?: SortParamsFile;
-    } = { limit: 20, offset: 0 },
+    },
   ): Promise<File[]> {
     const filesWithMaybePlainName =
       await this.fileRepository.findTrashedNotExpiredInWorkspace(
