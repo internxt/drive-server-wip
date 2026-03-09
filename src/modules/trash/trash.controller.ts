@@ -39,11 +39,7 @@ import {
   type Folder,
   type SortableFolderAttributes,
 } from '../folder/folder.domain';
-import {
-  type File,
-  FileStatus,
-  type SortableFileAttributes,
-} from '../file/file.domain';
+import { type File, type SortableFileAttributes } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { WorkspaceResourcesAction } from '../workspaces/guards/workspaces-resources-in-behalf.types';
@@ -55,7 +51,10 @@ import { Requester } from '../auth/decorators/requester.decorator';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
 import { Version } from '../../common/decorators/version.decorator';
-import { calculateTrashExpirationDate } from './trash-expiration.utils';
+import {
+  calculateTrashExpirationDate,
+  getTrashNotExpiredCutoffDate,
+} from './trash-expiration.utils';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -98,10 +97,14 @@ export class TrashController {
       const retentionDays =
         await this.trashUseCases.getTrashRetentionDays(user);
 
+      const cutoffDate = retentionDays
+        ? getTrashNotExpiredCutoffDate(retentionDays)
+        : null;
+
       if (type === 'files') {
-        const files = await this.fileUseCases.getFiles(
+        const files = await this.fileUseCases.getTrashedFiles(
           user.id,
-          { status: FileStatus.TRASHED },
+          cutoffDate,
           {
             limit: pagination.limit,
             offset: pagination.offset,
@@ -119,9 +122,9 @@ export class TrashController {
 
         return { result };
       } else {
-        const folders = await this.folderUseCases.getFolders(
+        const folders = await this.folderUseCases.getTrashedFolders(
           user.id,
-          { deleted: true, removed: false },
+          cutoffDate,
           {
             limit: pagination.limit,
             offset: pagination.offset,

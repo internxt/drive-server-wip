@@ -351,6 +351,54 @@ describe('SequelizeFolderRepository', () => {
     });
   });
 
+  describe('findTrashedNotExpiredInWorkspace', () => {
+    const createdBy = v4();
+    const workspaceId = v4();
+    const limit = 10;
+    const offset = 0;
+
+    it('When cutoffDate is null, then it should query trashed folders without a date filter', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findTrashedNotExpiredInWorkspace(
+        createdBy,
+        workspaceId,
+        null,
+        limit,
+        offset,
+      );
+
+      expect(folderModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { deleted: true, removed: false },
+        }),
+      );
+    });
+
+    it('When cutoffDate is provided, then it should add an updatedAt >= cutoffDate filter', async () => {
+      const cutoffDate = new Date('2026-03-04');
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findTrashedNotExpiredInWorkspace(
+        createdBy,
+        workspaceId,
+        cutoffDate,
+        limit,
+        offset,
+      );
+
+      expect(folderModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            deleted: true,
+            removed: false,
+            updatedAt: { [Op.gte]: cutoffDate },
+          },
+        }),
+      );
+    });
+  });
+
   describe('createWithAttributes', () => {
     it('When creating a folder with attributes, then it should return the created folder', async () => {
       const folderAttributes = {

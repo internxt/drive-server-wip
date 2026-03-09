@@ -534,6 +534,53 @@ describe('FileRepository', () => {
     });
   });
 
+  describe('findTrashedNotExpiredInWorkspace', () => {
+    const createdBy = v4();
+    const workspaceId = v4();
+    const limit = 10;
+    const offset = 0;
+
+    it('When cutoffDate is null, then it should query trashed files without a date filter', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findTrashedNotExpiredInWorkspace(
+        createdBy,
+        workspaceId,
+        null,
+        limit,
+        offset,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { status: FileStatus.TRASHED },
+        }),
+      );
+    });
+
+    it('When cutoffDate is provided, then it should add an updatedAt >= cutoffDate filter', async () => {
+      const cutoffDate = new Date('2026-03-04');
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findTrashedNotExpiredInWorkspace(
+        createdBy,
+        workspaceId,
+        cutoffDate,
+        limit,
+        offset,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            status: FileStatus.TRASHED,
+            updatedAt: { [Op.gte]: cutoffDate },
+          },
+        }),
+      );
+    });
+  });
+
   describe('findRecent', () => {
     const mockFile = newFile();
     const toJson = {

@@ -1732,6 +1732,96 @@ describe('FileUseCases', () => {
     });
   });
 
+  describe('getTrashedFilesInWorkspace', () => {
+    const createdBy = v4();
+    const workspace = newWorkspace();
+
+    it('When called with null cutoffDate, then it should return all trashed files without date filter', async () => {
+      const trashedFile = newFile({
+        attributes: { plainName: 'my-file', thumbnails: [], sharings: [] },
+      });
+      jest
+        .spyOn(fileRepository, 'findTrashedNotExpiredInWorkspace')
+        .mockResolvedValue([trashedFile]);
+
+      const result = await service.getTrashedFilesInWorkspace(
+        createdBy,
+        workspace.id,
+        null,
+        { limit: 20, offset: 0 },
+      );
+
+      expect(
+        fileRepository.findTrashedNotExpiredInWorkspace,
+      ).toHaveBeenCalledWith(createdBy, workspace.id, null, 20, 0, undefined);
+      expect(result).toHaveLength(1);
+    });
+
+    it('When called with a cutoffDate, then it should pass it to the repository', async () => {
+      const cutoffDate = new Date('2026-03-04');
+      const trashedFile = newFile({
+        attributes: { plainName: 'my-file', thumbnails: [], sharings: [] },
+      });
+      jest
+        .spyOn(fileRepository, 'findTrashedNotExpiredInWorkspace')
+        .mockResolvedValue([trashedFile]);
+
+      await service.getTrashedFilesInWorkspace(
+        createdBy,
+        workspace.id,
+        cutoffDate,
+        { limit: 10, offset: 5 },
+      );
+
+      expect(
+        fileRepository.findTrashedNotExpiredInWorkspace,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspace.id,
+        cutoffDate,
+        10,
+        5,
+        undefined,
+      );
+    });
+
+    it('When files have no plainName, then it should decrypt them', async () => {
+      const encryptedFile = newFile({
+        attributes: { plainName: null, thumbnails: [], sharings: [] },
+      });
+      jest
+        .spyOn(fileRepository, 'findTrashedNotExpiredInWorkspace')
+        .mockResolvedValue([encryptedFile]);
+      const decryptSpy = jest
+        .spyOn(service, 'decrypFileName' as any)
+        .mockReturnValue({ ...encryptedFile, plainName: 'decrypted' });
+
+      await service.getTrashedFilesInWorkspace(createdBy, workspace.id, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(decryptSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('When files already have plainName, then it should not decrypt them', async () => {
+      const decryptedFile = newFile({
+        attributes: { plainName: 'my-file', thumbnails: [], sharings: [] },
+      });
+      jest
+        .spyOn(fileRepository, 'findTrashedNotExpiredInWorkspace')
+        .mockResolvedValue([decryptedFile]);
+      const decryptSpy = jest.spyOn(service, 'decrypFileName' as any);
+
+      await service.getTrashedFilesInWorkspace(createdBy, workspace.id, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(decryptSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getWorkspaceFilesSizeSumByStatuses', () => {
     const user = newUser();
     const workspace = newWorkspace();

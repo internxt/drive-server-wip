@@ -163,6 +163,21 @@ interface FolderRepository {
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
   ): Promise<Folder | null>;
+  findTrashedNotExpired(
+    userId: number,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order?: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
+  ): Promise<Folder[]>;
+  findTrashedNotExpiredInWorkspace(
+    createdBy: string,
+    workspaceId: string,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order?: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
+  ): Promise<Folder[]>;
 }
 
 @Injectable()
@@ -246,6 +261,48 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
 
     return folders.map(this.toDomain.bind(this));
+  }
+
+  async findTrashedNotExpired(
+    userId: number,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
+  ): Promise<Folder[]> {
+    return this.findAllCursor(
+      {
+        userId,
+        deleted: true,
+        removed: false,
+        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
+      },
+      limit,
+      offset,
+      order,
+    );
+  }
+
+  async findTrashedNotExpiredInWorkspace(
+    createdBy: string,
+    workspaceId: string,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
+  ): Promise<Folder[]> {
+    return this.findAllCursorInWorkspace(
+      createdBy,
+      workspaceId,
+      {
+        deleted: true,
+        removed: false,
+        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
+      },
+      limit,
+      offset,
+      order,
+    );
   }
 
   async findAllCursorWithParent(

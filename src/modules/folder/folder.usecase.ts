@@ -690,6 +690,52 @@ export class FolderUseCases {
     );
   }
 
+  async getTrashedFolders(
+    userId: FolderAttributes['userId'],
+    cutoffDate: Date | null,
+    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<Folder[]> {
+    const foldersWithMaybePlainName =
+      await this.folderRepository.findTrashedNotExpired(
+        userId,
+        cutoffDate,
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+
+    return foldersWithMaybePlainName.map((folder) =>
+      folder.plainName ? folder : this.decryptFolderName(folder),
+    );
+  }
+
+  async getTrashedFoldersInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    cutoffDate: Date | null,
+    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<Folder[]> {
+    const foldersWithMaybePlainName =
+      await this.folderRepository.findTrashedNotExpiredInWorkspace(
+        createdBy,
+        workspaceId,
+        cutoffDate,
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+
+    return foldersWithMaybePlainName.map((folder) =>
+      folder.plainName ? folder : this.decryptFolderName(folder),
+    );
+  }
+
   async deleteUserTrashedFoldersBatch(
     user: User,
     limit: number,
