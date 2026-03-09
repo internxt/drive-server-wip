@@ -7,7 +7,10 @@ import { ConfigService } from '@nestjs/config';
 import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
 import { SequelizeFileRepository } from '../../file/file.repository';
 import { SequelizeFolderRepository } from '../../folder/folder.repository';
+import { SequelizeFeatureLimitsRepository } from '../../feature-limit/feature-limit.repository';
+import { LimitLabels } from '../../feature-limit/limits.enum';
 import { TRASH_EXPIRATION_START_DATE } from '../../trash/trash-expiration.utils';
+import { Time } from '../../../lib/time';
 
 @Injectable()
 export class DeleteExpiredTrashItemsTask {
@@ -23,6 +26,7 @@ export class DeleteExpiredTrashItemsTask {
     private readonly folderRepository: SequelizeFolderRepository,
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
+    private readonly featureLimitsRepository: SequelizeFeatureLimitsRepository,
   ) {}
 
   @Cron(CronExpression.EVERY_30_MINUTES, {
@@ -87,6 +91,11 @@ export class DeleteExpiredTrashItemsTask {
     const { lastCompletedJob, startedJob } =
       await this.initializeJobExecution();
 
+    const minRetentionDays =
+      await this.featureLimitsRepository.findMinValueByLabel(
+        LimitLabels.TrashRetentionDays,
+      );
+
     this.logger.log(
       `[${startedJob.id}] Starting expired trash items cleanup job${
         lastCompletedJob
@@ -94,12 +103,25 @@ export class DeleteExpiredTrashItemsTask {
           : ' (first run)'
       }`,
     );
+    const oldestExpirableDate = Time.daysAgo(minRetentionDays);
+    const gracePeriodExpiration = Time.dateWithTimeAdded(
+      minRetentionDays,
+      'day',
+      this.startDate,
+    );
+
+    this.logger.log(
+      `[${startedJob.id}] Min retention: ${minRetentionDays} day(s). ` +
+        `Items trashed before ${oldestExpirableDate.toISOString()} are eligible for deletion (according to the smallest retention). ` +
+        `Items trashed before ${this.startDate.toISOString()} get a grace period ` +
+        `(treated as trashed on that date, earliest expiration: ${gracePeriodExpiration.toISOString()}).`,
+    );
 
     try {
       let totalFilesDeleted = 0;
       let totalFoldersDeleted = 0;
 
-      for await (const fileIds of this.yieldExpiredFileIds()) {
+      for await (const fileIds of this.yieldExpiredFileIds(minRetentionDays)) {
         await this.fileRepository.deleteFilesByUuid(fileIds);
         totalFilesDeleted += fileIds.length;
         this.logger.log(
@@ -107,7 +129,9 @@ export class DeleteExpiredTrashItemsTask {
         );
       }
 
-      for await (const folderIds of this.yieldExpiredFolderIds()) {
+      for await (const folderIds of this.yieldExpiredFolderIds(
+        minRetentionDays,
+      )) {
         await this.folderRepository.deleteFoldersByUuid(folderIds);
         totalFoldersDeleted += folderIds.length;
         this.logger.log(
@@ -149,13 +173,14 @@ export class DeleteExpiredTrashItemsTask {
     return { lastCompletedJob, startedJob };
   }
 
-  private async *yieldExpiredFileIds() {
+  private async *yieldExpiredFileIds(minRetentionDays: number) {
     let resultCount = 0;
 
     do {
       const fileIds = await this.fileRepository.findExpiredTrashFileIds(
         this.startDate,
         this.batchSize,
+        minRetentionDays,
       );
 
       resultCount = fileIds.length;
@@ -166,13 +191,14 @@ export class DeleteExpiredTrashItemsTask {
     } while (resultCount === this.batchSize);
   }
 
-  private async *yieldExpiredFolderIds() {
+  private async *yieldExpiredFolderIds(minRetentionDays: number) {
     let resultCount = 0;
 
     do {
       const folderIds = await this.folderRepository.findExpiredTrashFolderIds(
         this.startDate,
         this.batchSize,
+        minRetentionDays,
       );
 
       resultCount = folderIds.length;

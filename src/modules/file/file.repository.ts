@@ -141,7 +141,11 @@ export interface FileRepository {
   ): Promise<File[]>;
   deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
   deleteFilesByUuid(fileUuids: string[]): Promise<number>;
-  findExpiredTrashFileIds(startDate: Date, limit: number): Promise<string[]>;
+  findExpiredTrashFileIds(
+    startDate: Date,
+    limit: number,
+    minRetentionDays: number,
+  ): Promise<string[]>;
   findRecent(
     userId: number,
     daysBack: number,
@@ -978,6 +982,7 @@ export class SequelizeFileRepository implements FileRepository {
   async findExpiredTrashFileIds(
     startDate: Date,
     limit: number,
+    minRetentionDays: number,
   ): Promise<string[]> {
     // TODO: This uses overriden limits only. Uncomment and use tier retention when released
     const query = `
@@ -1007,7 +1012,7 @@ export class SequelizeFileRepository implements FileRepository {
       FROM files f
       JOIN user_retention ur ON f.user_id = ur.user_id
       WHERE f.status = 'TRASHED'
-        AND f.updated_at < NOW() - INTERVAL '7 days'
+        AND f.updated_at < NOW() - (:minRetentionDays || ' days')::INTERVAL
         AND GREATEST(f.updated_at, :startDate::timestamptz) < NOW() - (ur.retention_days || ' days')::INTERVAL
       LIMIT :limit;
     `;
@@ -1020,6 +1025,7 @@ export class SequelizeFileRepository implements FileRepository {
           replacements: {
             startDate,
             limit,
+            minRetentionDays,
           },
           type: QueryTypes.SELECT,
           transaction,

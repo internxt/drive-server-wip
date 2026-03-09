@@ -1388,6 +1388,7 @@ describe('SequelizeFolderRepository', () => {
       const folderUuids = [v4(), v4(), v4()];
       const limit = 100;
       const startDate = new Date('2026-03-03');
+      const minRetentionDays = 1;
 
       jest
         .spyOn(folderModel.sequelize, 'query')
@@ -1398,12 +1399,13 @@ describe('SequelizeFolderRepository', () => {
       const result = await repository.findExpiredTrashFolderIds(
         startDate,
         limit,
+        minRetentionDays,
       );
 
       expect(folderModel.sequelize.query).toHaveBeenCalledWith(
-        expect.stringContaining('trash-retention-days'),
+        expect.stringContaining('minRetentionDays'),
         {
-          replacements: { limit, startDate },
+          replacements: { limit, startDate, minRetentionDays },
           type: QueryTypes.SELECT,
           transaction: expect.any(Object),
         },
@@ -1419,6 +1421,7 @@ describe('SequelizeFolderRepository', () => {
       const result = await repository.findExpiredTrashFolderIds(
         new Date('2026-03-03'),
         100,
+        7,
       );
 
       expect(result).toEqual([]);
