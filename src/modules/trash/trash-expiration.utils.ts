@@ -1,5 +1,8 @@
 import { Time } from '../../lib/time';
-export const TRASH_EXPIRATION_START_DATE = new Date('2026-03-02');
+
+// Deployment of the feature
+export const TRASH_EXPIRATION_START_DATE = new Date('2026-03-10T00:00:00Z');
+
 export function calculateTrashExpirationDate(
   retentionDays: number,
   deletedAt: Date,
