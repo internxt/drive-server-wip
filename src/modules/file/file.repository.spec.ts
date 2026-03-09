@@ -1170,6 +1170,7 @@ describe('FileRepository', () => {
       const fileUuids = [v4(), v4(), v4()];
       const limit = 100;
       const startDate = new Date('2026-03-03');
+      const minRetentionDays = 1;
 
       jest
         .spyOn(fileModel.sequelize, 'query')
@@ -1177,12 +1178,16 @@ describe('FileRepository', () => {
           fileUuids.map((uuid) => ({ item_id: uuid })) as any,
         );
 
-      const result = await repository.findExpiredTrashFileIds(startDate, limit);
+      const result = await repository.findExpiredTrashFileIds(
+        startDate,
+        limit,
+        minRetentionDays,
+      );
 
       expect(fileModel.sequelize.query).toHaveBeenCalledWith(
-        expect.stringContaining('trash-retention-days'),
+        expect.stringContaining('minRetentionDays'),
         {
-          replacements: { startDate, limit },
+          replacements: { startDate, limit, minRetentionDays },
           type: QueryTypes.SELECT,
           transaction: expect.any(Object),
         },
@@ -1196,6 +1201,7 @@ describe('FileRepository', () => {
       const result = await repository.findExpiredTrashFileIds(
         new Date('2026-03-03'),
         100,
+        7,
       );
 
       expect(result).toEqual([]);

@@ -129,7 +129,11 @@ interface FolderRepository {
   ): Promise<void>;
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
   deleteFoldersByUuid(folderUuids: string[]): Promise<number>;
-  findExpiredTrashFolderIds(startDate: Date, limit: number): Promise<string[]>;
+  findExpiredTrashFolderIds(
+    startDate: Date,
+    limit: number,
+    minRetentionDays: number,
+  ): Promise<string[]>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
   calculateFolderSize(folderUuid: string): Promise<number>;
   calculateFolderStats(folderUuid: string): Promise<{
@@ -820,6 +824,7 @@ export class SequelizeFolderRepository implements FolderRepository {
   async findExpiredTrashFolderIds(
     startDate: Date,
     limit: number,
+    minRetentionDays: number,
   ): Promise<string[]> {
     // TODO: This uses overriden limits only. Uncomment and use tier retention when released
     const query = `
@@ -850,8 +855,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       JOIN user_retention ur ON fo.user_id = ur.user_id
       WHERE fo.deleted = true
         AND fo.removed = false
-        -- Minimal retention period of 7 days
-        AND fo.updated_at < NOW() - INTERVAL '7 days'
+        AND fo.updated_at < NOW() - (:minRetentionDays || ' days')::INTERVAL
         AND GREATEST(fo.updated_at, :startDate::timestamptz) < NOW() - (ur.retention_days || ' days')::INTERVAL
       LIMIT :limit
     `;
@@ -864,6 +868,7 @@ export class SequelizeFolderRepository implements FolderRepository {
           replacements: {
             limit,
             startDate,
+            minRetentionDays,
           },
           type: QueryTypes.SELECT,
           transaction,

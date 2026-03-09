@@ -7,6 +7,7 @@ import { RedisService } from '../../../externals/redis/redis.service';
 import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
 import { SequelizeFileRepository } from '../../file/file.repository';
 import { SequelizeFolderRepository } from '../../folder/folder.repository';
+import { SequelizeFeatureLimitsRepository } from '../../feature-limit/feature-limit.repository';
 import { type JobExecutionModel } from '../models/job-execution.model';
 import { JobName } from '../constants';
 
@@ -22,6 +23,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
   let jobExecutionRepository: DeepMocked<SequelizeJobExecutionRepository>;
   let fileRepository: DeepMocked<SequelizeFileRepository>;
   let folderRepository: DeepMocked<SequelizeFolderRepository>;
+  let featureLimitsRepository: DeepMocked<SequelizeFeatureLimitsRepository>;
   let redisService: DeepMocked<RedisService>;
   let configService: DeepMocked<ConfigService>;
 
@@ -37,6 +39,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
     jobExecutionRepository = moduleRef.get(SequelizeJobExecutionRepository);
     fileRepository = moduleRef.get(SequelizeFileRepository);
     folderRepository = moduleRef.get(SequelizeFolderRepository);
+    featureLimitsRepository = moduleRef.get(SequelizeFeatureLimitsRepository);
     redisService = moduleRef.get(RedisService);
     configService = moduleRef.get(ConfigService);
   });
@@ -73,6 +76,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
         lastCompletedJob: null,
         startedJob: mockStartedJob,
       });
+      featureLimitsRepository.findMinValueByLabel.mockResolvedValue(1);
     });
 
     it('When no expired items exist, then it should complete with zero deletions', async () => {
@@ -91,6 +95,25 @@ describe('DeleteExpiredTrashItemsTask', () => {
       expect(jobExecutionRepository.markAsCompleted).toHaveBeenCalledWith(
         mockStartedJob.id,
         { filesDeleted: 0, foldersDeleted: 0 },
+      );
+    });
+
+    it('When job starts, then it should log and report min retention days', async () => {
+      featureLimitsRepository.findMinValueByLabel.mockResolvedValue(3);
+      jest
+        .spyOn(task as any, 'yieldExpiredFileIds')
+        .mockImplementation(async function* () {});
+      jest
+        .spyOn(task as any, 'yieldExpiredFolderIds')
+        .mockImplementation(async function* () {});
+      jobExecutionRepository.markAsCompleted.mockResolvedValue(
+        mockCompletedJob,
+      );
+
+      await task.startJob();
+
+      expect(featureLimitsRepository.findMinValueByLabel).toHaveBeenCalledWith(
+        'trash-retention-days',
       );
     });
 
@@ -249,7 +272,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
         .mockResolvedValueOnce(batch1)
         .mockResolvedValueOnce(batch2);
 
-      const generator = task['yieldExpiredFileIds']();
+      const generator = task['yieldExpiredFileIds'](1);
       const batches = [];
       for await (const batch of generator) {
         batches.push(batch);
@@ -266,7 +289,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
         .mockResolvedValueOnce(batch1)
         .mockResolvedValueOnce([]);
 
-      const generator = task['yieldExpiredFileIds']();
+      const generator = task['yieldExpiredFileIds'](1);
       const batches = [];
       for await (const batch of generator) {
         batches.push(batch);
@@ -286,7 +309,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
         .mockResolvedValueOnce(batch1)
         .mockResolvedValueOnce(batch2);
 
-      const generator = task['yieldExpiredFolderIds']();
+      const generator = task['yieldExpiredFolderIds'](1);
       const batches = [];
       for await (const batch of generator) {
         batches.push(batch);
@@ -305,7 +328,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
         .mockResolvedValueOnce(batch1)
         .mockResolvedValueOnce([]);
 
-      const generator = task['yieldExpiredFolderIds']();
+      const generator = task['yieldExpiredFolderIds'](1);
       const batches = [];
       for await (const batch of generator) {
         batches.push(batch);

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize';
 import { TierModel } from './models/tier.model';
 import { Limitmodel } from './models/limit.model';
 import { Limit } from './domain/limit.domain';
@@ -134,6 +135,23 @@ export class SequelizeFeatureLimitsRepository {
   async findLimitById(limitId: string): Promise<Limit | null> {
     const limit = await this.limitModel.findByPk(limitId);
     return limit ? Limit.build(limit) : null;
+  }
+
+  async findMinValueByLabel(label: string): Promise<number | null> {
+    const result = await this.limitModel.findOne({
+      attributes: [
+        [
+          Sequelize.fn(
+            'MIN',
+            Sequelize.cast(Sequelize.col('value'), 'integer'),
+          ),
+          'minValue',
+        ],
+      ],
+      where: { label },
+      raw: true,
+    });
+    return result ? (result as any).minValue : null;
   }
 
   async findLimitByLabel(label: string): Promise<Limit | null> {
