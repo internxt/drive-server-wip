@@ -684,6 +684,62 @@ export class FileUseCases {
     );
   }
 
+  async getTrashedFiles(
+    userId: UserAttributes['id'],
+    cutoffDate: Date | null,
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFile;
+    },
+  ): Promise<File[]> {
+    const filesWithMaybePlainName =
+      await this.fileRepository.findTrashedNotExpired(
+        userId,
+        cutoffDate,
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+
+    const filesModified = filesWithMaybePlainName.map((file) =>
+      this.addOldAttributes(file),
+    );
+
+    return filesModified.map((file) =>
+      file.plainName ? file : this.decrypFileName(file),
+    );
+  }
+
+  async getTrashedFilesInWorkspace(
+    createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    cutoffDate: Date | null,
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFile;
+    },
+  ): Promise<File[]> {
+    const filesWithMaybePlainName =
+      await this.fileRepository.findTrashedNotExpiredInWorkspace(
+        createdBy,
+        workspaceId,
+        cutoffDate,
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+
+    const filesModified = filesWithMaybePlainName.map((file) =>
+      this.addOldAttributes(file),
+    );
+
+    return filesModified.map((file) =>
+      file.plainName ? file : this.decrypFileName(file),
+    );
+  }
+
   async getWorkspaceFilesSizeSumByStatuses(
     createdBy: UserAttributes['uuid'],
     workspaceId: WorkspaceAttributes['id'],

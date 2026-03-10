@@ -81,7 +81,10 @@ import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { type WorkspaceLog } from './domains/workspace-log.domain';
 import { type TrashItem } from './interceptors/workspaces-logs.interceptor';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { calculateTrashExpirationDate } from '../trash/trash-expiration.utils';
+import {
+  calculateTrashExpirationDate,
+  getTrashNotExpiredCutoffDate,
+} from '../trash/trash-expiration.utils';
 import { LimitLabels } from '../feature-limit/limits.enum';
 @Injectable()
 export class WorkspacesUsecases {
@@ -695,28 +698,32 @@ export class WorkspacesUsecases {
     offset = 0,
     sort?: SortParamsFile | SortParamsFolder,
   ) {
-    const [items, workspaceResourcesOwner] = await Promise.all([
-      itemType === WorkspaceItemType.File
-        ? this.fileUseCases.getFilesInWorkspace(
-            user.uuid,
-            workspaceId,
-            { status: FileStatus.TRASHED },
-            { limit, offset, sort },
-          )
-        : this.folderUseCases.getFoldersInWorkspace(
-            user.uuid,
-            workspaceId,
-            { deleted: true, removed: false },
-            { limit, offset, sort: sort as SortParamsFolder },
-          ),
-      this.workspaceRepository.findWorkspaceResourcesOwner(workspaceId),
-    ]);
+    const workspaceResourcesOwner =
+      await this.workspaceRepository.findWorkspaceResourcesOwner(workspaceId);
 
     const retentionLimit = await this.featureLimitsService.getUserLimitByLabel(
       LimitLabels.TrashRetentionDays,
       workspaceResourcesOwner,
     );
     const retentionDays = retentionLimit ? Number(retentionLimit.value) : null;
+    const cutoffDate = retentionDays
+      ? getTrashNotExpiredCutoffDate(retentionDays)
+      : null;
+
+    const items =
+      itemType === WorkspaceItemType.File
+        ? await this.fileUseCases.getTrashedFilesInWorkspace(
+            user.uuid,
+            workspaceId,
+            cutoffDate,
+            { limit, offset, sort },
+          )
+        : await this.folderUseCases.getTrashedFoldersInWorkspace(
+            user.uuid,
+            workspaceId,
+            cutoffDate,
+            { limit, offset, sort: sort as SortParamsFolder },
+          );
 
     return {
       result: items.map((item) => ({

@@ -162,6 +162,21 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     sinceDate: Date,
   ): Promise<number>;
+  findTrashedNotExpired(
+    userId: number,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order?: Array<[keyof FileModel, string]>,
+  ): Promise<File[]>;
+  findTrashedNotExpiredInWorkspace(
+    createdBy: string,
+    workspaceId: string,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order?: Array<[keyof FileModel, string]>,
+  ): Promise<File[]>;
 }
 
 @Injectable()
@@ -427,6 +442,46 @@ export class SequelizeFileRepository implements FileRepository {
     });
 
     return files.map(this.toDomain.bind(this));
+  }
+
+  async findTrashedNotExpired(
+    userId: number,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<File[]> {
+    return this.findAllCursorWithThumbnails(
+      {
+        userId,
+        status: FileStatus.TRASHED,
+        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
+      },
+      limit,
+      offset,
+      order,
+    );
+  }
+
+  async findTrashedNotExpiredInWorkspace(
+    createdBy: string,
+    workspaceId: string,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<File[]> {
+    return this.findAllCursorWithThumbnailsInWorkspace(
+      createdBy,
+      workspaceId,
+      {
+        status: FileStatus.TRASHED,
+        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
+      },
+      limit,
+      offset,
+      order,
+    );
   }
 
   async findAllCursorWhereUpdatedAfterInWorkspace(

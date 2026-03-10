@@ -1,5 +1,8 @@
 import { Test, type TestingModule } from '@nestjs/testing';
-import { calculateTrashExpirationDate } from '../trash/trash-expiration.utils';
+import {
+  calculateTrashExpirationDate,
+  getTrashNotExpiredCutoffDate,
+} from '../trash/trash-expiration.utils';
 import { SequelizeWorkspaceRepository } from './repositories/workspaces.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { UserUseCases } from '../user/user.usecase';
@@ -3867,7 +3870,7 @@ describe('WorkspacesUsecases', () => {
     it('When files are retrieved and no retention limit is found, it should return files with expiresAt null', async () => {
       const trashedFiles = [newFile()];
       jest
-        .spyOn(fileUseCases, 'getFilesInWorkspace')
+        .spyOn(fileUseCases, 'getTrashedFilesInWorkspace')
         .mockResolvedValue(trashedFiles);
       jest
         .spyOn(workspaceRepository, 'findWorkspaceResourcesOwner')
@@ -3888,10 +3891,10 @@ describe('WorkspacesUsecases', () => {
       expect(result).toEqual({
         result: [{ ...trashedFiles[0].toJSON(), expiresAt: null }],
       });
-      expect(fileUseCases.getFilesInWorkspace).toHaveBeenCalledWith(
+      expect(fileUseCases.getTrashedFilesInWorkspace).toHaveBeenCalledWith(
         user.uuid,
         workspaceId,
-        { status: FileStatus.TRASHED },
+        null,
         { limit, offset, sort: ['plainName', 'ASC'] },
       );
     });
@@ -3899,7 +3902,7 @@ describe('WorkspacesUsecases', () => {
     it('When folders are retrieved and no retention limit is found, it should return folders with expiresAt null', async () => {
       const trashedFolders = [newFolder({ attributes: { deleted: true } })];
       jest
-        .spyOn(folderUseCases, 'getFoldersInWorkspace')
+        .spyOn(folderUseCases, 'getTrashedFoldersInWorkspace')
         .mockResolvedValue(trashedFolders);
       jest
         .spyOn(workspaceRepository, 'findWorkspaceResourcesOwner')
@@ -3920,15 +3923,15 @@ describe('WorkspacesUsecases', () => {
       expect(result).toEqual({
         result: [{ ...trashedFolders[0].toJSON(), expiresAt: null }],
       });
-      expect(folderUseCases.getFoldersInWorkspace).toHaveBeenCalledWith(
+      expect(folderUseCases.getTrashedFoldersInWorkspace).toHaveBeenCalledWith(
         user.uuid,
         workspaceId,
-        { deleted: true, removed: false },
+        null,
         { limit, offset, sort: ['plainName', 'ASC'] },
       );
     });
 
-    it('When workspace resources owner has a tier limit, it should calculate expiresAt with tier retention days', async () => {
+    it('When workspace resources owner has a tier limit, it should pass the cutoffDate and calculate expiresAt', async () => {
       const trashedFiles = [newFile()];
       const retentionDays = 30;
       const retentionLimit = newFeatureLimit({
@@ -3936,7 +3939,7 @@ describe('WorkspacesUsecases', () => {
         type: LimitTypes.Counter,
       });
       jest
-        .spyOn(fileUseCases, 'getFilesInWorkspace')
+        .spyOn(fileUseCases, 'getTrashedFilesInWorkspace')
         .mockResolvedValue(trashedFiles);
       jest
         .spyOn(workspaceRepository, 'findWorkspaceResourcesOwner')
@@ -3954,49 +3957,19 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
+      const expectedCutoffDate = getTrashNotExpiredCutoffDate(retentionDays);
       const expectedExpiresAt = calculateTrashExpirationDate(
         retentionDays,
         trashedFiles[0].updatedAt,
       );
+      expect(fileUseCases.getTrashedFilesInWorkspace).toHaveBeenCalledWith(
+        user.uuid,
+        workspaceId,
+        expectedCutoffDate,
+        { limit, offset, sort: ['plainName', 'ASC'] },
+      );
       expect(result).toEqual({
         result: [{ ...trashedFiles[0].toJSON(), expiresAt: expectedExpiresAt }],
-      });
-    });
-
-    it('When folders have a tier limit, it should calculate expiresAt with tier retention days', async () => {
-      const trashedFolders = [newFolder({ attributes: { deleted: true } })];
-      const retentionDays = 7;
-      const retentionLimit = newFeatureLimit({
-        value: String(retentionDays),
-        type: LimitTypes.Counter,
-      });
-      jest
-        .spyOn(folderUseCases, 'getFoldersInWorkspace')
-        .mockResolvedValue(trashedFolders);
-      jest
-        .spyOn(workspaceRepository, 'findWorkspaceResourcesOwner')
-        .mockResolvedValue(workspaceResourcesOwner);
-      jest
-        .spyOn(featureLimitsService, 'getUserLimitByLabel')
-        .mockResolvedValue(retentionLimit);
-
-      const result = await service.getWorkspaceUserTrashedItems(
-        user,
-        workspaceId,
-        WorkspaceItemType.Folder,
-        limit,
-        offset,
-        ['plainName', 'ASC'] as any,
-      );
-
-      const expectedExpiresAt = calculateTrashExpirationDate(
-        retentionDays,
-        trashedFolders[0].updatedAt,
-      );
-      expect(result).toEqual({
-        result: [
-          { ...trashedFolders[0].toJSON(), expiresAt: expectedExpiresAt },
-        ],
       });
     });
   });
