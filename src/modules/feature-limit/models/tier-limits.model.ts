@@ -28,6 +28,9 @@ export class TierLimitsModel extends Model {
   @Column(DataType.UUIDV4)
   limitId: string;
 
+  @BelongsTo(() => TierModel)
+  tier: TierModel;
+
   @BelongsTo(() => Limitmodel)
   limit: Limitmodel;
 

@@ -159,6 +159,29 @@ export class SequelizeFeatureLimitsRepository {
     return limit ? Limit.build(limit) : null;
   }
 
+  async findTiersWithLimitByLabel(
+    label: string,
+  ): Promise<Array<{ tier: Tier; limit: Limit }>> {
+    const tierLimits = await this.tierLimitsModel.findAll({
+      include: [
+        {
+          model: TierModel,
+          required: true,
+        },
+        {
+          model: Limitmodel,
+          where: { label },
+          required: true,
+        },
+      ],
+    });
+
+    return tierLimits.map((tl) => ({
+      tier: Tier.build(tl.tier),
+      limit: Limit.build(tl.limit),
+    }));
+  }
+
   async findLimitByLabelAndValue(
     label: string,
     value: string,

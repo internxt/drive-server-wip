@@ -8,17 +8,17 @@ import { SequelizeJobExecutionRepository } from '../repositories/job-execution.r
 import { SequelizeFileRepository } from '../../file/file.repository';
 import { SequelizeFolderRepository } from '../../folder/folder.repository';
 import { SequelizeFeatureLimitsRepository } from '../../feature-limit/feature-limit.repository';
-import { LimitLabels } from '../../feature-limit/limits.enum';
 import { TRASH_EXPIRATION_START_DATE } from '../../trash/trash-expiration.utils';
 import { Time } from '../../../lib/time';
+import { LimitLabels } from '../../feature-limit/limits.enum';
 
 @Injectable()
 export class DeleteExpiredTrashItemsTask {
   private readonly logger = new Logger(DeleteExpiredTrashItemsTask.name);
-  private readonly startDate = TRASH_EXPIRATION_START_DATE;
+  private readonly firstDeploymentDate = TRASH_EXPIRATION_START_DATE;
   private readonly lockTtl = 60 * 1000; // 1 minute
   private readonly lockKey = 'cleanup:expired-trash-items';
-  private readonly batchSize = 100;
+  private readonly batchSize = 500;
 
   constructor(
     private readonly jobExecutionRepository: SequelizeJobExecutionRepository,
@@ -58,6 +58,7 @@ export class DeleteExpiredTrashItemsTask {
       this.logger.log(
         'Lock acquired! Starting expired trash items cleanup job',
       );
+
       await newrelic.startBackgroundTransaction(
         JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
         'Job',
@@ -87,55 +88,55 @@ export class DeleteExpiredTrashItemsTask {
     }
   }
 
-  async startJob() {
-    const { lastCompletedJob, startedJob } =
-      await this.initializeJobExecution();
+  async createJobInitialization(jobMetadata?: Record<string, any>) {
+    const startedJob = await this.jobExecutionRepository.startJob(
+      JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
+      jobMetadata,
+    );
 
-    const minRetentionDays =
-      await this.featureLimitsRepository.findMinValueByLabel(
+    return { startedJob };
+  }
+
+  async startJob() {
+    const { startedJob } = await this.createJobInitialization();
+
+    const tierConfigs =
+      await this.featureLimitsRepository.findTiersWithLimitByLabel(
         LimitLabels.TrashRetentionDays,
       );
 
     this.logger.log(
-      `[${startedJob.id}] Starting expired trash items cleanup job${
-        lastCompletedJob
-          ? ` (last completed: ${lastCompletedJob.completedAt})`
-          : ' (first run)'
-      }`,
-    );
-    const oldestExpirableDate = Time.daysAgo(minRetentionDays);
-    const gracePeriodExpiration = Time.dateWithTimeAdded(
-      minRetentionDays,
-      'day',
-      this.startDate,
-    );
-
-    this.logger.log(
-      `[${startedJob.id}] Min retention: ${minRetentionDays} day(s). ` +
-        `Items trashed before ${oldestExpirableDate.toISOString()} are eligible for deletion (according to the smallest retention). ` +
-        `Items trashed before ${this.startDate.toISOString()} get a grace period ` +
-        `(treated as trashed on that date, earliest expiration: ${gracePeriodExpiration.toISOString()}).`,
+      `[${startedJob.id}] Config loaded: ${tierConfigs.length} tier(s) with trash retention.`,
     );
 
     try {
       let totalFilesDeleted = 0;
       let totalFoldersDeleted = 0;
 
-      for await (const fileIds of this.yieldExpiredFileIds(minRetentionDays)) {
-        await this.fileRepository.deleteFilesByUuid(fileIds);
-        totalFilesDeleted += fileIds.length;
-        this.logger.log(
-          `[${startedJob.id}] Deleted ${fileIds.length} expired files. Total: ${totalFilesDeleted}`,
-        );
-      }
+      for (const { tier, limit } of tierConfigs) {
+        const retentionDays = Number(limit.value);
+        const cutoffDate = Time.daysAgo(retentionDays);
 
-      for await (const folderIds of this.yieldExpiredFolderIds(
-        minRetentionDays,
-      )) {
-        await this.folderRepository.deleteFoldersByUuid(folderIds);
-        totalFoldersDeleted += folderIds.length;
+        if (this.firstDeploymentDate >= cutoffDate) continue;
+
         this.logger.log(
-          `[${startedJob.id}] Deleted ${folderIds.length} expired folders. Total: ${totalFoldersDeleted}`,
+          `[${startedJob.id}] Processing tier ${tier.id}: cutoffDate=${cutoffDate.toISOString()}, retentionDays=${retentionDays}`,
+        );
+
+        totalFilesDeleted += await this.deleteExpiredItems((limit) =>
+          this.fileRepository.deleteExpiredTrashFilesByTier(
+            tier.id,
+            cutoffDate,
+            limit,
+          ),
+        );
+
+        totalFoldersDeleted += await this.deleteExpiredItems((limit) =>
+          this.folderRepository.deleteExpiredTrashFoldersByTier(
+            tier.id,
+            cutoffDate,
+            limit,
+          ),
         );
       }
 
@@ -159,53 +160,40 @@ export class DeleteExpiredTrashItemsTask {
     }
   }
 
-  async initializeJobExecution(jobMetadata?: Record<string, any>) {
-    const lastCompletedJob =
-      await this.jobExecutionRepository.getLastSuccessful(
-        JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
-      );
+  private async deleteExpiredItems(
+    deleteBatch: (limit: number) => Promise<string[]>,
+  ): Promise<number> {
+    let totalDeleted = 0;
+    let previousBatchUuid: string | null = null;
+    let sameUuidRepeatedTimes = 0;
 
-    const startedJob = await this.jobExecutionRepository.startJob(
-      JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
-      jobMetadata,
-    );
-
-    return { lastCompletedJob, startedJob };
-  }
-
-  private async *yieldExpiredFileIds(minRetentionDays: number) {
-    let resultCount = 0;
-
+    let deletedUuids: string[];
     do {
-      const fileIds = await this.fileRepository.findExpiredTrashFileIds(
-        this.startDate,
-        this.batchSize,
-        minRetentionDays,
-      );
+      deletedUuids = await deleteBatch(this.batchSize);
+      if (deletedUuids.length === 0) break;
 
-      resultCount = fileIds.length;
-
-      if (resultCount > 0) {
-        yield fileIds;
+      // detect if same UUID keeps appearing (shouldn't happen with atomic UPDATE)
+      if (previousBatchUuid && deletedUuids.includes(previousBatchUuid)) {
+        sameUuidRepeatedTimes++;
+        if (sameUuidRepeatedTimes >= 3) {
+          throw new Error(
+            `Same UUID ${previousBatchUuid} repeated ${sameUuidRepeatedTimes} times in consecutive batches`,
+          );
+        }
+        this.logger.warn(
+          `UUID ${previousBatchUuid} repeated in batch, attempt ${sameUuidRepeatedTimes}`,
+        );
+      } else {
+        sameUuidRepeatedTimes = 0;
+        previousBatchUuid = deletedUuids[0];
       }
-    } while (resultCount === this.batchSize);
-  }
 
-  private async *yieldExpiredFolderIds(minRetentionDays: number) {
-    let resultCount = 0;
-
-    do {
-      const folderIds = await this.folderRepository.findExpiredTrashFolderIds(
-        this.startDate,
-        this.batchSize,
-        minRetentionDays,
+      totalDeleted += deletedUuids.length;
+      this.logger.log(
+        `Deleted ${deletedUuids.length} expired items. Total: ${totalDeleted}`,
       );
+    } while (deletedUuids.length === this.batchSize);
 
-      resultCount = folderIds.length;
-
-      if (resultCount > 0) {
-        yield folderIds;
-      }
-    } while (resultCount === this.batchSize);
+    return totalDeleted;
   }
 }
