@@ -106,7 +106,7 @@ export class DeleteExpiredTrashItemsTask implements BeforeApplicationShutdown {
         const retentionDays = Number(limit.value);
         const cutoffDate = Time.daysAgo(retentionDays);
 
-        if (this.firstDeploymentDate >= cutoffDate) continue;
+        if (this.firstDeploymentDate > cutoffDate) continue;
 
         this.logger.log(
           {

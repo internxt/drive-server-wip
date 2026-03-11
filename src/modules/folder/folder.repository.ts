@@ -897,7 +897,7 @@ export class SequelizeFolderRepository implements FolderRepository {
             JOIN users u ON u.id = fo.user_id AND u.tier_id = :tierId
             WHERE fo.deleted = true
               AND fo.removed = false
-              AND fo.updated_at < :cutoffDate
+              AND fo.updated_at <= :cutoffDate
             LIMIT :limit
             FOR UPDATE SKIP LOCKED
           )

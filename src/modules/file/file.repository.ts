@@ -1052,7 +1052,7 @@ export class SequelizeFileRepository implements FileRepository {
             FROM files f
             JOIN users u ON u.id = f.user_id AND u.tier_id = :tierId
             WHERE f.status = 'TRASHED'
-              AND f.updated_at < :cutoffDate
+              AND f.updated_at <= :cutoffDate
             LIMIT :limit
             FOR UPDATE SKIP LOCKED
           )

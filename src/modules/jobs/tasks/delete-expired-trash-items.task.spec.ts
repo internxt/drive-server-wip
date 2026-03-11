@@ -185,29 +185,6 @@ describe('DeleteExpiredTrashItemsTask', () => {
     });
 
     describe('cutoff date edge cases', () => {
-      it('When retentionDays=0, then it should skip (cutoffDate equals firstDeploymentDate)', async () => {
-        // Time.daysAgo(0) = today = 2026-03-10 = firstDeploymentDate → SKIP
-        jest
-          .spyOn(Time, 'daysAgo')
-          .mockReturnValue(new Date('2026-03-10T00:00:00Z'));
-
-        featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
-          {
-            tier: { id: 'tier-1' } as any,
-            limit: { value: '0' } as any,
-          },
-        ]);
-
-        await task.startJob();
-
-        expect(
-          fileRepository.deleteExpiredTrashFilesByTier,
-        ).not.toHaveBeenCalled();
-        expect(
-          folderRepository.deleteExpiredTrashFoldersByTier,
-        ).not.toHaveBeenCalled();
-      });
-
       it('When retentionDays=1, then it should skip (not enough time elapsed since deploy)', async () => {
         // Time.daysAgo(1) = 2026-03-09, firstDeploymentDate (2026-03-10) >= 2026-03-09 → SKIP
         jest
@@ -228,7 +205,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
         ).not.toHaveBeenCalled();
       });
 
-      it('When cutoffDate equals firstDeploymentDate exactly, then it should skip (>= boundary)', async () => {
+      it('When cutoffDate equals firstDeploymentDate exactly, then it should execute', async () => {
         jest
           .spyOn(Time, 'daysAgo')
           .mockReturnValue(new Date('2026-03-10T00:00:00Z'));
@@ -244,7 +221,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
 
         expect(
           fileRepository.deleteExpiredTrashFilesByTier,
-        ).not.toHaveBeenCalled();
+        ).toHaveBeenCalled();
       });
 
       it('When retentionDays=30, then it should process (cutoffDate is after firstDeploymentDate)', async () => {
