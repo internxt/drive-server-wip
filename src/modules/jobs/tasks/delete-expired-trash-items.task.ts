@@ -1,8 +1,11 @@
 import newrelic from 'newrelic';
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  type BeforeApplicationShutdown,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { JobName } from '../constants';
-import { RedisService } from '../../../externals/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
 import { SequelizeFileRepository } from '../../file/file.repository';
@@ -13,24 +16,23 @@ import { Time } from '../../../lib/time';
 import { LimitLabels } from '../../feature-limit/limits.enum';
 
 @Injectable()
-export class DeleteExpiredTrashItemsTask {
+export class DeleteExpiredTrashItemsTask implements BeforeApplicationShutdown {
   private readonly logger = new Logger(DeleteExpiredTrashItemsTask.name);
   private readonly firstDeploymentDate = TRASH_EXPIRATION_START_DATE;
-  private readonly lockTtl = 60 * 1000; // 1 minute
-  private readonly lockKey = 'cleanup:expired-trash-items';
   private readonly batchSize = 500;
+  private currentJobId: string | null = null;
 
   constructor(
     private readonly jobExecutionRepository: SequelizeJobExecutionRepository,
     private readonly fileRepository: SequelizeFileRepository,
     private readonly folderRepository: SequelizeFolderRepository,
-    private readonly redisService: RedisService,
     private readonly configService: ConfigService,
     private readonly featureLimitsRepository: SequelizeFeatureLimitsRepository,
   ) {}
 
   @Cron(CronExpression.EVERY_30_MINUTES, {
     name: JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
+    waitForCompletion: true,
   })
   async scheduleCleanup() {
     const shouldExecuteCronjobs = this.configService.get<boolean>(
@@ -43,22 +45,6 @@ export class DeleteExpiredTrashItemsTask {
     }
 
     try {
-      const acquired = await this.redisService.tryAcquireLock(
-        this.lockKey,
-        this.lockTtl,
-      );
-
-      if (!acquired) {
-        this.logger.log(
-          'Lock already acquired by another instance, skipping...',
-        );
-        return;
-      }
-
-      this.logger.log(
-        'Lock acquired! Starting expired trash items cleanup job',
-      );
-
       await newrelic.startBackgroundTransaction(
         JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
         'Job',
@@ -76,14 +62,8 @@ export class DeleteExpiredTrashItemsTask {
       );
     } catch (error) {
       this.logger.error(
-        `Expired trash items cleanup job could not be setup. error: ${JSON.stringify(
-          {
-            timestamp: new Date().toISOString(),
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-          },
-        )}`,
+        { name: error.name, message: error.message, stack: error.stack },
+        'Expired trash items cleanup job could not be setup.',
       );
     }
   }
@@ -99,6 +79,7 @@ export class DeleteExpiredTrashItemsTask {
 
   async startJob() {
     const { startedJob } = await this.createJobInitialization();
+    this.currentJobId = startedJob.id;
 
     const tierConfigs =
       await this.featureLimitsRepository.findTiersWithLimitByLabel(
@@ -106,7 +87,15 @@ export class DeleteExpiredTrashItemsTask {
       );
 
     this.logger.log(
-      `[${startedJob.id}] Config loaded: ${tierConfigs.length} tier(s) with trash retention.`,
+      {
+        jobId: this.currentJobId,
+        tierConfigs: tierConfigs.map((c) => ({
+          tierId: c.tier.id,
+          tierLabel: c.tier.label,
+          retentionDays: c.limit.value,
+        })),
+      },
+      'Tier configs loaded.',
     );
 
     try {
@@ -120,48 +109,79 @@ export class DeleteExpiredTrashItemsTask {
         if (this.firstDeploymentDate >= cutoffDate) continue;
 
         this.logger.log(
-          `[${startedJob.id}] Processing tier ${tier.id}: cutoffDate=${cutoffDate.toISOString()}, retentionDays=${retentionDays}`,
+          {
+            jobId: this.currentJobId,
+            tierId: tier.id,
+            cutoffDate,
+            retentionDays,
+          },
+          'Processing tier with retention policy.',
         );
 
-        totalFilesDeleted += await this.deleteExpiredItems((limit) =>
-          this.fileRepository.deleteExpiredTrashFilesByTier(
-            tier.id,
-            cutoffDate,
-            limit,
-          ),
+        totalFilesDeleted += await this.deleteExpiredItems(
+          (limit) =>
+            this.fileRepository.deleteExpiredTrashFilesByTier(
+              tier.id,
+              cutoffDate,
+              limit,
+            ),
+          (totalDeletedFiles: number) =>
+            this.logger.log(
+              { jobId: this.currentJobId, tierId: tier.id, totalDeletedFiles },
+              'Finished processing a batch of files for the tier.',
+            ),
         );
 
-        totalFoldersDeleted += await this.deleteExpiredItems((limit) =>
-          this.folderRepository.deleteExpiredTrashFoldersByTier(
-            tier.id,
-            cutoffDate,
-            limit,
-          ),
+        totalFoldersDeleted += await this.deleteExpiredItems(
+          (limit) =>
+            this.folderRepository.deleteExpiredTrashFoldersByTier(
+              tier.id,
+              cutoffDate,
+              limit,
+            ),
+          (totalDeletedFolders: number) =>
+            this.logger.log(
+              {
+                jobId: this.currentJobId,
+                tierId: tier.id,
+                totalDeletedFolders,
+              },
+              'Finished processing a batch of folders for the tier.',
+            ),
         );
       }
 
       newrelic.addCustomAttribute('filesDeleted', totalFilesDeleted);
       newrelic.addCustomAttribute('foldersDeleted', totalFoldersDeleted);
 
-      await this.jobExecutionRepository.markAsCompleted(startedJob.id, {
+      await this.jobExecutionRepository.markAsCompleted(this.currentJobId, {
         filesDeleted: totalFilesDeleted,
         foldersDeleted: totalFoldersDeleted,
       });
 
       this.logger.log(
-        `[${startedJob.id}] Cleanup completed: ${totalFilesDeleted} files and ${totalFoldersDeleted} folders deleted`,
+        { jobId: this.currentJobId, totalFilesDeleted, totalFoldersDeleted },
+        'Cleanup job completed successfully.',
       );
     } catch (error) {
-      this.logger.error(`[${startedJob.id}] Error: ${error.message}`);
-      await this.jobExecutionRepository.markAsFailed(startedJob.id, {
+      this.logger.error(
+        {
+          jobId: this.currentJobId,
+          message: error.message,
+          stack: error.stack,
+        },
+        'Cleanup job failed with error.',
+      );
+      await this.jobExecutionRepository.markAsFailed(this.currentJobId, {
         errorMessage: error.message,
       });
-      throw error;
+      return;
     }
   }
 
   private async deleteExpiredItems(
     deleteBatch: (limit: number) => Promise<string[]>,
+    onFinish: (totalDeleted: number) => void,
   ): Promise<number> {
     let totalDeleted = 0;
     let previousBatchUuid: string | null = null;
@@ -171,6 +191,11 @@ export class DeleteExpiredTrashItemsTask {
     do {
       deletedUuids = await deleteBatch(this.batchSize);
       if (deletedUuids.length === 0) break;
+      // TODO: remove logs after monitoring the job for a while to ensure there are no issues with the deletion process
+      this.logger.log(
+        { jobId: this.currentJobId, deletedUuids },
+        'Batch of items deleted.',
+      );
 
       // detect if same UUID keeps appearing (shouldn't happen with atomic UPDATE)
       if (previousBatchUuid && deletedUuids.includes(previousBatchUuid)) {
@@ -181,7 +206,8 @@ export class DeleteExpiredTrashItemsTask {
           );
         }
         this.logger.warn(
-          `UUID ${previousBatchUuid} repeated in batch, attempt ${sameUuidRepeatedTimes}`,
+          { previousBatchUuid, sameUuidRepeatedTimes },
+          'Same UUID detected in consecutive batches.',
         );
       } else {
         sameUuidRepeatedTimes = 0;
@@ -189,11 +215,19 @@ export class DeleteExpiredTrashItemsTask {
       }
 
       totalDeleted += deletedUuids.length;
-      this.logger.log(
-        `Deleted ${deletedUuids.length} expired items. Total: ${totalDeleted}`,
-      );
     } while (deletedUuids.length === this.batchSize);
 
+    onFinish(totalDeleted);
     return totalDeleted;
+  }
+
+  async beforeApplicationShutdown(signal?: string) {
+    this.logger.warn(
+      { jobId: this.currentJobId, signal },
+      'Application shutting down, marking job as aborted.',
+    );
+    await this.jobExecutionRepository.markAsAborted(this.currentJobId, {
+      reason: `Process terminated with signal ${signal}`,
+    });
   }
 }

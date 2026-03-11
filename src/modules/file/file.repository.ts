@@ -1041,7 +1041,7 @@ export class SequelizeFileRepository implements FileRepository {
   ): Promise<string[]> {
     const [results] = await withQueryTimeout(
       this.fileModel.sequelize,
-      40000,
+      60000,
       async (transaction) => {
         return this.fileModel.sequelize.query(
           `
@@ -1054,6 +1054,7 @@ export class SequelizeFileRepository implements FileRepository {
             WHERE f.status = 'TRASHED'
               AND f.updated_at < :cutoffDate
             LIMIT :limit
+            FOR UPDATE SKIP LOCKED
           )
           RETURNING uuid
           `,

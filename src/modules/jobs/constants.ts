@@ -8,6 +8,7 @@ export enum JobName {
 export enum JobStatus {
   RUNNING = 'running',
   FAILED = 'failed',
+  ABORTED = 'aborted',
   COMPLETED = 'completed',
 }
 

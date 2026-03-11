@@ -885,7 +885,7 @@ export class SequelizeFolderRepository implements FolderRepository {
   ): Promise<string[]> {
     const [results] = await withQueryTimeout(
       this.folderModel.sequelize,
-      30000,
+      60000,
       async (transaction) => {
         return this.folderModel.sequelize.query(
           `
@@ -899,6 +899,7 @@ export class SequelizeFolderRepository implements FolderRepository {
               AND fo.removed = false
               AND fo.updated_at < :cutoffDate
             LIMIT :limit
+            FOR UPDATE SKIP LOCKED
           )
           RETURNING uuid
           `,

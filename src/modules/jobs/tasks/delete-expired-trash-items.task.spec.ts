@@ -3,7 +3,6 @@ import { Test } from '@nestjs/testing';
 import { type Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DeleteExpiredTrashItemsTask } from './delete-expired-trash-items.task';
-import { RedisService } from '../../../externals/redis/redis.service';
 import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
 import { SequelizeFileRepository } from '../../file/file.repository';
 import { SequelizeFolderRepository } from '../../folder/folder.repository';
@@ -25,7 +24,6 @@ describe('DeleteExpiredTrashItemsTask', () => {
   let fileRepository: DeepMocked<SequelizeFileRepository>;
   let folderRepository: DeepMocked<SequelizeFolderRepository>;
   let featureLimitsRepository: DeepMocked<SequelizeFeatureLimitsRepository>;
-  let redisService: DeepMocked<RedisService>;
   let configService: DeepMocked<ConfigService>;
 
   beforeEach(async () => {
@@ -41,7 +39,6 @@ describe('DeleteExpiredTrashItemsTask', () => {
     fileRepository = moduleRef.get(SequelizeFileRepository);
     folderRepository = moduleRef.get(SequelizeFolderRepository);
     featureLimitsRepository = moduleRef.get(SequelizeFeatureLimitsRepository);
-    redisService = moduleRef.get(RedisService);
     configService = moduleRef.get(ConfigService);
   });
 
@@ -57,7 +54,6 @@ describe('DeleteExpiredTrashItemsTask', () => {
       await task.scheduleCleanup();
 
       expect(startJobSpy).not.toHaveBeenCalled();
-      expect(redisService.tryAcquireLock).not.toHaveBeenCalled();
     });
   });
 
@@ -180,7 +176,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
       ]);
       fileRepository.deleteExpiredTrashFilesByTier.mockRejectedValue(error);
 
-      await expect(task.startJob()).rejects.toThrow(error);
+      await task.startJob();
 
       expect(jobExecutionRepository.markAsFailed).toHaveBeenCalledWith(
         mockStartedJob.id,
@@ -343,7 +339,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
     it('When deleteBatch returns fewer items than batchSize, then it should return the total count', async () => {
       const deleteBatch = jest.fn().mockResolvedValue(['a', 'b', 'c']);
 
-      const result = await task['deleteExpiredItems'](deleteBatch);
+      const result = await task['deleteExpiredItems'](deleteBatch, jest.fn());
 
       expect(result).toBe(3);
       expect(deleteBatch).toHaveBeenCalledTimes(1);
@@ -357,7 +353,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
         .mockResolvedValueOnce(batch1)
         .mockResolvedValueOnce(batch2);
 
-      const result = await task['deleteExpiredItems'](deleteBatch);
+      const result = await task['deleteExpiredItems'](deleteBatch, jest.fn());
 
       expect(result).toBe(505);
       expect(deleteBatch).toHaveBeenCalledTimes(2);
@@ -372,7 +368,9 @@ describe('DeleteExpiredTrashItemsTask', () => {
       ];
       const deleteBatch = jest.fn().mockResolvedValue(batch);
 
-      await expect(task['deleteExpiredItems'](deleteBatch)).rejects.toThrow(
+      await expect(
+        task['deleteExpiredItems'](deleteBatch, jest.fn()),
+      ).rejects.toThrow(
         `Same UUID ${repeatedUuid} repeated 3 times in consecutive batches`,
       );
     });
@@ -380,10 +378,36 @@ describe('DeleteExpiredTrashItemsTask', () => {
     it('When deleteBatch returns empty array, then it should return 0', async () => {
       const deleteBatch = jest.fn().mockResolvedValue([]);
 
-      const result = await task['deleteExpiredItems'](deleteBatch);
+      const result = await task['deleteExpiredItems'](deleteBatch, jest.fn());
 
       expect(result).toBe(0);
       expect(deleteBatch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('beforeApplicationShutdown', () => {
+    it('When called with a signal, then it should mark the current job as aborted with the signal reason', async () => {
+      task['currentJobId'] = 'job-123';
+      jobExecutionRepository.markAsAborted.mockResolvedValue({} as any);
+
+      await task.beforeApplicationShutdown('SIGTERM');
+
+      expect(jobExecutionRepository.markAsAborted).toHaveBeenCalledWith(
+        'job-123',
+        { reason: 'Process terminated with signal SIGTERM' },
+      );
+    });
+
+    it('When called without a signal, then it should mark the current job as aborted with undefined signal', async () => {
+      task['currentJobId'] = 'job-456';
+      jobExecutionRepository.markAsAborted.mockResolvedValue({} as any);
+
+      await task.beforeApplicationShutdown();
+
+      expect(jobExecutionRepository.markAsAborted).toHaveBeenCalledWith(
+        'job-456',
+        { reason: 'Process terminated with signal undefined' },
+      );
     });
   });
 });
