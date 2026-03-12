@@ -17,6 +17,7 @@ import { UserModel } from '../user/user.model';
 import { SharingModel } from '../sharing/models';
 import { v4 } from 'uuid';
 import { randomInt } from 'crypto';
+import { Time } from '../../lib/time';
 
 jest.mock('./folder.model', () => ({
   FolderModel: {
@@ -1431,48 +1432,65 @@ describe('SequelizeFolderRepository', () => {
     });
   });
 
-  describe('findExpiredTrashFolderIds', () => {
+  describe('deleteExpiredTrashFoldersByTier', () => {
     it('When expired trash folders exist, then it should return their uuids', async () => {
       const folderUuids = [v4(), v4(), v4()];
+      const tierId = v4();
+      const cutoffDate = new Date('2026-02-08T00:00:00Z');
       const limit = 100;
-      const startDate = new Date('2026-03-03');
-      const minRetentionDays = 1;
 
       jest
         .spyOn(folderModel.sequelize, 'query')
-        .mockResolvedValueOnce(
-          folderUuids.map((uuid) => ({ item_id: uuid })) as any,
-        );
+        .mockResolvedValueOnce([
+          folderUuids.map((uuid) => ({ uuid })),
+          {},
+        ] as any);
 
-      const result = await repository.findExpiredTrashFolderIds(
-        startDate,
+      const result = await (repository as any).deleteExpiredTrashFoldersByTier(
+        tierId,
+        cutoffDate,
         limit,
-        minRetentionDays,
       );
 
-      expect(folderModel.sequelize.query).toHaveBeenCalledWith(
-        expect.stringContaining('minRetentionDays'),
-        {
-          replacements: { limit, startDate, minRetentionDays },
-          type: QueryTypes.SELECT,
-          transaction: expect.any(Object),
-        },
-      );
       expect(result).toEqual(folderUuids);
     });
 
     it('When no expired trash folders exist, then it should return empty array', async () => {
       jest
         .spyOn(folderModel.sequelize, 'query')
-        .mockResolvedValueOnce([] as any);
+        .mockResolvedValueOnce([[], {}] as any);
 
-      const result = await repository.findExpiredTrashFolderIds(
-        new Date('2026-03-03'),
+      const result = await (repository as any).deleteExpiredTrashFoldersByTier(
+        v4(),
+        Time.now('2026-02-08T00:00:00Z'),
         100,
-        7,
       );
 
       expect(result).toEqual([]);
+    });
+
+    it('When called, then it should pass tierId, cutoffDate and limit as replacements', async () => {
+      const tierId = v4();
+      const cutoffDate = Time.now('2026-02-08T00:00:00Z');
+      const limit = 50;
+
+      jest
+        .spyOn(folderModel.sequelize, 'query')
+        .mockResolvedValueOnce([[], {}] as any);
+
+      await (repository as any).deleteExpiredTrashFoldersByTier(
+        tierId,
+        cutoffDate,
+        limit,
+      );
+
+      expect(folderModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: { tierId, cutoffDate, limit },
+          transaction: expect.any(Object),
+        }),
+      );
     });
   });
 });

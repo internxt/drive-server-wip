@@ -10,7 +10,7 @@ import {
 } from 'sequelize';
 import { v4 } from 'uuid';
 
-import { Folder } from './folder.domain';
+import { Folder, FolderStatus } from './folder.domain';
 import { type FolderAttributes } from './folder.attributes';
 import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
@@ -129,10 +129,10 @@ interface FolderRepository {
   ): Promise<void>;
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
   deleteFoldersByUuid(folderUuids: string[]): Promise<number>;
-  findExpiredTrashFolderIds(
-    startDate: Date,
+  deleteExpiredTrashFoldersByTier(
+    tierId: string,
+    cutoffDate: Date,
     limit: number,
-    minRetentionDays: number,
   ): Promise<string[]>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
   calculateFolderSize(folderUuid: string): Promise<number>;
@@ -878,62 +878,40 @@ export class SequelizeFolderRepository implements FolderRepository {
     return updatedCount;
   }
 
-  async findExpiredTrashFolderIds(
-    startDate: Date,
+  async deleteExpiredTrashFoldersByTier(
+    tierId: string,
+    cutoffDate: Date,
     limit: number,
-    minRetentionDays: number,
   ): Promise<string[]> {
-    // TODO: This uses overriden limits only. Uncomment and use tier retention when released
-    const query = `
-      WITH trash_retention_limit AS (
-        SELECT id, value::integer AS retention_days
-        FROM limits
-        WHERE label = 'trash-retention-days'
-      ),
-      -- tier_retention AS (
-      --   SELECT tl.tier_id, trl.retention_days
-      --   FROM tiers_limits tl
-      --   JOIN trash_retention_limit trl ON tl.limit_id = trl.id
-      -- ),
-      user_retention AS (
-        SELECT
-          u.id AS user_id,
-          COALESCE(
-            uol_lr.retention_days
-            -- , tr.retention_days
-          ) AS retention_days
-        FROM users u
-        JOIN user_overridden_limits uol ON uol.user_id = u.uuid::text
-        JOIN trash_retention_limit uol_lr ON uol.limit_id = uol_lr.id
-        -- LEFT JOIN tier_retention tr ON tr.tier_id = u.tier_id
-      )
-      SELECT fo.uuid AS item_id
-      FROM folders fo
-      JOIN user_retention ur ON fo.user_id = ur.user_id
-      WHERE fo.deleted = true
-        AND fo.removed = false
-        AND fo.updated_at < NOW() - (:minRetentionDays || ' days')::INTERVAL
-        AND GREATEST(fo.updated_at, :startDate::timestamptz) < NOW() - (ur.retention_days || ' days')::INTERVAL
-      LIMIT :limit
-    `;
-
-    const results = await withQueryTimeout(
+    const [results] = await withQueryTimeout(
       this.folderModel.sequelize,
-      30000,
+      60000,
       async (transaction) => {
-        return this.folderModel.sequelize.query<{ item_id: string }>(query, {
-          replacements: {
-            limit,
-            startDate,
-            minRetentionDays,
+        return this.folderModel.sequelize.query(
+          `
+          UPDATE folders
+          SET removed = true, removed_at = NOW(), updated_at = NOW()
+          WHERE uuid IN (
+            SELECT fo.uuid
+            FROM folders fo
+            JOIN users u ON u.id = fo.user_id AND u.tier_id = :tierId
+            WHERE fo.deleted = true
+              AND fo.removed = false
+              AND fo.updated_at <= :cutoffDate
+            LIMIT :limit
+            FOR UPDATE SKIP LOCKED
+          )
+          RETURNING uuid
+          `,
+          {
+            replacements: { tierId, cutoffDate, limit },
+            transaction,
+            type: QueryTypes.UPDATE,
           },
-          type: QueryTypes.SELECT,
-          transaction,
-        });
+        );
       },
     );
-
-    return results.map((r) => r.item_id);
+    return (results as { uuid: string }[]).map((r) => r.uuid);
   }
 
   async findAllCursorWhereUpdatedAfter(
@@ -1335,6 +1313,19 @@ export class SequelizeFolderRepository implements FolderRepository {
         return (folder as Folder) ?? null;
       },
     );
+  }
+
+  private folderStatusWhereCondition(
+    status: FolderStatus,
+  ): Pick<FolderAttributes, 'deleted' | 'removed'> {
+    switch (status) {
+      case FolderStatus.EXISTS:
+        return { deleted: false, removed: false };
+      case FolderStatus.TRASHED:
+        return { deleted: true, removed: false };
+      case FolderStatus.DELETED:
+        return { deleted: true, removed: true };
+    }
   }
 
   private toDomain(model: FolderModel): Folder {

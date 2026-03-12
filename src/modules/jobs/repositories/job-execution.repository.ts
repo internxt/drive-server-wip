@@ -68,6 +68,22 @@ export class SequelizeJobExecutionRepository implements JobExecutionRepository {
     );
   }
 
+  async markAsAborted(
+    jobId: string,
+    metadata?: Record<string, any>,
+  ): Promise<void> {
+    await this.jobExecutionModel.update(
+      {
+        status: JobStatus.ABORTED,
+        completedAt: new Date(),
+        metadata,
+      },
+      {
+        where: { id: jobId },
+      },
+    );
+  }
+
   async getLastSuccessful(name: string): Promise<JobExecutionModel | null> {
     return this.jobExecutionModel.findOne({
       where: {

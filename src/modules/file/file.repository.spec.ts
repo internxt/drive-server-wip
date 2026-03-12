@@ -1212,46 +1212,65 @@ describe('FileRepository', () => {
     });
   });
 
-  describe('findExpiredTrashFileIds', () => {
-    it('When expired trash files exist, then it should return their uuids', async () => {
+  describe('deleteExpiredTrashFilesByTier', () => {
+    it('When expired trash files exist, then it should return their uuids from RETURNING', async () => {
       const fileUuids = [v4(), v4(), v4()];
+      const tierId = v4();
+      const cutoffDate = Time.now('2026-02-08T00:00:00Z');
       const limit = 100;
-      const startDate = new Date('2026-03-03');
-      const minRetentionDays = 1;
 
       jest
         .spyOn(fileModel.sequelize, 'query')
-        .mockResolvedValueOnce(
-          fileUuids.map((uuid) => ({ item_id: uuid })) as any,
-        );
+        .mockResolvedValueOnce([
+          fileUuids.map((uuid) => ({ uuid })),
+          {},
+        ] as any);
 
-      const result = await repository.findExpiredTrashFileIds(
-        startDate,
+      const result = await (repository as any).deleteExpiredTrashFilesByTier(
+        tierId,
+        cutoffDate,
         limit,
-        minRetentionDays,
       );
 
-      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
-        expect.stringContaining('minRetentionDays'),
-        {
-          replacements: { startDate, limit, minRetentionDays },
-          type: QueryTypes.SELECT,
-          transaction: expect.any(Object),
-        },
-      );
       expect(result).toEqual(fileUuids);
     });
 
     it('When no expired trash files exist, then it should return empty array', async () => {
-      jest.spyOn(fileModel.sequelize, 'query').mockResolvedValueOnce([] as any);
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce([[], {}] as any);
 
-      const result = await repository.findExpiredTrashFileIds(
-        new Date('2026-03-03'),
+      const result = await (repository as any).deleteExpiredTrashFilesByTier(
+        v4(),
+        Time.now('2026-02-08T00:00:00Z'),
         100,
-        7,
       );
 
       expect(result).toEqual([]);
+    });
+
+    it('When called, then it should pass tierId, cutoffDate and limit as replacements', async () => {
+      const tierId = v4();
+      const cutoffDate = Time.now('2026-02-08T00:00:00Z');
+      const limit = 50;
+
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce([[], {}] as any);
+
+      await (repository as any).deleteExpiredTrashFilesByTier(
+        tierId,
+        cutoffDate,
+        limit,
+      );
+
+      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: { tierId, cutoffDate, limit },
+          transaction: expect.any(Object),
+        }),
+      );
     });
   });
 });

@@ -3,13 +3,13 @@ import { Test } from '@nestjs/testing';
 import { type Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DeleteExpiredTrashItemsTask } from './delete-expired-trash-items.task';
-import { RedisService } from '../../../externals/redis/redis.service';
 import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
 import { SequelizeFileRepository } from '../../file/file.repository';
 import { SequelizeFolderRepository } from '../../folder/folder.repository';
 import { SequelizeFeatureLimitsRepository } from '../../feature-limit/feature-limit.repository';
 import { type JobExecutionModel } from '../models/job-execution.model';
 import { JobName } from '../constants';
+import { Time } from '../../../lib/time';
 
 jest.mock('newrelic', () => ({
   startBackgroundTransaction: jest.fn((_name, _group, cb) => cb()),
@@ -24,7 +24,6 @@ describe('DeleteExpiredTrashItemsTask', () => {
   let fileRepository: DeepMocked<SequelizeFileRepository>;
   let folderRepository: DeepMocked<SequelizeFolderRepository>;
   let featureLimitsRepository: DeepMocked<SequelizeFeatureLimitsRepository>;
-  let redisService: DeepMocked<RedisService>;
   let configService: DeepMocked<ConfigService>;
 
   beforeEach(async () => {
@@ -40,7 +39,6 @@ describe('DeleteExpiredTrashItemsTask', () => {
     fileRepository = moduleRef.get(SequelizeFileRepository);
     folderRepository = moduleRef.get(SequelizeFolderRepository);
     featureLimitsRepository = moduleRef.get(SequelizeFeatureLimitsRepository);
-    redisService = moduleRef.get(RedisService);
     configService = moduleRef.get(ConfigService);
   });
 
@@ -56,39 +54,60 @@ describe('DeleteExpiredTrashItemsTask', () => {
       await task.scheduleCleanup();
 
       expect(startJobSpy).not.toHaveBeenCalled();
-      expect(redisService.tryAcquireLock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createJobInitialization', () => {
+    const mockStartedJob: JobExecutionModel = {
+      id: 'job-123',
+      startedAt: new Date('2026-03-10T10:00:00Z'),
+    } as JobExecutionModel;
+
+    it('When called with metadata, then it should call startJob with the provided metadata', async () => {
+      const metadata = { someKey: 'someValue' };
+      jobExecutionRepository.startJob.mockResolvedValue(mockStartedJob);
+
+      const result = await task.createJobInitialization(metadata);
+
+      expect(jobExecutionRepository.startJob).toHaveBeenCalledWith(
+        JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
+        metadata,
+      );
+      expect(result).toEqual({ startedJob: mockStartedJob });
+    });
+
+    it('When called without metadata, then it should call startJob with undefined', async () => {
+      jobExecutionRepository.startJob.mockResolvedValue(mockStartedJob);
+
+      const result = await task.createJobInitialization();
+
+      expect(jobExecutionRepository.startJob).toHaveBeenCalledWith(
+        JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
+        undefined,
+      );
+      expect(result).toEqual({ startedJob: mockStartedJob });
     });
   });
 
   describe('startJob', () => {
     const mockStartedJob: JobExecutionModel = {
       id: 'job-123',
-      startedAt: new Date('2026-02-11T10:00:00Z'),
-    } as JobExecutionModel;
-
-    const mockCompletedJob: JobExecutionModel = {
-      id: 'job-123',
-      completedAt: new Date('2026-02-11T10:30:00Z'),
+      startedAt: new Date('2026-03-10T10:00:00Z'),
     } as JobExecutionModel;
 
     beforeEach(() => {
-      jest.spyOn(task, 'initializeJobExecution').mockResolvedValue({
-        lastCompletedJob: null,
-        startedJob: mockStartedJob,
-      });
-      featureLimitsRepository.findMinValueByLabel.mockResolvedValue(1);
+      jest
+        .spyOn(task, 'createJobInitialization')
+        .mockResolvedValue({ startedJob: mockStartedJob });
+      jobExecutionRepository.markAsCompleted.mockResolvedValue({} as any);
     });
 
-    it('When no expired items exist, then it should complete with zero deletions', async () => {
-      jest
-        .spyOn(task as any, 'yieldExpiredFileIds')
-        .mockImplementation(async function* () {});
-      jest
-        .spyOn(task as any, 'yieldExpiredFolderIds')
-        .mockImplementation(async function* () {});
-      jobExecutionRepository.markAsCompleted.mockResolvedValue(
-        mockCompletedJob,
-      );
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('When no tier configs exist, then it should complete with zero deletions', async () => {
+      featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([]);
 
       await task.startJob();
 
@@ -96,247 +115,275 @@ describe('DeleteExpiredTrashItemsTask', () => {
         mockStartedJob.id,
         { filesDeleted: 0, foldersDeleted: 0 },
       );
+      expect(
+        fileRepository.deleteExpiredTrashFilesByTier,
+      ).not.toHaveBeenCalled();
+      expect(
+        folderRepository.deleteExpiredTrashFoldersByTier,
+      ).not.toHaveBeenCalled();
     });
 
-    it('When job starts, then it should log and report min retention days', async () => {
-      featureLimitsRepository.findMinValueByLabel.mockResolvedValue(3);
-      jest
-        .spyOn(task as any, 'yieldExpiredFileIds')
-        .mockImplementation(async function* () {});
-      jest
-        .spyOn(task as any, 'yieldExpiredFolderIds')
-        .mockImplementation(async function* () {});
-      jobExecutionRepository.markAsCompleted.mockResolvedValue(
-        mockCompletedJob,
-      );
+    it('When tier config has retentionDays=30, then it should call repos with correct args and accumulate totals', async () => {
+      const tierId = 'tier-uuid-1';
+      // cutoffDate must be AFTER firstDeploymentDate (2026-03-10) for the tier to be processed
+      // firstDeploymentDate >= cutoffDate → FALSE → process
+      const cutoffDate = new Date('2026-03-11T00:00:00Z');
+
+      jest.spyOn(Time, 'daysAgo').mockReturnValue(cutoffDate);
+
+      featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
+        {
+          tier: { id: tierId } as any,
+          limit: { value: '30' } as any,
+        },
+      ]);
+      fileRepository.deleteExpiredTrashFilesByTier.mockResolvedValue([
+        'file-1',
+        'file-2',
+      ]);
+      folderRepository.deleteExpiredTrashFoldersByTier.mockResolvedValue([
+        'folder-1',
+      ]);
 
       await task.startJob();
 
-      expect(featureLimitsRepository.findMinValueByLabel).toHaveBeenCalledWith(
-        'trash-retention-days',
+      expect(fileRepository.deleteExpiredTrashFilesByTier).toHaveBeenCalledWith(
+        tierId,
+        cutoffDate,
+        expect.any(Number),
       );
-    });
-
-    it('When expired files and folders exist, then it should delete them and log counts', async () => {
-      const fileIds = Array.from({ length: 100 }, (_, i) => `file-uuid-${i}`);
-      const folderIds = Array.from(
-        { length: 50 },
-        (_, i) => `folder-uuid-${i}`,
-      );
-
-      jest
-        .spyOn(task as any, 'yieldExpiredFileIds')
-        .mockImplementation(async function* () {
-          yield fileIds;
-        });
-      jest
-        .spyOn(task as any, 'yieldExpiredFolderIds')
-        .mockImplementation(async function* () {
-          yield folderIds;
-        });
-
-      fileRepository.deleteFilesByUuid.mockResolvedValue(fileIds.length);
-      folderRepository.deleteFoldersByUuid.mockResolvedValue(folderIds.length);
-      jobExecutionRepository.markAsCompleted.mockResolvedValue(
-        mockCompletedJob,
-      );
-
-      await task.startJob();
-
-      expect(fileRepository.deleteFilesByUuid).toHaveBeenCalledWith(fileIds);
-      expect(folderRepository.deleteFoldersByUuid).toHaveBeenCalledWith(
-        folderIds,
-      );
+      expect(
+        folderRepository.deleteExpiredTrashFoldersByTier,
+      ).toHaveBeenCalledWith(tierId, cutoffDate, expect.any(Number));
       expect(jobExecutionRepository.markAsCompleted).toHaveBeenCalledWith(
         mockStartedJob.id,
-        { filesDeleted: 100, foldersDeleted: 50 },
+        { filesDeleted: 2, foldersDeleted: 1 },
       );
     });
 
-    it('When multiple file batches exist, then it should accumulate the total count', async () => {
-      const batch1 = Array.from({ length: 100 }, (_, i) => `file-uuid-${i}`);
-      const batch2 = Array.from({ length: 60 }, (_, i) => `file-uuid-${i}`);
+    it('When deletion throws an error, then it should mark the job as failed and rethrow', async () => {
+      const error = new Error('DB error');
+      // cutoffDate after firstDeploymentDate so the tier is not skipped
+      const cutoffDate = new Date('2026-03-11T00:00:00Z');
 
-      jest
-        .spyOn(task as any, 'yieldExpiredFileIds')
-        .mockImplementation(async function* () {
-          yield batch1;
-          yield batch2;
-        });
-      jest
-        .spyOn(task as any, 'yieldExpiredFolderIds')
-        .mockImplementation(async function* () {});
+      jest.spyOn(Time, 'daysAgo').mockReturnValue(cutoffDate);
 
-      fileRepository.deleteFilesByUuid.mockResolvedValue(0);
-      jobExecutionRepository.markAsCompleted.mockResolvedValue(
-        mockCompletedJob,
-      );
+      featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
+        {
+          tier: { id: 'tier-1' } as any,
+          limit: { value: '30' } as any,
+        },
+      ]);
+      fileRepository.deleteExpiredTrashFilesByTier.mockRejectedValue(error);
 
       await task.startJob();
-
-      expect(jobExecutionRepository.markAsCompleted).toHaveBeenCalledWith(
-        mockStartedJob.id,
-        { filesDeleted: 160, foldersDeleted: 0 },
-      );
-    });
-
-    it('When deletion fails, then it should mark job as failed and throw error', async () => {
-      const error = new Error('Repository error');
-      const fileIds = ['file-uuid-1'];
-
-      jest
-        .spyOn(task as any, 'yieldExpiredFileIds')
-        .mockImplementation(async function* () {
-          yield fileIds;
-        });
-      jest
-        .spyOn(task as any, 'yieldExpiredFolderIds')
-        .mockImplementation(async function* () {});
-
-      fileRepository.deleteFilesByUuid.mockRejectedValue(error);
-
-      await expect(task.startJob()).rejects.toThrow(error);
 
       expect(jobExecutionRepository.markAsFailed).toHaveBeenCalledWith(
         mockStartedJob.id,
         { errorMessage: error.message },
       );
     });
-  });
 
-  describe('initializeJobExecution', () => {
-    const mockJobMetadata = { myJobData: 'value' };
+    describe('cutoff date edge cases', () => {
+      it('When retentionDays=1, then it should skip (not enough time elapsed since deploy)', async () => {
+        // Time.daysAgo(1) = 2026-03-09, firstDeploymentDate (2026-03-10) >= 2026-03-09 → SKIP
+        jest
+          .spyOn(Time, 'daysAgo')
+          .mockReturnValue(new Date('2026-03-09T00:00:00Z'));
 
-    it('When last completed job is available, then it should return lastCompletedJob and startedJob', async () => {
-      const lastCompletedJob: JobExecutionModel = {
-        id: 'job-122',
-        completedAt: new Date('2026-02-10T09:00:00Z'),
-      } as JobExecutionModel;
+        featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
+          {
+            tier: { id: 'tier-1' } as any,
+            limit: { value: '1' } as any,
+          },
+        ]);
 
-      const newJob: JobExecutionModel = {
-        id: 'job-123',
-        startedAt: new Date('2026-02-11T10:00:00Z'),
-      } as JobExecutionModel;
+        await task.startJob();
 
-      jest
-        .spyOn(jobExecutionRepository, 'getLastSuccessful')
-        .mockResolvedValue(lastCompletedJob);
-      jest.spyOn(jobExecutionRepository, 'startJob').mockResolvedValue(newJob);
-
-      const result = await task.initializeJobExecution(mockJobMetadata);
-
-      expect(result).toEqual({
-        lastCompletedJob,
-        startedJob: newJob,
+        expect(
+          fileRepository.deleteExpiredTrashFilesByTier,
+        ).not.toHaveBeenCalled();
       });
 
-      expect(jobExecutionRepository.getLastSuccessful).toHaveBeenCalledWith(
-        JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
-      );
-      expect(jobExecutionRepository.startJob).toHaveBeenCalledWith(
-        JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
-        mockJobMetadata,
-      );
-    });
+      it('When cutoffDate equals firstDeploymentDate exactly, then it should execute', async () => {
+        jest
+          .spyOn(Time, 'daysAgo')
+          .mockReturnValue(new Date('2026-03-10T00:00:00Z'));
 
-    it('When no previous completed job is available, then it should return null for lastCompletedJob', async () => {
-      const newJob: JobExecutionModel = {
-        id: 'job-123',
-        startedAt: new Date('2026-02-11T10:00:00Z'),
-      } as JobExecutionModel;
+        featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
+          {
+            tier: { id: 'tier-1' } as any,
+            limit: { value: '0' } as any,
+          },
+        ]);
 
-      jest
-        .spyOn(jobExecutionRepository, 'getLastSuccessful')
-        .mockResolvedValue(null);
-      jest.spyOn(jobExecutionRepository, 'startJob').mockResolvedValue(newJob);
+        await task.startJob();
 
-      const result = await task.initializeJobExecution();
-
-      expect(result).toEqual({
-        lastCompletedJob: null,
-        startedJob: newJob,
+        expect(
+          fileRepository.deleteExpiredTrashFilesByTier,
+        ).toHaveBeenCalled();
       });
-      expect(jobExecutionRepository.startJob).toHaveBeenCalledWith(
-        JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
-        undefined,
-      );
+
+      it('When retentionDays=30, then it should process (cutoffDate is after firstDeploymentDate)', async () => {
+        // For processing: firstDeploymentDate (2026-03-10) >= cutoffDate must be FALSE
+        // so cutoffDate must be after firstDeploymentDate
+        const cutoffDate = new Date('2026-03-11T00:00:00Z');
+        jest.spyOn(Time, 'daysAgo').mockReturnValue(cutoffDate);
+
+        featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
+          {
+            tier: { id: 'tier-1' } as any,
+            limit: { value: '30' } as any,
+          },
+        ]);
+        fileRepository.deleteExpiredTrashFilesByTier.mockResolvedValue([]);
+        folderRepository.deleteExpiredTrashFoldersByTier.mockResolvedValue([]);
+
+        await task.startJob();
+
+        expect(fileRepository.deleteExpiredTrashFilesByTier).toHaveBeenCalled();
+        expect(
+          folderRepository.deleteExpiredTrashFoldersByTier,
+        ).toHaveBeenCalled();
+      });
+
+      it('When multiple tiers are mixed, then only the tier with sufficient retention is processed', async () => {
+        const tierAId = 'tier-a';
+        const tierBId = 'tier-b';
+        // Tier A: cutoffDate <= firstDeploymentDate → SKIP
+        const cutoffDateA = new Date('2026-03-09T00:00:00Z');
+        // Tier B: cutoffDate > firstDeploymentDate → PROCESS
+        const cutoffDateB = new Date('2026-03-11T00:00:00Z');
+
+        jest
+          .spyOn(Time, 'daysAgo')
+          .mockReturnValueOnce(cutoffDateA) // tier A (retentionDays=1)
+          .mockReturnValueOnce(cutoffDateB); // tier B (retentionDays=30)
+
+        featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
+          {
+            tier: { id: tierAId } as any,
+            limit: { value: '1' } as any,
+          },
+          {
+            tier: { id: tierBId } as any,
+            limit: { value: '30' } as any,
+          },
+        ]);
+        fileRepository.deleteExpiredTrashFilesByTier.mockResolvedValue([]);
+        folderRepository.deleteExpiredTrashFoldersByTier.mockResolvedValue([]);
+
+        await task.startJob();
+
+        expect(
+          fileRepository.deleteExpiredTrashFilesByTier,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          fileRepository.deleteExpiredTrashFilesByTier,
+        ).toHaveBeenCalledWith(tierBId, cutoffDateB, expect.any(Number));
+        expect(
+          fileRepository.deleteExpiredTrashFilesByTier,
+        ).not.toHaveBeenCalledWith(
+          tierAId,
+          expect.anything(),
+          expect.anything(),
+        );
+      });
+
+      it('When limit.value is a string number, then it should be correctly converted to number', async () => {
+        const cutoffDate = new Date('2026-03-11T00:00:00Z');
+        const daysAgoSpy = jest
+          .spyOn(Time, 'daysAgo')
+          .mockReturnValue(cutoffDate);
+
+        featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
+          {
+            tier: { id: 'tier-1' } as any,
+            limit: { value: '30' } as any,
+          },
+        ]);
+        fileRepository.deleteExpiredTrashFilesByTier.mockResolvedValue([]);
+        folderRepository.deleteExpiredTrashFoldersByTier.mockResolvedValue([]);
+
+        await task.startJob();
+
+        expect(daysAgoSpy).toHaveBeenCalledWith(30); // Number('30') = 30
+      });
     });
   });
 
-  describe('yieldExpiredFileIds', () => {
-    it('When called, then it should keep yielding file ids until there are no more to fetch', async () => {
-      const batch1 = Array.from({ length: 100 }, (_, i) => `file-uuid-${i}`);
-      const batch2 = Array.from({ length: 5 }, (_, i) => `file-uuid-${i}`);
+  describe('deleteExpiredItems', () => {
+    it('When deleteBatch returns fewer items than batchSize, then it should return the total count', async () => {
+      const deleteBatch = jest.fn().mockResolvedValue(['a', 'b', 'c']);
 
-      fileRepository.findExpiredTrashFileIds
+      const result = await task['deleteExpiredItems'](deleteBatch, jest.fn());
+
+      expect(result).toBe(3);
+      expect(deleteBatch).toHaveBeenCalledTimes(1);
+    });
+
+    it('When deleteBatch returns full batches then a partial batch, then it should accumulate total count', async () => {
+      const batch1 = Array.from({ length: 500 }, (_, i) => `uuid-a${i}`);
+      const batch2 = Array.from({ length: 5 }, (_, i) => `uuid-b${i}`);
+      const deleteBatch = jest
+        .fn()
         .mockResolvedValueOnce(batch1)
         .mockResolvedValueOnce(batch2);
 
-      const generator = task['yieldExpiredFileIds'](1);
-      const batches = [];
-      for await (const batch of generator) {
-        batches.push(batch);
-      }
+      const result = await task['deleteExpiredItems'](deleteBatch, jest.fn());
 
-      expect(batches).toEqual([batch1, batch2]);
-      expect(fileRepository.findExpiredTrashFileIds).toHaveBeenCalledTimes(2);
+      expect(result).toBe(505);
+      expect(deleteBatch).toHaveBeenCalledTimes(2);
     });
 
-    it('When batch size equals result count, then it should check for more batches', async () => {
-      const batch1 = Array.from({ length: 100 }, (_, i) => `file-uuid-${i}`);
+    it('When the same UUID appears in 3 consecutive batches, then it should throw an error', async () => {
+      const repeatedUuid = 'repeated-uuid';
+      // Must return exactly batchSize=500 items so the loop continues
+      const batch = [
+        repeatedUuid,
+        ...Array.from({ length: 499 }, (_, i) => `uuid-${i}`),
+      ];
+      const deleteBatch = jest.fn().mockResolvedValue(batch);
 
-      fileRepository.findExpiredTrashFileIds
-        .mockResolvedValueOnce(batch1)
-        .mockResolvedValueOnce([]);
-
-      const generator = task['yieldExpiredFileIds'](1);
-      const batches = [];
-      for await (const batch of generator) {
-        batches.push(batch);
-      }
-
-      expect(batches).toEqual([batch1]);
-      expect(fileRepository.findExpiredTrashFileIds).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe('yieldExpiredFolderIds', () => {
-    it('When called, then it should keep yielding folder ids until there are no more to fetch', async () => {
-      const batch1 = Array.from({ length: 100 }, (_, i) => `folder-uuid-${i}`);
-      const batch2 = Array.from({ length: 5 }, (_, i) => `folder-uuid-${i}`);
-
-      folderRepository.findExpiredTrashFolderIds
-        .mockResolvedValueOnce(batch1)
-        .mockResolvedValueOnce(batch2);
-
-      const generator = task['yieldExpiredFolderIds'](1);
-      const batches = [];
-      for await (const batch of generator) {
-        batches.push(batch);
-      }
-
-      expect(batches).toEqual([batch1, batch2]);
-      expect(folderRepository.findExpiredTrashFolderIds).toHaveBeenCalledTimes(
-        2,
+      await expect(
+        task['deleteExpiredItems'](deleteBatch, jest.fn()),
+      ).rejects.toThrow(
+        `Same UUID ${repeatedUuid} repeated 3 times in consecutive batches`,
       );
     });
 
-    it('When batch size equals result count, then it should check for more batches', async () => {
-      const batch1 = Array.from({ length: 100 }, (_, i) => `folder-uuid-${i}`);
+    it('When deleteBatch returns empty array, then it should return 0', async () => {
+      const deleteBatch = jest.fn().mockResolvedValue([]);
 
-      folderRepository.findExpiredTrashFolderIds
-        .mockResolvedValueOnce(batch1)
-        .mockResolvedValueOnce([]);
+      const result = await task['deleteExpiredItems'](deleteBatch, jest.fn());
 
-      const generator = task['yieldExpiredFolderIds'](1);
-      const batches = [];
-      for await (const batch of generator) {
-        batches.push(batch);
-      }
+      expect(result).toBe(0);
+      expect(deleteBatch).toHaveBeenCalledTimes(1);
+    });
+  });
 
-      expect(batches).toEqual([batch1]);
-      expect(folderRepository.findExpiredTrashFolderIds).toHaveBeenCalledTimes(
-        2,
+  describe('beforeApplicationShutdown', () => {
+    it('When called with a signal, then it should mark the current job as aborted with the signal reason', async () => {
+      task['currentJobId'] = 'job-123';
+      jobExecutionRepository.markAsAborted.mockResolvedValue({} as any);
+
+      await task.beforeApplicationShutdown('SIGTERM');
+
+      expect(jobExecutionRepository.markAsAborted).toHaveBeenCalledWith(
+        'job-123',
+        { reason: 'Process terminated with signal SIGTERM' },
+      );
+    });
+
+    it('When called without a signal, then it should mark the current job as aborted with undefined signal', async () => {
+      task['currentJobId'] = 'job-456';
+      jobExecutionRepository.markAsAborted.mockResolvedValue({} as any);
+
+      await task.beforeApplicationShutdown();
+
+      expect(jobExecutionRepository.markAsAborted).toHaveBeenCalledWith(
+        'job-456',
+        { reason: 'Process terminated with signal undefined' },
       );
     });
   });

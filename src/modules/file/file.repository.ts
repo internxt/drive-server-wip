@@ -141,10 +141,10 @@ export interface FileRepository {
   ): Promise<File[]>;
   deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
   deleteFilesByUuid(fileUuids: string[]): Promise<number>;
-  findExpiredTrashFileIds(
-    startDate: Date,
+  deleteExpiredTrashFilesByTier(
+    tierId: string,
+    cutoffDate: Date,
     limit: number,
-    minRetentionDays: number,
   ): Promise<string[]>;
   findRecent(
     userId: number,
@@ -1034,61 +1034,39 @@ export class SequelizeFileRepository implements FileRepository {
     return updatedCount;
   }
 
-  async findExpiredTrashFileIds(
-    startDate: Date,
+  async deleteExpiredTrashFilesByTier(
+    tierId: string,
+    cutoffDate: Date,
     limit: number,
-    minRetentionDays: number,
   ): Promise<string[]> {
-    // TODO: This uses overriden limits only. Uncomment and use tier retention when released
-    const query = `
-      WITH trash_retention_limit AS (
-        SELECT id, value::integer AS retention_days
-        FROM limits
-        WHERE label = 'trash-retention-days'
-      ),
-      -- tier_retention AS (
-      --   SELECT tl.tier_id, trl.retention_days
-      --   FROM tiers_limits tl
-      --   JOIN trash_retention_limit trl ON tl.limit_id = trl.id
-      -- ),
-      user_retention AS (
-        SELECT
-          u.id AS user_id,
-          COALESCE(
-            uol_lr.retention_days
-            -- , tr.retention_days
-          ) AS retention_days
-        FROM users u
-        -- JOIN tier_retention tr ON tr.tier_id = u.tier_id
-        JOIN user_overridden_limits uol ON uol.user_id = u.uuid::text
-        JOIN trash_retention_limit uol_lr ON uol.limit_id = uol_lr.id
-      )
-      SELECT f.uuid AS item_id
-      FROM files f
-      JOIN user_retention ur ON f.user_id = ur.user_id
-      WHERE f.status = 'TRASHED'
-        AND f.updated_at < NOW() - (:minRetentionDays || ' days')::INTERVAL
-        AND GREATEST(f.updated_at, :startDate::timestamptz) < NOW() - (ur.retention_days || ' days')::INTERVAL
-      LIMIT :limit;
-    `;
-
-    const results = await withQueryTimeout(
+    const [results] = await withQueryTimeout(
       this.fileModel.sequelize,
-      30000,
+      60000,
       async (transaction) => {
-        return this.fileModel.sequelize.query<{ item_id: string }>(query, {
-          replacements: {
-            startDate,
-            limit,
-            minRetentionDays,
+        return this.fileModel.sequelize.query(
+          `
+          UPDATE files
+          SET removed = true, removed_at = NOW(), status = 'DELETED', updated_at = NOW()
+          WHERE uuid IN (
+            SELECT f.uuid
+            FROM files f
+            JOIN users u ON u.id = f.user_id AND u.tier_id = :tierId
+            WHERE f.status = 'TRASHED'
+              AND f.updated_at <= :cutoffDate
+            LIMIT :limit
+            FOR UPDATE SKIP LOCKED
+          )
+          RETURNING uuid
+          `,
+          {
+            replacements: { tierId, cutoffDate, limit },
+            transaction,
+            type: QueryTypes.UPDATE,
           },
-          type: QueryTypes.SELECT,
-          transaction,
-        });
+        );
       },
     );
-
-    return results.map((r) => r.item_id);
+    return (results as { uuid: string }[]).map((r) => r.uuid);
   }
 
   async destroyFile(where: Partial<FileModel>): Promise<void> {
