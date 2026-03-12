@@ -473,6 +473,7 @@ export class FolderUseCases {
     const parentFolder = await this.folderRepository.findOne({
       uuid: dto.parentFolderUuid,
       userId: user.id,
+      removed: false,
     });
 
     if (!parentFolder) {
@@ -490,7 +491,7 @@ export class FolderUseCases {
     const plainNames = folders.map((f) => f.plainName);
     const uniqueNames = new Set(plainNames);
     if (uniqueNames.size !== plainNames.length) {
-      throw new BadRequestException('Duplicate folder names in request');
+      throw new ConflictException('Duplicate folder names in request');
     }
 
     const existingFolders = await this.folderRepository.findByParent(
