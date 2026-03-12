@@ -899,7 +899,6 @@ export class SequelizeFolderRepository implements FolderRepository {
               AND fo.removed = false
               AND fo.updated_at <= :cutoffDate
             LIMIT :limit
-            FOR UPDATE SKIP LOCKED
           )
           RETURNING uuid
           `,

@@ -1054,7 +1054,6 @@ export class SequelizeFileRepository implements FileRepository {
             WHERE f.status = 'TRASHED'
               AND f.updated_at <= :cutoffDate
             LIMIT :limit
-            FOR UPDATE SKIP LOCKED
           )
           RETURNING uuid
           `,

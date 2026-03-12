@@ -19,7 +19,7 @@ import { LimitLabels } from '../../feature-limit/limits.enum';
 export class DeleteExpiredTrashItemsTask implements BeforeApplicationShutdown {
   private readonly logger = new Logger(DeleteExpiredTrashItemsTask.name);
   private readonly firstDeploymentDate = TRASH_EXPIRATION_START_DATE;
-  private readonly batchSize = 500;
+  private readonly batchSize = 100;
   private currentJobId: string | null = null;
 
   constructor(
@@ -30,8 +30,9 @@ export class DeleteExpiredTrashItemsTask implements BeforeApplicationShutdown {
     private readonly featureLimitsRepository: SequelizeFeatureLimitsRepository,
   ) {}
 
-  @Cron(CronExpression.EVERY_30_MINUTES, {
+  @Cron(CronExpression.EVERY_10_MINUTES, {
     name: JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
+    // Prevents execution of multiple instances of the job at the same time in case a previous execution is still running
     waitForCompletion: true,
   })
   async scheduleCleanup() {
