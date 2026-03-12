@@ -1041,7 +1041,7 @@ export class SequelizeFileRepository implements FileRepository {
   ): Promise<string[]> {
     const [results] = await withQueryTimeout(
       this.fileModel.sequelize,
-      120000,
+      600000,
       async (transaction) => {
         return this.fileModel.sequelize.query(
           `
@@ -1053,6 +1053,7 @@ export class SequelizeFileRepository implements FileRepository {
             JOIN users u ON u.id = f.user_id AND u.tier_id = :tierId
             WHERE f.status = 'TRASHED'
               AND f.updated_at <= :cutoffDate
+              AND size >= 0
             LIMIT :limit
           )
           RETURNING uuid
