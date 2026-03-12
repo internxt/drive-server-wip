@@ -2,12 +2,12 @@ import { type Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import { newUser } from '../../../test/fixtures';
-import { CelloController } from './cello.controller';
-import { CelloService } from './cello.service';
+import { ReferralController } from './referral.controller';
+import { ReferralService } from './referral.service';
 
-describe('CelloController', () => {
-  let controller: CelloController;
-  let celloService: DeepMocked<CelloService>;
+describe('ReferralController', () => {
+  let controller: ReferralController;
+  let referralService: DeepMocked<ReferralService>;
 
   const user = newUser();
   const purchaseBody = {
@@ -22,14 +22,14 @@ describe('CelloController', () => {
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
-      controllers: [CelloController],
+      controllers: [ReferralController],
     })
       .setLogger(createMock<Logger>())
       .useMocker(() => createMock())
       .compile();
 
-    controller = moduleRef.get(CelloController);
-    celloService = moduleRef.get(CelloService);
+    controller = moduleRef.get(ReferralController);
+    referralService = moduleRef.get(ReferralService);
   });
 
   afterEach(() => {
@@ -38,22 +38,22 @@ describe('CelloController', () => {
 
   describe('POST /token', () => {
     it('When called, then it returns the generated token', async () => {
-      celloService.generateToken.mockReturnValue('jwt-token');
+      referralService.generateToken.mockReturnValue('jwt-token');
 
       const result = await controller.generateToken(user);
 
       expect(result).toEqual({ token: 'jwt-token' });
-      expect(celloService.generateToken).toHaveBeenCalledWith(user.uuid);
+      expect(referralService.generateToken).toHaveBeenCalledWith(user.uuid);
     });
   });
 
   describe('POST /track-purchase', () => {
     it('When called, then it delegates to the service with mapped params', async () => {
-      celloService.trackPurchaseEvent.mockResolvedValue(undefined);
+      referralService.trackPurchaseEvent.mockResolvedValue(undefined);
 
       await controller.trackPurchase(user, purchaseBody);
 
-      expect(celloService.trackPurchaseEvent).toHaveBeenCalledWith({
+      expect(referralService.trackPurchaseEvent).toHaveBeenCalledWith({
         ucc: purchaseBody.ucc,
         userId: user.uuid,
         email: user.email,

@@ -2,28 +2,17 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { sign } from 'jsonwebtoken';
 import { HttpClient } from '../../externals/http/http.service';
+import {
+  ReferralService,
+  type TrackPurchaseParams,
+  type TrackSignupParams,
+} from './referral.service';
 
 const HTTP_TIMEOUT_MS = 5000;
 
-export interface TrackSignupParams {
-  ucc: string;
-  userId: string;
-  email: string;
-  name: string;
-}
-
-export interface TrackPurchaseParams extends TrackSignupParams {
-  price: number;
-  currency: string;
-  invoiceId: string;
-  interval: string;
-  productKey: string;
-  subscriptionId: string;
-}
-
 @Injectable()
-export class CelloService {
-  private readonly logger = new Logger(CelloService.name);
+export class CelloReferralService extends ReferralService {
+  private readonly logger = new Logger(CelloReferralService.name);
   private accessToken: string | null = null;
   private tokenExpiresAt = 0;
   private tokenRefreshPromise: Promise<{
@@ -34,7 +23,9 @@ export class CelloService {
   constructor(
     private readonly configService: ConfigService,
     private readonly httpClient: HttpClient,
-  ) {}
+  ) {
+    super();
+  }
 
   generateToken(productUserId: string): string {
     const productId = this.configService.get<string>('cello.productId');

@@ -2,20 +2,20 @@ import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { type User } from '../user/user.domain';
-import { CelloService } from './cello.service';
+import { ReferralService } from './referral.service';
 import { TrackPurchaseDto } from './dto/track-purchase.dto';
 
-@ApiTags('Cello')
-@Controller('cello')
-export class CelloController {
-  constructor(private readonly celloService: CelloService) {}
+@ApiTags('Referral')
+@Controller('referral')
+export class ReferralController {
+  constructor(private readonly referralService: ReferralService) {}
 
   @Post('/token')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Generate Cello referral token' })
-  @ApiOkResponse({ description: 'Cello JWT token generated successfully' })
+  @ApiOperation({ summary: 'Generate referral token' })
+  @ApiOkResponse({ description: 'Referral token generated successfully' })
   async generateToken(@UserDecorator() user: User) {
-    const token = this.celloService.generateToken(user.uuid);
+    const token = this.referralService.generateToken(user.uuid);
     return { token };
   }
 
@@ -27,7 +27,7 @@ export class CelloController {
     @UserDecorator() user: User,
     @Body() body: TrackPurchaseDto,
   ) {
-    await this.celloService.trackPurchaseEvent({
+    await this.referralService.trackPurchaseEvent({
       ucc: body.ucc,
       userId: user.uuid,
       email: user.email,

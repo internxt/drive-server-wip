@@ -6,10 +6,11 @@ import { verify } from 'jsonwebtoken';
 import { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { HttpClientModule } from '../../externals/http/http.module';
 import { HttpClient } from '../../externals/http/http.service';
-import { CelloService, type TrackPurchaseParams } from './cello.service';
+import { CelloReferralService } from './cello-referral.service';
+import { type TrackPurchaseParams } from './referral.service';
 
-describe('CelloService', () => {
-  let service: CelloService;
+describe('CelloReferralService', () => {
+  let service: CelloReferralService;
   let httpClient: HttpClient;
 
   const celloConfig = {
@@ -51,12 +52,12 @@ describe('CelloService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [ConfigModule, HttpClientModule],
-      providers: [CelloService],
+      providers: [CelloReferralService],
     })
       .setLogger(createMock<Logger>())
       .compile();
 
-    service = module.get<CelloService>(CelloService);
+    service = module.get<CelloReferralService>(CelloReferralService);
     httpClient = module.get<HttpClient>(HttpClient);
 
     const configService = module.get<ConfigService>(ConfigService);
