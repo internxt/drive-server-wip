@@ -987,10 +987,7 @@ describe('FolderUseCases', () => {
       await expect(
         service.createBulkFolders(userMocked, {
           parentFolderUuid: parentFolder.uuid,
-          folders: [
-            { plainName: 'Valid Name' },
-            { plainName: 'Invalid/Name' },
-          ],
+          folders: [{ plainName: 'Valid Name' }, { plainName: 'Invalid/Name' }],
         }),
       ).rejects.toThrow(BadRequestException);
     });
@@ -1004,12 +1001,9 @@ describe('FolderUseCases', () => {
       await expect(
         service.createBulkFolders(userMocked, {
           parentFolderUuid: parentFolder.uuid,
-          folders: [
-            { plainName: 'Folder A' },
-            { plainName: 'Folder A' },
-          ],
+          folders: [{ plainName: 'Folder A' }, { plainName: 'Folder A' }],
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(ConflictException);
     });
 
     it('When folders with the same names already exist in the parent, then it should throw conflict', async () => {
@@ -1028,10 +1022,7 @@ describe('FolderUseCases', () => {
       await expect(
         service.createBulkFolders(userMocked, {
           parentFolderUuid: parentFolder.uuid,
-          folders: [
-            { plainName: 'Folder A' },
-            { plainName: 'Folder B' },
-          ],
+          folders: [{ plainName: 'Folder A' }, { plainName: 'Folder B' }],
         }),
       ).rejects.toThrow(ConflictException);
     });
