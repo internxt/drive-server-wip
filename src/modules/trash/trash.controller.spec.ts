@@ -292,6 +292,15 @@ describe('TrashController', () => {
   describe('getTrashedFilesPaginated', () => {
     const retentionDays = 30;
     const validPagination: BasicPaginationDto = { limit: 10, offset: 0 };
+    const fixedDate = new Date('2026-02-01T00:00:00Z');
+
+    beforeAll(() => {
+      jest.useFakeTimers({ now: fixedDate });
+    });
+
+    afterAll(() => {
+      jest.useRealTimers();
+    });
 
     it('When pagination is missing limit, then it should throw BadRequestException', async () => {
       const invalidPagination = { offset: 0 } as BasicPaginationDto;
