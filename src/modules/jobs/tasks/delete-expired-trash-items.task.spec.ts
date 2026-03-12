@@ -219,9 +219,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
 
         await task.startJob();
 
-        expect(
-          fileRepository.deleteExpiredTrashFilesByTier,
-        ).toHaveBeenCalled();
+        expect(fileRepository.deleteExpiredTrashFilesByTier).toHaveBeenCalled();
       });
 
       it('When retentionDays=30, then it should process (cutoffDate is after firstDeploymentDate)', async () => {
@@ -323,7 +321,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
     });
 
     it('When deleteBatch returns full batches then a partial batch, then it should accumulate total count', async () => {
-      const batch1 = Array.from({ length: 500 }, (_, i) => `uuid-a${i}`);
+      const batch1 = Array.from({ length: 100 }, (_, i) => `uuid-a${i}`);
       const batch2 = Array.from({ length: 5 }, (_, i) => `uuid-b${i}`);
       const deleteBatch = jest
         .fn()
@@ -332,16 +330,16 @@ describe('DeleteExpiredTrashItemsTask', () => {
 
       const result = await task['deleteExpiredItems'](deleteBatch, jest.fn());
 
-      expect(result).toBe(505);
+      expect(result).toBe(105);
       expect(deleteBatch).toHaveBeenCalledTimes(2);
     });
 
     it('When the same UUID appears in 3 consecutive batches, then it should throw an error', async () => {
       const repeatedUuid = 'repeated-uuid';
-      // Must return exactly batchSize=500 items so the loop continues
+      // Must return exactly batchSize=99 items so the loop continues
       const batch = [
         repeatedUuid,
-        ...Array.from({ length: 499 }, (_, i) => `uuid-${i}`),
+        ...Array.from({ length: 99 }, (_, i) => `uuid-${i}`),
       ];
       const deleteBatch = jest.fn().mockResolvedValue(batch);
 
