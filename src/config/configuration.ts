@@ -175,5 +175,11 @@ export default () => ({
     endpointForSignedUrls: process.env.AVATAR_ENDPOINT_REWRITE_FOR_SIGNED_URLS,
     forcePathStyle: process.env.AVATAR_FORCE_PATH_STYLE || 'true',
   },
+  cello: {
+    productId: process.env.CELLO_PRODUCT_ID,
+    productSecret: process.env.CELLO_PRODUCT_SECRET,
+    apiUrl: process.env.CELLO_API_URL || 'https://api.sandbox.cello.so',
+    apiAccessKey: process.env.CELLO_API_ACCESS_KEY,
+  },
   executeCronjobs: process.env.EXECUTE_JOBS === 'true',
 });
