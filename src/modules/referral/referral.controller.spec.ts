@@ -34,7 +34,10 @@ describe('ReferralController', () => {
       const result = await controller.generateToken(user);
 
       expect(result).toEqual({ token: 'jwt-token' });
-      expect(referralService.generateToken).toHaveBeenCalledWith(user.uuid);
+      expect(referralService.generateToken).toHaveBeenCalledWith(
+        user.uuid,
+        user.createdAt,
+      );
     });
   });
 });

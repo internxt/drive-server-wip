@@ -14,7 +14,7 @@ export class ReferralController {
   @ApiOperation({ summary: 'Generate referral token' })
   @ApiOkResponse({ description: 'Referral token generated successfully' })
   async generateToken(@UserDecorator() user: User) {
-    const token = this.referralService.generateToken(user.uuid);
+    const token = this.referralService.generateToken(user.uuid, user.createdAt);
     return { token };
   }
 }

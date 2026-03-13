@@ -36,7 +36,8 @@ describe('CelloReferralService', () => {
 
   describe('generateToken', () => {
     it('When called, then it returns a valid JWT signed with HS512', () => {
-      const token = service.generateToken('user-uuid');
+      const signupDate = new Date('2024-01-15T10:00:00.000Z');
+      const token = service.generateToken('user-uuid', signupDate);
 
       const decoded = verify(token, celloConfig['cello.productSecret'], {
         algorithms: ['HS512'],
@@ -44,7 +45,9 @@ describe('CelloReferralService', () => {
 
       expect(decoded.productId).toBe(celloConfig['cello.productId']);
       expect(decoded.productUserId).toBe('user-uuid');
+      expect(decoded.signupDate).toBe('2024-01-15T10:00:00.000Z');
       expect(decoded.iat).toBeDefined();
+      expect(decoded.exp).toBe((decoded.iat as number) + 3600);
     });
   });
 });

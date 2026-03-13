@@ -9,15 +9,18 @@ export class CelloReferralService extends ReferralService {
     super();
   }
 
-  generateToken(productUserId: string): string {
+  generateToken(productUserId: string, signupDate: Date): string {
     const productId = this.configService.get<string>('cello.productId');
     const productSecret = this.configService.get<string>('cello.productSecret');
+    const now = Math.floor(Date.now() / 1000);
 
     return sign(
       {
         productId,
         productUserId,
-        iat: Math.floor(Date.now() / 1000),
+        signupDate: signupDate.toISOString(),
+        iat: now,
+        exp: now + 3600,
       },
       productSecret,
       { algorithm: 'HS512' },
