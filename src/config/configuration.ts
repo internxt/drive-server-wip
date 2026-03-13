@@ -178,8 +178,6 @@ export default () => ({
   cello: {
     productId: process.env.CELLO_PRODUCT_ID,
     productSecret: process.env.CELLO_PRODUCT_SECRET,
-    apiUrl: process.env.CELLO_API_URL || 'https://api.sandbox.cello.so',
-    apiAccessKey: process.env.CELLO_API_ACCESS_KEY,
   },
   executeCronjobs: process.env.EXECUTE_JOBS === 'true',
 });

@@ -10,15 +10,6 @@ describe('ReferralController', () => {
   let referralService: DeepMocked<ReferralService>;
 
   const user = newUser();
-  const purchaseBody = {
-    ucc: 'referral-code',
-    price: 49.99,
-    currency: 'EUR',
-    invoiceId: 'inv-123',
-    interval: 'month',
-    productKey: 'plan-premium',
-    subscriptionId: 'sub-456',
-  };
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -44,27 +35,6 @@ describe('ReferralController', () => {
 
       expect(result).toEqual({ token: 'jwt-token' });
       expect(referralService.generateToken).toHaveBeenCalledWith(user.uuid);
-    });
-  });
-
-  describe('POST /track-purchase', () => {
-    it('When called, then it delegates to the service with mapped params', async () => {
-      referralService.trackPurchaseEvent.mockResolvedValue(undefined);
-
-      await controller.trackPurchase(user, purchaseBody);
-
-      expect(referralService.trackPurchaseEvent).toHaveBeenCalledWith({
-        ucc: purchaseBody.ucc,
-        userId: user.uuid,
-        email: user.email,
-        name: `${user.name} ${user.lastname}`.trim(),
-        price: purchaseBody.price,
-        currency: purchaseBody.currency,
-        invoiceId: purchaseBody.invoiceId,
-        interval: purchaseBody.interval,
-        productKey: purchaseBody.productKey,
-        subscriptionId: purchaseBody.subscriptionId,
-      });
     });
   });
 });
