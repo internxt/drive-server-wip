@@ -13,7 +13,10 @@ import { SequelizeFolderRepository } from '../../folder/folder.repository';
 import { SequelizeFeatureLimitsRepository } from '../../feature-limit/feature-limit.repository';
 import { TRASH_EXPIRATION_START_DATE } from '../../trash/trash-expiration.utils';
 import { Time } from '../../../lib/time';
-import { LimitLabels } from '../../feature-limit/limits.enum';
+import {
+  LimitLabels,
+  PLAN_FREE_INDIVIDUAL_TIER_LABEL,
+} from '../../feature-limit/limits.enum';
 
 @Injectable()
 export class DeleteExpiredTrashItemsTask implements BeforeApplicationShutdown {
@@ -82,10 +85,15 @@ export class DeleteExpiredTrashItemsTask implements BeforeApplicationShutdown {
     const { startedJob } = await this.createJobInitialization();
     this.currentJobId = startedJob.id;
 
-    const tierConfigs =
+    const tierConfigs = (
       await this.featureLimitsRepository.findTiersWithLimitByLabel(
         LimitLabels.TrashRetentionDays,
-      );
+      )
+    ).sort((a, b) => {
+      if (a.tier.label === PLAN_FREE_INDIVIDUAL_TIER_LABEL) return 1;
+      if (b.tier.label === PLAN_FREE_INDIVIDUAL_TIER_LABEL) return -1;
+      return 0;
+    });
 
     this.logger.log(
       {
@@ -98,11 +106,10 @@ export class DeleteExpiredTrashItemsTask implements BeforeApplicationShutdown {
       },
       'Tier configs loaded.',
     );
+    let totalFilesDeleted = 0;
+    let totalFoldersDeleted = 0;
 
     try {
-      let totalFilesDeleted = 0;
-      let totalFoldersDeleted = 0;
-
       for (const { tier, limit } of tierConfigs) {
         const retentionDays = Number(limit.value);
         const cutoffDate = Time.daysAgo(retentionDays);
@@ -175,6 +182,8 @@ export class DeleteExpiredTrashItemsTask implements BeforeApplicationShutdown {
       );
       await this.jobExecutionRepository.markAsFailed(this.currentJobId, {
         errorMessage: error.message,
+        filesDeleted: totalFilesDeleted,
+        foldersDeleted: totalFoldersDeleted,
       });
       return;
     }
