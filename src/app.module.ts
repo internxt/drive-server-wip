@@ -31,6 +31,7 @@ import { nanoid } from 'nanoid';
 import { getClientIdFromHeaders } from './common/decorators/client.decorator';
 import { AuthGuard } from './modules/auth/auth.guard';
 import { CacheManagerModule } from './modules/cache-manager/cache-manager.module';
+import { ReferralModule } from './modules/referral/referral.module';
 
 @Module({
   imports: [
@@ -145,6 +146,7 @@ import { CacheManagerModule } from './modules/cache-manager/cache-manager.module
     WorkspacesModule,
     GatewayModule,
     CacheManagerModule,
+    ReferralModule,
   ],
   controllers: [],
   providers: [

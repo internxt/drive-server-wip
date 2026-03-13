@@ -175,5 +175,9 @@ export default () => ({
     endpointForSignedUrls: process.env.AVATAR_ENDPOINT_REWRITE_FOR_SIGNED_URLS,
     forcePathStyle: process.env.AVATAR_FORCE_PATH_STYLE || 'true',
   },
+  cello: {
+    productId: process.env.CELLO_PRODUCT_ID,
+    productSecret: process.env.CELLO_PRODUCT_SECRET,
+  },
   executeCronjobs: process.env.EXECUTE_JOBS === 'true',
 });
