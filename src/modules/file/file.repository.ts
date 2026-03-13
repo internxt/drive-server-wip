@@ -1041,7 +1041,7 @@ export class SequelizeFileRepository implements FileRepository {
   ): Promise<string[]> {
     const [results] = await withQueryTimeout(
       this.fileModel.sequelize,
-      600000,
+      60000 * 3,
       async (transaction) => {
         return this.fileModel.sequelize.query(
           `
