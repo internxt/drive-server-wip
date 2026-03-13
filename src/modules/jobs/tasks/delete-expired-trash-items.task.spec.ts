@@ -10,6 +10,8 @@ import { SequelizeFeatureLimitsRepository } from '../../feature-limit/feature-li
 import { type JobExecutionModel } from '../models/job-execution.model';
 import { JobName } from '../constants';
 import { Time } from '../../../lib/time';
+import { LimitLabels, LimitTypes } from '../../feature-limit/limits.enum';
+import { newFeatureLimit, newTier } from '../../../../test/fixtures';
 
 jest.mock('newrelic', () => ({
   startBackgroundTransaction: jest.fn((_name, _group, cb) => cb()),
@@ -124,7 +126,12 @@ describe('DeleteExpiredTrashItemsTask', () => {
     });
 
     it('When tier config has retentionDays=30, then it should call repos with correct args and accumulate totals', async () => {
-      const tierId = 'tier-uuid-1';
+      const tier = newTier();
+      const limit = newFeatureLimit({
+        type: LimitTypes.Counter,
+        value: '30',
+        label: LimitLabels.TrashRetentionDays,
+      });
       // cutoffDate must be AFTER firstDeploymentDate (2026-03-10) for the tier to be processed
       // firstDeploymentDate >= cutoffDate → FALSE → process
       const cutoffDate = new Date('2026-03-11T00:00:00Z');
@@ -132,10 +139,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
       jest.spyOn(Time, 'daysAgo').mockReturnValue(cutoffDate);
 
       featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
-        {
-          tier: { id: tierId } as any,
-          limit: { value: '30' } as any,
-        },
+        { tier, limit },
       ]);
       fileRepository.deleteExpiredTrashFilesByTier.mockResolvedValue([
         'file-1',
@@ -148,13 +152,13 @@ describe('DeleteExpiredTrashItemsTask', () => {
       await task.startJob();
 
       expect(fileRepository.deleteExpiredTrashFilesByTier).toHaveBeenCalledWith(
-        tierId,
+        tier.id,
         cutoffDate,
         expect.any(Number),
       );
       expect(
         folderRepository.deleteExpiredTrashFoldersByTier,
-      ).toHaveBeenCalledWith(tierId, cutoffDate, expect.any(Number));
+      ).toHaveBeenCalledWith(tier.id, cutoffDate, expect.any(Number));
       expect(jobExecutionRepository.markAsCompleted).toHaveBeenCalledWith(
         mockStartedJob.id,
         { filesDeleted: 2, foldersDeleted: 1 },
@@ -170,8 +174,12 @@ describe('DeleteExpiredTrashItemsTask', () => {
 
       featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
         {
-          tier: { id: 'tier-1' } as any,
-          limit: { value: '30' } as any,
+          tier: newTier(),
+          limit: newFeatureLimit({
+            type: LimitTypes.Counter,
+            value: '30',
+            label: LimitLabels.TrashRetentionDays,
+          }),
         },
       ]);
       fileRepository.deleteExpiredTrashFilesByTier.mockRejectedValue(error);
@@ -180,7 +188,7 @@ describe('DeleteExpiredTrashItemsTask', () => {
 
       expect(jobExecutionRepository.markAsFailed).toHaveBeenCalledWith(
         mockStartedJob.id,
-        { errorMessage: error.message },
+        { errorMessage: error.message, filesDeleted: 0, foldersDeleted: 0 },
       );
     });
 
@@ -193,8 +201,12 @@ describe('DeleteExpiredTrashItemsTask', () => {
 
         featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
           {
-            tier: { id: 'tier-1' } as any,
-            limit: { value: '1' } as any,
+            tier: newTier(),
+            limit: newFeatureLimit({
+              type: LimitTypes.Counter,
+              value: '1',
+              label: LimitLabels.TrashRetentionDays,
+            }),
           },
         ]);
 
@@ -212,8 +224,12 @@ describe('DeleteExpiredTrashItemsTask', () => {
 
         featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
           {
-            tier: { id: 'tier-1' } as any,
-            limit: { value: '0' } as any,
+            tier: newTier(),
+            limit: newFeatureLimit({
+              type: LimitTypes.Counter,
+              value: '0',
+              label: LimitLabels.TrashRetentionDays,
+            }),
           },
         ]);
 
@@ -230,8 +246,12 @@ describe('DeleteExpiredTrashItemsTask', () => {
 
         featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
           {
-            tier: { id: 'tier-1' } as any,
-            limit: { value: '30' } as any,
+            tier: newTier(),
+            limit: newFeatureLimit({
+              type: LimitTypes.Counter,
+              value: '30',
+              label: LimitLabels.TrashRetentionDays,
+            }),
           },
         ]);
         fileRepository.deleteExpiredTrashFilesByTier.mockResolvedValue([]);
@@ -246,8 +266,8 @@ describe('DeleteExpiredTrashItemsTask', () => {
       });
 
       it('When multiple tiers are mixed, then only the tier with sufficient retention is processed', async () => {
-        const tierAId = 'tier-a';
-        const tierBId = 'tier-b';
+        const tierA = newTier();
+        const tierB = newTier();
         // Tier A: cutoffDate <= firstDeploymentDate → SKIP
         const cutoffDateA = new Date('2026-03-09T00:00:00Z');
         // Tier B: cutoffDate > firstDeploymentDate → PROCESS
@@ -260,12 +280,20 @@ describe('DeleteExpiredTrashItemsTask', () => {
 
         featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
           {
-            tier: { id: tierAId } as any,
-            limit: { value: '1' } as any,
+            tier: tierA,
+            limit: newFeatureLimit({
+              type: LimitTypes.Counter,
+              value: '1',
+              label: LimitLabels.TrashRetentionDays,
+            }),
           },
           {
-            tier: { id: tierBId } as any,
-            limit: { value: '30' } as any,
+            tier: tierB,
+            limit: newFeatureLimit({
+              type: LimitTypes.Counter,
+              value: '30',
+              label: LimitLabels.TrashRetentionDays,
+            }),
           },
         ]);
         fileRepository.deleteExpiredTrashFilesByTier.mockResolvedValue([]);
@@ -278,11 +306,11 @@ describe('DeleteExpiredTrashItemsTask', () => {
         ).toHaveBeenCalledTimes(1);
         expect(
           fileRepository.deleteExpiredTrashFilesByTier,
-        ).toHaveBeenCalledWith(tierBId, cutoffDateB, expect.any(Number));
+        ).toHaveBeenCalledWith(tierB.id, cutoffDateB, expect.any(Number));
         expect(
           fileRepository.deleteExpiredTrashFilesByTier,
         ).not.toHaveBeenCalledWith(
-          tierAId,
+          tierA.id,
           expect.anything(),
           expect.anything(),
         );
@@ -296,8 +324,12 @@ describe('DeleteExpiredTrashItemsTask', () => {
 
         featureLimitsRepository.findTiersWithLimitByLabel.mockResolvedValue([
           {
-            tier: { id: 'tier-1' } as any,
-            limit: { value: '30' } as any,
+            tier: newTier(),
+            limit: newFeatureLimit({
+              type: LimitTypes.Counter,
+              value: '30',
+              label: LimitLabels.TrashRetentionDays,
+            }),
           },
         ]);
         fileRepository.deleteExpiredTrashFilesByTier.mockResolvedValue([]);
