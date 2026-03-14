@@ -653,14 +653,11 @@ export class SequelizeFolderRepository implements FolderRepository {
   }
 
   async bulkCreate(
-    folders: {
-      userId: UserAttributes['id'];
-      name: FolderAttributes['name'];
-      bucket: FolderAttributes['bucket'];
-      parentId: FolderAttributes['parentId'];
-      encryptVersion: FolderAttributes['encryptVersion'];
-      parentUuid: FolderAttributes['parentUuid'];
-    }[],
+    folders: (Partial<Omit<FolderAttributes, 'id'>> &
+      Pick<
+        FolderAttributes,
+        'userId' | 'name' | 'bucket' | 'parentId' | 'encryptVersion'
+      >)[],
   ): Promise<Folder[]> {
     const rawFolders = await this.folderModel.bulkCreate(folders);
 
