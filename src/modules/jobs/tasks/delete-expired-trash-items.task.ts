@@ -225,11 +225,6 @@ export class DeleteExpiredTrashItemsTask implements BeforeApplicationShutdown {
       }
 
       totalDeleted += deletedUuids.length;
-
-      // TODO: Remove the delay after ensuring the deletion queue is not overwhelmed
-      await new Promise((resolve) =>
-        setTimeout(resolve, 500 + Math.random() * 1500),
-      );
     } while (deletedUuids.length === this.batchSize);
 
     onFinish(totalDeleted);
