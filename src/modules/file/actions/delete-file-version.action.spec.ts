@@ -10,6 +10,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { newFile, newUser } from '../../../../test/fixtures';
 
 describe('DeleteFileVersionAction', () => {
@@ -30,6 +31,10 @@ describe('DeleteFileVersionAction', () => {
         {
           provide: SequelizeFileVersionRepository,
           useValue: createMock<SequelizeFileVersionRepository>(),
+        },
+        {
+          provide: EventEmitter2,
+          useValue: { emit: jest.fn() },
         },
       ],
     }).compile();

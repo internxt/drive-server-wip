@@ -16,25 +16,33 @@ export class CacheManagerService {
   /**
    * Get user's storage usage
    */
-  async getUserUsage(userUuid: string) {
-    const cachedUsage = this.cacheManager.get<{ usage: number }>(
+  async getUserUsage(
+    userUuid: string,
+  ): Promise<{ drive: number; backup: number; total: number } | null> {
+    const cached = await this.cacheManager.get<any>(
       `${this.USAGE_KEY_PREFIX}${userUuid}`,
     );
 
-    return cachedUsage;
+    if (!cached) return null;
+
+    if ('usage' in cached && !('drive' in cached)) {
+      return { drive: cached.usage, backup: 0, total: cached.usage };
+    }
+
+    return cached;
   }
 
-  /**
-   * Set user's storage usage
-   */
-  async setUserUsage(userUuid: string, usage: number) {
-    const cachedUsage = await this.cacheManager.set(
+  async setUserUsage(
+    userUuid: string,
+    drive: number,
+    backup?: number,
+  ): Promise<void> {
+    const backupValue = backup ?? 0;
+    await this.cacheManager.set(
       `${this.USAGE_KEY_PREFIX}${userUuid}`,
-      { usage },
-      this.TTL_10_MINUTES,
+      { drive, backup: backupValue, total: drive + backupValue },
+      this.TTL_24_HOURS,
     );
-
-    return cachedUsage;
   }
 
   async expireUserUsage(userUuid: string): Promise<void> {
