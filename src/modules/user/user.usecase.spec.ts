@@ -2248,29 +2248,22 @@ describe('User use cases', () => {
 
   describe('getUserUsage', () => {
     it('When cache has user usage data, then it should return the cached data', async () => {
-      const cachedUsage = { usage: 1024 };
-      const backupUsage = 1024;
-      const totalUsage = cachedUsage.usage + backupUsage;
+      const cachedUsage = { drive: 1024, backup: 512, total: 1536 };
 
       jest
         .spyOn(cacheManagerService, 'getUserUsage')
         .mockResolvedValue(cachedUsage);
       jest.spyOn(fileUseCases, 'getUserUsedStorage');
+      jest.spyOn(backupUseCases, 'sumExistentBackupSizes');
       jest.spyOn(cacheManagerService, 'setUserUsage');
-      jest
-        .spyOn(backupUseCases, 'sumExistentBackupSizes')
-        .mockResolvedValue(backupUsage);
 
       const result = await userUseCases.getUserUsage(user);
 
       expect(cacheManagerService.getUserUsage).toHaveBeenCalledWith(user.uuid);
       expect(fileUseCases.getUserUsedStorage).not.toHaveBeenCalled();
+      expect(backupUseCases.sumExistentBackupSizes).not.toHaveBeenCalled();
       expect(cacheManagerService.setUserUsage).not.toHaveBeenCalled();
-      expect(result).toEqual({
-        drive: cachedUsage.usage,
-        backup: backupUsage,
-        total: totalUsage,
-      });
+      expect(result).toEqual(cachedUsage);
     });
 
     it('When cache does not have user usage data, then it should get data from database and cache it', async () => {
@@ -2292,9 +2285,13 @@ describe('User use cases', () => {
 
       expect(cacheManagerService.getUserUsage).toHaveBeenCalledWith(user.uuid);
       expect(fileUseCases.getUserUsedStorage).toHaveBeenCalledWith(user);
+      expect(backupUseCases.sumExistentBackupSizes).toHaveBeenCalledWith(
+        user.id,
+      );
       expect(cacheManagerService.setUserUsage).toHaveBeenCalledWith(
         user.uuid,
         driveUsage,
+        backupUsage,
       );
       expect(result).toEqual({
         drive: driveUsage,

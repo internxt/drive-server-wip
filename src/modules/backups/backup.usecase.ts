@@ -75,7 +75,7 @@ export class BackupUseCase {
 
     await this.backupRepository.deleteBackupsBy({ deviceId });
 
-    await this.backupRepository.deleteDevicesBy({
+    const result = await this.backupRepository.deleteDevicesBy({
       userId: user.id,
       id: deviceId,
     });
@@ -84,6 +84,8 @@ export class BackupUseCase {
       'usage.backup.device_deleted',
       new UsageInvalidatedEvent(user.uuid, user.id, 'backup.device.delete'),
     );
+
+    return result;
   }
 
   async activate(user: User) {
@@ -472,12 +474,17 @@ export class BackupUseCase {
       throw new NotFoundException('Backup not found');
     }
 
-    await this.backupRepository.deleteBackupByUserAndId(user, backupId);
+    const result = await this.backupRepository.deleteBackupByUserAndId(
+      user,
+      backupId,
+    );
 
     this.eventEmitter.emit(
       'usage.backup.deleted',
       new UsageInvalidatedEvent(user.uuid, user.id, 'backup.delete'),
     );
+
+    return result;
   }
 
   async isFolderEmpty(user: User, folder: Folder) {
