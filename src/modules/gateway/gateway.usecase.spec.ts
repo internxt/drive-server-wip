@@ -1194,5 +1194,63 @@ describe('GatewayUseCases', () => {
         cliLimit.id,
       );
     });
+
+    describe('Overriding file versioning for a given user', () => {
+      const tierId = v4();
+      const fileVersioningLimit = newFeatureLimit({
+        type: LimitTypes.Boolean,
+        value: 'true',
+        label: LimitLabels.FileVersionEnabled,
+      });
+
+      it('When there is no tierId, then an error indicating so is thrown', async () => {
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+        await expect(
+          service.overrideLimitForUser(user.uuid, 'fileVersioning', 'true'),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When no limit is found, then an error indicating so is thrown', async () => {
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+        jest
+          .spyOn(limitsRepository, 'findLimitByLabelAndTier')
+          .mockResolvedValue(null);
+        await expect(
+          service.overrideLimitForUser(
+            user.uuid,
+            'fileVersioning',
+            'true',
+            tierId,
+          ),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('When limit is found, then it should create override successfully', async () => {
+        jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+        jest
+          .spyOn(limitsRepository, 'findLimitByLabelAndTier')
+          .mockResolvedValue(fileVersioningLimit);
+        jest.spyOn(limitsRepository, 'upsertOverridenLimit');
+
+        await expect(
+          service.overrideLimitForUser(
+            user.uuid,
+            'fileVersioning',
+            'true',
+            tierId,
+          ),
+        ).resolves.not.toThrow();
+
+        expect(userRepository.findByUuid).toHaveBeenCalledWith(user.uuid);
+        expect(limitsRepository.findLimitByLabelAndTier).toHaveBeenCalledWith(
+          tierId,
+          LimitLabels.FileVersionEnabled,
+        );
+        expect(limitsRepository.upsertOverridenLimit).toHaveBeenCalledWith(
+          user.uuid,
+          fileVersioningLimit.id,
+        );
+      });
+    });
   });
 });

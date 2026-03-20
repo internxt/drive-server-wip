@@ -357,6 +357,7 @@ export class GatewayController {
       userUuid,
       dto.feature,
       dto.value,
+      dto.tierId,
     );
     return { success: true };
   }
