@@ -2289,7 +2289,7 @@ describe('User use cases', () => {
         user.id,
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        'usage.cache_miss',
+        'usage.invalidated',
         expect.objectContaining({
           userUuid: user.uuid,
           userId: user.id,
