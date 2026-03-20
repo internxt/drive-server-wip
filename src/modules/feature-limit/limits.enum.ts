@@ -10,6 +10,7 @@ export enum LimitLabels {
   MaxZeroSizeFiles = 'max-zero-size-files',
   RcloneAccess = 'rclone-access',
   TrashRetentionDays = 'trash-retention-days',
+  ReferralAccess = 'referral-access',
 }
 
 export enum LimitTypes {
