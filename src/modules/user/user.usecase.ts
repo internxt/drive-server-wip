@@ -12,6 +12,8 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { emitUsageInvalidated } from '../usage-queue/events/usage-invalidated.event';
 import { v4, validate } from 'uuid';
 import { generateMnemonic } from 'bip39';
 import * as speakeasy from 'speakeasy';
@@ -167,6 +169,7 @@ export class UserUseCases {
     private readonly backupUseCases: BackupUseCase,
     private readonly cacheManager: CacheManagerService,
     private readonly asymmetricEncryptionService: AsymmetricEncryptionService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async getCachedAvatar(user: User): Promise<string | null> {
@@ -1890,7 +1893,9 @@ export class UserUseCases {
       this.backupUseCases.sumExistentBackupSizes(user.id),
     ]);
 
-    await this.cacheManager.setUserUsage(user.uuid, driveUsage, backupUsage);
+    // Let the queue processor be the sole cache writer to avoid race
+    // conditions where this read-path write overwrites a fresher value.
+    emitUsageInvalidated(this.eventEmitter, user.uuid, user.id, 'cache_miss');
 
     return {
       drive: driveUsage,

@@ -22,7 +22,7 @@ import { type DevicePlatform } from './device.domain';
 import { type UpdateDeviceAndFolderDto } from './dto/update-device-and-folder.dto';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { UsageInvalidatedEvent } from '../usage-queue/events/usage-invalidated.event';
+import { emitUsageInvalidated } from '../usage-queue/events/usage-invalidated.event';
 
 @Injectable()
 export class BackupUseCase {
@@ -80,9 +80,11 @@ export class BackupUseCase {
       id: deviceId,
     });
 
-    this.eventEmitter.emit(
-      'usage.backup.device_deleted',
-      new UsageInvalidatedEvent(user.uuid, user.id, 'backup.device.delete'),
+    emitUsageInvalidated(
+      this.eventEmitter,
+      user.uuid,
+      user.id,
+      'backup.device.delete',
     );
 
     return result;
@@ -479,9 +481,11 @@ export class BackupUseCase {
       backupId,
     );
 
-    this.eventEmitter.emit(
-      'usage.backup.deleted',
-      new UsageInvalidatedEvent(user.uuid, user.id, 'backup.delete'),
+    emitUsageInvalidated(
+      this.eventEmitter,
+      user.uuid,
+      user.id,
+      'backup.delete',
     );
 
     return result;

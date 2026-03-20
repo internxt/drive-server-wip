@@ -55,7 +55,7 @@ import { RedisService } from '../../externals/redis/redis.service';
 import { type Usage } from '../usage/usage.domain';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { UsageInvalidatedEvent } from '../usage-queue/events/usage-invalidated.event';
+import { emitUsageInvalidated } from '../usage-queue/events/usage-invalidated.event';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import {
   DeleteFileVersionAction,
@@ -216,10 +216,7 @@ export class FileUseCases {
 
     await this.fileRepository.deleteFilesByUser(user, [file]);
 
-    this.eventEmitter.emit(
-      'usage.file.deleted',
-      new UsageInvalidatedEvent(user.uuid, user.id, 'file.delete'),
-    );
+    emitUsageInvalidated(this.eventEmitter, user.uuid, user.id, 'file.delete');
 
     return { id, uuid };
   }
@@ -368,10 +365,7 @@ export class FileUseCases {
       creationTime: newFileDto.creationTime || newFileDto.date || new Date(),
     });
 
-    this.eventEmitter.emit(
-      'usage.file.created',
-      new UsageInvalidatedEvent(user.uuid, user.id, 'file.create'),
-    );
+    emitUsageInvalidated(this.eventEmitter, user.uuid, user.id, 'file.create');
 
     if (!hadFilesBeforeUpload) {
       const isUserFreeTier = tier?.label === PLAN_FREE_INDIVIDUAL_TIER_LABEL;
@@ -858,10 +852,7 @@ export class FileUseCases {
       ),
     ]);
 
-    this.eventEmitter.emit(
-      'usage.file.trashed',
-      new UsageInvalidatedEvent(user.uuid, user.id, 'file.trash'),
-    );
+    emitUsageInvalidated(this.eventEmitter, user.uuid, user.id, 'file.trash');
   }
 
   async getEncryptionKeyFromFile(
@@ -988,10 +979,7 @@ export class FileUseCases {
       }
     }
 
-    this.eventEmitter.emit(
-      'usage.file.replaced',
-      new UsageInvalidatedEvent(user.uuid, user.id, 'file.replace'),
-    );
+    emitUsageInvalidated(this.eventEmitter, user.uuid, user.id, 'file.replace');
 
     return {
       ...file.toJSON(),
@@ -1037,9 +1025,11 @@ export class FileUseCases {
     );
 
     if (deleted > 0) {
-      this.eventEmitter.emit(
-        'usage.file.batch_deleted',
-        new UsageInvalidatedEvent(user.uuid, user.id, 'file.batch_delete'),
+      emitUsageInvalidated(
+        this.eventEmitter,
+        user.uuid,
+        user.id,
+        'file.batch_delete',
       );
     }
 

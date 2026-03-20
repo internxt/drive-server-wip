@@ -9,7 +9,7 @@ import { SequelizeFileVersionRepository } from '../file-version.repository';
 import { SequelizeFileRepository } from '../file.repository';
 import { type User } from '../../user/user.domain';
 import { FileVersionStatus } from '../file-version.domain';
-import { UsageInvalidatedEvent } from '../../usage-queue/events/usage-invalidated.event';
+import { emitUsageInvalidated } from '../../usage-queue/events/usage-invalidated.event';
 
 @Injectable()
 export class DeleteFileVersionAction {
@@ -49,9 +49,11 @@ export class DeleteFileVersionAction {
       FileVersionStatus.DELETED,
     );
 
-    this.eventEmitter.emit(
-      'usage.file.version_deleted',
-      new UsageInvalidatedEvent(user.uuid, user.id, 'file.version.delete'),
+    emitUsageInvalidated(
+      this.eventEmitter,
+      user.uuid,
+      user.id,
+      'file.version.delete',
     );
   }
 }

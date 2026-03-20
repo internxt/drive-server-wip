@@ -36,7 +36,7 @@ import { type FolderModel } from './folder.model';
 import { type MoveFolderDto } from './dto/move-folder.dto';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { UsageInvalidatedEvent } from '../usage-queue/events/usage-invalidated.event';
+import { emitUsageInvalidated } from '../usage-queue/events/usage-invalidated.event';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -529,10 +529,7 @@ export class FolderUseCases {
       ),
     ]);
 
-    this.eventEmitter.emit(
-      'usage.folder.trashed',
-      new UsageInvalidatedEvent(user.uuid, user.id, 'folder.trash'),
-    );
+    emitUsageInvalidated(this.eventEmitter, user.uuid, user.id, 'folder.trash');
   }
 
   async getFoldersByParentId(

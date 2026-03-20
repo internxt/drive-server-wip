@@ -6,7 +6,7 @@ import { SequelizeFileRepository } from '../file.repository';
 import { SequelizeFileVersionRepository } from '../file-version.repository';
 import { FileVersionStatus } from '../file-version.domain';
 import { FeatureLimitService } from '../../feature-limit/feature-limit.service';
-import { UsageInvalidatedEvent } from '../../usage-queue/events/usage-invalidated.event';
+import { emitUsageInvalidated } from '../../usage-queue/events/usage-invalidated.event';
 import { Time } from '../../../lib/time';
 
 @Injectable()
@@ -44,9 +44,11 @@ export class CreateFileVersionAction {
       }),
     ]);
 
-    this.eventEmitter.emit(
-      'usage.file.version_created',
-      new UsageInvalidatedEvent(user.uuid, user.id, 'file.version.create'),
+    emitUsageInvalidated(
+      this.eventEmitter,
+      user.uuid,
+      user.id,
+      'file.version.create',
     );
   }
 
