@@ -1,19 +1,10 @@
-import {
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Post,
-  SetMetadata,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { type User } from '../user/user.domain';
 import { ReferralService } from './referral.service';
-import { FeatureLimit } from '../feature-limit/feature-limits.guard';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { FEATURE_LIMIT_KEY } from '../feature-limit/decorators/apply-limit.decorator';
+import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { LimitLabels } from '../feature-limit/limits.enum';
 
 @ApiTags('Referral')
@@ -40,12 +31,18 @@ export class ReferralController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Generate referral token' })
   @ApiOkResponse({ description: 'Referral token generated successfully' })
-  @SetMetadata(FEATURE_LIMIT_KEY, {
-    limitLabels: [LimitLabels.ReferralAccess],
-    dataSources: [],
-  })
-  @UseGuards(FeatureLimit)
   async generateToken(@UserDecorator() user: User) {
+    const limit = await this.featureLimitService.getUserLimitByLabel(
+      LimitLabels.ReferralAccess,
+      user,
+    );
+
+    if (!limit?.isFeatureEnabled()) {
+      throw new PaymentRequiredException(
+        'Referral access not allowed for this user tier',
+      );
+    }
+
     const token = this.referralService.generateToken(user.uuid, user.createdAt);
     return { token };
   }
