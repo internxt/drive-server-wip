@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { UsageQueueProcessor } from './usage-queue.processor';
 import { UsageEventHandler } from './handlers/usage-event.handler';
 import { FileModule } from '../file/file.module';
@@ -11,11 +11,23 @@ import { USAGE_QUEUE_NAME } from './usage-queue.constants';
 @Module({
   imports: [
     BullModule.forRootAsync({
-      imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        connection: configService.get('cache.bullRedisConnectionString'),
-      }),
+      useFactory: (configService: ConfigService) => {
+        const url = new URL(
+          configService.get<string>('cache.redisJobsConnection'),
+        );
+        return {
+          connection: {
+            host: url.hostname,
+            port: Number(url.port) || 6379,
+            password: url.password || undefined,
+            username: url.username || undefined,
+            maxRetriesPerRequest: null,
+            enableOfflineQueue: false,
+            tls: {},
+          },
+        };
+      },
     }),
     BullModule.registerQueue({
       name: USAGE_QUEUE_NAME,
