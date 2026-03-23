@@ -91,11 +91,11 @@ export interface FileRepository {
     folderId: Folder['uuid'],
     searchBy: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]>;
-  findByPlainNameAndFolderId(
+  findByPlainNameAndFolder(
     userId: File['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderId: FileAttributes['folderId'],
+    folderUuid: FileAttributes['folderUuid'],
     status: FileAttributes['status'],
   ): Promise<File | null>;
   getSumSizeOfFilesInWorkspaceByStatuses(
@@ -328,11 +328,11 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
-  async findByPlainNameAndFolderId(
+  async findByPlainNameAndFolder(
     userId: FileAttributes['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderId: FileAttributes['folderId'],
+    folderUuid: FileAttributes['folderUuid'],
     status: FileAttributes['status'],
   ): Promise<File | null> {
     const typeCondition =
@@ -345,7 +345,7 @@ export class SequelizeFileRepository implements FileRepository {
         userId: { [Op.eq]: userId },
         plainName: { [Op.eq]: plainName },
         type: typeCondition,
-        folderId: { [Op.eq]: folderId },
+        folderUuid: { [Op.eq]: folderUuid },
         status: { [Op.eq]: status },
       },
     });

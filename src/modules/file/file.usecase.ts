@@ -311,11 +311,11 @@ export class FileUseCases {
       folder.id,
     );
 
-    const exists = await this.fileRepository.findByPlainNameAndFolderId(
+    const exists = await this.fileRepository.findByPlainNameAndFolder(
       user.id,
       newFileDto.plainName,
       newFileDto.type,
-      folder.id,
+      folder.uuid,
       FileStatus.EXISTS,
     );
     if (exists) {
@@ -463,11 +463,11 @@ export class FileUseCases {
       type,
     });
 
-    const fileWithSameNameExists = await this.findByPlainNameAndFolderId(
+    const fileWithSameNameExists = await this.getExistentFileInFolder(
       updatedFile.userId,
       updatedFile.plainName,
       updatedFile.type,
-      updatedFile.folderId,
+      updatedFile.folderUuid,
     );
     if (fileWithSameNameExists) {
       throw new ConflictException(
@@ -1053,12 +1053,11 @@ export class FileUseCases {
       throw new BadRequestException('Filename is not valid');
     }
 
-    const exists = await this.fileRepository.findByPlainNameAndFolderId(
+    const exists = await this.getExistentFileInFolder(
       file.userId,
       file.plainName,
       file.type,
-      destinationFolder.id,
-      FileStatus.EXISTS,
+      destinationFolder.uuid,
     );
 
     if (exists) {
@@ -1085,8 +1084,6 @@ export class FileUseCases {
       plainName: file.plainName,
       type: file.type,
     };
-
-    const wasTrashed = file.status === FileStatus.TRASHED;
 
     await this.fileRepository.updateByUuidAndUserId(
       fileUuid,
@@ -1151,17 +1148,17 @@ export class FileUseCases {
     });
   }
 
-  async findByPlainNameAndFolderId(
+  async getExistentFileInFolder(
     userId: FileAttributes['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderId: FileAttributes['folderId'],
+    folderUuid: FileAttributes['folderUuid'],
   ): Promise<File | null> {
-    return this.fileRepository.findByPlainNameAndFolderId(
+    return this.fileRepository.findByPlainNameAndFolder(
       userId,
       plainName,
       type,
-      folderId,
+      folderUuid,
       FileStatus.EXISTS,
     );
   }
@@ -1180,11 +1177,11 @@ export class FileUseCases {
       throw new NotFoundException('Parent folders not found');
     }
 
-    const file = await this.findByPlainNameAndFolderId(
+    const file = await this.getExistentFileInFolder(
       user.id,
       path.fileName,
       path.fileType,
-      folder.id,
+      folder.uuid,
     );
     return file;
   }
