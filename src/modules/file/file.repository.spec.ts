@@ -147,7 +147,7 @@ describe('FileRepository', () => {
     });
   });
 
-  describe('findByPlainNameAndFolder', () => {
+  describe('findByPlainNameAndFolderId', () => {
     it('When file is searched with empty type, it should find it', async () => {
       const mockFile = newFile({ attributes: { type: '' } });
 
@@ -160,11 +160,11 @@ describe('FileRepository', () => {
 
       jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(model);
 
-      await repository.findByPlainNameAndFolder(
+      await repository.findByPlainNameAndFolderId(
         mockFile.userId,
         mockFile.plainName,
         mockFile.type,
-        mockFile.folderUuid,
+        mockFile.folderId,
         mockFile.status,
       );
 
@@ -173,7 +173,7 @@ describe('FileRepository', () => {
           userId: { [Op.eq]: mockFile.userId },
           plainName: { [Op.eq]: mockFile.plainName },
           type: { [Op.or]: [{ [Op.is]: null }, { [Op.eq]: '' }] },
-          folderUuid: { [Op.eq]: mockFile.folderUuid },
+          folderId: { [Op.eq]: mockFile.folderId },
           status: { [Op.eq]: mockFile.status },
         }),
       });
@@ -191,11 +191,11 @@ describe('FileRepository', () => {
 
       jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(model);
 
-      await repository.findByPlainNameAndFolder(
+      await repository.findByPlainNameAndFolderId(
         mockFile.userId,
         mockFile.plainName,
         mockFile.type,
-        mockFile.folderUuid,
+        mockFile.folderId,
         mockFile.status,
       );
 
@@ -204,7 +204,7 @@ describe('FileRepository', () => {
           userId: { [Op.eq]: mockFile.userId },
           plainName: { [Op.eq]: mockFile.plainName },
           type: { [Op.or]: [{ [Op.is]: null }, { [Op.eq]: '' }] },
-          folderUuid: { [Op.eq]: mockFile.folderUuid },
+          folderId: { [Op.eq]: mockFile.folderId },
           status: { [Op.eq]: mockFile.status },
         }),
       });
@@ -222,11 +222,11 @@ describe('FileRepository', () => {
 
       jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(model);
 
-      await repository.findByPlainNameAndFolder(
+      await repository.findByPlainNameAndFolderId(
         mockFile.userId,
         mockFile.plainName,
         mockFile.type,
-        mockFile.folderUuid,
+        mockFile.folderId,
         mockFile.status,
       );
 
@@ -235,7 +235,7 @@ describe('FileRepository', () => {
           userId: { [Op.eq]: mockFile.userId },
           plainName: { [Op.eq]: mockFile.plainName },
           type: { [Op.eq]: mockFile.type },
-          folderUuid: { [Op.eq]: mockFile.folderUuid },
+          folderId: { [Op.eq]: mockFile.folderId },
           status: { [Op.eq]: mockFile.status },
         }),
       });
