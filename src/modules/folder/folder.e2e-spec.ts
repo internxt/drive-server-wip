@@ -13,6 +13,7 @@ import {
   type TestUserContext,
 } from '../../../test/helpers/user.helper';
 import { createTestApp } from '../../../test/helpers/test-app.helper';
+import { AesService } from '../../externals/crypto/aes';
 
 describe('Folder module', () => {
   let app: NestExpressApplication;
@@ -104,18 +105,23 @@ describe('Folder module', () => {
       )
         .query({ limit: DEFAULT_LIMIT, offset: DEFAULT_OFFSET })
         .expect(HttpStatus.OK);
-
       expect(response.body).toHaveProperty('files');
       expect(response.body.files.length).toBe(1);
       expect(response.body.files[0]).toMatchObject({
         uuid: file.uuid,
-        name: file.name,
         folderId: file.folderId,
         folderUuid: file.folderUuid,
         userId: file.userId,
         size: file.size,
         type: file.type,
       });
+
+      const aes = new AesService(process.env.CRYPTO_SECRET2);
+      const decryptedName = aes.decrypt(
+        response.body.files[0].name,
+        response.body.files[0].folderId,
+      );
+      expect(decryptedName).toEqual(file.plainName);
     });
 
     it('When user does not match the folder owner, then it should return nothing', async () => {
