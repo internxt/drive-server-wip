@@ -22,6 +22,7 @@ import { SharingModel } from '../sharing/models';
 import { type Sharing } from '../sharing/sharing.domain';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Sequelize } from 'sequelize';
+import { AesService } from '../../externals/crypto/aes';
 
 @Table({
   underscored: true,
@@ -42,9 +43,19 @@ export class FileModel extends Model implements FileAttributes {
   @Column(DataType.STRING(24))
   fileId: string;
 
-  @Index
+  // TODO: Remove get/set and move this to a virtual field when 'name' column is ready to be dropped
   @Column
-  name: string;
+  get name(): string {
+    const plainName = this.getDataValue('plainName');
+    const folderId = this.getDataValue('folderId');
+    if (!plainName || !folderId) return null;
+    const aes = new AesService(process.env.CRYPTO_SECRET2);
+    return aes.encrypt(plainName, folderId);
+  }
+
+  set name(value: string) {
+    this.setDataValue('name', value);
+  }
 
   @Index
   @Column
