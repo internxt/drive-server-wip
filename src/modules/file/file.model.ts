@@ -43,18 +43,15 @@ export class FileModel extends Model implements FileAttributes {
   @Column(DataType.STRING(24))
   fileId: string;
 
-  // TODO: Remove get/set and move this to a virtual field when 'name' column is ready to be dropped
-  @Column
+  @Column(DataType.VIRTUAL)
   get name(): string {
     const plainName = this.getDataValue('plainName');
     const folderId = this.getDataValue('folderId');
-    if (!plainName || !folderId) return null;
-    const aes = new AesService(process.env.CRYPTO_SECRET2);
-    return aes.encrypt(plainName, folderId);
-  }
-
-  set name(value: string) {
-    this.setDataValue('name', value);
+    if (!plainName || !folderId) return plainName ?? null;
+    return new AesService(process.env.CRYPTO_SECRET2).encrypt(
+      plainName,
+      folderId,
+    );
   }
 
   @Index
