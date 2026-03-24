@@ -412,7 +412,7 @@ describe('FolderUseCases', () => {
       expect(result.name).toStrictEqual(folder.plainName);
     });
 
-    it('When the name is not encrypted, then the decrypting fails', () => {
+    it('When decryption returns empty string, then it falls back to folder name', () => {
       const folder = newFolder({
         attributes: {
           name: 'not encrypted name',
@@ -422,9 +422,26 @@ describe('FolderUseCases', () => {
 
       jest.spyOn(cryptoService, 'decryptName').mockReturnValue('');
 
-      expect(() => service.decryptFolderName(folder)).toThrow(
-        'Unable to decrypt folder name',
-      );
+      const result = service.decryptFolderName(folder);
+
+      expect(result.plainName).toStrictEqual(folder.name);
+    });
+
+    it('When decryption throws, then it falls back to plainName', () => {
+      const folder = newFolder({
+        attributes: {
+          name: 'encrypted name',
+          plainName: 'my folder',
+        },
+      });
+
+      jest.spyOn(cryptoService, 'decryptName').mockImplementation(() => {
+        throw new Error('decryption error');
+      });
+
+      const result = service.decryptFolderName(folder);
+
+      expect(result.plainName).toStrictEqual('my folder');
     });
   });
 
