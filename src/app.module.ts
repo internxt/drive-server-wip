@@ -33,6 +33,8 @@ import { AuthGuard } from './modules/auth/auth.guard';
 import { CacheManagerModule } from './modules/cache-manager/cache-manager.module';
 import { ReferralModule } from './modules/referral/referral.module';
 
+const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
+
 @Module({
   imports: [
     LoggerModule.forRoot({
@@ -124,7 +126,7 @@ import { ReferralModule } from './modules/referral/referral.module';
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
-    JobsModule,
+    ...(isCronjobInstance ? [JobsModule] : []),
     NotificationModule,
     NotificationsModule,
     FileModule,
