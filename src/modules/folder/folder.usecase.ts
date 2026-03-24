@@ -66,11 +66,7 @@ export class FolderUseCases {
       throw new NotFoundException('Folder not found');
     }
 
-    folder.plainName =
-      folder.plainName ??
-      this.cryptoService.decryptName(folder.name, folder.parentId);
-
-    return folder;
+    return folder.plainName ? folder : this.decryptFolderName(folder);
   }
 
   async getByUuids(uuids: Folder['uuid'][], user?: User): Promise<Folder[]> {
@@ -992,19 +988,32 @@ export class FolderUseCases {
   }
 
   decryptFolderName(folder: Folder): Folder {
-    const decryptedName =
-      folder.plainName ??
-      this.cryptoService.decryptName(folder.name, folder.parentId);
+    try {
+      const decryptedName = this.cryptoService.decryptName(
+        folder.name,
+        folder.parentId,
+      );
 
-    if (decryptedName === '') {
-      throw new Error('Unable to decrypt folder name');
+      if (decryptedName === '') {
+        return Folder.build({
+          ...folder,
+          name: folder.plainName ?? folder.name,
+          plainName: folder.plainName ?? folder.name,
+        });
+      }
+
+      return Folder.build({
+        ...folder,
+        name: decryptedName,
+        plainName: decryptedName,
+      });
+    } catch {
+      return Folder.build({
+        ...folder,
+        name: folder.plainName ?? folder.name,
+        plainName: folder.plainName ?? folder.name,
+      });
     }
-
-    return Folder.build({
-      ...folder,
-      name: decryptedName,
-      plainName: decryptedName,
-    });
   }
 
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
