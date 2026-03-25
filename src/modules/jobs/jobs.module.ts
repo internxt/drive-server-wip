@@ -21,6 +21,11 @@ import {
   TRASH_CLEANUP_QUEUE,
 } from './tasks/trash-cleanup/trash-cleanup.scheduler';
 import { TrashCleanupProcessor } from './tasks/trash-cleanup/trash-cleanup.processor';
+import {
+  HardDeleteOldFilesScheduler,
+  HARD_DELETE_OLD_FILES_QUEUE,
+} from './tasks/hard-delete-old-files/hard-delete-old-files.scheduler';
+import { HardDeleteOldFilesProcessor } from './tasks/hard-delete-old-files/hard-delete-old-files.processor';
 @Module({
   imports: [
     SequelizeModule.forFeature([JobExecutionModel]),
@@ -45,6 +50,7 @@ import { TrashCleanupProcessor } from './tasks/trash-cleanup/trash-cleanup.proce
       },
     }),
     BullModule.registerQueue({ name: TRASH_CLEANUP_QUEUE }),
+    BullModule.registerQueue({ name: HARD_DELETE_OLD_FILES_QUEUE }),
     FileModule,
     FolderModule,
     UserModule,
@@ -61,6 +67,8 @@ import { TrashCleanupProcessor } from './tasks/trash-cleanup/trash-cleanup.proce
     DeleteExpiredFileVersionsTask,
     TrashCleanupScheduler,
     TrashCleanupProcessor,
+    HardDeleteOldFilesScheduler,
+    HardDeleteOldFilesProcessor,
   ],
 })
 export class JobsModule {}

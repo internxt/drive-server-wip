@@ -1273,4 +1273,84 @@ describe('FileRepository', () => {
       );
     });
   });
+
+  describe('findDeletedFilesUpdatedBefore', () => {
+    const cutoffDate = Time.now('2025-09-01T00:00:00Z');
+    const limit = 100;
+
+    it('When no files match, then it should return an empty array', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([] as FileModel[]);
+
+      const result = await (repository as any).findDeletedFilesUpdatedBefore(
+        cutoffDate,
+        limit,
+      );
+
+      expect(result).toEqual([]);
+    });
+
+    it('When files match, then it should return their uuids', async () => {
+      const uuids = [v4(), v4(), v4()];
+      const rows = uuids.map((uuid) => ({ uuid }) as FileModel);
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(rows);
+
+      const result = await (repository as any).findDeletedFilesUpdatedBefore(
+        cutoffDate,
+        limit,
+      );
+
+      expect(result).toEqual(uuids);
+    });
+
+    it('When called, then it should query with status DELETED and updatedAt < cutoffDate', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([] as FileModel[]);
+
+      await (repository as any).findDeletedFilesUpdatedBefore(
+        cutoffDate,
+        limit,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: FileStatus.DELETED,
+            updatedAt: expect.objectContaining({ [Op.lt]: cutoffDate }),
+          }),
+        }),
+      );
+    });
+
+    it('When called, then it should pass the limit to findAll', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([] as FileModel[]);
+
+      await (repository as any).findDeletedFilesUpdatedBefore(
+        cutoffDate,
+        limit,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ limit }),
+      );
+    });
+  });
+
+  describe('hardDeleteFilesByUuids', () => {
+    it('When uuids are passed, then it should destroy them and return the count', async () => {
+      const uuids = [v4(), v4(), v4()];
+
+      jest.spyOn(fileModel, 'destroy').mockResolvedValueOnce(uuids.length);
+
+      const result = await (repository as any).hardDeleteFilesByUuids(uuids);
+
+      expect(result).toBe(uuids.length);
+      expect(fileModel.destroy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            uuid: expect.objectContaining({ [Op.in]: uuids }),
+          }),
+        }),
+      );
+    });
+  });
 });
