@@ -34,9 +34,7 @@ import { CacheManagerModule } from './modules/cache-manager/cache-manager.module
 import { ReferralModule } from './modules/referral/referral.module';
 
 const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
-const appName = isCronjobInstance
-  ? 'drive-server-wip-cronjob'
-  : 'drive-server-wip';
+const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
 
 @Module({
   imports: [
@@ -103,15 +101,12 @@ const appName = isCronjobInstance
           idle: 20000,
           acquire: 20000,
         },
-        dialectOptions: configService.get('isProduction')
-          ? {
-              ssl: {
-                require: true,
-                rejectUnauthorized: false,
-              },
-              application_name: appName,
-            }
-          : {},
+        dialectOptions: {
+          ...(configService.get('isProduction')
+            ? { ssl: { require: true, rejectUnauthorized: false } }
+            : {}),
+          application_name: appName,
+        },
         logging: !configService.get('database.debug')
           ? false
           : (sql: string) => {
