@@ -51,6 +51,8 @@ export class HardDeleteOldFilesProcessor extends WorkerHost {
         BATCH_SIZE,
       );
 
+      this.logger.log({ uuids }, 'files to delete');
+
       if (uuids.length === 0) break;
 
       const deletedCount =
@@ -59,9 +61,7 @@ export class HardDeleteOldFilesProcessor extends WorkerHost {
       totalDeleted += deletedCount;
       batchNumber++;
 
-      if (batchNumber % LOG_PROGRESS_EVERY_N_BATCHES === 0) {
-        this.logger.log({ batchNumber, totalDeleted }, 'Hard-delete progress.');
-      }
+      this.logger.log({ batchNumber, totalDeleted }, 'Hard-delete progress.');
 
       if (uuids.length < BATCH_SIZE) break;
     }
