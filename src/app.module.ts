@@ -34,12 +34,15 @@ import { CacheManagerModule } from './modules/cache-manager/cache-manager.module
 import { ReferralModule } from './modules/referral/referral.module';
 
 const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
+const appName = isCronjobInstance
+  ? 'drive-server-wip-cronjob'
+  : 'drive-server-wip';
 
 @Module({
   imports: [
     LoggerModule.forRoot({
       pinoHttp: {
-        name: 'drive-server',
+        name: appName,
         genReqId: (_req) => nanoid(),
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
         base: undefined,
@@ -106,7 +109,7 @@ const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
                 require: true,
                 rejectUnauthorized: false,
               },
-              application_name: 'drive-server-wip',
+              application_name: appName,
             }
           : {},
         logging: !configService.get('database.debug')
