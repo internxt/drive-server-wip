@@ -59,9 +59,7 @@ export class HardDeleteOldFilesProcessor extends WorkerHost {
       totalDeleted += deletedCount;
       batchNumber++;
 
-      if (batchNumber % LOG_PROGRESS_EVERY_N_BATCHES === 0) {
-        this.logger.log({ batchNumber, totalDeleted }, 'Hard-delete progress.');
-      }
+      this.logger.log({ batchNumber, totalDeleted }, 'Hard-delete progress.');
 
       if (uuids.length < BATCH_SIZE) break;
     }
