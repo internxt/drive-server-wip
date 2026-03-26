@@ -51,6 +51,8 @@ export class HardDeleteOldFilesProcessor extends WorkerHost {
         BATCH_SIZE,
       );
 
+      this.logger.log({ uuids }, 'files to delete');
+
       if (uuids.length === 0) break;
 
       const deletedCount =
