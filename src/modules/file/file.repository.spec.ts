@@ -1324,10 +1324,7 @@ describe('FileRepository', () => {
     it('When called, then it should pass the limit to findAll', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([] as FileModel[]);
 
-      await (repository as any).findDeletedFilesUpdatedBefore(
-        cutoffDate,
-        limit,
-      );
+      await repository.findDeletedFilesUpdatedBefore(cutoffDate, limit);
 
       expect(fileModel.findAll).toHaveBeenCalledWith(
         expect.objectContaining({ limit }),
@@ -1335,19 +1332,20 @@ describe('FileRepository', () => {
     });
   });
 
-  describe('hardDeleteFilesByUuids', () => {
+  describe('destroyDeletedFilesByUuids', () => {
     it('When uuids are passed, then it should destroy them and return the count', async () => {
       const uuids = [v4(), v4(), v4()];
 
       jest.spyOn(fileModel, 'destroy').mockResolvedValueOnce(uuids.length);
 
-      const result = await (repository as any).hardDeleteFilesByUuids(uuids);
+      const result = await repository.destroyDeletedFilesByUuids(uuids);
 
       expect(result).toBe(uuids.length);
       expect(fileModel.destroy).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             uuid: expect.objectContaining({ [Op.in]: uuids }),
+            status: FileStatus.DELETED,
           }),
         }),
       );

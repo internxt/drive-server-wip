@@ -54,7 +54,7 @@ export class HardDeleteOldFilesProcessor extends WorkerHost {
       if (uuids.length === 0) break;
 
       const deletedCount =
-        await this.fileRepository.hardDeleteFilesByUuids(uuids);
+        await this.fileRepository.destroyDeletedFilesByUuids(uuids);
 
       totalDeleted += deletedCount;
       batchNumber++;

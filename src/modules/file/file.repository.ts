@@ -150,7 +150,7 @@ export interface FileRepository {
     cutoffDate: Date,
     limit: number,
   ): Promise<string[]>;
-  hardDeleteFilesByUuids(uuids: string[]): Promise<number>;
+  destroyDeletedFilesByUuids(uuids: string[]): Promise<number>;
   findRecent(
     userId: number,
     daysBack: number,
@@ -1090,9 +1090,9 @@ export class SequelizeFileRepository implements FileRepository {
     return rows.map((r) => r.uuid);
   }
 
-  async hardDeleteFilesByUuids(uuids: string[]): Promise<number> {
+  async destroyDeletedFilesByUuids(uuids: string[]): Promise<number> {
     return this.fileModel.destroy({
-      where: { uuid: { [Op.in]: uuids } },
+      where: { uuid: { [Op.in]: uuids }, status: FileStatus.DELETED },
     });
   }
 
