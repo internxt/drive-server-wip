@@ -34,12 +34,13 @@ import { CacheManagerModule } from './modules/cache-manager/cache-manager.module
 import { ReferralModule } from './modules/referral/referral.module';
 
 const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
+const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
 
 @Module({
   imports: [
     LoggerModule.forRoot({
       pinoHttp: {
-        name: 'drive-server',
+        name: appName,
         genReqId: (_req) => nanoid(),
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
         base: undefined,
@@ -100,15 +101,12 @@ const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
           idle: 20000,
           acquire: 20000,
         },
-        dialectOptions: configService.get('isProduction')
-          ? {
-              ssl: {
-                require: true,
-                rejectUnauthorized: false,
-              },
-              application_name: 'drive-server-wip',
-            }
-          : {},
+        dialectOptions: {
+          ...(configService.get('isProduction')
+            ? { ssl: { require: true, rejectUnauthorized: false } }
+            : {}),
+          application_name: appName,
+        },
         logging: !configService.get('database.debug')
           ? false
           : (sql: string) => {
