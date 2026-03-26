@@ -40,16 +40,6 @@ describe('HardDeleteOldFilesScheduler', () => {
     expect(scheduler).toBeDefined();
   });
 
-  describe('onApplicationBootstrap', () => {
-    it('When called, then it should invoke scheduleCleanup', async () => {
-      jest.spyOn(scheduler, 'scheduleCleanup').mockResolvedValue();
-
-      await scheduler.onApplicationBootstrap();
-
-      expect(scheduler.scheduleCleanup).toHaveBeenCalledTimes(1);
-    });
-  });
-
   describe('scheduleCleanup', () => {
     it('When called, then it should enqueue a job with the correct job name', async () => {
       await scheduler.scheduleCleanup();

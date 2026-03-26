@@ -1,27 +1,19 @@
-import {
-  type OnApplicationBootstrap,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { JobName } from '../../constants';
 
 export const HARD_DELETE_OLD_FILES_QUEUE = 'hard-delete-old-files';
-export const HARD_DELETE_OLD_FILES_JOB_ID = 'hard-delete-old-files:run';
+export const HARD_DELETE_OLD_FILES_JOB_ID = 'hard-delete-old-files-id';
 
 @Injectable()
-export class HardDeleteOldFilesScheduler implements OnApplicationBootstrap {
+export class HardDeleteOldFilesScheduler {
   private readonly logger = new Logger(JobName.HARD_DELETE_OLD_DELETED_FILES);
 
   constructor(
     @InjectQueue(HARD_DELETE_OLD_FILES_QUEUE) private readonly queue: Queue,
   ) {}
-
-  async onApplicationBootstrap() {
-    await this.scheduleCleanup();
-  }
 
   @Cron(CronExpression.EVERY_HOUR, {
     name: JobName.HARD_DELETE_OLD_DELETED_FILES,
