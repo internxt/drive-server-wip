@@ -1077,6 +1077,9 @@ export class SequelizeFileRepository implements FileRepository {
   async findDeletedFilesUpdatedBefore(
     cutoffDate: Date,
     limit: number,
+    opts?: {
+      useMaster: boolean;
+    },
   ): Promise<string[]> {
     const rows = await this.fileModel.findAll({
       attributes: ['uuid'],
@@ -1084,6 +1087,7 @@ export class SequelizeFileRepository implements FileRepository {
         status: FileStatus.DELETED,
         updatedAt: { [Op.lt]: cutoffDate },
       },
+      useMaster: opts?.useMaster,
       limit,
     });
 

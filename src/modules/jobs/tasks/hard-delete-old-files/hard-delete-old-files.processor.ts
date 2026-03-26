@@ -24,21 +24,26 @@ export class HardDeleteOldFilesProcessor extends WorkerHost {
   }
 
   async process(_job: Job) {
-    const cutoffDate = Time.daysAgo(SIX_MONTHS_IN_DAYS);
+    try {
+      const cutoffDate = Time.daysAgo(SIX_MONTHS_IN_DAYS);
 
-    this.logger.log(
-      { cutoffDate },
-      'Starting hard-delete of old deleted files.',
-    );
+      this.logger.log(
+        { cutoffDate },
+        'Starting hard-delete of old deleted files.',
+      );
 
-    const filesDeleted = await this.deleteInBatches(cutoffDate);
+      const filesDeleted = await this.deleteInBatches(cutoffDate);
 
-    this.logger.log(
-      { filesDeleted },
-      'Hard-delete of old deleted files completed.',
-    );
+      this.logger.log(
+        { filesDeleted },
+        'Hard-delete of old deleted files completed.',
+      );
 
-    return { filesDeleted };
+      return { filesDeleted };
+    } catch (error) {
+      this.logger.error({ error }, 'Hard-delete of old deleted files failed.');
+      throw error;
+    }
   }
 
   private async deleteInBatches(cutoffDate: Date): Promise<number> {
@@ -49,6 +54,7 @@ export class HardDeleteOldFilesProcessor extends WorkerHost {
       const uuids = await this.fileRepository.findDeletedFilesUpdatedBefore(
         cutoffDate,
         BATCH_SIZE,
+        { useMaster: true },
       );
 
       this.logger.log({ uuids }, 'files to delete');
