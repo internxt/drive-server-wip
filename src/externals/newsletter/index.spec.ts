@@ -28,12 +28,12 @@ describe('NewsletterService', () => {
     });
   });
 
-  it('should be defined', () => {
+  it('When instantiated, then it should be defined', () => {
     expect(service).toBeDefined();
   });
 
   describe('subscribe', () => {
-    it('should subscribe user using default listId if not provided', async () => {
+    it('When a listId is not provided, then it should subscribe the user using the default listId', async () => {
       const email = 'test@example.com';
       jest.spyOn(httpClient, 'post').mockResolvedValueOnce({
         data: { data: { id: 'prof_123' } },
@@ -76,7 +76,7 @@ describe('NewsletterService', () => {
       );
     });
 
-    it('should subscribe user using provided listId', async () => {
+    it('When a listId is provided, then it should subscribe the user using that listId', async () => {
       const email = 'test@example.com';
       const providedListId = 'providedListId';
       jest.spyOn(httpClient, 'post').mockResolvedValueOnce({
