@@ -123,9 +123,6 @@ describe('BackupUseCase', () => {
       jest
         .spyOn(folderUseCases, 'getFoldersByUserId')
         .mockResolvedValue([mockFolder]);
-      jest
-        .spyOn(cryptoService, 'decryptName')
-        .mockReturnValueOnce(mockFolder.plainName as never);
 
       const result = await backupUseCase.getDevicesAsFolder(userMocked);
 
@@ -138,6 +135,44 @@ describe('BackupUseCase', () => {
       result.forEach((folder) => {
         expect(folder).toEqual(mockFolderResponse);
       });
+    });
+
+    it('When folder has no plainName, then it should decrypt using bucket', async () => {
+      const mockFolder = newFolder({
+        attributes: { plainName: null },
+      });
+
+      jest
+        .spyOn(folderUseCases, 'getFoldersByUserId')
+        .mockResolvedValue([mockFolder]);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce('Decrypted Name' as never);
+
+      const result = await backupUseCase.getDevicesAsFolder(userMocked);
+
+      expect(cryptoService.decryptName).toHaveBeenCalledWith(
+        mockFolder.name,
+        mockFolder.bucket,
+      );
+      expect(result[0].plainName).toBe('Decrypted Name');
+    });
+
+    it('When decryption fails, then it should fallback to encrypted name', async () => {
+      const mockFolder = newFolder({
+        attributes: { plainName: null },
+      });
+
+      jest
+        .spyOn(folderUseCases, 'getFoldersByUserId')
+        .mockResolvedValue([mockFolder]);
+      jest.spyOn(cryptoService, 'decryptName').mockImplementation(() => {
+        throw new Error('Decryption failed');
+      });
+
+      const result = await backupUseCase.getDevicesAsFolder(userMocked);
+
+      expect(result[0].plainName).toBe(mockFolder.name);
     });
   });
 
@@ -213,6 +248,28 @@ describe('BackupUseCase', () => {
       );
       expect(result).toEqual(mockFolderWithBackupAttributes);
     });
+
+    it('When folder has no plainName, then it should decrypt using bucket', async () => {
+      const mockFolder = newFolder({ attributes: { plainName: null } });
+
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(mockFolder);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce('Decrypted' as never);
+
+      const result = await backupUseCase.getDeviceAsFolder(
+        userMocked,
+        'folder-uuid',
+      );
+
+      expect(cryptoService.decryptName).toHaveBeenCalledWith(
+        mockFolder.name,
+        mockFolder.bucket,
+      );
+      expect(result.plainName).toBe('Decrypted');
+    });
   });
 
   describe('getDeviceAsFolderById', () => {
@@ -236,6 +293,25 @@ describe('BackupUseCase', () => {
 
       const result = await backupUseCase.getDeviceAsFolderById(userMocked, 1);
       expect(result).toEqual(mockFolderWithBackupAttributes);
+    });
+
+    it('When folder has no plainName, then it should decrypt using bucket', async () => {
+      const mockFolder = newFolder({ attributes: { plainName: null } });
+
+      jest
+        .spyOn(folderUseCases, 'getFolderByUserId')
+        .mockResolvedValue(mockFolder);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce('Decrypted' as never);
+
+      const result = await backupUseCase.getDeviceAsFolderById(userMocked, 1);
+
+      expect(cryptoService.decryptName).toHaveBeenCalledWith(
+        mockFolder.name,
+        mockFolder.bucket,
+      );
+      expect(result.plainName).toBe('Decrypted');
     });
   });
 
@@ -452,10 +528,10 @@ describe('BackupUseCase', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('When backups are enabled, then it should return user devices with filters', async () => {
+    it('When devices have no folderUuid, then it should return devices with null folder', async () => {
       const mockDevices = [
-        newDevice({ platform: DevicePlatform.WINDOWS }),
-        newDevice({ platform: DevicePlatform.WINDOWS }),
+        newDevice({ platform: DevicePlatform.WINDOWS, folderUuid: null }),
+        newDevice({ platform: DevicePlatform.WINDOWS, folderUuid: null }),
       ];
       const filterOptions = { platform: DevicePlatform.WINDOWS };
 
@@ -470,31 +546,101 @@ describe('BackupUseCase', () => {
         0,
       );
 
-      expect(result).toEqual(mockDevices);
-      expect(backupRepository.findUserDevicesBy).toHaveBeenCalledWith(
-        userMocked,
-        filterOptions,
-        10,
-        0,
+      expect(result).toEqual(
+        mockDevices.map((d) => ({ ...d, folder: null })),
       );
+      expect(folderRepository.findByUuids).not.toHaveBeenCalled();
     });
 
-    it('When called with empty filters, then it should return all user devices', async () => {
-      const mockDevices = [newDevice(), newDevice()];
+    it('When devices have folderUuid, then it should fetch and attach folders', async () => {
+      const mockFolder = newFolder({
+        attributes: { bucket: userMocked.backupsBucket },
+      });
+      const mockDevices = [
+        newDevice({ folderUuid: mockFolder.uuid }),
+      ];
 
       jest
         .spyOn(backupRepository, 'findUserDevicesBy')
-        .mockResolvedValue(mockDevices as any);
+        .mockResolvedValue(mockDevices);
+      jest
+        .spyOn(folderRepository, 'findByUuids')
+        .mockResolvedValue([mockFolder]);
 
-      const result = await backupUseCase.getUserDevices(userMocked, {}, 20, 5);
-
-      expect(result).toEqual(mockDevices);
-      expect(backupRepository.findUserDevicesBy).toHaveBeenCalledWith(
+      const result = await backupUseCase.getUserDevices(
         userMocked,
         {},
-        20,
-        5,
+        10,
+        0,
       );
+
+      expect(folderRepository.findByUuids).toHaveBeenCalledWith(
+        [mockFolder.uuid],
+        userMocked.id,
+      );
+      expect(result[0].folder).toEqual(newBackupFolder(mockFolder));
+    });
+
+    it('When folder has no plainName, then it should decrypt using bucket not parentId', async () => {
+      const mockFolder = newFolder({
+        attributes: {
+          plainName: null,
+          bucket: userMocked.backupsBucket,
+        },
+      });
+      const mockDevices = [newDevice({ folderUuid: mockFolder.uuid })];
+
+      jest
+        .spyOn(backupRepository, 'findUserDevicesBy')
+        .mockResolvedValue(mockDevices);
+      jest
+        .spyOn(folderRepository, 'findByUuids')
+        .mockResolvedValue([mockFolder]);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce('Decrypted Device' as never);
+
+      const result = await backupUseCase.getUserDevices(
+        userMocked,
+        {},
+        10,
+        0,
+      );
+
+      expect(cryptoService.decryptName).toHaveBeenCalledWith(
+        mockFolder.name,
+        mockFolder.bucket,
+      );
+      expect(result[0].folder.plainName).toBe('Decrypted Device');
+    });
+
+    it('When decryption fails for a device folder, then it should fallback gracefully', async () => {
+      const mockFolder = newFolder({
+        attributes: {
+          plainName: null,
+          bucket: userMocked.backupsBucket,
+        },
+      });
+      const mockDevices = [newDevice({ folderUuid: mockFolder.uuid })];
+
+      jest
+        .spyOn(backupRepository, 'findUserDevicesBy')
+        .mockResolvedValue(mockDevices);
+      jest
+        .spyOn(folderRepository, 'findByUuids')
+        .mockResolvedValue([mockFolder]);
+      jest.spyOn(cryptoService, 'decryptName').mockImplementation(() => {
+        throw new Error('Unable to decrypt');
+      });
+
+      const result = await backupUseCase.getUserDevices(
+        userMocked,
+        {},
+        10,
+        0,
+      );
+
+      expect(result[0].folder.plainName).toBe(mockFolder.name);
     });
   });
 
