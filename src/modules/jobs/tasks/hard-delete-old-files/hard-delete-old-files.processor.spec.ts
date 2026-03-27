@@ -97,6 +97,7 @@ describe('HardDeleteOldFilesProcessor', () => {
       expect(fileRepository.findDeletedFilesUpdatedBefore).toHaveBeenCalledWith(
         expectedCutoff,
         BATCH_SIZE,
+        { useMaster: true },
       );
     });
 
