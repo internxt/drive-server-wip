@@ -21,6 +21,8 @@ import { type CreateDeviceAndAttachFolderDto } from './dto/create-device-and-att
 import { type DevicePlatform } from './device.domain';
 import { type UpdateDeviceAndFolderDto } from './dto/update-device-and-folder.dto';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { emitUsageInvalidated } from '../usage-queue/events/usage-invalidated.event';
 
 @Injectable()
 export class BackupUseCase {
@@ -34,6 +36,7 @@ export class BackupUseCase {
     private readonly folderRepository: SequelizeFolderRepository,
     @Inject(forwardRef(() => FileUseCases))
     private readonly fileUsecases: FileUseCases,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async deleteUserBackups(userId: number) {
@@ -72,10 +75,19 @@ export class BackupUseCase {
 
     await this.backupRepository.deleteBackupsBy({ deviceId });
 
-    return this.backupRepository.deleteDevicesBy({
+    const result = await this.backupRepository.deleteDevicesBy({
       userId: user.id,
       id: deviceId,
     });
+
+    emitUsageInvalidated(
+      this.eventEmitter,
+      user.uuid,
+      user.id,
+      'backup.device.delete',
+    );
+
+    return result;
   }
 
   async activate(user: User) {
@@ -479,7 +491,19 @@ export class BackupUseCase {
       throw new NotFoundException('Backup not found');
     }
 
-    return this.backupRepository.deleteBackupByUserAndId(user, backupId);
+    const result = await this.backupRepository.deleteBackupByUserAndId(
+      user,
+      backupId,
+    );
+
+    emitUsageInvalidated(
+      this.eventEmitter,
+      user.uuid,
+      user.id,
+      'backup.delete',
+    );
+
+    return result;
   }
 
   async isFolderEmpty(user: User, folder: Folder) {

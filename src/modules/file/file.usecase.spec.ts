@@ -810,39 +810,6 @@ describe('FileUseCases', () => {
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(null);
-      const expireUsageSpy = jest.spyOn(cacheManagerService, 'expireUserUsage');
-
-      const createdFile = newFile({
-        attributes: {
-          ...newFileDto,
-          id: 1,
-          folderId: folder.id,
-          folderUuid: folder.uuid,
-          userId: userMocked.id,
-          uuid: v4(),
-          status: FileStatus.EXISTS,
-        },
-      });
-
-      jest.spyOn(fileRepository, 'create').mockResolvedValueOnce(createdFile);
-
-      const result = await service.createFile(userMocked, newFileDto);
-
-      expect(result).toEqual(createdFile);
-      expect(expireUsageSpy).toHaveBeenCalledWith(userMocked.uuid);
-    });
-
-    it('When creating a file and the cached usage fails to be expired, then it still returns succesfully', async () => {
-      const folder = newFolder({ attributes: { userId: userMocked.id } });
-
-      jest.spyOn(folderUseCases, 'getByUuid').mockResolvedValueOnce(folder);
-      jest
-        .spyOn(fileRepository, 'findByPlainNameAndFolderId')
-        .mockResolvedValueOnce(null);
-      jest
-        .spyOn(cacheManagerService, 'expireUserUsage')
-        .mockRejectedValue(new Error('Cache failed'));
-
       const createdFile = newFile({
         attributes: {
           ...newFileDto,

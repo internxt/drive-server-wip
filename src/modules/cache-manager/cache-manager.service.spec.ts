@@ -26,7 +26,19 @@ describe('CacheManagerService', () => {
   });
 
   describe('getUserUsage', () => {
-    it('When getting user usage, then it should append the user uuid to the usage key prefix', async () => {
+    it('When getting user usage with new shape, then it should return drive, backup, and total', async () => {
+      const userUuid = v4();
+      const cachedUsage = { drive: 1024, backup: 512, total: 1536 };
+
+      jest.spyOn(cacheManager, 'get').mockResolvedValue(cachedUsage);
+
+      const result = await cacheManagerService.getUserUsage(userUuid);
+
+      expect(cacheManager.get).toHaveBeenCalledWith(`usage:${userUuid}`);
+      expect(result).toEqual(cachedUsage);
+    });
+
+    it('When getting user usage with old shape, then it should return backward-compatible result', async () => {
       const userUuid = v4();
       const cachedUsage = { usage: 1024 };
 
@@ -35,7 +47,7 @@ describe('CacheManagerService', () => {
       const result = await cacheManagerService.getUserUsage(userUuid);
 
       expect(cacheManager.get).toHaveBeenCalledWith(`usage:${userUuid}`);
-      expect(result).toEqual(cachedUsage);
+      expect(result).toEqual({ drive: 1024, backup: 0, total: 1024 });
     });
 
     it('When cache returns null for user usage, then it should return null', async () => {
@@ -51,34 +63,28 @@ describe('CacheManagerService', () => {
   });
 
   describe('setUserUsage', () => {
-    it('When setting user usage, then it should store the usage with correct key and expiration', async () => {
+    it('When setting user usage, then it should store drive and backup with 24h TTL', async () => {
       const userUuid = v4();
-      const usage = 2048;
 
-      await cacheManagerService.setUserUsage(userUuid, usage);
+      await cacheManagerService.setUserUsage(userUuid, 2048, 512);
 
       expect(cacheManager.set).toHaveBeenCalledWith(
         `usage:${userUuid}`,
-        { usage },
-        10000 * 60,
+        { drive: 2048, backup: 512, total: 2560 },
+        24 * 60 * 60 * 1000,
       );
     });
 
-    it('When user usage is set, then it should return set value', async () => {
+    it('When setting user usage without backup, then backup defaults to 0', async () => {
       const userUuid = v4();
-      const usage = 1024;
-      const returnValue = { usage };
 
-      jest.spyOn(cacheManager, 'set').mockResolvedValue(returnValue);
-
-      const result = await cacheManagerService.setUserUsage(userUuid, usage);
+      await cacheManagerService.setUserUsage(userUuid, 1024);
 
       expect(cacheManager.set).toHaveBeenCalledWith(
         `usage:${userUuid}`,
-        { usage },
-        10000 * 60,
+        { drive: 1024, backup: 0, total: 1024 },
+        24 * 60 * 60 * 1000,
       );
-      expect(result).toEqual(returnValue);
     });
   });
 
