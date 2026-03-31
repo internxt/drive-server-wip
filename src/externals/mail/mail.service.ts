@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import { sign } from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
 import { HttpClient } from '../http/http.service';
@@ -52,12 +52,21 @@ export class MailService {
     const baseUrl = this.configService.get('apis.mail.url');
     const headers = this.getAuthHeaders();
 
-    const res = await this.httpClient.post(
-      `${baseUrl}/gateway/accounts`,
-      payload,
-      { headers },
-    );
+    try {
+      const res = await this.httpClient.post(
+        `${baseUrl}/gateway/accounts`,
+        payload,
+        { headers },
+      );
 
-    return res.data;
+      return res.data;
+    } catch (error) {
+      if (error?.response?.status === 409) {
+        throw new ConflictException(
+          error.response.data?.message || 'Mail account already exists',
+        );
+      }
+      throw error;
+    }
   }
 }
