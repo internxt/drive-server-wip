@@ -140,6 +140,10 @@ export class UserModel extends Model implements UserAttributes {
   @Column
   emailVerified: boolean;
 
+  @AllowNull
+  @Column
+  recoveryEmail: string;
+
   @HasMany(() => UserNotificationTokensModel)
   notificationTokens: UserNotificationTokensModel[];
 }

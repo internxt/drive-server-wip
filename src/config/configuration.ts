@@ -70,6 +70,9 @@ export default () => ({
     payments: {
       url: process.env.PAYMENTS_API_URL,
     },
+    mail: {
+      url: process.env.MAIL_API_URL,
+    },
   },
   apn: {
     url: process.env.APN_URL,

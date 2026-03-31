@@ -11,6 +11,7 @@ export enum LimitLabels {
   RcloneAccess = 'rclone-access',
   TrashRetentionDays = 'trash-retention-days',
   ReferralAccess = 'referral-access',
+  MailAccess = 'mail-access',
 }
 
 export enum LimitTypes {

@@ -30,6 +30,7 @@ export enum AuditAction {
   AccountReset = 'account-reset',
   AccountRecovery = 'account-recovery',
   AccountDeactivated = 'account-deactivated',
+  MailSetup = 'mail-setup',
   // Workspace actions
   WorkspaceCreated = 'workspace-created',
   WorkspaceDeleted = 'workspace-deleted',
@@ -47,6 +48,7 @@ export const AUDIT_ENTITY_ACTIONS: Record<AuditEntityType, AuditAction[]> = {
     AuditAction.AccountReset,
     AuditAction.AccountRecovery,
     AuditAction.AccountDeactivated,
+    AuditAction.MailSetup,
   ],
   [AuditEntityType.Workspace]: [
     AuditAction.WorkspaceCreated,
