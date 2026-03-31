@@ -369,7 +369,7 @@ export class FolderUseCases {
 
     const folderWithSameNameExists = await this.folderRepository.findOne({
       name: cryptoFileName,
-      parentId: folder.parentId,
+      parentUuid: folder.parentUuid,
       deleted: false,
       removed: false,
     });
@@ -425,7 +425,7 @@ export class FolderUseCases {
     }
 
     const nameAlreadyInUse = await this.folderRepository.findOne({
-      parentId: parentFolder.id,
+      parentUuid: parentFolder.uuid,
       plainName: newFolderDto.plainName,
       deleted: false,
     });
@@ -617,7 +617,7 @@ export class FolderUseCases {
       throw new BadRequestException('Parent folder not valid');
     }
 
-    return this.folderRepository.findByParent(parentFolder.id, {
+    return this.folderRepository.findByParentUuid(parentFolder.uuid, {
       plainName: plainNames,
       deleted: false,
       removed: false,

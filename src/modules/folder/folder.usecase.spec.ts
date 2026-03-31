@@ -993,7 +993,7 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'findOne')
         .mockResolvedValue(mockParentFolder);
       jest
-        .spyOn(folderRepository, 'findByParent')
+        .spyOn(folderRepository, 'findByParentUuid')
         .mockResolvedValue(mockFolders);
 
       const result = await service.searchFoldersInFolder(user, folderUuid, {
@@ -1001,8 +1001,8 @@ describe('FolderUseCases', () => {
       });
 
       expect(result).toEqual(mockFolders);
-      expect(folderRepository.findByParent).toHaveBeenCalledWith(
-        mockParentFolder.id,
+      expect(folderRepository.findByParentUuid).toHaveBeenCalledWith(
+        mockParentFolder.uuid,
         {
           plainName: plainNames,
           removed: false,
@@ -1019,15 +1019,15 @@ describe('FolderUseCases', () => {
       jest
         .spyOn(folderRepository, 'findOne')
         .mockResolvedValue(mockParentFolder);
-      jest.spyOn(folderRepository, 'findByParent').mockResolvedValue([]);
+      jest.spyOn(folderRepository, 'findByParentUuid').mockResolvedValue([]);
 
       const result = await service.searchFoldersInFolder(user, folderUuid, {
         plainNames,
       });
 
       expect(result).toEqual([]);
-      expect(folderRepository.findByParent).toHaveBeenCalledWith(
-        mockParentFolder.id,
+      expect(folderRepository.findByParentUuid).toHaveBeenCalledWith(
+        mockParentFolder.uuid,
         {
           plainName: plainNames,
           removed: false,

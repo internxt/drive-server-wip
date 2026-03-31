@@ -122,11 +122,11 @@ describe('SequelizeFolderRepository', () => {
   });
 
   describe('findByParentUuid', () => {
-    const parentId = 1;
+    const parentUuid = v4();
     const plainNames = ['Document', 'Image'];
 
     it('When folders are searched with names, then it should handle the call with names', async () => {
-      await repository.findByParent(parentId, {
+      await repository.findByParentUuid(parentUuid, {
         plainName: plainNames,
         deleted: false,
         removed: false,
@@ -134,7 +134,7 @@ describe('SequelizeFolderRepository', () => {
 
       expect(folderModel.findAll).toHaveBeenCalledWith({
         where: {
-          parentId,
+          parentUuid,
           plainName: { [Op.in]: plainNames },
           deleted: false,
           removed: false,
@@ -143,7 +143,7 @@ describe('SequelizeFolderRepository', () => {
     });
 
     it('When called without specific criteria, then it should handle the call', async () => {
-      await repository.findByParent(parentId, {
+      await repository.findByParentUuid(parentUuid, {
         plainName: [],
         deleted: false,
         removed: false,
@@ -151,7 +151,7 @@ describe('SequelizeFolderRepository', () => {
 
       expect(folderModel.findAll).toHaveBeenCalledWith({
         where: {
-          parentId,
+          parentUuid,
           deleted: false,
           removed: false,
         },

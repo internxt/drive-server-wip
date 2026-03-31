@@ -66,8 +66,8 @@ interface FolderRepository {
     folderUuid: FolderAttributes['uuid'],
     userId: FolderAttributes['userId'],
   ): Promise<Folder | null>;
-  findByParent(
-    parentId: Folder['id'],
+  findByParentUuid(
+    parentUuid: Folder['parentUuid'],
     searchBy: {
       plainName: Folder['plainName'][];
       deleted: boolean;
@@ -211,8 +211,8 @@ export class SequelizeFolderRepository implements FolderRepository {
     return newOrder;
   }
 
-  async findByParent(
-    parentId: Folder['id'],
+  async findByParentUuid(
+    parentUuid: Folder['parentUuid'],
     searchBy: {
       plainName: Folder['plainName'][];
       deleted: boolean;
@@ -220,7 +220,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     },
   ): Promise<Folder[]> {
     const where: WhereOptions<Folder> = {
-      parentId,
+      parentUuid,
       removed: searchBy.removed,
       deleted: searchBy.deleted,
     };
