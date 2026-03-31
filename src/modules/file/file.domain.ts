@@ -109,7 +109,7 @@ export class File implements FileAttributes {
     this.fileId = fileId;
     this.folderId = folderId;
     this.setFolder(folder);
-    this.name = plainName || name;
+    this.name = name;
     this.setType(type);
     this.size = size;
     this.bucket = bucket;
