@@ -1228,6 +1228,7 @@ describe('User use cases', () => {
       await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
         UnauthorizedException,
       );
+      expect(userRepository.loginFailed).toHaveBeenCalled();
     });
 
     it('When the 2FA code is valid, then it should return user and tokens', async () => {
