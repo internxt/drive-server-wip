@@ -33,6 +33,7 @@ import { AuthGuard } from './modules/auth/auth.guard';
 import { CacheManagerModule } from './modules/cache-manager/cache-manager.module';
 import { ReferralModule } from './modules/referral/referral.module';
 import { HealthModule } from './infrastructure/health/health.module';
+import { MailModule } from './modules/mail/mail.module';
 
 const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
 const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
@@ -152,6 +153,7 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
     CacheManagerModule,
     ReferralModule,
     HealthModule,
+    MailModule,
   ],
   controllers: [],
   providers: [
