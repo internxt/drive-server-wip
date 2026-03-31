@@ -55,6 +55,8 @@ import {
   calculateTrashExpirationDate,
   getTrashNotExpiredCutoffDate,
 } from './trash-expiration.utils';
+import { AuditAction } from '../../common/audit-logs/audit-logs.attributes';
+import { AuditLog } from '../../common/audit-logs/decorators/audit-log.decorator';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -264,6 +266,9 @@ export class TrashController {
   @ApiOperation({
     summary: "Deletes all items from user's trash",
   })
+  @AuditLog({
+    action: AuditAction.EmptyTrashRequested,
+  })
   async clearTrash(@UserDecorator() user: User) {
     try {
       const result = await this.trashUseCases.emptyTrash(user);
@@ -280,6 +285,9 @@ export class TrashController {
   }
 
   @Delete('/all/request')
+  @AuditLog({
+    action: AuditAction.EmptyTrashRequested,
+  })
   async requestEmptyTrash(@UserDecorator() user: User) {
     try {
       await this.trashUseCases.emptyTrash(user);
@@ -309,6 +317,13 @@ export class TrashController {
     @Version() version: string,
   ) {
     const { items } = deleteItemsDto;
+    this.logger.log(
+      {
+        user: user.uuid,
+        items: items,
+      },
+      'Request to delete items from trash',
+    );
 
     const filesIds: File['id'][] = [];
     const filesUuids: File['uuid'][] = [];

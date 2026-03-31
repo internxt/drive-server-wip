@@ -13,6 +13,7 @@ import { SharingModule } from '../sharing/sharing.module';
 import { TrashEventHandler } from './handlers/trash-event.handler';
 import { RedisService } from '../../externals/redis/redis.service';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
+import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
     NotificationModule,
     UserModule,
     FeatureLimitModule,
+    AuditLogsModule,
   ],
   controllers: [TrashController],
   providers: [Logger, TrashUseCases, RedisService, TrashEventHandler],
