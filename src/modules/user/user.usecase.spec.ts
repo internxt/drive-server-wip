@@ -1112,6 +1112,30 @@ describe('User use cases', () => {
       );
     });
 
+    it('When the 2FA code is wrong and limit is reached, then it should throw', async () => {
+      const correctPassword = v4();
+      const incorrectTfa = '123456';
+      const loginAccessDto = {
+        email: 'test@example.com',
+        password: correctPassword,
+        tfa: incorrectTfa,
+        ...keys,
+      };
+      const user = newUser({
+        attributes: {
+          email: 'test@example.com',
+          password: v4(),
+          errorLoginCount: 10,
+        },
+      });
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(correctPassword);
+
+      await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
     it('When the password is incorrect, then it should throw', async () => {
       const wrongPassword = v4();
       const loginAccessDto = {
@@ -1204,6 +1228,7 @@ describe('User use cases', () => {
       await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
         UnauthorizedException,
       );
+      expect(userRepository.loginFailed).toHaveBeenCalled();
     });
 
     it('When the 2FA code is valid, then it should return user and tokens', async () => {
