@@ -483,8 +483,8 @@ export class BackupUseCase {
   }
 
   async isFolderEmpty(user: User, folder: Folder) {
-    const folders = await this.folderUsecases.getFoldersByParentId(
-      folder.id,
+    const folders = await this.folderUsecases.getFoldersByParentUuid(
+      folder.uuid,
       user.id,
     );
     const files = await this.fileUsecases.getByFolderAndUser(

@@ -205,48 +205,6 @@ export class FolderUseCases {
     return this.folderRepository.findById(folderId, deleted);
   }
 
-  async isFolderInsideFolder(
-    parentId: FolderAttributes['id'],
-    folderId: FolderAttributes['id'],
-    userId: UserAttributes['id'],
-  ): Promise<boolean> {
-    const folder = await this.folderRepository.findOne({
-      id: folderId,
-      userId,
-      deleted: false,
-    });
-
-    const folderExists = !!folder;
-
-    if (!folderExists) {
-      return false;
-    }
-
-    const folderInsideTree = await this.folderRepository.findInTree(
-      parentId,
-      folderId,
-      userId,
-      false,
-    );
-    const folderIsInsideTree = !!folderInsideTree;
-
-    return folderIsInsideTree;
-  }
-
-  async getChildrenFoldersToUser(
-    folderId: FolderAttributes['id'],
-    userId: FolderAttributes['userId'],
-    { deleted }: FolderOptions = { deleted: false },
-  ) {
-    const folders = await this.folderRepository.findAllByParentIdAndUserId(
-      folderId,
-      userId,
-      deleted,
-    );
-
-    return folders;
-  }
-
   async getFoldersByUserId(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
@@ -523,14 +481,14 @@ export class FolderUseCases {
     ]);
   }
 
-  async getFoldersByParentId(
-    parentId: FolderAttributes['id'],
+  async getFoldersByParentUuid(
+    parentUuid: FolderAttributes['uuid'],
     userId: UserAttributes['id'],
     options = { deleted: false, limit: 20, offset: 0 },
   ): Promise<Folder[]> {
     return this.getFolders(
       userId,
-      { parentId, deleted: options.deleted },
+      { parentUuid, deleted: options.deleted },
       options,
     );
   }
@@ -784,15 +742,6 @@ export class FolderUseCases {
     );
   }
 
-  async getFoldersByParent(folderId: number, page, perPage) {
-    return this.folderRepository.findAllByParentId(
-      folderId,
-      false,
-      page,
-      perPage,
-    );
-  }
-
   /**
    * Permanently deletes a folder from the database
    * @throws ForbiddenException if the user is not the owner of the folder
@@ -826,7 +775,7 @@ export class FolderUseCases {
   }
 
   getOrphanFoldersCount(userId: UserAttributes['id']): Promise<number> {
-    return this.folderRepository.getFoldersWhoseParentIdDoesNotExist(userId);
+    return this.folderRepository.getFoldersWhoseParentUuidDoesNotExist(userId);
   }
 
   async deleteOrphansFolders(userId: UserAttributes['id']): Promise<number> {

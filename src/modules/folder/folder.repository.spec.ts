@@ -725,30 +725,6 @@ describe('SequelizeFolderRepository', () => {
     });
   });
 
-  describe('findAllByParentIdCursor', () => {
-    it('When finding folders by parent id with cursor, then it should return ordered folders', async () => {
-      const whereClause = { parentId: 1, deleted: false };
-      const limit = 10;
-      const offset = 0;
-      const folders = [newFolder()];
-      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
-
-      const result = await repository.findAllByParentIdCursor(
-        whereClause,
-        limit,
-        offset,
-      );
-
-      expect(folderModel.findAll).toHaveBeenCalledWith({
-        limit,
-        offset,
-        where: whereClause,
-        order: [['id', 'ASC']],
-      });
-      expect(result).toHaveLength(1);
-    });
-  });
-
   describe('findAllNotDeleted', () => {
     it('When finding non-deleted folders, then it should add removed condition', async () => {
       const whereClause = { userId: 1 };
@@ -770,46 +746,6 @@ describe('SequelizeFolderRepository', () => {
           ...whereClause,
           removed: { [Op.eq]: false },
         },
-      });
-      expect(result).toHaveLength(1);
-    });
-  });
-
-  describe('findAllByParentId', () => {
-    const parentId = 1;
-    const deleted = false;
-
-    it('When finding folders by parent id without pagination, then it should return all folders', async () => {
-      const folders = [newFolder(), newFolder()];
-      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
-
-      const result = await repository.findAllByParentId(parentId, deleted);
-
-      expect(folderModel.findAll).toHaveBeenCalledWith({
-        where: { parentId, deleted },
-        order: [['id', 'ASC']],
-      });
-      expect(result).toHaveLength(2);
-    });
-
-    it('When finding folders by parent id with pagination, then it should apply limit and offset', async () => {
-      const page = 1;
-      const perPage = 5;
-      const folders = [newFolder()];
-      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
-
-      const result = await repository.findAllByParentId(
-        parentId,
-        deleted,
-        page,
-        perPage,
-      );
-
-      expect(folderModel.findAll).toHaveBeenCalledWith({
-        where: { parentId, deleted },
-        order: [['id', 'ASC']],
-        offset: 5,
-        limit: 5,
       });
       expect(result).toHaveLength(1);
     });
@@ -957,7 +893,7 @@ describe('SequelizeFolderRepository', () => {
     });
   });
 
-  describe('getFoldersWhoseParentIdDoesNotExist', () => {
+  describe('getFoldersWhoseParentUuidDoesNotExist', () => {
     it('When counting orphan folders, then it should return count of folders with non-existent parent', async () => {
       const userId = 1;
       const mockCount = 3;
@@ -965,11 +901,11 @@ describe('SequelizeFolderRepository', () => {
       jest.spyOn(folderModel, 'count').mockResolvedValueOnce(mockCount);
 
       const result =
-        await repository.getFoldersWhoseParentIdDoesNotExist(userId);
+        await repository.getFoldersWhoseParentUuidDoesNotExist(userId);
 
       expect(folderModel.count).toHaveBeenCalledWith({
         where: {
-          parentId: {
+          parentUuid: {
             [Op.not]: null,
             [Op.notIn]: expect.anything(),
           },
@@ -1030,7 +966,7 @@ describe('SequelizeFolderRepository', () => {
         where: {
           ...whereClause,
           updatedAt: { [Op.gt]: updatedAfter },
-          parentId: { [Op.not]: null },
+          parentUuid: { [Op.not]: null },
         },
         order,
         limit,
