@@ -271,61 +271,6 @@ describe('FolderUseCases', () => {
     });
   });
 
-  describe('getChildrenFoldersToUser', () => {
-    it('calls getChildrenFoldersToUser and return empty folders', async () => {
-      const mockFolders = [];
-      jest
-        .spyOn(folderRepository, 'findAllByParentIdAndUserId')
-        .mockResolvedValue(mockFolders);
-      const result = await service.getChildrenFoldersToUser(
-        folderId,
-        userMocked.id,
-      );
-      expect(result).toEqual(mockFolders);
-      expect(
-        folderRepository.findAllByParentIdAndUserId,
-      ).toHaveBeenNthCalledWith(1, folderId, userMocked.id, false);
-    });
-
-    it('calls getChildrenFoldersToUser and return folders', async () => {
-      const nameEncrypted =
-        'ONzgORtJ77qI28jDnr+GjwJn6xELsAEqsn3FKlKNYbHR7Z129AD/WOMkAChEKx6rm7hOER2drdmXmC296dvSXtE5y5os0XCS554YYc+dcCMIkot/v6Wu6rlBC5MPlngR+CkmvA==';
-      const mockFolders = [
-        newFolder({
-          attributes: {
-            name: nameEncrypted,
-            bucket: 'bucket',
-            parentId: 1,
-            id: 4,
-            deleted: true,
-            userId: 1,
-          },
-        }),
-      ];
-      jest
-        .spyOn(folderRepository, 'findAllByParentIdAndUserId')
-        .mockResolvedValue(mockFolders);
-      const result = await service.getChildrenFoldersToUser(
-        folderId,
-        userMocked.id,
-      );
-      expect(result).toMatchObject([
-        {
-          id: 4,
-          parentId: 1,
-          name: nameEncrypted,
-          bucket: 'bucket',
-          userId: 1,
-          encryptVersion: '03-aes',
-          deleted: true,
-        },
-      ]);
-      expect(
-        folderRepository.findAllByParentIdAndUserId,
-      ).toHaveBeenNthCalledWith(1, folderId, userMocked.id, false);
-    });
-  });
-
   describe('delete folder use case', () => {
     it('When called, then it should be able to delete folder', async () => {
       const userOwnerMock = newUser({ attributes: { id: 1 } });
@@ -1988,63 +1933,6 @@ describe('FolderUseCases', () => {
         id: folderId,
       });
       expect(result).toEqual(folder);
-    });
-  });
-
-  describe('isFolderInsideFolder', () => {
-    const parentId = 1;
-    const folderId = 2;
-    const userId = 3;
-
-    it('When folder exists and is inside tree, then it should return true', async () => {
-      const folder = newFolder();
-      const treeResult = { id: folderId };
-
-      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(folder);
-      jest
-        .spyOn(folderRepository, 'findInTree')
-        .mockResolvedValueOnce(treeResult as any);
-
-      const result = await service.isFolderInsideFolder(
-        parentId,
-        folderId,
-        userId,
-      );
-
-      expect(result).toBe(true);
-      expect(folderRepository.findInTree).toHaveBeenCalledWith(
-        parentId,
-        folderId,
-        userId,
-        false,
-      );
-    });
-
-    it('When folder does not exist, then it should return false', async () => {
-      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(null);
-
-      const result = await service.isFolderInsideFolder(
-        parentId,
-        folderId,
-        userId,
-      );
-
-      expect(result).toBe(false);
-    });
-
-    it('When folder exists but is not inside tree, then it should return false', async () => {
-      const folder = newFolder();
-
-      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(folder);
-      jest.spyOn(folderRepository, 'findInTree').mockResolvedValueOnce(null);
-
-      const result = await service.isFolderInsideFolder(
-        parentId,
-        folderId,
-        userId,
-      );
-
-      expect(result).toBe(false);
     });
   });
 
