@@ -329,7 +329,7 @@ describe('Send Use Cases', () => {
       .spyOn(newsletterService, 'subscribe')
       .mockRejectedValue(new Error('Klaviyo error'));
 
-    const sendLink = await service.createSendLinks(
+    await service.createSendLinks(
       userMock,
       [],
       'code',
