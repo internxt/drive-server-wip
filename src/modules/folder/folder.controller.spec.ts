@@ -608,7 +608,7 @@ describe('FolderController', () => {
       parentFolderUuid: v4(),
     };
 
-    it('When creating a folder with valid data, then it should create and return the folder', async () => {
+    it('When creating a single folder with valid data, then it should create and return the folder', async () => {
       const createdFolder = newFolder({
         attributes: { plainName: createFolderDto.plainName },
       });
@@ -654,6 +654,65 @@ describe('FolderController', () => {
           clientId,
           requester,
         ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When creating bulk folders via folders array, then it should create and return all folders', async () => {
+      const parentFolderUuid = v4();
+      const dto = {
+        parentFolderUuid,
+        folders: [
+          { plainName: 'Folder A' },
+          { plainName: 'Folder B' },
+          { plainName: 'Folder C' },
+        ],
+      };
+
+      const createdFolders = dto.folders.map((f) =>
+        newFolder({ attributes: { plainName: f.plainName } }),
+      );
+
+      jest
+        .spyOn(folderUseCases, 'createBulkFolders')
+        .mockResolvedValue(createdFolders);
+      jest
+        .spyOn(storageNotificationService, 'folderCreated')
+        .mockImplementation(() => {});
+
+      const result = (await folderController.createFolder(
+        userMocked,
+        dto,
+        clientId,
+        requester,
+      )) as { created: any[] };
+
+      expect(result.created).toHaveLength(3);
+      expect(result.created).toEqual(
+        createdFolders.map((f) => ({
+          ...f,
+          status: f.getFolderStatus(),
+        })),
+      );
+      expect(folderUseCases.createBulkFolders).toHaveBeenCalledWith(
+        userMocked,
+        dto,
+      );
+      expect(storageNotificationService.folderCreated).toHaveBeenCalledTimes(3);
+    });
+
+    it('When bulk folder creation fails, then it should throw the error', async () => {
+      const parentFolderUuid = v4();
+      const dto = {
+        parentFolderUuid,
+        folders: [{ plainName: 'Valid' }, { plainName: 'Invalid/Name' }],
+      };
+
+      jest
+        .spyOn(folderUseCases, 'createBulkFolders')
+        .mockRejectedValue(new BadRequestException('Invalid folder name'));
+
+      await expect(
+        folderController.createFolder(userMocked, dto, clientId, requester),
       ).rejects.toThrow(BadRequestException);
     });
   });

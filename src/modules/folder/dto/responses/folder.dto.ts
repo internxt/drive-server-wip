@@ -56,3 +56,8 @@ export class ResultFoldersDto {
   @ApiProperty({ isArray: true, type: FolderDto })
   result: FolderDto[];
 }
+
+export class CreateBulkFoldersResponseDto {
+  @ApiProperty({ isArray: true, type: FolderDto })
+  created: FolderDto[];
+}

@@ -911,6 +911,107 @@ describe('FolderUseCases', () => {
     });
   });
 
+  describe('createBulkFolders', () => {
+    it('When the parent folder does not exist, then it should throw', async () => {
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(null);
+
+      await expect(
+        service.createBulkFolders(userMocked, {
+          parentFolderUuid: v4(),
+          folders: [{ plainName: 'Folder A' }],
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When any folder name is invalid, then it should throw', async () => {
+      const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(parentFolder);
+
+      await expect(
+        service.createBulkFolders(userMocked, {
+          parentFolderUuid: parentFolder.uuid,
+          folders: [{ plainName: 'Valid Name' }, { plainName: 'Invalid/Name' }],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When there are duplicate names in the request, then it should throw', async () => {
+      const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(parentFolder);
+
+      await expect(
+        service.createBulkFolders(userMocked, {
+          parentFolderUuid: parentFolder.uuid,
+          folders: [{ plainName: 'Folder A' }, { plainName: 'Folder A' }],
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When folders with the same names already exist in the parent, then it should throw conflict', async () => {
+      const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
+      const existingFolder = newFolder({
+        attributes: { parentId: parentFolder.id, plainName: 'Folder A' },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(parentFolder);
+      jest
+        .spyOn(folderRepository, 'findByParent')
+        .mockResolvedValueOnce([existingFolder]);
+
+      await expect(
+        service.createBulkFolders(userMocked, {
+          parentFolderUuid: parentFolder.uuid,
+          folders: [{ plainName: 'Folder A' }, { plainName: 'Folder B' }],
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When all folders are valid, then it should create and return them', async () => {
+      const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
+      const createdFolders = [
+        newFolder({
+          attributes: {
+            userId: userMocked.id,
+            parentId: parentFolder.id,
+            plainName: 'Folder A',
+          },
+        }),
+        newFolder({
+          attributes: {
+            userId: userMocked.id,
+            parentId: parentFolder.id,
+            plainName: 'Folder B',
+          },
+        }),
+      ];
+
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(parentFolder);
+      jest.spyOn(folderRepository, 'findByParent').mockResolvedValueOnce([]);
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValue('encrypted-name');
+      jest
+        .spyOn(folderRepository, 'bulkCreate')
+        .mockResolvedValueOnce(createdFolders);
+
+      const result = await service.createBulkFolders(userMocked, {
+        parentFolderUuid: parentFolder.uuid,
+        folders: [{ plainName: 'Folder A' }, { plainName: 'Folder B' }],
+      });
+
+      expect(result).toEqual(createdFolders);
+      expect(folderRepository.bulkCreate).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('searchFoldersInFolder', () => {
     const user = newUser();
     const folderUuid = v4();
