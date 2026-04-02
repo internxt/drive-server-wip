@@ -1,12 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { type ItemType, type LookUp } from './look-up.domain';
-import { InjectModel } from '@nestjs/sequelize';
-import { LookUpModel } from './look-up.model';
-import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
+import { type ItemType } from './look-up.domain';
+import { InjectConnection } from '@nestjs/sequelize';
 import { type UserAttributes } from '../user/user.attributes';
-import { Op, Sequelize } from 'sequelize';
-import { FolderModel } from '../folder/folder.model';
-import { FileModel } from '../file/file.model';
+import { QueryTypes, Sequelize } from 'sequelize';
 import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 
 type LookUpResult = Array<{
@@ -17,6 +13,7 @@ type LookUpResult = Array<{
   name: string;
   rank: number | null;
   similarity: number;
+  item?: Record<string, unknown>;
 }>;
 
 export interface LookUpRepository {
@@ -27,219 +24,184 @@ export interface LookUpRepository {
   ): Promise<LookUpResult>;
   workspaceSearch(
     userUuid: UserAttributes['uuid'],
-    workspaceUser: WorkspaceAttributes['workspaceUserId'],
+    workspaceUserUuid: WorkspaceAttributes['workspaceUserId'],
     workspaceId: WorkspaceAttributes['id'],
     partialName: string,
     offset: number,
   ): Promise<LookUpResult>;
-  instert(entry: LookUp): Promise<void>;
+}
+
+function toResult(rows: Record<string, unknown>[]): LookUpResult {
+  return rows.map((row) => ({
+    id: row.id as string,
+    itemId: row.itemId as string,
+    itemType: row.itemType as ItemType,
+    userId: String(row.userId),
+    name: row.name as string,
+    rank: (row.rank as number) ?? null,
+    similarity: row.similarity as number,
+    item:
+      row.itemType === 'file'
+        ? {
+            type: row['file.type'],
+            id: row['file.id'],
+            size: row['file.size'],
+            bucket: row['file.bucket'],
+            fileId: row['file.fileId'],
+            plainName: row['file.plainName'],
+          }
+        : { id: row['folder.id'] },
+  }));
 }
 
 @Injectable()
 export class SequelizeLookUpRepository implements LookUpRepository {
   constructor(
-    @InjectModel(LookUpModel)
-    private readonly model: typeof LookUpModel,
+    @InjectConnection()
+    private readonly sequelize: Sequelize,
   ) {}
-
-  private transformResult(result: LookUpModel[]): LookUpResult {
-    return result.map((index) => {
-      const raw = index.toJSON();
-      const base = {
-        id: raw.id,
-        itemId: raw.itemId,
-        itemType: raw.itemType,
-        userId: raw.userId,
-        name: raw.name,
-        rank: raw.rank,
-        similarity: raw.similarity,
-      };
-      if (raw.file) {
-        return { ...base, item: raw.file };
-      } else if (raw.folder) {
-        return { ...base, item: raw.folder };
-      } else {
-        return { ...base };
-      }
-    });
-  }
 
   async search(
     userUuid: UserAttributes['uuid'],
     partialName: string,
     offset = 0,
   ): Promise<LookUpResult> {
-    const partialNameFormatted = partialName.replace(/\s+/g, ' & ');
+    const rows = await this.sequelize.query<Record<string, unknown>>(
+      `
+      SELECT
+          f."uuid"                                                              AS "id",
+          f."uuid"                                                              AS "itemId",
+          'file'                                                                AS "itemType",
+          :userUuid                                                             AS "userId",
+          f."plain_name"                                                        AS "name",
+          NULL                                                                  AS "rank",
+          similarity(f."plain_name", :partialName)                             AS "similarity",
+          CASE WHEN f."plain_name" = :partialName THEN 1 ELSE 0 END            AS "exactMatch",
+          f."type"        AS "file.type",
+          f."id"          AS "file.id",
+          f."size"        AS "file.size",
+          f."bucket"      AS "file.bucket",
+          f."file_id"     AS "file.fileId",
+          f."plain_name"  AS "file.plainName",
+          NULL            AS "folder.id"
+      FROM files f
+      WHERE f."user_id" = (SELECT id FROM users WHERE uuid = :userUuid)
+        AND f."status" = 'EXISTS'
+        AND (f."plain_name" % :partialName OR similarity(f."plain_name", :partialName) > 0.0)
 
-    const result = await this.model.findAll({
-      attributes: {
-        include: [
-          [
-            Sequelize.literal(
-              'nullif(ts_rank("tokenized_name", to_tsquery(:partialNameFormatted)), 1)',
-            ),
-            'rank',
-          ],
-          [
-            Sequelize.fn(
-              'similarity',
-              Sequelize.col('LookUpModel.name'),
-              partialName,
-            ),
-            'similarity',
-          ],
-          [
-            Sequelize.literal(
-              `CASE WHEN "LookUpModel"."name" = :partialName THEN 1 ELSE 0 END`,
-            ),
-            'exactMatch',
-          ],
-        ],
-      },
-      where: {
-        user_id: userUuid,
-        [Op.or]: [
-          Sequelize.literal(
-            `to_tsquery(:partialNameFormatted) @@ "tokenized_name"`,
-          ),
-          Sequelize.where(
-            Sequelize.fn(
-              'similarity',
-              Sequelize.col('LookUpModel.name'),
-              partialName,
-            ),
-            { [Op.gt]: 0.0 },
-          ),
-        ],
-      },
-      order: [
-        [Sequelize.literal('"exactMatch"'), 'DESC'], // Prioritize exact matches
-        [Sequelize.literal('"rank"'), 'DESC'],
-        [Sequelize.literal('"similarity"'), 'DESC'],
-      ],
-      limit: 10,
-      offset: offset,
-      replacements: { partialName, partialNameFormatted, userUuid },
-      include: [
-        {
-          model: FileModel,
-          attributes: ['type', 'id', 'size', 'bucket', 'fileId', 'plainName'],
-          as: 'file',
-        },
-        {
-          model: FolderModel,
-          attributes: ['id'],
-          as: 'folder',
-        },
-      ],
-    });
+      UNION ALL
 
-    return this.transformResult(result);
+      SELECT
+          fo."uuid"                                                             AS "id",
+          fo."uuid"                                                             AS "itemId",
+          'folder'                                                              AS "itemType",
+          :userUuid                                                             AS "userId",
+          fo."plain_name"                                                       AS "name",
+          NULL                                                                  AS "rank",
+          similarity(fo."plain_name", :partialName)                            AS "similarity",
+          CASE WHEN fo."plain_name" = :partialName THEN 1 ELSE 0 END           AS "exactMatch",
+          NULL AS "file.type",
+          NULL AS "file.id",
+          NULL AS "file.size",
+          NULL AS "file.bucket",
+          NULL AS "file.fileId",
+          NULL AS "file.plainName",
+          fo."id" AS "folder.id"
+      FROM folders fo
+      WHERE fo."user_id" = (SELECT id FROM users WHERE uuid = :userUuid)
+        AND NOT fo."deleted"
+        AND NOT fo."removed"
+        AND fo."parent_uuid" IS NOT NULL
+        AND (fo."plain_name" % :partialName OR similarity(fo."plain_name", :partialName) > 0.0)
+
+      ORDER BY "exactMatch" DESC, "similarity" DESC
+      LIMIT 10 OFFSET :offset
+      `,
+      {
+        replacements: { userUuid, partialName, offset },
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    return toResult(rows);
   }
 
   async workspaceSearch(
     userUuid: UserAttributes['uuid'],
-    workspaceUser: WorkspaceAttributes['workspaceUserId'],
+    workspaceUserUuid: WorkspaceAttributes['workspaceUserId'],
     workspaceId: WorkspaceAttributes['id'],
     partialName: string,
-    offset: number,
+    offset = 0,
   ): Promise<LookUpResult> {
-    const partialNameFormatted = partialName.replace(/\s+/g, ' & ');
+    const rows = await this.sequelize.query<Record<string, unknown>>(
+      `
+      SELECT
+          f."uuid"                                                              AS "id",
+          f."uuid"                                                              AS "itemId",
+          'file'                                                                AS "itemType",
+          :userUuid                                                             AS "userId",
+          f."plain_name"                                                        AS "name",
+          NULL                                                                  AS "rank",
+          similarity(f."plain_name", :partialName)                             AS "similarity",
+          CASE WHEN f."plain_name" = :partialName THEN 1 ELSE 0 END            AS "exactMatch",
+          f."type"        AS "file.type",
+          f."id"          AS "file.id",
+          f."size"        AS "file.size",
+          f."bucket"      AS "file.bucket",
+          f."file_id"     AS "file.fileId",
+          f."plain_name"  AS "file.plainName",
+          NULL            AS "folder.id"
+      FROM files f
+      INNER JOIN workspace_items_users wiu ON wiu.item_id = f.uuid
+      WHERE f."user_id" = (SELECT id FROM users WHERE uuid = :workspaceUserUuid)
+        AND f."status" = 'EXISTS'
+        AND wiu.created_by = :userUuid
+        AND wiu.workspace_id = :workspaceId
+        AND (f."plain_name" % :partialName OR similarity(f."plain_name", :partialName) > 0.0)
 
-    const result = await this.model.findAll({
-      attributes: {
-        include: [
-          [
-            Sequelize.literal(
-              'nullif(ts_rank("tokenized_name", to_tsquery(:partialNameFormatted)), 1)',
-            ),
-            'rank',
-          ],
-          [
-            Sequelize.fn(
-              'similarity',
-              Sequelize.col('LookUpModel.name'),
-              partialName,
-            ),
-            'similarity',
-          ],
-          [
-            Sequelize.literal(
-              `CASE WHEN "LookUpModel"."name" = :partialName THEN 1 ELSE 0 END`,
-            ),
-            'exactMatch',
-          ],
-        ],
-      },
-      where: {
-        user_id: workspaceUser,
-        [Op.or]: [
-          Sequelize.literal(
-            `to_tsquery(:partialNameFormatted) @@ "tokenized_name"`,
-          ),
-          Sequelize.where(
-            Sequelize.fn(
-              'similarity',
-              Sequelize.col('LookUpModel.name'),
-              partialName,
-            ),
-            { [Op.gt]: 0.0 },
-          ),
-        ],
-        [Op.and]: [
-          Sequelize.literal(`"workspaceItemUser"."created_by" = :userUuid`),
-          Sequelize.literal(
-            `"workspaceItemUser"."workspace_id" = :workspaceId`,
-          ),
-        ],
-      },
-      order: [
-        [Sequelize.literal('"exactMatch"'), 'DESC'], // Prioritize exact matches
-        [Sequelize.literal('"rank"'), 'DESC'],
-        [Sequelize.literal('"similarity"'), 'DESC'],
-      ],
-      limit: 10,
-      offset: offset,
-      replacements: {
-        partialName,
-        partialNameFormatted,
-        userUuid,
-        workspaceUser,
-        workspaceId,
-      },
-      include: [
-        {
-          model: FileModel,
-          attributes: ['type', 'id', 'size', 'bucket', 'fileId', 'plainName'],
-          as: 'file',
+      UNION ALL
+
+      SELECT
+          fo."uuid"                                                             AS "id",
+          fo."uuid"                                                             AS "itemId",
+          'folder'                                                              AS "itemType",
+          :userUuid                                                             AS "userId",
+          fo."plain_name"                                                       AS "name",
+          NULL                                                                  AS "rank",
+          similarity(fo."plain_name", :partialName)                            AS "similarity",
+          CASE WHEN fo."plain_name" = :partialName THEN 1 ELSE 0 END           AS "exactMatch",
+          NULL AS "file.type",
+          NULL AS "file.id",
+          NULL AS "file.size",
+          NULL AS "file.bucket",
+          NULL AS "file.fileId",
+          NULL AS "file.plainName",
+          fo."id" AS "folder.id"
+      FROM folders fo
+      INNER JOIN workspace_items_users wiu ON wiu.item_id = fo.uuid
+      WHERE fo."user_id" = (SELECT id FROM users WHERE uuid = :workspaceUserUuid)
+        AND NOT fo."deleted"
+        AND NOT fo."removed"
+        AND fo."parent_uuid" IS NOT NULL
+        AND wiu.created_by = :userUuid
+        AND wiu.workspace_id = :workspaceId
+        AND (fo."plain_name" % :partialName OR similarity(fo."plain_name", :partialName) > 0.0)
+
+      ORDER BY "exactMatch" DESC, "similarity" DESC
+      LIMIT 10 OFFSET :offset
+      `,
+      {
+        replacements: {
+          userUuid,
+          workspaceUserUuid,
+          workspaceId,
+          partialName,
+          offset,
         },
-        {
-          model: FolderModel,
-          attributes: ['id'],
-          as: 'folder',
-        },
-        {
-          model: WorkspaceItemUserModel,
-          attributes: [],
-          as: 'workspaceItemUser', // Corrected alias
-          required: true,
-          on: {
-            col1: Sequelize.where(
-              Sequelize.col('LookUpModel.item_id'),
-              '=',
-              Sequelize.col('workspaceItemUser.item_id'),
-            ),
-          },
-        },
-      ],
-    });
-    return this.transformResult(result);
-  }
-  async instert(entry: LookUp): Promise<void> {
-    await this.model.create({
-      id: entry.itemId,
-      name: entry.name,
-      userUuid: entry.userId,
-    });
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    return toResult(rows);
   }
 }
