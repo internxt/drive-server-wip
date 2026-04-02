@@ -35,6 +35,8 @@ import { type CreateFolderDto } from './dto/create-folder.dto';
 import { type FolderModel } from './folder.model';
 import { type MoveFolderDto } from './dto/move-folder.dto';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { emitUsageInvalidated } from '../usage-queue/events/usage-invalidated.event';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -53,6 +55,7 @@ export class FolderUseCases {
     private readonly fileUsecases: FileUseCases,
     private readonly cryptoService: CryptoService,
     private readonly featureLimitService: FeatureLimitService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
@@ -479,6 +482,8 @@ export class FolderUseCases {
         SharingItemType.Folder,
       ),
     ]);
+
+    emitUsageInvalidated(this.eventEmitter, user.uuid, user.id, 'folder.trash');
   }
 
   async getFoldersByParentUuid(
