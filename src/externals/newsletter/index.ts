@@ -11,8 +11,12 @@ export class NewsletterService {
     private readonly httpClient: HttpClient,
   ) {}
 
-  async subscribe(email: UserAttributes['email']): Promise<void> {
-    const listId: string = this.configService.get('newsletter.listId');
+  async subscribe(
+    email: UserAttributes['email'],
+    listId?: string,
+  ): Promise<void> {
+    const resolvedListId =
+      listId ?? this.configService.get('newsletter.listId');
     const apiKey: string = this.configService.get('newsletter.apiKey');
     const baseUrl: string = this.configService.get('klaviyo.baseUrl');
 
@@ -37,7 +41,7 @@ export class NewsletterService {
     const profileId = profileResponse.data.data.id;
 
     await this.httpClient.post(
-      `${baseUrl}lists/${listId}/relationships/profiles/`,
+      `${baseUrl}lists/${resolvedListId}/relationships/profiles/`,
       { data: [{ type: 'profile', id: profileId }] },
       {
         headers: {
