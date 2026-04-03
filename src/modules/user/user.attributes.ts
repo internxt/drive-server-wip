@@ -28,6 +28,7 @@ export interface UserAttributes {
   lastPasswordChangedAt?: Date;
   tierId?: string;
   emailVerified: boolean;
+  recoveryEmail?: string;
   updatedAt?: Date;
   createdAt?: Date;
 }
