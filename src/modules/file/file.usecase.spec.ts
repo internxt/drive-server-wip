@@ -1651,15 +1651,17 @@ describe('FileUseCases', () => {
         userMocked.id,
         expect.objectContaining({
           plainName: newFileMeta.plainName,
-          name: encryptedName,
+          name: newFileMeta.plainName,
         }),
       );
       const {
         modificationTime: resultFileModificationTime,
+        name: resultFilePlainName,
         ...resultWithoutModificationTime
       } = result;
       const {
         modificationTime: updatedFileModificationTime,
+        name: updatedFilePlainName,
         ...updatedFileWithoutModificationTime
       } = updatedFile;
 
