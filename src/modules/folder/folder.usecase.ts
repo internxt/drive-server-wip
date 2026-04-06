@@ -448,8 +448,8 @@ export class FolderUseCases {
       throw new ConflictException('Duplicate folder names in request');
     }
 
-    const existingFolders = await this.folderRepository.findByParent(
-      parentFolder.id,
+    const existingFolders = await this.folderRepository.findByParentUuid(
+      parentFolder.uuid,
       {
         plainName: plainNames,
         deleted: false,
@@ -458,10 +458,11 @@ export class FolderUseCases {
     );
 
     if (existingFolders.length > 0) {
-      const conflictingNames = existingFolders.map((f) => f.plainName);
-      throw new ConflictException(
-        `Folders already exist: ${conflictingNames.join(', ')}`,
-      );
+      const existentFolders = existingFolders.map((f) => f.plainName);
+      throw new ConflictException({
+        message: 'Folders already exist',
+        existentFolders,
+      });
     }
 
     const now = new Date();

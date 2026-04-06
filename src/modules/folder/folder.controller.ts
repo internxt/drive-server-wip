@@ -15,10 +15,10 @@ import {
   Put,
   Query,
   UseFilters,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -54,6 +54,7 @@ import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-ol
 import { Requester } from '../auth/decorators/requester.decorator';
 import {
   type CreateBulkFoldersResponseDto,
+  CreateBulkFoldersConflictResponseDto,
   ExistentFoldersDto,
   FolderDto,
   FoldersDto,
@@ -96,6 +97,7 @@ export class FolderController {
   })
   @ApiBearerAuth()
   @ApiOkResponse({ type: FolderDto })
+  @ApiConflictResponse({ type: CreateBulkFoldersConflictResponseDto })
   @UseFilters(UniqueConstraintFilter)
   async createFolder(
     @UserDecorator() user: User,

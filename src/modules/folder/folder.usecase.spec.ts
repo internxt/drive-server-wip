@@ -951,25 +951,36 @@ describe('FolderUseCases', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('When folders with the same names already exist in the parent, then it should throw conflict', async () => {
+    it('When folders with the same names already exist in the parent, then it should throw conflict with existentFolders', async () => {
       const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
-      const existingFolder = newFolder({
+      const existingFolderA = newFolder({
         attributes: { parentId: parentFolder.id, plainName: 'Folder A' },
+      });
+      const existingFolderB = newFolder({
+        attributes: { parentId: parentFolder.id, plainName: 'Folder B' },
       });
 
       jest
         .spyOn(folderRepository, 'findOne')
         .mockResolvedValueOnce(parentFolder);
       jest
-        .spyOn(folderRepository, 'findByParent')
-        .mockResolvedValueOnce([existingFolder]);
+        .spyOn(folderRepository, 'findByParentUuid')
+        .mockResolvedValueOnce([existingFolderA, existingFolderB]);
 
-      await expect(
-        service.createBulkFolders(userMocked, {
+      try {
+        await service.createBulkFolders(userMocked, {
           parentFolderUuid: parentFolder.uuid,
           folders: [{ plainName: 'Folder A' }, { plainName: 'Folder B' }],
-        }),
-      ).rejects.toThrow(ConflictException);
+        });
+        fail('Expected ConflictException to be thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ConflictException);
+        const response = (error as ConflictException).getResponse();
+        expect(response).toMatchObject({
+          message: 'Folders already exist',
+          existentFolders: ['Folder A', 'Folder B'],
+        });
+      }
     });
 
     it('When all folders are valid, then it should create and return them', async () => {
@@ -994,7 +1005,9 @@ describe('FolderUseCases', () => {
       jest
         .spyOn(folderRepository, 'findOne')
         .mockResolvedValueOnce(parentFolder);
-      jest.spyOn(folderRepository, 'findByParent').mockResolvedValueOnce([]);
+      jest
+        .spyOn(folderRepository, 'findByParentUuid')
+        .mockResolvedValueOnce([]);
       jest
         .spyOn(cryptoService, 'encryptName')
         .mockReturnValue('encrypted-name');
