@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "nest build",
+    "build": "nest build && cp newrelic.js dist/newrelic.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "cross-env NODE_ENV=production nest start -e 'node -r newrelic'",
     "cleanup:retroactive": "ts-node -r tsconfig-paths/register src/modules/jobs/commands/retroactive-deleted-items-cleanup.command.ts",
