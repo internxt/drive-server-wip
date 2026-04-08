@@ -8,7 +8,7 @@
     "prebuild": "rimraf dist",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "cross-env NODE_ENV=production nest start -e 'node -r newrelic'",
+    "start": "NODE_ENV=production nest start -e 'node -r newrelic'",
     "cleanup:retroactive": "ts-node -r tsconfig-paths/register src/modules/jobs/commands/retroactive-deleted-items-cleanup.command.ts",
     "start:dev": "cross-env NODE_ENV=development nest start --watch",
     "start:debug": "cross-env NODE_ENV=development nest start --debug --watch",
@@ -28,8 +28,9 @@
     "migrate:test:undo": "cross-env NODE_ENV=test sequelize db:migrate:undo",
     "db:seed:test:all": "cross-env NODE_ENV=test sequelize db:seed:all",
     "db:seed:test:all:undo": "cross-env NODE_ENV=test sequelize db:seed:undo:all",
-    "postinstall": "yarn run prepare-hooks",
-    "prepare-hooks": "husky install"
+    "postinstall": "npm run prepare-hooks",
+    "prepare-hooks": "husky install",
+    "lint-staged": "lint-staged"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1025.0",
@@ -110,8 +111,7 @@
     "@types/jsonwebtoken": "9.0.2",
     "@types/multer": "^1.4.13",
     "@types/multer-s3": "^3.0.3",
-    "@types/node": "^20.19.11",
-    "@types/sequelize": "^6.12.0",
+    "@types/node": "^22.17.0",
     "@types/speakeasy": "^2.0.10",
     "@types/supertest": "^6.0.3",
     "@typescript-eslint/eslint-plugin": "^6.11.0",
