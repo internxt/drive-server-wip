@@ -16,13 +16,12 @@ jobs:
               uses: actions/checkout@v2
             - name: Setup npm
               run: |
-                echo "registry=https://registry.yarnpkg.com/" > .npmrc
                 echo "@internxt:registry=https://npm.pkg.github.com" >> .npmrc
                 echo "//npm.pkg.github.com/:_authToken=${NPM_TOKEN}" >> .npmrc
                 echo "always-auth=true" >> .npmrc
               env:
                 NPM_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
             - name: Install dependencies
-              run: yarn install
+              run: npm ci --ignore-scripts
             - name: Build
-              run: yarn build
+              run: npm run build

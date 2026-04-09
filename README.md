@@ -35,24 +35,17 @@ Drive server WIP is the new API to Drive based on NestJS and following Clean Arc
   - [Libs](#libs)
 - [API Documentation](#api-documentation)
 
-## Quick Setup
-
-- Yarn
-
-  `npm i -g yarn`
-
 ## How to Install
 
 - Create a `.npmrc` file from the `.npmrc.template` example provided in the repo.
 - Replace `TOKEN` with your own [Github Personal Access Token](https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token) with `read:packages` permission **ONLY**
-- Use `yarn` to install project dependencies.
-
+- Use `npm ci` to install project dependencies.
 
 ## Start app
 
-Run `yarn start` to start server in production mode.
+Run `npm run start` to start server in production mode.
 
-Run `yarn start:dev` to start with nodemon and development environment.
+Run `npm run start:dev` to start with nodemon and development environment.
 
 ### Running in docker:
 
@@ -69,7 +62,7 @@ docker-compose up
 You can run unit tests with:
 
 ```bash
-yarn run test
+npm run test
 ```
 
 ### End to End Testing
@@ -77,7 +70,7 @@ yarn run test
 Running e2e test requires creating a database first (check .env.test file), and having a mariadb instance running.
 
 ```bash
-yarn run test:e2e
+npm run test:e2e
 ```
 
 ## Guideline Nest.js
