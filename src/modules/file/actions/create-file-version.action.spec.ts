@@ -3,6 +3,7 @@ import { CreateFileVersionAction } from './create-file-version.action';
 import { SequelizeFileRepository } from '../file.repository';
 import { SequelizeFileVersionRepository } from '../file-version.repository';
 import { FeatureLimitService } from '../../feature-limit/feature-limit.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { newFile, newUser } from '../../../../test/fixtures';
 import { FileVersion, FileVersionStatus } from '../file-version.domain';
 import dayjs from 'dayjs';
@@ -38,6 +39,10 @@ describe('CreateFileVersionAction', () => {
           useValue: {
             getFileVersioningLimits: jest.fn(),
           },
+        },
+        {
+          provide: EventEmitter2,
+          useValue: { emit: jest.fn() },
         },
       ],
     }).compile();
