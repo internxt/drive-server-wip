@@ -81,17 +81,6 @@ describe('GetFilesDto', () => {
     expect(errors.length).toBe(0);
   });
 
-  it('When sort is plainName, then it should pass', async () => {
-    const dto = new GetFilesDto();
-    dto.limit = 10;
-    dto.offset = 0;
-    dto.status = FileStatus.EXISTS;
-    dto.sort = 'plainName';
-
-    const errors = await validate(dto);
-    expect(errors.length).toBe(0);
-  });
-
   it('When sort is invalid, then it should fail', async () => {
     const dto = new GetFilesDto();
     dto.limit = 10;

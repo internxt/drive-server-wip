@@ -639,7 +639,6 @@ describe('FileController', () => {
   describe('getFiles', () => {
     const validLimit = 50;
     const validOffset = 0;
-    const lastId = v4();
 
     it('When getFiles is called with valid parameters, then it should return files', async () => {
       const mockFiles = [
@@ -658,7 +657,6 @@ describe('FileController', () => {
         sort: 'plainName',
         order: SortOrder.ASC,
         updatedAt: '2023-01-01T00:00:00.000Z',
-        lastId,
       };
 
       const result = await fileController.getFiles(userMocked, queryParams);
@@ -682,7 +680,6 @@ describe('FileController', () => {
           limit: validLimit,
           offset: validOffset,
           sort: [['plainName', 'ASC']],
-          lastId,
         }),
         'test-bucket',
       );
