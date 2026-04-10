@@ -3866,6 +3866,16 @@ describe('WorkspacesUsecases', () => {
     const workspaceId = v4();
     const limit = 50;
     const offset = 0;
+    const FIXED_NOW = new Date('2026-04-10T12:00:00Z');
+
+    beforeAll(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(FIXED_NOW);
+    });
+
+    afterAll(() => {
+      jest.useRealTimers();
+    });
 
     it('When files are retrieved and no retention limit is found, it should return files with expiresAt null', async () => {
       const trashedFiles = [newFile()];

@@ -4370,6 +4370,16 @@ describe('User use cases', () => {
   describe('checkAndNotifyStorageThreshold', () => {
     const mockUser = newUser({ attributes: { email: 'test@internxt.com' } });
     const MAX_EMAILS_PER_MONTH = 2;
+    const FIXED_NOW = new Date('2025-06-15T12:00:00.000Z');
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(FIXED_NOW);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
 
     it('When usage is below threshold, then should not send email', async () => {
       const limit = 100 * 1024 * 1024 * 1024;
