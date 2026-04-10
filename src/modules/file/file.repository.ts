@@ -1178,14 +1178,10 @@ export class SequelizeFileRepository implements FileRepository {
     userId: FileAttributes['userId'],
     sinceDate: Date,
   ): Promise<number> {
-    return withQueryTimeout(
-      this.fileModel.sequelize,
-      8000,
-      async (transaction) => {
-        const result = await this.fileModel.findAll({
-          attributes: [
-            [
-              Sequelize.literal(`
+    const result = await this.fileModel.findAll({
+      attributes: [
+        [
+          Sequelize.literal(`
             SUM(
               CASE
                 WHEN status != 'DELETED' THEN size
@@ -1198,35 +1194,32 @@ export class SequelizeFileRepository implements FileRepository {
               END
             )
           `),
-              'total',
-            ],
-          ],
-          where: {
-            userId,
-            [Op.or]: [
-              {
-                status: { [Op.ne]: FileStatus.DELETED },
-                createdAt: {
-                  [Op.gte]: sinceDate,
-                },
-              },
-              {
-                status: FileStatus.DELETED,
-                updatedAt: {
-                  [Op.gte]: sinceDate,
-                },
-              },
-            ],
+          'total',
+        ],
+      ],
+      where: {
+        userId,
+        [Op.or]: [
+          {
+            status: { [Op.ne]: FileStatus.DELETED },
+            createdAt: {
+              [Op.gte]: sinceDate,
+            },
           },
-          bind: {
-            sinceDate,
+          {
+            status: FileStatus.DELETED,
+            updatedAt: {
+              [Op.gte]: sinceDate,
+            },
           },
-          raw: true,
-          transaction,
-        });
-
-        return Number(result[0]['total']) || 0;
+        ],
       },
-    );
+      bind: {
+        sinceDate,
+      },
+      raw: true,
+    });
+
+    return Number(result[0]['total']) || 0;
   }
 }
