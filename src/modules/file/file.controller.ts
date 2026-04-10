@@ -363,7 +363,7 @@ export class FileController {
     @UserDecorator() user: User,
     @Query() queryParams: GetFilesDto,
   ): Promise<FileDto[]> {
-    const { limit, offset, status, bucket, sort, order, updatedAt, lastId } =
+    const { limit, offset, status, bucket, sort, order, updatedAt } =
       queryParams;
 
     const fns: Record<string, (...args) => Promise<File[]>> = {
@@ -376,7 +376,7 @@ export class FileController {
     const files: File[] = await fns[status].bind(this.fileUseCases)(
       user.id,
       new Date(updatedAt || 1),
-      { limit, offset, sort: sort && order && [[sort, order]], lastId },
+      { limit, offset, sort: sort && order && [[sort, order]] },
       bucket,
     );
 
