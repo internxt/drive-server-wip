@@ -182,4 +182,5 @@ export default () => ({
     productSecret: process.env.CELLO_PRODUCT_SECRET,
   },
   executeCronjobs: process.env.EXECUTE_JOBS === 'true',
+  healthCheckToken: process.env.HEALTH_CHECK_TOKEN,
 });
