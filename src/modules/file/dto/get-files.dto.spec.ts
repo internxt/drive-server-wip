@@ -24,7 +24,6 @@ describe('GetFilesDto', () => {
     dto.sort = 'updatedAt';
     dto.order = SortOrder.DESC;
     dto.updatedAt = '2024-01-01T00:00:00.000Z';
-    dto.lastId = v4();
 
     const errors = await validate(dto);
     expect(errors.length).toBe(0);
@@ -77,17 +76,6 @@ describe('GetFilesDto', () => {
     dto.offset = 0;
     dto.status = FileStatus.EXISTS;
     dto.sort = 'updatedAt';
-
-    const errors = await validate(dto);
-    expect(errors.length).toBe(0);
-  });
-
-  it('When sort is plainName, then it should pass', async () => {
-    const dto = new GetFilesDto();
-    dto.limit = 10;
-    dto.offset = 0;
-    dto.status = FileStatus.EXISTS;
-    dto.sort = 'plainName';
 
     const errors = await validate(dto);
     expect(errors.length).toBe(0);
@@ -213,28 +201,6 @@ describe('GetFilesDto', () => {
     dto.limit = 10;
     dto.offset = -1;
     dto.status = FileStatus.EXISTS;
-
-    const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-  });
-
-  it('When lastId is valid, then it should pass', async () => {
-    const dto = new GetFilesDto();
-    dto.limit = 10;
-    dto.offset = 0;
-    dto.status = FileStatus.EXISTS;
-    dto.lastId = v4();
-
-    const errors = await validate(dto);
-    expect(errors.length).toBe(0);
-  });
-
-  it('When lastId is invalid, then it should fail', async () => {
-    const dto = new GetFilesDto();
-    dto.limit = 10;
-    dto.offset = 0;
-    dto.status = FileStatus.EXISTS;
-    dto.lastId = 'INVALID';
 
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);

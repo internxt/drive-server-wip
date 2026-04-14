@@ -81,11 +81,11 @@ import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
 import { type WorkspaceLog } from './domains/workspace-log.domain';
 import { type TrashItem } from './interceptors/workspaces-logs.interceptor';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { Time } from '../../lib/time';
 import {
-  DEFAULT_TRASH_RETENTION_DAYS,
-  LimitLabels,
-} from '../feature-limit/limits.enum';
+  calculateTrashExpirationDate,
+  getTrashNotExpiredCutoffDate,
+} from '../trash/trash-expiration.utils';
+import { LimitLabels } from '../feature-limit/limits.enum';
 @Injectable()
 export class WorkspacesUsecases {
   constructor(
@@ -700,35 +700,38 @@ export class WorkspacesUsecases {
     offset = 0,
     sort?: SortParamsFile | SortParamsFolder,
   ) {
-    const [items, retentionLimit] = await Promise.all([
+    const workspaceResourcesOwner =
+      await this.workspaceRepository.findWorkspaceResourcesOwner(workspaceId);
+
+    const retentionLimit = await this.featureLimitsService.getUserLimitByLabel(
+      LimitLabels.TrashRetentionDays,
+      workspaceResourcesOwner,
+    );
+    const retentionDays = retentionLimit ? Number(retentionLimit.value) : null;
+    const cutoffDate = retentionDays
+      ? getTrashNotExpiredCutoffDate(retentionDays)
+      : null;
+
+    const items =
       itemType === WorkspaceItemType.File
-        ? this.fileUseCases.getFilesInWorkspace(
+        ? await this.fileUseCases.getTrashedFilesInWorkspace(
             user.uuid,
             workspaceId,
-            { status: FileStatus.TRASHED },
+            cutoffDate,
             { limit, offset, sort },
           )
-        : this.folderUseCases.getFoldersInWorkspace(
+        : await this.folderUseCases.getTrashedFoldersInWorkspace(
             user.uuid,
             workspaceId,
-            { deleted: true, removed: false },
+            cutoffDate,
             { limit, offset, sort: sort as SortParamsFolder },
-          ),
-      this.featureLimitsService.getUserLimitByLabel(
-        LimitLabels.TrashRetentionDays,
-        user,
-      ),
-    ]);
-
-    const retentionDays = retentionLimit
-      ? Number(retentionLimit.value)
-      : DEFAULT_TRASH_RETENTION_DAYS;
+          );
 
     return {
       result: items.map((item) => ({
         ...item.toJSON(),
-        expiresAt: item.updatedAt
-          ? Time.dateWithTimeAdded(retentionDays, 'day', item.updatedAt)
+        expiresAt: retentionDays
+          ? calculateTrashExpirationDate(retentionDays, item.updatedAt)
           : null,
       })),
     };

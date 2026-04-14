@@ -31,12 +31,17 @@ import { nanoid } from 'nanoid';
 import { getClientIdFromHeaders } from './common/decorators/client.decorator';
 import { AuthGuard } from './modules/auth/auth.guard';
 import { CacheManagerModule } from './modules/cache-manager/cache-manager.module';
+import { ReferralModule } from './modules/referral/referral.module';
+import { HealthModule } from './infrastructure/health/health.module';
+
+const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
+const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
 
 @Module({
   imports: [
     LoggerModule.forRoot({
       pinoHttp: {
-        name: 'drive-server',
+        name: appName,
         genReqId: (_req) => nanoid(),
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
         base: undefined,
@@ -97,15 +102,15 @@ import { CacheManagerModule } from './modules/cache-manager/cache-manager.module
           idle: 20000,
           acquire: 20000,
         },
-        dialectOptions: configService.get('isProduction')
-          ? {
-              ssl: {
-                require: true,
-                rejectUnauthorized: false,
-              },
-              application_name: 'drive-server-wip',
-            }
-          : {},
+        dialectOptions: {
+          ...(configService.get('isProduction')
+            ? { ssl: { require: true, rejectUnauthorized: false } }
+            : {}),
+          application_name: appName,
+          // Cancels queries exceeding their timeout (5 min) to prevent long-running queries
+          // Cronjob instances get a longer timeout (10 min) since they may run heavier operations.
+          statement_timeout: isCronjobInstance ? 600000 : 300000,
+        },
         logging: !configService.get('database.debug')
           ? false
           : (sql: string) => {
@@ -123,7 +128,7 @@ import { CacheManagerModule } from './modules/cache-manager/cache-manager.module
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
-    JobsModule,
+    ...(isCronjobInstance ? [JobsModule] : []),
     NotificationModule,
     NotificationsModule,
     FileModule,
@@ -145,6 +150,8 @@ import { CacheManagerModule } from './modules/cache-manager/cache-manager.module
     WorkspacesModule,
     GatewayModule,
     CacheManagerModule,
+    ReferralModule,
+    HealthModule,
   ],
   controllers: [],
   providers: [

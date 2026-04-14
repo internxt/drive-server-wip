@@ -100,4 +100,14 @@ export class CacheManagerService {
   async deleteUserAvatar(userUuid: string) {
     return this.cacheManager.del(`${this.AVATAR_KEY_PREFIX}${userUuid}`);
   }
+
+  async checkHealth(): Promise<void> {
+    const key = 'health_check';
+    const value = Date.now().toString();
+    await this.cacheManager.set(key, value, 5000);
+    const result = await this.cacheManager.get(key);
+    if (result !== value) {
+      throw new Error('Redis health check failed: value mismatch');
+    }
+  }
 }

@@ -34,6 +34,7 @@ export default () => ({
   },
   cache: {
     redisConnectionString: process.env.REDIS_CONNECTION_STRING,
+    redisJobsConnection: process.env.REDIS_JOBS_CONNECTION_STRING,
   },
   secrets: {
     cryptoSecret: process.env.CRYPTO_SECRET,
@@ -130,6 +131,7 @@ export default () => ({
   klaviyo: {
     apiKey: process.env.KLAVIYO_MAILER_API_KEY,
     baseUrl: process.env.KLAVIYO_URL,
+    sendListId: process.env.KLAVIYO_SEND_LIST_ID,
   },
   sentry: {
     dsn: process.env.SENTRY_DSN,
@@ -175,5 +177,10 @@ export default () => ({
     endpointForSignedUrls: process.env.AVATAR_ENDPOINT_REWRITE_FOR_SIGNED_URLS,
     forcePathStyle: process.env.AVATAR_FORCE_PATH_STYLE || 'true',
   },
+  cello: {
+    productId: process.env.CELLO_PRODUCT_ID,
+    productSecret: process.env.CELLO_PRODUCT_SECRET,
+  },
   executeCronjobs: process.env.EXECUTE_JOBS === 'true',
+  healthCheckToken: process.env.HEALTH_CHECK_TOKEN,
 });

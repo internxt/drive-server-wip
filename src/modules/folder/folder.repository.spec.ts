@@ -1,4 +1,8 @@
 import { createMock } from '@golevelup/ts-jest';
+
+jest.mock('../../lib/query-timeout', () => ({
+  withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
+}));
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { SequelizeFolderRepository } from './folder.repository';
 import { FolderModel } from './folder.model';
@@ -13,6 +17,7 @@ import { UserModel } from '../user/user.model';
 import { SharingModel } from '../sharing/models';
 import { v4 } from 'uuid';
 import { randomInt } from 'crypto';
+import { Time } from '../../lib/time';
 
 jest.mock('./folder.model', () => ({
   FolderModel: {
@@ -117,11 +122,11 @@ describe('SequelizeFolderRepository', () => {
   });
 
   describe('findByParentUuid', () => {
-    const parentId = 1;
+    const parentUuid = v4();
     const plainNames = ['Document', 'Image'];
 
     it('When folders are searched with names, then it should handle the call with names', async () => {
-      await repository.findByParent(parentId, {
+      await repository.findByParentUuid(parentUuid, {
         plainName: plainNames,
         deleted: false,
         removed: false,
@@ -129,7 +134,7 @@ describe('SequelizeFolderRepository', () => {
 
       expect(folderModel.findAll).toHaveBeenCalledWith({
         where: {
-          parentId,
+          parentUuid,
           plainName: { [Op.in]: plainNames },
           deleted: false,
           removed: false,
@@ -138,7 +143,7 @@ describe('SequelizeFolderRepository', () => {
     });
 
     it('When called without specific criteria, then it should handle the call', async () => {
-      await repository.findByParent(parentId, {
+      await repository.findByParentUuid(parentUuid, {
         plainName: [],
         deleted: false,
         removed: false,
@@ -146,7 +151,7 @@ describe('SequelizeFolderRepository', () => {
 
       expect(folderModel.findAll).toHaveBeenCalledWith({
         where: {
-          parentId,
+          parentUuid,
           deleted: false,
           removed: false,
         },
@@ -344,6 +349,54 @@ describe('SequelizeFolderRepository', () => {
       );
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('findTrashedNotExpiredInWorkspace', () => {
+    const createdBy = v4();
+    const workspaceId = v4();
+    const limit = 10;
+    const offset = 0;
+
+    it('When cutoffDate is null, then it should query trashed folders without a date filter', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findTrashedNotExpiredInWorkspace(
+        createdBy,
+        workspaceId,
+        null,
+        limit,
+        offset,
+      );
+
+      expect(folderModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { deleted: true, removed: false },
+        }),
+      );
+    });
+
+    it('When cutoffDate is provided, then it should add an updatedAt >= cutoffDate filter', async () => {
+      const cutoffDate = new Date('2026-03-04');
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findTrashedNotExpiredInWorkspace(
+        createdBy,
+        workspaceId,
+        cutoffDate,
+        limit,
+        offset,
+      );
+
+      expect(folderModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            deleted: true,
+            removed: false,
+            updatedAt: { [Op.gte]: cutoffDate },
+          },
+        }),
+      );
     });
   });
 
@@ -672,30 +725,6 @@ describe('SequelizeFolderRepository', () => {
     });
   });
 
-  describe('findAllByParentIdCursor', () => {
-    it('When finding folders by parent id with cursor, then it should return ordered folders', async () => {
-      const whereClause = { parentId: 1, deleted: false };
-      const limit = 10;
-      const offset = 0;
-      const folders = [newFolder()];
-      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
-
-      const result = await repository.findAllByParentIdCursor(
-        whereClause,
-        limit,
-        offset,
-      );
-
-      expect(folderModel.findAll).toHaveBeenCalledWith({
-        limit,
-        offset,
-        where: whereClause,
-        order: [['id', 'ASC']],
-      });
-      expect(result).toHaveLength(1);
-    });
-  });
-
   describe('findAllNotDeleted', () => {
     it('When finding non-deleted folders, then it should add removed condition', async () => {
       const whereClause = { userId: 1 };
@@ -717,46 +746,6 @@ describe('SequelizeFolderRepository', () => {
           ...whereClause,
           removed: { [Op.eq]: false },
         },
-      });
-      expect(result).toHaveLength(1);
-    });
-  });
-
-  describe('findAllByParentId', () => {
-    const parentId = 1;
-    const deleted = false;
-
-    it('When finding folders by parent id without pagination, then it should return all folders', async () => {
-      const folders = [newFolder(), newFolder()];
-      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
-
-      const result = await repository.findAllByParentId(parentId, deleted);
-
-      expect(folderModel.findAll).toHaveBeenCalledWith({
-        where: { parentId, deleted },
-        order: [['id', 'ASC']],
-      });
-      expect(result).toHaveLength(2);
-    });
-
-    it('When finding folders by parent id with pagination, then it should apply limit and offset', async () => {
-      const page = 1;
-      const perPage = 5;
-      const folders = [newFolder()];
-      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
-
-      const result = await repository.findAllByParentId(
-        parentId,
-        deleted,
-        page,
-        perPage,
-      );
-
-      expect(folderModel.findAll).toHaveBeenCalledWith({
-        where: { parentId, deleted },
-        order: [['id', 'ASC']],
-        offset: 5,
-        limit: 5,
       });
       expect(result).toHaveLength(1);
     });
@@ -897,36 +886,30 @@ describe('SequelizeFolderRepository', () => {
     it('When counting folders with conditions, then it should return count', async () => {
       const whereConditions = { userId: 1, deleted: false };
       const mockCount = 5;
-      jest.spyOn(folderModel, 'findAndCountAll').mockResolvedValueOnce({
-        count: mockCount,
-        rows: [],
-      } as any);
+      jest.spyOn(folderModel, 'count').mockResolvedValueOnce(mockCount);
 
       const result = await repository.getFoldersCountWhere(whereConditions);
 
-      expect(folderModel.findAndCountAll).toHaveBeenCalledWith({
+      expect(folderModel.count).toHaveBeenCalledWith({
         where: whereConditions,
       });
       expect(result).toBe(mockCount);
     });
   });
 
-  describe('getFoldersWhoseParentIdDoesNotExist', () => {
+  describe('getFoldersWhoseParentUuidDoesNotExist', () => {
     it('When counting orphan folders, then it should return count of folders with non-existent parent', async () => {
       const userId = 1;
       const mockCount = 3;
 
-      jest.spyOn(folderModel, 'findAndCountAll').mockResolvedValueOnce({
-        count: mockCount,
-        rows: [],
-      } as any);
+      jest.spyOn(folderModel, 'count').mockResolvedValueOnce(mockCount);
 
       const result =
-        await repository.getFoldersWhoseParentIdDoesNotExist(userId);
+        await repository.getFoldersWhoseParentUuidDoesNotExist(userId);
 
-      expect(folderModel.findAndCountAll).toHaveBeenCalledWith({
+      expect(folderModel.count).toHaveBeenCalledWith({
         where: {
-          parentId: {
+          parentUuid: {
             [Op.not]: null,
             [Op.notIn]: expect.anything(),
           },
@@ -987,7 +970,7 @@ describe('SequelizeFolderRepository', () => {
         where: {
           ...whereClause,
           updatedAt: { [Op.gt]: updatedAfter },
-          parentId: { [Op.not]: null },
+          parentUuid: { [Op.not]: null },
         },
         order,
         limit,
@@ -1389,37 +1372,65 @@ describe('SequelizeFolderRepository', () => {
     });
   });
 
-  describe('findExpiredTrashFolderIds', () => {
+  describe('deleteExpiredTrashFoldersByTier', () => {
     it('When expired trash folders exist, then it should return their uuids', async () => {
       const folderUuids = [v4(), v4(), v4()];
+      const tierId = v4();
+      const cutoffDate = new Date('2026-02-08T00:00:00Z');
       const limit = 100;
 
       jest
         .spyOn(folderModel.sequelize, 'query')
-        .mockResolvedValueOnce(
-          folderUuids.map((uuid) => ({ item_id: uuid })) as any,
-        );
+        .mockResolvedValueOnce([
+          folderUuids.map((uuid) => ({ uuid })),
+          {},
+        ] as any);
 
-      const result = await repository.findExpiredTrashFolderIds(limit);
-
-      expect(folderModel.sequelize.query).toHaveBeenCalledWith(
-        expect.stringContaining('trash-retention-days'),
-        {
-          replacements: { limit },
-          type: QueryTypes.SELECT,
-        },
+      const result = await (repository as any).deleteExpiredTrashFoldersByTier(
+        tierId,
+        cutoffDate,
+        limit,
       );
+
       expect(result).toEqual(folderUuids);
     });
 
     it('When no expired trash folders exist, then it should return empty array', async () => {
       jest
         .spyOn(folderModel.sequelize, 'query')
-        .mockResolvedValueOnce([] as any);
+        .mockResolvedValueOnce([[], {}] as any);
 
-      const result = await repository.findExpiredTrashFolderIds(100);
+      const result = await (repository as any).deleteExpiredTrashFoldersByTier(
+        v4(),
+        Time.now('2026-02-08T00:00:00Z'),
+        100,
+      );
 
       expect(result).toEqual([]);
+    });
+
+    it('When called, then it should pass tierId, cutoffDate and limit as replacements', async () => {
+      const tierId = v4();
+      const cutoffDate = Time.now('2026-02-08T00:00:00Z');
+      const limit = 50;
+
+      jest
+        .spyOn(folderModel.sequelize, 'query')
+        .mockResolvedValueOnce([[], {}] as any);
+
+      await (repository as any).deleteExpiredTrashFoldersByTier(
+        tierId,
+        cutoffDate,
+        limit,
+      );
+
+      expect(folderModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: { tierId, cutoffDate, limit },
+          transaction: expect.any(Object),
+        }),
+      );
     });
   });
 });

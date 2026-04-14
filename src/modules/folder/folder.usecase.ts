@@ -66,11 +66,7 @@ export class FolderUseCases {
       throw new NotFoundException('Folder not found');
     }
 
-    folder.plainName =
-      folder.plainName ??
-      this.cryptoService.decryptName(folder.name, folder.parentId);
-
-    return folder;
+    return folder.plainName ? folder : this.decryptFolderName(folder);
   }
 
   async getByUuids(uuids: Folder['uuid'][], user?: User): Promise<Folder[]> {
@@ -210,48 +206,6 @@ export class FolderUseCases {
     return this.folderRepository.findById(folderId, deleted);
   }
 
-  async isFolderInsideFolder(
-    parentId: FolderAttributes['id'],
-    folderId: FolderAttributes['id'],
-    userId: UserAttributes['id'],
-  ): Promise<boolean> {
-    const folder = await this.folderRepository.findOne({
-      id: folderId,
-      userId,
-      deleted: false,
-    });
-
-    const folderExists = !!folder;
-
-    if (!folderExists) {
-      return false;
-    }
-
-    const folderInsideTree = await this.folderRepository.findInTree(
-      parentId,
-      folderId,
-      userId,
-      false,
-    );
-    const folderIsInsideTree = !!folderInsideTree;
-
-    return folderIsInsideTree;
-  }
-
-  async getChildrenFoldersToUser(
-    folderId: FolderAttributes['id'],
-    userId: FolderAttributes['userId'],
-    { deleted }: FolderOptions = { deleted: false },
-  ) {
-    const folders = await this.folderRepository.findAllByParentIdAndUserId(
-      folderId,
-      userId,
-      deleted,
-    );
-
-    return folders;
-  }
-
   async getFoldersByUserId(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
@@ -366,7 +320,7 @@ export class FolderUseCases {
 
     const folderWithSameNameExists = await this.folderRepository.findOne({
       plainName: newFolderMetadata.plainName,
-      parentId: folder.parentId,
+      parentUuid: folder.parentUuid,
       deleted: false,
       removed: false,
     });
@@ -422,7 +376,7 @@ export class FolderUseCases {
     }
 
     const nameAlreadyInUse = await this.folderRepository.findOne({
-      parentId: parentFolder.id,
+      parentUuid: parentFolder.uuid,
       plainName: newFolderDto.plainName,
       deleted: false,
     });
@@ -453,6 +407,75 @@ export class FolderUseCases {
     });
 
     return folder;
+  }
+
+  async createBulkFolders(user: User, dto: CreateFolderDto): Promise<Folder[]> {
+    const folders = dto.folders;
+
+    const parentFolder = await this.folderRepository.findOne({
+      uuid: dto.parentFolderUuid,
+      userId: user.id,
+      removed: false,
+    });
+
+    if (!parentFolder) {
+      throw new NotFoundException('Parent folder does not exist');
+    }
+
+    for (const item of folders) {
+      if (item.plainName === '' || invalidName.test(item.plainName)) {
+        throw new BadRequestException(
+          `Invalid folder name: "${item.plainName}"`,
+        );
+      }
+    }
+
+    const plainNames = folders.map((f) => f.plainName);
+    const uniqueNames = new Set(plainNames);
+    if (uniqueNames.size !== plainNames.length) {
+      throw new ConflictException('Duplicate folder names in request');
+    }
+
+    const existingFolders = await this.folderRepository.findByParentUuid(
+      parentFolder.uuid,
+      {
+        plainName: plainNames,
+        deleted: false,
+        removed: false,
+      },
+    );
+
+    if (existingFolders.length > 0) {
+      const existentFolders = existingFolders.map((f) => f.plainName);
+      throw new ConflictException({
+        message: 'Folders already exist',
+        existentFolders,
+      });
+    }
+
+    const now = new Date();
+    const foldersToCreate = folders.map((item) => ({
+      uuid: v4(),
+      userId: user.id,
+      name: this.cryptoService.encryptName(item.plainName, parentFolder.id),
+      plainName: item.plainName,
+      parentId: parentFolder.id,
+      parentUuid: parentFolder.uuid,
+      encryptVersion: '03-aes' as const,
+      bucket: null,
+      deleted: false,
+      removed: false,
+      createdAt: now,
+      updatedAt: now,
+      removedAt: null,
+      deletedAt: null,
+      modificationTime: item.modificationTime || now,
+      creationTime: item.creationTime || now,
+    }));
+
+    const created = await this.folderRepository.bulkCreate(foldersToCreate);
+
+    return created;
   }
 
   async moveFolderToTrash(folderId: FolderAttributes['id']): Promise<Folder> {
@@ -515,14 +538,14 @@ export class FolderUseCases {
     ]);
   }
 
-  async getFoldersByParentId(
-    parentId: FolderAttributes['id'],
+  async getFoldersByParentUuid(
+    parentUuid: FolderAttributes['uuid'],
     userId: UserAttributes['id'],
     options = { deleted: false, limit: 20, offset: 0 },
   ): Promise<Folder[]> {
     return this.getFolders(
       userId,
-      { parentId, deleted: options.deleted },
+      { parentUuid, deleted: options.deleted },
       options,
     );
   }
@@ -609,7 +632,7 @@ export class FolderUseCases {
       throw new BadRequestException('Parent folder not valid');
     }
 
-    return this.folderRepository.findByParent(parentFolder.id, {
+    return this.folderRepository.findByParentUuid(parentFolder.uuid, {
       plainName: plainNames,
       deleted: false,
       removed: false,
@@ -678,6 +701,52 @@ export class FolderUseCases {
     );
   }
 
+  async getTrashedFolders(
+    userId: FolderAttributes['userId'],
+    cutoffDate: Date | null,
+    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<Folder[]> {
+    const foldersWithMaybePlainName =
+      await this.folderRepository.findTrashedNotExpired(
+        userId,
+        cutoffDate,
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+
+    return foldersWithMaybePlainName.map((folder) =>
+      folder.plainName ? folder : this.decryptFolderName(folder),
+    );
+  }
+
+  async getTrashedFoldersInWorkspace(
+    createdBy: WorkspaceItemUserAttributes['createdBy'],
+    workspaceId: WorkspaceAttributes['id'],
+    cutoffDate: Date | null,
+    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
+      limit: 20,
+      offset: 0,
+    },
+  ): Promise<Folder[]> {
+    const foldersWithMaybePlainName =
+      await this.folderRepository.findTrashedNotExpiredInWorkspace(
+        createdBy,
+        workspaceId,
+        cutoffDate,
+        options.limit,
+        options.offset,
+        options.sort,
+      );
+
+    return foldersWithMaybePlainName.map((folder) =>
+      folder.plainName ? folder : this.decryptFolderName(folder),
+    );
+  }
+
   async deleteUserTrashedFoldersBatch(
     user: User,
     limit: number,
@@ -730,15 +799,6 @@ export class FolderUseCases {
     );
   }
 
-  async getFoldersByParent(folderId: number, page, perPage) {
-    return this.folderRepository.findAllByParentId(
-      folderId,
-      false,
-      page,
-      perPage,
-    );
-  }
-
   /**
    * Permanently deletes a folder from the database
    * @throws ForbiddenException if the user is not the owner of the folder
@@ -772,7 +832,7 @@ export class FolderUseCases {
   }
 
   getOrphanFoldersCount(userId: UserAttributes['id']): Promise<number> {
-    return this.folderRepository.getFoldersWhoseParentIdDoesNotExist(userId);
+    return this.folderRepository.getFoldersWhoseParentUuidDoesNotExist(userId);
   }
 
   async deleteOrphansFolders(userId: UserAttributes['id']): Promise<number> {
@@ -924,19 +984,32 @@ export class FolderUseCases {
   }
 
   decryptFolderName(folder: Folder): Folder {
-    const decryptedName =
-      folder.plainName ??
-      this.cryptoService.decryptName(folder.name, folder.parentId);
+    try {
+      const decryptedName = this.cryptoService.decryptName(
+        folder.name,
+        folder.parentId,
+      );
 
-    if (decryptedName === '') {
-      throw new Error('Unable to decrypt folder name');
+      if (decryptedName === '') {
+        return Folder.build({
+          ...folder,
+          name: folder.plainName ?? folder.name,
+          plainName: folder.plainName ?? folder.name,
+        });
+      }
+
+      return Folder.build({
+        ...folder,
+        name: decryptedName,
+        plainName: decryptedName,
+      });
+    } catch {
+      return Folder.build({
+        ...folder,
+        name: folder.plainName ?? folder.name,
+        plainName: folder.plainName ?? folder.name,
+      });
     }
-
-    return Folder.build({
-      ...folder,
-      name: decryptedName,
-      plainName: decryptedName,
-    });
   }
 
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {

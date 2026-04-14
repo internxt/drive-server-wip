@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
-// import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   File,
@@ -142,7 +141,16 @@ export interface FileRepository {
   ): Promise<File[]>;
   deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
   deleteFilesByUuid(fileUuids: string[]): Promise<number>;
-  findExpiredTrashFileIds(limit: number): Promise<string[]>;
+  deleteExpiredTrashFilesByTier(
+    tierId: string,
+    cutoffDate: Date,
+    limit: number,
+  ): Promise<string[]>;
+  findDeletedFilesUpdatedBefore(
+    cutoffDate: Date,
+    limit: number,
+  ): Promise<string[]>;
+  destroyDeletedFilesByUuids(uuids: string[]): Promise<number>;
   findRecent(
     userId: number,
     daysBack: number,
@@ -159,6 +167,21 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     sinceDate: Date,
   ): Promise<number>;
+  findTrashedNotExpired(
+    userId: number,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order?: Array<[keyof FileModel, string]>,
+  ): Promise<File[]>;
+  findTrashedNotExpiredInWorkspace(
+    createdBy: string,
+    workspaceId: string,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order?: Array<[keyof FileModel, string]>,
+  ): Promise<File[]>;
 }
 
 @Injectable()
@@ -426,6 +449,46 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
+  async findTrashedNotExpired(
+    userId: number,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<File[]> {
+    return this.findAllCursorWithThumbnails(
+      {
+        userId,
+        status: FileStatus.TRASHED,
+        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
+      },
+      limit,
+      offset,
+      order,
+    );
+  }
+
+  async findTrashedNotExpiredInWorkspace(
+    createdBy: string,
+    workspaceId: string,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<File[]> {
+    return this.findAllCursorWithThumbnailsInWorkspace(
+      createdBy,
+      workspaceId,
+      {
+        status: FileStatus.TRASHED,
+        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
+      },
+      limit,
+      offset,
+      order,
+    );
+  }
+
   async findAllCursorWhereUpdatedAfterInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
@@ -494,7 +557,7 @@ export class SequelizeFileRepository implements FileRepository {
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
   ): Promise<number> {
-    const { count } = await this.fileModel.findAndCountAll({
+    const count = await this.fileModel.count({
       where: {
         size: 0,
         status: {
@@ -796,7 +859,7 @@ export class SequelizeFileRepository implements FileRepository {
   async getFilesWhoseFolderIdDoesNotExist(
     userId: File['userId'],
   ): Promise<number> {
-    const { count } = await this.fileModel.findAndCountAll({
+    const count = await this.fileModel.count({
       where: {
         folderId: {
           [Op.not]: null,
@@ -812,13 +875,13 @@ export class SequelizeFileRepository implements FileRepository {
   }
 
   async getFilesCountWhere(where: Partial<File>): Promise<number> {
-    const { count } = await this.fileModel.findAndCountAll({ where });
+    const count = await this.fileModel.count({ where });
 
     return count;
   }
 
   async getZeroSizeFilesCountByUser(userId: User['id']): Promise<number> {
-    const { count } = await this.fileModel.findAndCountAll({
+    const count = await this.fileModel.count({
       where: {
         userId,
         size: 0,
@@ -976,44 +1039,65 @@ export class SequelizeFileRepository implements FileRepository {
     return updatedCount;
   }
 
-  async findExpiredTrashFileIds(limit: number): Promise<string[]> {
-    const query = `
-      WITH retention_config AS (
-        SELECT
-          f.uuid AS item_id,
-          f.updated_at,
-          COALESCE(
-            (SELECT l.value::integer
-             FROM user_overridden_limits uol
-             JOIN limits l ON uol.limit_id = l.id
-             WHERE uol.user_id = u.uuid AND l.label = 'trash-retention-days'),
-            (SELECT l.value::integer
-             FROM tiers_limits tl
-             JOIN limits l ON tl.limit_id = l.id
-             WHERE tl.tier_id = u.tier_id AND l.label = 'trash-retention-days')
-          ) AS retention_days
-        FROM files f
-        JOIN users u ON f.user_id = u.id
-        WHERE f.status = 'TRASHED'
-      )
-      SELECT item_id
-      FROM retention_config
-      WHERE retention_days IS NOT NULL
-        AND updated_at < NOW() - (retention_days || ' days')::INTERVAL
-      LIMIT :limit
-    `;
-
-    const results = await this.fileModel.sequelize.query<{ item_id: string }>(
-      query,
-      {
-        replacements: {
-          limit /*, defaultRetentionDays: DEFAULT_TRASH_RETENTION_DAYS */,
-        },
-        type: QueryTypes.SELECT,
+  async deleteExpiredTrashFilesByTier(
+    tierId: string,
+    cutoffDate: Date,
+    limit: number,
+  ): Promise<string[]> {
+    const [results] = await withQueryTimeout(
+      this.fileModel.sequelize,
+      60000 * 3,
+      async (transaction) => {
+        return this.fileModel.sequelize.query(
+          `
+          UPDATE files
+          SET removed = true, removed_at = NOW(), status = 'DELETED', updated_at = NOW()
+          WHERE uuid IN (
+            SELECT f.uuid
+            FROM files f
+            JOIN users u ON u.id = f.user_id AND u.tier_id = :tierId
+            WHERE f.status = 'TRASHED'
+              AND f.updated_at <= :cutoffDate
+              AND size >= 0
+            LIMIT :limit
+          )
+          RETURNING uuid
+          `,
+          {
+            replacements: { tierId, cutoffDate, limit },
+            transaction,
+            type: QueryTypes.UPDATE,
+          },
+        );
       },
     );
+    return (results as { uuid: string }[]).map((r) => r.uuid);
+  }
 
-    return results.map((r) => r.item_id);
+  async findDeletedFilesUpdatedBefore(
+    cutoffDate: Date,
+    limit: number,
+    opts?: {
+      useMaster: boolean;
+    },
+  ): Promise<string[]> {
+    const rows = await this.fileModel.findAll({
+      attributes: ['uuid'],
+      where: {
+        status: FileStatus.DELETED,
+        updatedAt: { [Op.lt]: cutoffDate },
+      },
+      useMaster: opts?.useMaster,
+      limit,
+    });
+
+    return rows.map((r) => r.uuid);
+  }
+
+  async destroyDeletedFilesByUuids(uuids: string[]): Promise<number> {
+    return this.fileModel.destroy({
+      where: { uuid: { [Op.in]: uuids }, status: FileStatus.DELETED },
+    });
   }
 
   async destroyFile(where: Partial<FileModel>): Promise<void> {
@@ -1094,14 +1178,10 @@ export class SequelizeFileRepository implements FileRepository {
     userId: FileAttributes['userId'],
     sinceDate: Date,
   ): Promise<number> {
-    return withQueryTimeout(
-      this.fileModel.sequelize,
-      8000,
-      async (transaction) => {
-        const result = await this.fileModel.findAll({
-          attributes: [
-            [
-              Sequelize.literal(`
+    const result = await this.fileModel.findAll({
+      attributes: [
+        [
+          Sequelize.literal(`
             SUM(
               CASE
                 WHEN status != 'DELETED' THEN size
@@ -1114,35 +1194,32 @@ export class SequelizeFileRepository implements FileRepository {
               END
             )
           `),
-              'total',
-            ],
-          ],
-          where: {
-            userId,
-            [Op.or]: [
-              {
-                status: { [Op.ne]: FileStatus.DELETED },
-                createdAt: {
-                  [Op.gte]: sinceDate,
-                },
-              },
-              {
-                status: FileStatus.DELETED,
-                updatedAt: {
-                  [Op.gte]: sinceDate,
-                },
-              },
-            ],
+          'total',
+        ],
+      ],
+      where: {
+        userId,
+        [Op.or]: [
+          {
+            status: { [Op.ne]: FileStatus.DELETED },
+            createdAt: {
+              [Op.gte]: sinceDate,
+            },
           },
-          bind: {
-            sinceDate,
+          {
+            status: FileStatus.DELETED,
+            updatedAt: {
+              [Op.gte]: sinceDate,
+            },
           },
-          raw: true,
-          transaction,
-        });
-
-        return Number(result[0]['total']) || 0;
+        ],
       },
-    );
+      bind: {
+        sinceDate,
+      },
+      raw: true,
+    });
+
+    return Number(result[0]['total']) || 0;
   }
 }

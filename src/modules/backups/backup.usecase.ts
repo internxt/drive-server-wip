@@ -12,7 +12,7 @@ import { BridgeService } from './../../externals/bridge/bridge.service';
 import { CryptoService } from './../../externals/crypto/crypto.service';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
-import { type Folder, type FolderAttributes } from '../folder/folder.domain';
+import { Folder, type FolderAttributes } from '../folder/folder.domain';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { type BackupModel } from './models/backup.model';
 import { type DeviceAttributes } from './models/device.attributes';
@@ -143,14 +143,12 @@ export class BackupUseCase {
 
     return Promise.all(
       folders.map(async (folder) => {
-        const plainName =
-          folder.plainName ??
-          this.cryptoService.decryptName(folder.name, folder.bucket);
+        const decryptedFolder = this.decryptBackupFolderName(folder);
 
         return {
-          ...(await this.addFolderAsDeviceProperties(user, folder)),
-          plainName,
-          plain_name: plainName, //TODO: temporary hotfix remove after mac newer version is released
+          ...(await this.addFolderAsDeviceProperties(user, decryptedFolder)),
+          plainName: decryptedFolder.plainName,
+          plain_name: decryptedFolder.plainName, //TODO: temporary hotfix remove after mac newer version is released
         };
       }),
     );
@@ -162,7 +160,10 @@ export class BackupUseCase {
       throw new NotFoundException('Folder not found');
     }
 
-    return this.addFolderAsDeviceProperties(user, folder);
+    return this.addFolderAsDeviceProperties(
+      user,
+      this.decryptBackupFolderName(folder),
+    );
   }
 
   async getDeviceAsFolderById(user: User, id: FolderAttributes['id']) {
@@ -171,7 +172,10 @@ export class BackupUseCase {
       throw new NotFoundException('Folder not found');
     }
 
-    return this.addFolderAsDeviceProperties(user, folder);
+    return this.addFolderAsDeviceProperties(
+      user,
+      this.decryptBackupFolderName(folder),
+    );
   }
 
   async updateDeviceAsFolder(
@@ -231,10 +235,18 @@ export class BackupUseCase {
       return devices.map((device) => ({ ...device, folder: null }));
     }
 
-    const folders = await this.folderUsecases.getByUuids(folderUuids, user);
+    const folders = await this.folderRepository.findByUuids(
+      folderUuids,
+      user.id,
+    );
 
     const foldersWithProperties = await Promise.all(
-      folders.map((folder) => this.addFolderAsDeviceProperties(user, folder)),
+      folders.map((folder) =>
+        this.addFolderAsDeviceProperties(
+          user,
+          this.decryptBackupFolderName(folder),
+        ),
+      ),
     );
 
     const folderMap = new Map(
@@ -418,7 +430,10 @@ export class BackupUseCase {
 
     return {
       ...device,
-      folder: await this.addFolderAsDeviceProperties(user, folder),
+      folder: await this.addFolderAsDeviceProperties(
+        user,
+        this.decryptBackupFolderName(folder),
+      ),
     };
   }
 
@@ -468,8 +483,8 @@ export class BackupUseCase {
   }
 
   async isFolderEmpty(user: User, folder: Folder) {
-    const folders = await this.folderUsecases.getFoldersByParentId(
-      folder.id,
+    const folders = await this.folderUsecases.getFoldersByParentUuid(
+      folder.uuid,
       user.id,
     );
     const files = await this.fileUsecases.getByFolderAndUser(
@@ -482,6 +497,27 @@ export class BackupUseCase {
 
   async sumExistentBackupSizes(userId: number) {
     return this.backupRepository.sumExistentBackupSizes(userId);
+  }
+
+  private decryptBackupFolderName(folder: Folder): Folder {
+    if (folder.plainName) {
+      return folder;
+    }
+
+    try {
+      const decryptedName = this.cryptoService.decryptName(
+        folder.name,
+        folder.bucket,
+      );
+
+      if (decryptedName === '') {
+        return Folder.build({ ...folder, plainName: folder.name });
+      }
+
+      return Folder.build({ ...folder, plainName: decryptedName });
+    } catch {
+      return Folder.build({ ...folder, plainName: folder.name });
+    }
   }
 
   private async addFolderAsDeviceProperties(user: User, folder: Folder) {

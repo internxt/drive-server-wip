@@ -3,11 +3,13 @@ export enum JobName {
   INACTIVE_USERS_EMAIL = 'inactive-users-email',
   EXPIRED_FILE_VERSIONS_CLEANUP = 'expired-file-versions-cleanup',
   EXPIRED_TRASH_ITEMS_CLEANUP = 'expired-trash-items-cleanup',
+  HARD_DELETE_OLD_DELETED_FILES = 'hard-delete-old-deleted-files',
 }
 
 export enum JobStatus {
   RUNNING = 'running',
   FAILED = 'failed',
+  ABORTED = 'aborted',
   COMPLETED = 'completed',
 }
 

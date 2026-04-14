@@ -1616,6 +1616,7 @@ export class UserUseCases {
       });
 
       if (!tfaResult) {
+        await this.userRepository.loginFailed(userData, true);
         throw new UnauthorizedException('Wrong 2-factor auth code');
       }
     }

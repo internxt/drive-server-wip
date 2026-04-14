@@ -39,11 +39,7 @@ import {
   type Folder,
   type SortableFolderAttributes,
 } from '../folder/folder.domain';
-import {
-  type File,
-  FileStatus,
-  type SortableFileAttributes,
-} from '../file/file.domain';
+import { type File, type SortableFileAttributes } from '../file/file.domain';
 import logger from '../../externals/logger';
 import { v4 } from 'uuid';
 import { WorkspaceResourcesAction } from '../workspaces/guards/workspaces-resources-in-behalf.types';
@@ -55,6 +51,12 @@ import { Requester } from '../auth/decorators/requester.decorator';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
 import { Version } from '../../common/decorators/version.decorator';
+import {
+  calculateTrashExpirationDate,
+  getTrashNotExpiredCutoffDate,
+} from './trash-expiration.utils';
+import { AuditAction } from '../../common/audit-logs/audit-logs.attributes';
+import { AuditLog } from '../../common/audit-logs/decorators/audit-log.decorator';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -97,10 +99,14 @@ export class TrashController {
       const retentionDays =
         await this.trashUseCases.getTrashRetentionDays(user);
 
+      const cutoffDate = retentionDays
+        ? getTrashNotExpiredCutoffDate(retentionDays)
+        : null;
+
       if (type === 'files') {
-        const files = await this.fileUseCases.getFiles(
+        const files = await this.fileUseCases.getTrashedFiles(
           user.id,
-          { status: FileStatus.TRASHED },
+          cutoffDate,
           {
             limit: pagination.limit,
             offset: pagination.offset,
@@ -110,19 +116,17 @@ export class TrashController {
 
         const result = files.map((file) => ({
           ...file.toJSON(),
-          expiresAt: file.updatedAt
-            ? this.trashUseCases.calculateExpirationDate(
-                retentionDays,
-                file.updatedAt,
-              )
-            : null,
+          expiresAt:
+            retentionDays && file.updatedAt
+              ? calculateTrashExpirationDate(retentionDays, file.updatedAt)
+              : null,
         }));
 
         return { result };
       } else {
-        const folders = await this.folderUseCases.getFolders(
+        const folders = await this.folderUseCases.getTrashedFolders(
           user.id,
-          { deleted: true, removed: false },
+          cutoffDate,
           {
             limit: pagination.limit,
             offset: pagination.offset,
@@ -132,12 +136,10 @@ export class TrashController {
 
         const result = folders.map((folder) => ({
           ...folder.toJSON(),
-          expiresAt: folder.updatedAt
-            ? this.trashUseCases.calculateExpirationDate(
-                retentionDays,
-                folder.updatedAt,
-              )
-            : null,
+          expiresAt:
+            retentionDays && folder.updatedAt
+              ? calculateTrashExpirationDate(retentionDays, folder.updatedAt)
+              : null,
         }));
 
         return { result };
@@ -264,6 +266,9 @@ export class TrashController {
   @ApiOperation({
     summary: "Deletes all items from user's trash",
   })
+  @AuditLog({
+    action: AuditAction.EmptyTrashRequested,
+  })
   async clearTrash(@UserDecorator() user: User) {
     try {
       const result = await this.trashUseCases.emptyTrash(user);
@@ -280,6 +285,9 @@ export class TrashController {
   }
 
   @Delete('/all/request')
+  @AuditLog({
+    action: AuditAction.EmptyTrashRequested,
+  })
   async requestEmptyTrash(@UserDecorator() user: User) {
     try {
       await this.trashUseCases.emptyTrash(user);
@@ -309,6 +317,13 @@ export class TrashController {
     @Version() version: string,
   ) {
     const { items } = deleteItemsDto;
+    this.logger.log(
+      {
+        user: user.uuid,
+        items: items,
+      },
+      'Request to delete items from trash',
+    );
 
     const filesIds: File['id'][] = [];
     const filesUuids: File['uuid'][] = [];

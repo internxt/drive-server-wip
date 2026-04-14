@@ -20,7 +20,8 @@ import { Test } from '@nestjs/testing';
 import { FileStatus } from '../file/file.domain';
 import { type BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { v4 } from 'uuid';
-import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
+import * as TrashExpirationUtils from './trash-expiration.utils';
+import { getTrashNotExpiredCutoffDate } from './trash-expiration.utils';
 
 const user = newUser();
 const requester = newUser();
@@ -44,6 +45,10 @@ describe('TrashController', () => {
     userUseCases = moduleRef.get(UserUseCases);
     folderUseCases = moduleRef.get(FolderUseCases);
     trashUseCases = moduleRef.get(TrashUseCases);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('should be defined', () => {
@@ -285,7 +290,17 @@ describe('TrashController', () => {
   });
 
   describe('getTrashedFilesPaginated', () => {
+    const retentionDays = 30;
     const validPagination: BasicPaginationDto = { limit: 10, offset: 0 };
+    const fixedDate = new Date('2026-02-01T00:00:00Z');
+
+    beforeAll(() => {
+      jest.useFakeTimers({ now: fixedDate });
+    });
+
+    afterAll(() => {
+      jest.useRealTimers();
+    });
 
     it('When pagination is missing limit, then it should throw BadRequestException', async () => {
       const invalidPagination = { offset: 0 } as BasicPaginationDto;
@@ -339,14 +354,13 @@ describe('TrashController', () => {
       const mockFiles = [
         newFile({ attributes: { status: FileStatus.TRASHED } }),
       ];
-      const retentionDays = DEFAULT_TRASH_RETENTION_DAYS;
       const expectedExpiresAt = new Date('2026-03-01');
-      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(mockFiles);
+      jest.spyOn(fileUseCases, 'getTrashedFiles').mockResolvedValue(mockFiles);
       jest
         .spyOn(trashUseCases, 'getTrashRetentionDays')
         .mockResolvedValue(retentionDays);
       jest
-        .spyOn(trashUseCases, 'calculateExpirationDate')
+        .spyOn(TrashExpirationUtils, 'calculateTrashExpirationDate')
         .mockReturnValue(expectedExpiresAt);
 
       const result = await controller.getTrashedFilesPaginated(
@@ -355,9 +369,10 @@ describe('TrashController', () => {
         'files',
       );
 
-      expect(fileUseCases.getFiles).toHaveBeenCalledWith(
+      const expectedCutoffDate = getTrashNotExpiredCutoffDate(retentionDays);
+      expect(fileUseCases.getTrashedFiles).toHaveBeenCalledWith(
         user.id,
-        { status: FileStatus.TRASHED },
+        expectedCutoffDate,
         {
           limit: validPagination.limit,
           offset: validPagination.offset,
@@ -376,14 +391,15 @@ describe('TrashController', () => {
       const mockFolders = [
         newFolder({ attributes: { deleted: true, removed: false } }),
       ];
-      const retentionDays = DEFAULT_TRASH_RETENTION_DAYS;
       const expectedExpiresAt = new Date('2026-03-01');
-      jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue(mockFolders);
+      jest
+        .spyOn(folderUseCases, 'getTrashedFolders')
+        .mockResolvedValue(mockFolders);
       jest
         .spyOn(trashUseCases, 'getTrashRetentionDays')
         .mockResolvedValue(retentionDays);
       jest
-        .spyOn(trashUseCases, 'calculateExpirationDate')
+        .spyOn(TrashExpirationUtils, 'calculateTrashExpirationDate')
         .mockReturnValue(expectedExpiresAt);
 
       const result = await controller.getTrashedFilesPaginated(
@@ -392,9 +408,10 @@ describe('TrashController', () => {
         'folders',
       );
 
-      expect(folderUseCases.getFolders).toHaveBeenCalledWith(
+      const expectedCutoffDate = getTrashNotExpiredCutoffDate(retentionDays);
+      expect(folderUseCases.getTrashedFolders).toHaveBeenCalledWith(
         user.id,
-        { deleted: true, removed: false },
+        expectedCutoffDate,
         {
           limit: validPagination.limit,
           offset: validPagination.offset,
@@ -413,11 +430,11 @@ describe('TrashController', () => {
       const mockFile = newFile({
         attributes: { status: FileStatus.TRASHED, updatedAt: null },
       });
-      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue([mockFile]);
+      jest.spyOn(fileUseCases, 'getTrashedFiles').mockResolvedValue([mockFile]);
       jest
         .spyOn(trashUseCases, 'getTrashRetentionDays')
-        .mockResolvedValue(DEFAULT_TRASH_RETENTION_DAYS);
-      jest.spyOn(trashUseCases, 'calculateExpirationDate');
+        .mockResolvedValue(retentionDays);
+      jest.spyOn(TrashExpirationUtils, 'calculateTrashExpirationDate');
 
       const result = await controller.getTrashedFilesPaginated(
         user,
@@ -425,7 +442,9 @@ describe('TrashController', () => {
         'files',
       );
 
-      expect(trashUseCases.calculateExpirationDate).not.toHaveBeenCalled();
+      expect(
+        TrashExpirationUtils.calculateTrashExpirationDate,
+      ).not.toHaveBeenCalled();
       expect(result).toEqual({
         result: [{ ...mockFile.toJSON(), expiresAt: null }],
       });
@@ -435,11 +454,13 @@ describe('TrashController', () => {
       const mockFolder = newFolder({
         attributes: { deleted: true, removed: false, updatedAt: null },
       });
-      jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue([mockFolder]);
+      jest
+        .spyOn(folderUseCases, 'getTrashedFolders')
+        .mockResolvedValue([mockFolder]);
       jest
         .spyOn(trashUseCases, 'getTrashRetentionDays')
-        .mockResolvedValue(DEFAULT_TRASH_RETENTION_DAYS);
-      jest.spyOn(trashUseCases, 'calculateExpirationDate');
+        .mockResolvedValue(retentionDays);
+      jest.spyOn(TrashExpirationUtils, 'calculateTrashExpirationDate');
 
       const result = await controller.getTrashedFilesPaginated(
         user,
@@ -447,7 +468,9 @@ describe('TrashController', () => {
         'folders',
       );
 
-      expect(trashUseCases.calculateExpirationDate).not.toHaveBeenCalled();
+      expect(
+        TrashExpirationUtils.calculateTrashExpirationDate,
+      ).not.toHaveBeenCalled();
       expect(result).toEqual({
         result: [{ ...mockFolder.toJSON(), expiresAt: null }],
       });
@@ -457,8 +480,11 @@ describe('TrashController', () => {
       const mockFiles = [
         newFile({ attributes: { status: FileStatus.TRASHED } }),
       ];
-      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(mockFiles);
-      jest.spyOn(trashUseCases, 'getTrashRetentionDays').mockResolvedValue(2);
+      const retentionDays = 2;
+      jest.spyOn(fileUseCases, 'getTrashedFiles').mockResolvedValue(mockFiles);
+      jest
+        .spyOn(trashUseCases, 'getTrashRetentionDays')
+        .mockResolvedValue(retentionDays);
 
       await controller.getTrashedFilesPaginated(
         user,
@@ -468,9 +494,10 @@ describe('TrashController', () => {
         'ASC',
       );
 
-      expect(fileUseCases.getFiles).toHaveBeenCalledWith(
+      const expectedCutoffDate = getTrashNotExpiredCutoffDate(retentionDays);
+      expect(fileUseCases.getTrashedFiles).toHaveBeenCalledWith(
         user.id,
-        { status: FileStatus.TRASHED },
+        expectedCutoffDate,
         {
           limit: validPagination.limit,
           offset: validPagination.offset,
@@ -481,7 +508,7 @@ describe('TrashController', () => {
 
     it('When fileUseCases throws error, then it should throw InternalServerErrorException', async () => {
       jest
-        .spyOn(fileUseCases, 'getFiles')
+        .spyOn(fileUseCases, 'getTrashedFiles')
         .mockRejectedValue(new Error('Database error'));
 
       await expect(
@@ -491,7 +518,7 @@ describe('TrashController', () => {
 
     it('When folderUseCases throws error, then it should throw InternalServerErrorException', async () => {
       jest
-        .spyOn(folderUseCases, 'getFolders')
+        .spyOn(folderUseCases, 'getTrashedFolders')
         .mockRejectedValue(new Error('Database error'));
 
       await expect(

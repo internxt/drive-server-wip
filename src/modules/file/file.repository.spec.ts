@@ -1,4 +1,8 @@
 import { Test, type TestingModule } from '@nestjs/testing';
+
+jest.mock('../../lib/query-timeout', () => ({
+  withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
+}));
 import { getModelToken } from '@nestjs/sequelize';
 import { createMock } from '@golevelup/ts-jest';
 import {
@@ -530,6 +534,53 @@ describe('FileRepository', () => {
     });
   });
 
+  describe('findTrashedNotExpiredInWorkspace', () => {
+    const createdBy = v4();
+    const workspaceId = v4();
+    const limit = 10;
+    const offset = 0;
+
+    it('When cutoffDate is null, then it should query trashed files without a date filter', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findTrashedNotExpiredInWorkspace(
+        createdBy,
+        workspaceId,
+        null,
+        limit,
+        offset,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { status: FileStatus.TRASHED },
+        }),
+      );
+    });
+
+    it('When cutoffDate is provided, then it should add an updatedAt >= cutoffDate filter', async () => {
+      const cutoffDate = new Date('2026-03-04');
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findTrashedNotExpiredInWorkspace(
+        createdBy,
+        workspaceId,
+        cutoffDate,
+        limit,
+        offset,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            status: FileStatus.TRASHED,
+            updatedAt: { [Op.gte]: cutoffDate },
+          },
+        }),
+      );
+    });
+  });
+
   describe('findRecent', () => {
     const mockFile = newFile();
     const toJson = {
@@ -1003,19 +1054,6 @@ describe('FileRepository', () => {
     const userId = 123;
     const sinceDate = Time.now('2024-01-01');
 
-    let mockTransaction: Record<string, unknown>;
-
-    beforeEach(() => {
-      mockTransaction = {};
-      Object.defineProperty(fileModel, 'sequelize', {
-        value: {
-          query: jest.fn(),
-          transaction: jest.fn((cb) => cb(mockTransaction)),
-        },
-        configurable: true,
-      });
-    });
-
     it('When files have size delta, then it should return the total delta', async () => {
       const totalDelta = 1500;
       const result = [{ total: totalDelta }];
@@ -1036,7 +1074,6 @@ describe('FileRepository', () => {
             sinceDate,
           },
           raw: true,
-          transaction: mockTransaction,
         }),
       );
       expect(response).toBe(totalDelta);
@@ -1061,14 +1098,11 @@ describe('FileRepository', () => {
       const userId = 123;
       const count = 2;
 
-      jest.spyOn(fileModel, 'findAndCountAll').mockResolvedValueOnce({
-        rows: [],
-        count,
-      } as any);
+      jest.spyOn(fileModel, 'count').mockResolvedValueOnce(count);
 
       const result = await repository.getZeroSizeFilesCountByUser(userId);
 
-      expect(fileModel.findAndCountAll).toHaveBeenCalledWith({
+      expect(fileModel.count).toHaveBeenCalledWith({
         where: {
           userId,
           size: 0,
@@ -1164,35 +1198,143 @@ describe('FileRepository', () => {
     });
   });
 
-  describe('findExpiredTrashFileIds', () => {
-    it('When expired trash files exist, then it should return their uuids', async () => {
+  describe('deleteExpiredTrashFilesByTier', () => {
+    it('When expired trash files exist, then it should return their uuids from RETURNING', async () => {
       const fileUuids = [v4(), v4(), v4()];
+      const tierId = v4();
+      const cutoffDate = Time.now('2026-02-08T00:00:00Z');
       const limit = 100;
 
       jest
         .spyOn(fileModel.sequelize, 'query')
-        .mockResolvedValueOnce(
-          fileUuids.map((uuid) => ({ item_id: uuid })) as any,
-        );
+        .mockResolvedValueOnce([
+          fileUuids.map((uuid) => ({ uuid })),
+          {},
+        ] as any);
 
-      const result = await repository.findExpiredTrashFileIds(limit);
-
-      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
-        expect.stringContaining('trash-retention-days'),
-        {
-          replacements: { limit },
-          type: QueryTypes.SELECT,
-        },
+      const result = await (repository as any).deleteExpiredTrashFilesByTier(
+        tierId,
+        cutoffDate,
+        limit,
       );
+
       expect(result).toEqual(fileUuids);
     });
 
     it('When no expired trash files exist, then it should return empty array', async () => {
-      jest.spyOn(fileModel.sequelize, 'query').mockResolvedValueOnce([] as any);
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce([[], {}] as any);
 
-      const result = await repository.findExpiredTrashFileIds(100);
+      const result = await (repository as any).deleteExpiredTrashFilesByTier(
+        v4(),
+        Time.now('2026-02-08T00:00:00Z'),
+        100,
+      );
 
       expect(result).toEqual([]);
+    });
+
+    it('When called, then it should pass tierId, cutoffDate and limit as replacements', async () => {
+      const tierId = v4();
+      const cutoffDate = Time.now('2026-02-08T00:00:00Z');
+      const limit = 50;
+
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce([[], {}] as any);
+
+      await (repository as any).deleteExpiredTrashFilesByTier(
+        tierId,
+        cutoffDate,
+        limit,
+      );
+
+      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: { tierId, cutoffDate, limit },
+          transaction: expect.any(Object),
+        }),
+      );
+    });
+  });
+
+  describe('findDeletedFilesUpdatedBefore', () => {
+    const cutoffDate = Time.now('2025-09-01T00:00:00Z');
+    const limit = 100;
+
+    it('When no files match, then it should return an empty array', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([] as FileModel[]);
+
+      const result = await (repository as any).findDeletedFilesUpdatedBefore(
+        cutoffDate,
+        limit,
+      );
+
+      expect(result).toEqual([]);
+    });
+
+    it('When files match, then it should return their uuids', async () => {
+      const uuids = [v4(), v4(), v4()];
+      const rows = uuids.map((uuid) => ({ uuid }) as FileModel);
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(rows);
+
+      const result = await (repository as any).findDeletedFilesUpdatedBefore(
+        cutoffDate,
+        limit,
+      );
+
+      expect(result).toEqual(uuids);
+    });
+
+    it('When called, then it should query with status DELETED and updatedAt < cutoffDate', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([] as FileModel[]);
+
+      await (repository as any).findDeletedFilesUpdatedBefore(
+        cutoffDate,
+        limit,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: FileStatus.DELETED,
+            updatedAt: expect.objectContaining({ [Op.lt]: cutoffDate }),
+          }),
+        }),
+      );
+    });
+
+    it('When called, then it should pass the limit to findAll', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([] as FileModel[]);
+
+      await repository.findDeletedFilesUpdatedBefore(cutoffDate, limit);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ limit }),
+      );
+    });
+  });
+
+  describe('destroyDeletedFilesByUuids', () => {
+    it('When uuids are passed, then it should destroy them and return the count', async () => {
+      const uuids = [v4(), v4(), v4()];
+
+      jest.spyOn(fileModel, 'destroy').mockResolvedValueOnce(uuids.length);
+
+      const result = await repository.destroyDeletedFilesByUuids(uuids);
+
+      expect(result).toBe(uuids.length);
+      expect(fileModel.destroy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            uuid: expect.objectContaining({ [Op.in]: uuids }),
+            status: FileStatus.DELETED,
+          }),
+        }),
+      );
     });
   });
 });

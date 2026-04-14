@@ -15,10 +15,10 @@ import {
   Put,
   Query,
   UseFilters,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -53,6 +53,8 @@ import { getPathDepth } from '../../lib/path';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
 import { Requester } from '../auth/decorators/requester.decorator';
 import {
+  type CreateBulkFoldersResponseDto,
+  CreateBulkFoldersConflictResponseDto,
   ExistentFoldersDto,
   FolderDto,
   FoldersDto,
@@ -89,17 +91,41 @@ export class FolderController {
 
   @Post('/')
   @ApiOperation({
-    summary: 'Create Folder',
+    summary: 'Create one or multiple folders',
+    description:
+      'Creates a single folder when `plainName` is provided, or multiple when `folders` array is provided.',
   })
   @ApiBearerAuth()
   @ApiOkResponse({ type: FolderDto })
+  @ApiConflictResponse({ type: CreateBulkFoldersConflictResponseDto })
   @UseFilters(UniqueConstraintFilter)
   async createFolder(
     @UserDecorator() user: User,
     @Body() createFolderDto: CreateFolderDto,
     @Client() clientId: string,
     @Requester() requester: User,
-  ): Promise<FolderDto> {
+  ): Promise<FolderDto | CreateBulkFoldersResponseDto> {
+    if (createFolderDto.folders?.length) {
+      const folders = await this.folderUseCases.createBulkFolders(
+        user,
+        createFolderDto,
+      );
+
+      const created = folders.map((folder) => {
+        const folderDto = { ...folder, status: folder.getFolderStatus() };
+
+        this.storageNotificationService.folderCreated({
+          payload: folderDto,
+          user: requester,
+          clientId,
+        });
+
+        return folderDto;
+      });
+
+      return { created };
+    }
+
     const folder = await this.folderUseCases.createFolder(
       user,
       createFolderDto,

@@ -9,7 +9,6 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { newUser, newFile, newFolder } from '../../../test/fixtures';
 import { TrashEmptyRequestedEvent } from './events/trash-empty-requested.event';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,
@@ -306,33 +305,6 @@ describe('Trash Use Cases', () => {
     });
   });
 
-  describe('calculateExpirationDate', () => {
-    it('When retention is 2 days, then caducity date should be 2 days from the given date', () => {
-      const date = new Date('2025-10-30T00:00:00Z');
-      const result = service.calculateExpirationDate(2, date);
-      expect(result).toEqual(new Date('2025-11-01T00:00:00Z'));
-    });
-
-    it('When retention is 30 days, then caducity date should be 30 days from the given date', () => {
-      const date = new Date('2025-10-30T00:00:00Z');
-      const result = service.calculateExpirationDate(30, date);
-      expect(result).toEqual(new Date('2025-11-29T00:00:00Z'));
-    });
-
-    it('When no date is provided, then caducity date should calculate from current date', () => {
-      const before = new Date();
-      before.setDate(before.getDate() + 15);
-
-      const result = service.calculateExpirationDate(15);
-
-      const after = new Date();
-      after.setDate(after.getDate() + 15);
-
-      expect(result.getTime()).toBeGreaterThanOrEqual(before.getTime());
-      expect(result.getTime()).toBeLessThanOrEqual(after.getTime());
-    });
-  });
-
   describe('getTrashRetentionDays', () => {
     const user = newUser();
 
@@ -343,7 +315,7 @@ describe('Trash Use Cases', () => {
 
       const result = await service.getTrashRetentionDays(user);
 
-      expect(result).toBe(DEFAULT_TRASH_RETENTION_DAYS);
+      expect(result).toBe(null);
     });
 
     it('When user has a limit configured, then should return that limit value', async () => {

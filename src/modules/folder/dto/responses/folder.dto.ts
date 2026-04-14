@@ -56,3 +56,16 @@ export class ResultFoldersDto {
   @ApiProperty({ isArray: true, type: FolderDto })
   result: FolderDto[];
 }
+
+export class CreateBulkFoldersResponseDto {
+  @ApiProperty({ isArray: true, type: FolderDto })
+  created: FolderDto[];
+}
+
+export class CreateBulkFoldersConflictResponseDto {
+  @ApiProperty({ example: 'Folders already exist' })
+  message: string;
+
+  @ApiProperty({ type: [String], example: ['Folder A', 'Folder B'] })
+  existentFolders: string[];
+}
