@@ -19,21 +19,24 @@ export class GetFilesDto extends RequiredLargePaginationDto {
   @IsEnum(allowedStatuses)
   status: FileStatus | 'ALL';
 
+  // TODO: this should not be a valid option.
   @ApiProperty({
     description: 'Bucket ID filter',
     required: false,
+    deprecated: true,
   })
   @IsOptional()
   @IsString()
   bucket?: string;
 
+  // TODO: uuid should not be a valid option here, but one client is using it so we need to keep it.
   @ApiProperty({
     description: 'Field to sort by',
-    enum: ['updatedAt', 'size', 'id', 'plainName', 'uuid'],
+    enum: ['updatedAt', 'uuid'],
     required: false,
   })
   @IsOptional()
-  @IsEnum(['updatedAt', 'size', 'id', 'plainName', 'uuid'])
+  @IsEnum(['updatedAt', 'uuid'])
   sort?: SortableFileAttributes;
 
   @ApiProperty({
@@ -52,12 +55,4 @@ export class GetFilesDto extends RequiredLargePaginationDto {
   @IsOptional()
   @IsString()
   updatedAt?: string;
-
-  @ApiProperty({
-    description: 'The last file uuid of the provided list in the previous call',
-    required: false,
-  })
-  @IsOptional()
-  @IsUUID('4')
-  lastId?: FileAttributes['uuid'];
 }

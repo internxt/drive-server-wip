@@ -5,6 +5,8 @@ import {
 import { Inject } from '@nestjs/common';
 import { type FuzzySearchResult } from './dto/fuzzy-search-result.dto';
 import { type Workspace } from '../workspaces/domains/workspaces.domain';
+import { type UserAttributes } from '../user/user.attributes';
+
 export class FuzzySearchUseCases {
   constructor(
     @Inject(SequelizeLookUpRepository)
@@ -12,11 +14,11 @@ export class FuzzySearchUseCases {
   ) {}
 
   fuzzySearch(
-    user: string,
+    userUuid: UserAttributes['uuid'],
     text: string,
     offset = 0,
   ): Promise<Array<FuzzySearchResult>> {
-    return this.repository.search(user, text, offset);
+    return this.repository.search(userUuid, text, offset);
   }
 
   workspaceFuzzySearch(

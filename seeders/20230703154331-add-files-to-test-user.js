@@ -36,7 +36,6 @@ function generateFakeFolder(userId) {
 }
 
 function generateFakeFile(folderId, folderUuid, userId) {
-  const name = chance.word();
   const type = 'png';
   const size = chance.integer({ min: 1024, max: 10240 });
   const folder_id = folderId;
@@ -57,7 +56,6 @@ function generateFakeFile(folderId, folderUuid, userId) {
   const status = 'EXISTS';
 
   return {
-    name,
     type,
     size,
     folder_id,

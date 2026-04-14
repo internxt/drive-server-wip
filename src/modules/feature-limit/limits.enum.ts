@@ -10,6 +10,7 @@ export enum LimitLabels {
   MaxZeroSizeFiles = 'max-zero-size-files',
   RcloneAccess = 'rclone-access',
   TrashRetentionDays = 'trash-retention-days',
+  ReferralAccess = 'referral-access',
 }
 
 export enum LimitTypes {
@@ -19,4 +20,3 @@ export enum LimitTypes {
 
 export const PLAN_FREE_TIER_ID = 'free_000000';
 export const PLAN_FREE_INDIVIDUAL_TIER_LABEL = 'free_individual';
-export const DEFAULT_TRASH_RETENTION_DAYS = 2;

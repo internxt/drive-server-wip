@@ -22,6 +22,7 @@ import { SharingModel } from '../sharing/models';
 import { type Sharing } from '../sharing/sharing.domain';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Sequelize } from 'sequelize';
+import { AesService } from '../../externals/crypto/aes';
 
 @Table({
   underscored: true,
@@ -42,9 +43,16 @@ export class FileModel extends Model implements FileAttributes {
   @Column(DataType.STRING(24))
   fileId: string;
 
-  @Index
-  @Column
-  name: string;
+  @Column(DataType.VIRTUAL)
+  get name(): string {
+    const plainName = this.getDataValue('plainName');
+    const folderId = this.getDataValue('folderId');
+    if (!plainName || !folderId) return plainName ?? null;
+    return new AesService(process.env.CRYPTO_SECRET2).encrypt(
+      plainName,
+      folderId,
+    );
+  }
 
   @Index
   @Column

@@ -1,17 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
-// import { DEFAULT_TRASH_RETENTION_DAYS } from '../feature-limit/limits.enum';
 import { InjectModel } from '@nestjs/sequelize';
-import {
-  type FindOptions,
-  Op,
-  QueryTypes,
-  Sequelize,
-  type WhereOptions,
-} from 'sequelize';
+import { Op, QueryTypes, Sequelize, type WhereOptions } from 'sequelize';
 import { v4 } from 'uuid';
 
-import { Folder } from './folder.domain';
+import { Folder, FolderStatus } from './folder.domain';
 import { type FolderAttributes } from './folder.attributes';
 import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
@@ -27,7 +20,6 @@ import { FileStatus } from '../file/file.domain';
 import { UserModel } from '../user/user.model';
 import { User } from '../user/user.domain';
 import { type UserAttributes } from '../user/user.attributes';
-import { Pagination } from '../../lib/pagination';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -42,19 +34,12 @@ function mapSnakeCaseToCamelCase(data) {
   return camelCasedObject;
 }
 
-type FindInTreeResponse = Pick<Folder, 'parentId' | 'id' | 'plainName'>;
-
 interface FolderRepository {
   createWithAttributes(
     newFolder: Omit<FolderAttributes, 'id'>,
   ): Promise<Folder>;
   deleteByUser(user: User, folders: Folder[]): Promise<void>;
   findAll(): Promise<Array<Folder> | []>;
-  findAllByParentIdAndUserId(
-    parentId: FolderAttributes['parentId'],
-    userId: FolderAttributes['userId'],
-    deleted: FolderAttributes['deleted'],
-  ): Promise<Array<Folder> | []>;
   findById(
     folderId: FolderAttributes['id'],
     deleted: FolderAttributes['deleted'],
@@ -67,8 +52,8 @@ interface FolderRepository {
     folderUuid: FolderAttributes['uuid'],
     userId: FolderAttributes['userId'],
   ): Promise<Folder | null>;
-  findByParent(
-    parentId: Folder['id'],
+  findByParentUuid(
+    parentUuid: Folder['parentUuid'],
     searchBy: {
       plainName: Folder['plainName'][];
       deleted: boolean;
@@ -86,12 +71,6 @@ interface FolderRepository {
     parentUuid: Folder['parentUuid'],
     deleted?: boolean,
   ): Promise<Array<Folder>>;
-  findInTree(
-    folderTreeRootId: FolderAttributes['parentId'],
-    folderId: FolderAttributes['id'],
-    userId: FolderAttributes['userId'],
-    deleted: FolderAttributes['deleted'],
-  ): Promise<FindInTreeResponse | null>;
   findAllCursorInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
@@ -130,7 +109,11 @@ interface FolderRepository {
   ): Promise<void>;
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
   deleteFoldersByUuid(folderUuids: string[]): Promise<number>;
-  findExpiredTrashFolderIds(limit: number): Promise<string[]>;
+  deleteExpiredTrashFoldersByTier(
+    tierId: string,
+    cutoffDate: Date,
+    limit: number,
+  ): Promise<string[]>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
   calculateFolderSize(folderUuid: string): Promise<number>;
   calculateFolderStats(folderUuid: string): Promise<{
@@ -160,6 +143,21 @@ interface FolderRepository {
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
   ): Promise<Folder | null>;
+  findTrashedNotExpired(
+    userId: number,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order?: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
+  ): Promise<Folder[]>;
+  findTrashedNotExpiredInWorkspace(
+    createdBy: string,
+    workspaceId: string,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order?: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
+  ): Promise<Folder[]>;
 }
 
 @Injectable()
@@ -193,8 +191,8 @@ export class SequelizeFolderRepository implements FolderRepository {
     return newOrder;
   }
 
-  async findByParent(
-    parentId: Folder['id'],
+  async findByParentUuid(
+    parentUuid: Folder['parentUuid'],
     searchBy: {
       plainName: Folder['plainName'][];
       deleted: boolean;
@@ -202,7 +200,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     },
   ): Promise<Folder[]> {
     const where: WhereOptions<Folder> = {
-      parentId,
+      parentUuid,
       removed: searchBy.removed,
       deleted: searchBy.deleted,
     };
@@ -243,6 +241,48 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
 
     return folders.map(this.toDomain.bind(this));
+  }
+
+  async findTrashedNotExpired(
+    userId: number,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
+  ): Promise<Folder[]> {
+    return this.findAllCursor(
+      {
+        userId,
+        deleted: true,
+        removed: false,
+        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
+      },
+      limit,
+      offset,
+      order,
+    );
+  }
+
+  async findTrashedNotExpiredInWorkspace(
+    createdBy: string,
+    workspaceId: string,
+    cutoffDate: Date | null,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
+  ): Promise<Folder[]> {
+    return this.findAllCursorInWorkspace(
+      createdBy,
+      workspaceId,
+      {
+        deleted: true,
+        removed: false,
+        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
+      },
+      limit,
+      offset,
+      order,
+    );
   }
 
   async findAllCursorWithParent(
@@ -363,21 +403,6 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map((folder) => this.toDomain(folder));
   }
 
-  async findAllByParentIdCursor(
-    where: Partial<FolderAttributes>,
-    limit: number,
-    offset: number,
-  ): Promise<Folder[]> {
-    const folders = await this.folderModel.findAll({
-      limit,
-      offset,
-      where,
-      order: [['id', 'ASC']],
-    });
-
-    return folders.map(this.toDomain.bind(this));
-  }
-
   async findByUuid(
     uuid: FolderAttributes['uuid'],
     deleted: FolderAttributes['deleted'] = false,
@@ -440,37 +465,6 @@ export class SequelizeFolderRepository implements FolderRepository {
     const folder = await this.folderModel.findOne({ where });
 
     return folder ? this.toDomain(folder) : null;
-  }
-
-  async findAllByParentIdAndUserId(
-    parentId: FolderAttributes['parentId'],
-    userId: FolderAttributes['userId'],
-    deleted: FolderAttributes['deleted'],
-  ): Promise<Array<Folder> | []> {
-    const folders = await this.folderModel.findAll({
-      where: { parentId, userId, deleted },
-    });
-    return folders.map((folder) => this.toDomain(folder));
-  }
-
-  async findAllByParentId(
-    parentId: FolderAttributes['parentId'],
-    deleted: FolderAttributes['deleted'],
-    page: number = null,
-    perPage: number = null,
-    order: [string, string][] = [['id', 'ASC']],
-  ): Promise<Array<Folder> | []> {
-    const query: FindOptions = {
-      where: { parentId, deleted },
-      order,
-    };
-    const { offset, limit } = Pagination.calculatePagination(page, perPage);
-    if (page && perPage) {
-      query.offset = offset;
-      query.limit = limit;
-    }
-    const folders = await this.folderModel.findAll(query);
-    return folders.map((folder) => this.toDomain(folder));
   }
 
   async findById(
@@ -593,14 +587,11 @@ export class SequelizeFolderRepository implements FolderRepository {
   }
 
   async bulkCreate(
-    folders: {
-      userId: UserAttributes['id'];
-      name: FolderAttributes['name'];
-      bucket: FolderAttributes['bucket'];
-      parentId: FolderAttributes['parentId'];
-      encryptVersion: FolderAttributes['encryptVersion'];
-      parentUuid: FolderAttributes['parentUuid'];
-    }[],
+    folders: (Partial<Omit<FolderAttributes, 'id'>> &
+      Pick<
+        FolderAttributes,
+        'userId' | 'name' | 'bucket' | 'parentId' | 'encryptVersion'
+      >)[],
   ): Promise<Folder[]> {
     const rawFolders = await this.folderModel.bulkCreate(folders);
 
@@ -672,7 +663,7 @@ export class SequelizeFolderRepository implements FolderRepository {
    * @returns The number of folders that match the condition
    */
   async getFoldersCountWhere(where: Partial<Folder>): Promise<number> {
-    const { count } = await this.folderModel.findAndCountAll({ where });
+    const count = await this.folderModel.count({ where });
     return count;
   }
 
@@ -681,12 +672,12 @@ export class SequelizeFolderRepository implements FolderRepository {
    * @param userId User whose folders could be orphan
    * @returns Number of orphan folders
    */
-  async getFoldersWhoseParentIdDoesNotExist(
+  async getFoldersWhoseParentUuidDoesNotExist(
     userId: FolderAttributes['userId'],
   ): Promise<number> {
-    const { count } = await this.folderModel.findAndCountAll({
+    const count = await this.folderModel.count({
       where: {
-        parentId: {
+        parentUuid: {
           [Op.not]: null,
           [Op.notIn]: this.folderModel.findAll({
             where: { userId },
@@ -697,41 +688,6 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
 
     return count;
-  }
-
-  async findInTree(
-    folderTreeRootId: number,
-    folderId: number,
-    userId: number,
-    deleted: boolean,
-  ): Promise<FindInTreeResponse | null> {
-    const [[folder]] = await this.folderModel.sequelize.query(
-      `
-      WITH RECURSIVE rec AS (
-        SELECT parent_id, id, plain_name
-        FROM folders
-        WHERE
-            id = (:folderTreeRootId)
-          AND
-            deleted = (:deleted)
-          AND
-            user_id = (:userId)            
-        UNION
-        SELECT fo.parent_id, fo.id, fo.plain_name
-        FROM folders fo
-        INNER JOIN rec r ON r.id = fo.parent_id
-        WHERE
-            fo.user_id = (:userId)
-          AND 
-            fo.deleted = (:deleted)
-      ) SELECT parent_id as parentId, id, plain_name as plainName FROM rec WHERE id = (:folderId)
-    `,
-      {
-        replacements: { folderTreeRootId, folderId, userId, deleted },
-      },
-    );
-
-    return folder as FindInTreeResponse;
   }
 
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
@@ -818,43 +774,39 @@ export class SequelizeFolderRepository implements FolderRepository {
     return updatedCount;
   }
 
-  async findExpiredTrashFolderIds(limit: number): Promise<string[]> {
-    const query = `
-      WITH retention_config AS (
-        SELECT
-          fo.uuid AS item_id,
-          fo.updated_at,
-          COALESCE(
-            (SELECT l.value::integer
-             FROM user_overridden_limits uol
-             JOIN limits l ON uol.limit_id = l.id
-             WHERE uol.user_id = u.uuid AND l.label = 'trash-retention-days'),
-            (SELECT l.value::integer
-             FROM tiers_limits tl
-             JOIN limits l ON tl.limit_id = l.id
-             WHERE tl.tier_id = u.tier_id AND l.label = 'trash-retention-days')
-          ) AS retention_days
-        FROM folders fo
-        JOIN users u ON fo.user_id = u.id
-        WHERE fo.deleted = true AND fo.removed = false
-      )
-      SELECT item_id
-      FROM retention_config
-      WHERE retention_days IS NOT NULL
-        AND updated_at < NOW() - (retention_days || ' days')::INTERVAL
-      LIMIT :limit
-    `;
-
-    const results = await this.folderModel.sequelize.query<{
-      item_id: string;
-    }>(query, {
-      replacements: {
-        limit /*, defaultRetentionDays: DEFAULT_TRASH_RETENTION_DAYS */,
+  async deleteExpiredTrashFoldersByTier(
+    tierId: string,
+    cutoffDate: Date,
+    limit: number,
+  ): Promise<string[]> {
+    const [results] = await withQueryTimeout(
+      this.folderModel.sequelize,
+      120000,
+      async (transaction) => {
+        return this.folderModel.sequelize.query(
+          `
+          UPDATE folders
+          SET removed = true, removed_at = NOW(), updated_at = NOW()
+          WHERE uuid IN (
+            SELECT fo.uuid
+            FROM folders fo
+            JOIN users u ON u.id = fo.user_id AND u.tier_id = :tierId
+            WHERE fo.deleted = true
+              AND fo.removed = false
+              AND fo.updated_at <= :cutoffDate
+            LIMIT :limit
+          )
+          RETURNING uuid
+          `,
+          {
+            replacements: { tierId, cutoffDate, limit },
+            transaction,
+            type: QueryTypes.UPDATE,
+          },
+        );
       },
-      type: QueryTypes.SELECT,
-    });
-
-    return results.map((r) => r.item_id);
+    );
+    return (results as { uuid: string }[]).map((r) => r.uuid);
   }
 
   async findAllCursorWhereUpdatedAfter(
@@ -870,7 +822,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         updatedAt: {
           [Op.gt]: updatedAfter,
         },
-        parentId: {
+        parentUuid: {
           [Op.not]: null,
         },
       },
@@ -1256,6 +1208,19 @@ export class SequelizeFolderRepository implements FolderRepository {
         return (folder as Folder) ?? null;
       },
     );
+  }
+
+  private folderStatusWhereCondition(
+    status: FolderStatus,
+  ): Pick<FolderAttributes, 'deleted' | 'removed'> {
+    switch (status) {
+      case FolderStatus.EXISTS:
+        return { deleted: false, removed: false };
+      case FolderStatus.TRASHED:
+        return { deleted: true, removed: false };
+      case FolderStatus.DELETED:
+        return { deleted: true, removed: true };
+    }
   }
 
   private toDomain(model: FolderModel): Folder {

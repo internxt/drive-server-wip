@@ -271,61 +271,6 @@ describe('FolderUseCases', () => {
     });
   });
 
-  describe('getChildrenFoldersToUser', () => {
-    it('calls getChildrenFoldersToUser and return empty folders', async () => {
-      const mockFolders = [];
-      jest
-        .spyOn(folderRepository, 'findAllByParentIdAndUserId')
-        .mockResolvedValue(mockFolders);
-      const result = await service.getChildrenFoldersToUser(
-        folderId,
-        userMocked.id,
-      );
-      expect(result).toEqual(mockFolders);
-      expect(
-        folderRepository.findAllByParentIdAndUserId,
-      ).toHaveBeenNthCalledWith(1, folderId, userMocked.id, false);
-    });
-
-    it('calls getChildrenFoldersToUser and return folders', async () => {
-      const nameEncrypted =
-        'ONzgORtJ77qI28jDnr+GjwJn6xELsAEqsn3FKlKNYbHR7Z129AD/WOMkAChEKx6rm7hOER2drdmXmC296dvSXtE5y5os0XCS554YYc+dcCMIkot/v6Wu6rlBC5MPlngR+CkmvA==';
-      const mockFolders = [
-        newFolder({
-          attributes: {
-            name: nameEncrypted,
-            bucket: 'bucket',
-            parentId: 1,
-            id: 4,
-            deleted: true,
-            userId: 1,
-          },
-        }),
-      ];
-      jest
-        .spyOn(folderRepository, 'findAllByParentIdAndUserId')
-        .mockResolvedValue(mockFolders);
-      const result = await service.getChildrenFoldersToUser(
-        folderId,
-        userMocked.id,
-      );
-      expect(result).toMatchObject([
-        {
-          id: 4,
-          parentId: 1,
-          name: nameEncrypted,
-          bucket: 'bucket',
-          userId: 1,
-          encryptVersion: '03-aes',
-          deleted: true,
-        },
-      ]);
-      expect(
-        folderRepository.findAllByParentIdAndUserId,
-      ).toHaveBeenNthCalledWith(1, folderId, userMocked.id, false);
-    });
-  });
-
   describe('delete folder use case', () => {
     it('When called, then it should be able to delete folder', async () => {
       const userOwnerMock = newUser({ attributes: { id: 1 } });
@@ -412,7 +357,7 @@ describe('FolderUseCases', () => {
       expect(result.name).toStrictEqual(folder.plainName);
     });
 
-    it('When the name is not encrypted, then the decrypting fails', () => {
+    it('When decryption returns empty string, then it falls back to folder name', () => {
       const folder = newFolder({
         attributes: {
           name: 'not encrypted name',
@@ -422,9 +367,26 @@ describe('FolderUseCases', () => {
 
       jest.spyOn(cryptoService, 'decryptName').mockReturnValue('');
 
-      expect(() => service.decryptFolderName(folder)).toThrow(
-        'Unable to decrypt folder name',
-      );
+      const result = service.decryptFolderName(folder);
+
+      expect(result.plainName).toStrictEqual(folder.name);
+    });
+
+    it('When decryption throws, then it falls back to plainName', () => {
+      const folder = newFolder({
+        attributes: {
+          name: 'encrypted name',
+          plainName: 'my folder',
+        },
+      });
+
+      jest.spyOn(cryptoService, 'decryptName').mockImplementation(() => {
+        throw new Error('decryption error');
+      });
+
+      const result = service.decryptFolderName(folder);
+
+      expect(result.plainName).toStrictEqual('my folder');
     });
   });
 
@@ -949,6 +911,120 @@ describe('FolderUseCases', () => {
     });
   });
 
+  describe('createBulkFolders', () => {
+    it('When the parent folder does not exist, then it should throw', async () => {
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(null);
+
+      await expect(
+        service.createBulkFolders(userMocked, {
+          parentFolderUuid: v4(),
+          folders: [{ plainName: 'Folder A' }],
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When any folder name is invalid, then it should throw', async () => {
+      const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(parentFolder);
+
+      await expect(
+        service.createBulkFolders(userMocked, {
+          parentFolderUuid: parentFolder.uuid,
+          folders: [{ plainName: 'Valid Name' }, { plainName: 'Invalid/Name' }],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When there are duplicate names in the request, then it should throw', async () => {
+      const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(parentFolder);
+
+      await expect(
+        service.createBulkFolders(userMocked, {
+          parentFolderUuid: parentFolder.uuid,
+          folders: [{ plainName: 'Folder A' }, { plainName: 'Folder A' }],
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When folders with the same names already exist in the parent, then it should throw conflict with existentFolders', async () => {
+      const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
+      const existingFolderA = newFolder({
+        attributes: { parentId: parentFolder.id, plainName: 'Folder A' },
+      });
+      const existingFolderB = newFolder({
+        attributes: { parentId: parentFolder.id, plainName: 'Folder B' },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(parentFolder);
+      jest
+        .spyOn(folderRepository, 'findByParentUuid')
+        .mockResolvedValueOnce([existingFolderA, existingFolderB]);
+
+      try {
+        await service.createBulkFolders(userMocked, {
+          parentFolderUuid: parentFolder.uuid,
+          folders: [{ plainName: 'Folder A' }, { plainName: 'Folder B' }],
+        });
+        fail('Expected ConflictException to be thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ConflictException);
+        const response = (error as ConflictException).getResponse();
+        expect(response).toMatchObject({
+          message: 'Folders already exist',
+          existentFolders: ['Folder A', 'Folder B'],
+        });
+      }
+    });
+
+    it('When all folders are valid, then it should create and return them', async () => {
+      const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
+      const createdFolders = [
+        newFolder({
+          attributes: {
+            userId: userMocked.id,
+            parentId: parentFolder.id,
+            plainName: 'Folder A',
+          },
+        }),
+        newFolder({
+          attributes: {
+            userId: userMocked.id,
+            parentId: parentFolder.id,
+            plainName: 'Folder B',
+          },
+        }),
+      ];
+
+      jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValueOnce(parentFolder);
+      jest
+        .spyOn(folderRepository, 'findByParentUuid')
+        .mockResolvedValueOnce([]);
+      jest
+        .spyOn(cryptoService, 'encryptName')
+        .mockReturnValue('encrypted-name');
+      jest
+        .spyOn(folderRepository, 'bulkCreate')
+        .mockResolvedValueOnce(createdFolders);
+
+      const result = await service.createBulkFolders(userMocked, {
+        parentFolderUuid: parentFolder.uuid,
+        folders: [{ plainName: 'Folder A' }, { plainName: 'Folder B' }],
+      });
+
+      expect(result).toEqual(createdFolders);
+      expect(folderRepository.bulkCreate).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('searchFoldersInFolder', () => {
     const user = newUser();
     const folderUuid = v4();
@@ -976,7 +1052,7 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'findOne')
         .mockResolvedValue(mockParentFolder);
       jest
-        .spyOn(folderRepository, 'findByParent')
+        .spyOn(folderRepository, 'findByParentUuid')
         .mockResolvedValue(mockFolders);
 
       const result = await service.searchFoldersInFolder(user, folderUuid, {
@@ -984,8 +1060,8 @@ describe('FolderUseCases', () => {
       });
 
       expect(result).toEqual(mockFolders);
-      expect(folderRepository.findByParent).toHaveBeenCalledWith(
-        mockParentFolder.id,
+      expect(folderRepository.findByParentUuid).toHaveBeenCalledWith(
+        mockParentFolder.uuid,
         {
           plainName: plainNames,
           removed: false,
@@ -1002,15 +1078,15 @@ describe('FolderUseCases', () => {
       jest
         .spyOn(folderRepository, 'findOne')
         .mockResolvedValue(mockParentFolder);
-      jest.spyOn(folderRepository, 'findByParent').mockResolvedValue([]);
+      jest.spyOn(folderRepository, 'findByParentUuid').mockResolvedValue([]);
 
       const result = await service.searchFoldersInFolder(user, folderUuid, {
         plainNames,
       });
 
       expect(result).toEqual([]);
-      expect(folderRepository.findByParent).toHaveBeenCalledWith(
-        mockParentFolder.id,
+      expect(folderRepository.findByParentUuid).toHaveBeenCalledWith(
+        mockParentFolder.uuid,
         {
           plainName: plainNames,
           removed: false,
@@ -1090,6 +1166,190 @@ describe('FolderUseCases', () => {
         findOptions.offset,
         sortOptions,
       );
+    });
+  });
+
+  describe('getTrashedFolders', () => {
+    const createdBy = newUser().id;
+
+    it('When called with null cutoffDate, then it should get all trashed folders without date filter', async () => {
+      const trashedFolder = newFolder({
+        attributes: { plainName: 'my-folder', deleted: true },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findTrashedNotExpired')
+        .mockResolvedValue([trashedFolder]);
+
+      const result = await service.getTrashedFolders(createdBy, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(folderRepository.findTrashedNotExpired).toHaveBeenCalledWith(
+        createdBy,
+        null,
+        20,
+        0,
+        undefined,
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('When called with a cutoffDate, then it should pass it to the repository', async () => {
+      const cutoffDate = new Date('2026-03-04');
+      const trashedFolder = newFolder({
+        attributes: { plainName: 'my-folder', deleted: true },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findTrashedNotExpired')
+        .mockResolvedValue([trashedFolder]);
+
+      await service.getTrashedFolders(createdBy, cutoffDate, {
+        limit: 10,
+        offset: 5,
+      });
+
+      expect(folderRepository.findTrashedNotExpired).toHaveBeenCalledWith(
+        createdBy,
+        cutoffDate,
+        10,
+        5,
+        undefined,
+      );
+    });
+
+    it('When folders have no plainName, then it should decrypt them', async () => {
+      const encryptedFolder = newFolder({
+        attributes: { plainName: null },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findTrashedNotExpired')
+        .mockResolvedValue([encryptedFolder]);
+
+      const decryptSpy = jest
+        .spyOn(service, 'decryptFolderName')
+        .mockReturnValue({ ...encryptedFolder, plainName: 'decrypted' } as any);
+
+      await service.getTrashedFolders(createdBy, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(decryptSpy).toHaveBeenCalledWith(encryptedFolder);
+    });
+
+    it('When folders already have plainName, then it should not decrypt them', async () => {
+      const decryptedFolder = newFolder({
+        attributes: { plainName: 'my-folder' },
+      });
+
+      jest
+        .spyOn(folderRepository, 'findTrashedNotExpired')
+        .mockResolvedValue([decryptedFolder]);
+
+      const decryptSpy = jest.spyOn(service, 'decryptFolderName');
+
+      await service.getTrashedFolders(createdBy, null, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(decryptSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getTrashedFoldersInWorkspace', () => {
+    const createdBy = userMocked.uuid;
+    const workspace = newWorkspace();
+
+    it('When called with null cutoffDate, then it should get all trashed folders without date filter', async () => {
+      const trashedFolder = newFolder({
+        attributes: { plainName: 'my-folder', deleted: true },
+      });
+      jest
+        .spyOn(folderRepository, 'findTrashedNotExpiredInWorkspace')
+        .mockResolvedValue([trashedFolder]);
+
+      const result = await service.getTrashedFoldersInWorkspace(
+        createdBy,
+        workspace.id,
+        null,
+        { limit: 20, offset: 0 },
+      );
+
+      expect(
+        folderRepository.findTrashedNotExpiredInWorkspace,
+      ).toHaveBeenCalledWith(createdBy, workspace.id, null, 20, 0, undefined);
+      expect(result).toHaveLength(1);
+    });
+
+    it('When called with a cutoffDate, then it should pass it to the repository', async () => {
+      const cutoffDate = new Date('2026-03-04');
+      const trashedFolder = newFolder({
+        attributes: { plainName: 'my-folder', deleted: true },
+      });
+      jest
+        .spyOn(folderRepository, 'findTrashedNotExpiredInWorkspace')
+        .mockResolvedValue([trashedFolder]);
+
+      await service.getTrashedFoldersInWorkspace(
+        createdBy,
+        workspace.id,
+        cutoffDate,
+        { limit: 10, offset: 5 },
+      );
+
+      expect(
+        folderRepository.findTrashedNotExpiredInWorkspace,
+      ).toHaveBeenCalledWith(
+        createdBy,
+        workspace.id,
+        cutoffDate,
+        10,
+        5,
+        undefined,
+      );
+    });
+
+    it('When folders have no plainName, then it should decrypt them', async () => {
+      const encryptedFolder = newFolder({ attributes: { plainName: null } });
+      jest
+        .spyOn(folderRepository, 'findTrashedNotExpiredInWorkspace')
+        .mockResolvedValue([encryptedFolder]);
+      const decryptSpy = jest
+        .spyOn(service, 'decryptFolderName')
+        .mockReturnValue({ ...encryptedFolder, plainName: 'decrypted' } as any);
+
+      await service.getTrashedFoldersInWorkspace(
+        createdBy,
+        workspace.id,
+        null,
+        { limit: 20, offset: 0 },
+      );
+
+      expect(decryptSpy).toHaveBeenCalledWith(encryptedFolder);
+    });
+
+    it('When folders already have plainName, then it should not decrypt them', async () => {
+      const decryptedFolder = newFolder({
+        attributes: { plainName: 'my-folder' },
+      });
+      jest
+        .spyOn(folderRepository, 'findTrashedNotExpiredInWorkspace')
+        .mockResolvedValue([decryptedFolder]);
+      const decryptSpy = jest.spyOn(service, 'decryptFolderName');
+
+      await service.getTrashedFoldersInWorkspace(
+        createdBy,
+        workspace.id,
+        null,
+        { limit: 20, offset: 0 },
+      );
+
+      expect(decryptSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -1787,63 +2047,6 @@ describe('FolderUseCases', () => {
         id: folderId,
       });
       expect(result).toEqual(folder);
-    });
-  });
-
-  describe('isFolderInsideFolder', () => {
-    const parentId = 1;
-    const folderId = 2;
-    const userId = 3;
-
-    it('When folder exists and is inside tree, then it should return true', async () => {
-      const folder = newFolder();
-      const treeResult = { id: folderId };
-
-      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(folder);
-      jest
-        .spyOn(folderRepository, 'findInTree')
-        .mockResolvedValueOnce(treeResult as any);
-
-      const result = await service.isFolderInsideFolder(
-        parentId,
-        folderId,
-        userId,
-      );
-
-      expect(result).toBe(true);
-      expect(folderRepository.findInTree).toHaveBeenCalledWith(
-        parentId,
-        folderId,
-        userId,
-        false,
-      );
-    });
-
-    it('When folder does not exist, then it should return false', async () => {
-      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(null);
-
-      const result = await service.isFolderInsideFolder(
-        parentId,
-        folderId,
-        userId,
-      );
-
-      expect(result).toBe(false);
-    });
-
-    it('When folder exists but is not inside tree, then it should return false', async () => {
-      const folder = newFolder();
-
-      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(folder);
-      jest.spyOn(folderRepository, 'findInTree').mockResolvedValueOnce(null);
-
-      const result = await service.isFolderInsideFolder(
-        parentId,
-        folderId,
-        userId,
-      );
-
-      expect(result).toBe(false);
     });
   });
 
