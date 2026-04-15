@@ -109,7 +109,6 @@ export class File implements FileAttributes {
     this.fileId = fileId;
     this.folderId = folderId;
     this.setFolder(folder);
-    this.name = plainName || name;
     this.setType(type);
     this.size = size;
     this.bucket = bucket;
@@ -130,6 +129,7 @@ export class File implements FileAttributes {
     this.status = status;
     this.thumbnails = thumbnails;
     this.sharings = sharings;
+    this.name = this.plainName;
   }
 
   static build(file: FileAttributes): File {

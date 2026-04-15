@@ -26,8 +26,12 @@ import { type CreateInviteDto } from './dto/create-invite.dto';
 import { SequelizeSharingRepository } from './sharing.repository';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { File, type FileAttributes, FileStatus } from '../file/file.domain';
-import { type Folder } from '../folder/folder.domain';
+import {
+  type File,
+  type FileAttributes,
+  FileStatus,
+} from '../file/file.domain';
+import { Folder } from '../folder/folder.domain';
 import { UserNotFoundError, UserUseCases } from '../user/user.usecase';
 import { type AcceptInviteDto } from './dto/accept-invite.dto';
 import { type UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
@@ -266,11 +270,7 @@ export class SharingService {
     }
 
     if (!item.plainName) {
-      if (sharing.itemType === 'file') {
-        item.plainName = this.fileUsecases.decrypFileName(
-          item as File,
-        ).plainName;
-      } else {
+      if (sharing.itemType === 'folder') {
         item.plainName = this.folderUsecases.decryptFolderName(
           item as Folder,
         ).plainName;
@@ -308,12 +308,8 @@ export class SharingService {
       }
     }
 
-    if (!item.plainName) {
-      if (item instanceof File) {
-        item.plainName = this.fileUsecases.decrypFileName(item).plainName;
-      } else {
-        item.plainName = this.folderUsecases.decryptFolderName(item).plainName;
-      }
+    if (!item.plainName && item instanceof Folder) {
+      item.plainName = this.folderUsecases.decryptFolderName(item).plainName;
     }
     return {
       plainName: item.plainName,
@@ -1694,9 +1690,7 @@ export class SharingService {
 
         return {
           ...fileInfo,
-          plainName:
-            fileInfo.plainName ||
-            this.fileUsecases.decrypFileName(fileInfo).plainName,
+          plainName: fileInfo.plainName,
           encryptionKey: sharingInfo.encryptionKey,
           dateShared: sharingInfo.createdAt,
           sharedWithMe: user.uuid !== fileInfo.user.uuid,

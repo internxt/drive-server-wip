@@ -328,101 +328,6 @@ describe('FileUseCases', () => {
     });
   });
 
-  describe('decrypt file name', () => {
-    const fileAttributes: FileAttributes = {
-      id: 0,
-      fileId: '4fda5d98-e5b4-56da-a4f2-000084ac0678',
-      name: 'Myanmar',
-      type: 'type',
-      size: BigInt(60),
-      bucket: 'bucket',
-      folderId,
-      folder: null,
-      encryptVersion: 'aes-2',
-      deleted: false,
-      deletedAt: new Date('2022-09-21T11:11:30.742Z'),
-      userId: 3431709237,
-      user: null,
-      creationTime: new Date('2022-09-21T11:11:30.742Z'),
-      modificationTime: new Date('2022-09-21T11:11:30.742Z'),
-      createdAt: new Date('2022-09-21T11:11:30.742Z'),
-      updatedAt: new Date('2022-09-21T11:11:30.742Z'),
-      uuid: '',
-      folderUuid: '',
-      removed: false,
-      removedAt: undefined,
-      plainName: 'Myanmar',
-      status: FileStatus.EXISTS,
-    };
-
-    it('returns a file with the name decrypted', () => {
-      const folderId = 523;
-
-      const encryptedName = cryptoService.encryptName(
-        fileAttributes['name'],
-        folderId,
-      );
-
-      const file = {
-        ...fileAttributes,
-        name: encryptedName,
-        folderId,
-        plainName: null,
-      };
-
-      const decryptedName = 'decryptedName';
-      jest.spyOn(cryptoService, 'decryptName').mockReturnValue(decryptedName);
-
-      delete fileAttributes['user'];
-
-      const result = service.decrypFileName(file as File);
-
-      expect(cryptoService.decryptName).toHaveBeenCalledWith(
-        file.name,
-        file.folderId,
-      );
-      expect(result).toEqual(
-        File.build({
-          ...file,
-          name: decryptedName,
-          plainName: decryptedName,
-        }),
-      );
-    });
-
-    it('When the file has a plain name, then the plain name is returned', () => {
-      const file = File.build({
-        ...fileAttributes,
-        plainName: 'plain name',
-      });
-
-      const result = service.decrypFileName(file);
-      expect(result).toEqual(
-        File.build({
-          ...file,
-          name: 'plain name',
-          plainName: 'plain name',
-        }),
-      );
-    });
-
-    it('fails when name is not encrypted', () => {
-      const decyptedName = 'not encrypted name';
-
-      const file = File.build({
-        ...fileAttributes,
-        name: decyptedName,
-      });
-
-      try {
-        service.decrypFileName(file);
-      } catch (err: any) {
-        expect(err).toBeInstanceOf(Error);
-        expect(err.message).toBe('Unable to decrypt file name');
-      }
-    });
-  });
-
   describe('move file', () => {
     const file = newFile({ attributes: { userId: userMocked.id } });
     const destinationFolder = newFolder({
@@ -433,7 +338,6 @@ describe('FileUseCases', () => {
       const expectedFile = newFile({
         attributes: {
           ...file,
-          name: 'newencrypted-' + file.name,
           folderId: destinationFolder.id,
           folderUuid: destinationFolder.uuid,
           status: FileStatus.EXISTS,
@@ -444,10 +348,6 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValueOnce(destinationFolder);
-
-      jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValueOnce(expectedFile.name);
 
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
@@ -469,7 +369,7 @@ describe('FileUseCases', () => {
         {
           folderId: destinationFolder.id,
           folderUuid: destinationFolder.uuid,
-          name: expectedFile.name,
+          name: expectedFile.plainName,
           status: FileStatus.EXISTS,
           plainName: expectedFile.plainName,
           type: expectedFile.type,
@@ -593,6 +493,7 @@ describe('FileUseCases', () => {
           folderUuid: destinationFolder.uuid,
           status: FileStatus.EXISTS,
           plainName: newAttributes.name,
+          name: newAttributes.name,
           type: newAttributes.type,
         },
       });
@@ -633,7 +534,7 @@ describe('FileUseCases', () => {
         {
           folderId: destinationFolder.id,
           folderUuid: destinationFolder.uuid,
-          name: expectedFile.name,
+          name: expectedFile.plainName,
           status: FileStatus.EXISTS,
           plainName: expectedFile.plainName,
           type: expectedFile.type,
@@ -665,6 +566,7 @@ describe('FileUseCases', () => {
           folderUuid: destinationFolder.uuid,
           status: FileStatus.EXISTS,
           plainName: newAttributes.name,
+          name: newAttributes.name,
           type: newAttributes.type,
         },
       });
@@ -701,7 +603,7 @@ describe('FileUseCases', () => {
         {
           folderId: expectedFile.folderId,
           folderUuid: expectedFile.folderUuid,
-          name: expectedFile.name,
+          name: expectedFile.plainName,
           status: FileStatus.EXISTS,
           plainName: expectedFile.plainName,
           type: expectedFile.type,
@@ -732,10 +634,6 @@ describe('FileUseCases', () => {
       jest
         .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValueOnce(destinationFolder);
-
-      jest
-        .spyOn(cryptoService, 'encryptName')
-        .mockReturnValueOnce(fileToBeRenamed.name);
 
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
@@ -1618,7 +1516,7 @@ describe('FileUseCases', () => {
         attributes: {
           ...mockFile,
           plainName: newFileMeta.plainName,
-          name: encryptedName,
+          name: newFileMeta.plainName,
         },
       });
 
@@ -1651,7 +1549,6 @@ describe('FileUseCases', () => {
         userMocked.id,
         expect.objectContaining({
           plainName: newFileMeta.plainName,
-          name: newFileMeta.plainName,
         }),
       );
       const {
@@ -1689,7 +1586,6 @@ describe('FileUseCases', () => {
       jest
         .spyOn(fileRepository, 'findByPlainNameAndFolderId')
         .mockResolvedValueOnce(null);
-      jest.spyOn(cryptoService, 'encryptName').mockReturnValue(mockFile.name);
 
       const result = await service.updateFileMetaData(
         userMocked,
@@ -1714,7 +1610,6 @@ describe('FileUseCases', () => {
         userMocked.id,
         expect.objectContaining({
           plainName: mockFile.plainName,
-          name: mockFile.name,
           type: newTypeFileMeta.type,
         }),
       );
@@ -1783,27 +1678,6 @@ describe('FileUseCases', () => {
         5,
         undefined,
       );
-    });
-
-    it('When files have no plainName, then it should decrypt them', async () => {
-      const encryptedFile = newFile({
-        attributes: { plainName: null, thumbnails: [], sharings: [] },
-      });
-
-      jest
-        .spyOn(fileRepository, 'findTrashedNotExpired')
-        .mockResolvedValue([encryptedFile]);
-
-      const decryptSpy = jest
-        .spyOn(service, 'decrypFileName' as any)
-        .mockReturnValue({ ...encryptedFile, plainName: 'decrypted' });
-
-      await service.getTrashedFiles(userId, null, {
-        limit: 20,
-        offset: 0,
-      });
-
-      expect(decryptSpy).toHaveBeenCalledTimes(1);
     });
 
     it('When files already have plainName, then it should not decrypt them', async () => {
@@ -1965,27 +1839,6 @@ describe('FileUseCases', () => {
       });
 
       expect(decryptSpy).not.toHaveBeenCalled();
-    });
-
-    it('When files have no plainName, then it should decrypt them', async () => {
-      const encryptedFile = newFile({
-        attributes: { plainName: null, thumbnails: [], sharings: [] },
-      });
-
-      jest
-        .spyOn(fileRepository, 'findTrashedNotExpiredInWorkspace')
-        .mockResolvedValue([encryptedFile]);
-
-      const decryptSpy = jest
-        .spyOn(service as any, 'decrypFileName')
-        .mockReturnValue({ ...encryptedFile, plainName: 'decrypted' });
-
-      await service.getTrashedFilesInWorkspace(createdBy, workspace.id, null, {
-        limit: 20,
-        offset: 0,
-      });
-
-      expect(decryptSpy).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -2441,16 +2294,10 @@ describe('FileUseCases', () => {
     it('When file exists, then it should return the file', async () => {
       const mockFile = newFile({ owner: userMocked });
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
-      jest.spyOn(cryptoService, 'decryptName').mockReturnValue('');
 
       const result = await service.getFileMetadata(userMocked, mockFile.uuid);
 
-      expect(result).toEqual(
-        File.build({
-          ...mockFile,
-          name: mockFile.plainName,
-        }),
-      );
+      expect(result).toEqual(mockFile);
       expect(fileRepository.findByUuid).toHaveBeenCalledWith(
         mockFile.uuid,
         userMocked.id,
