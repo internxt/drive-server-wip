@@ -7,10 +7,12 @@ import { TrashUseCases } from './trash.usecase';
 import { newUser, newFile, newFolder } from '../../../test/fixtures';
 import {
   BadRequestException,
-  type Logger,
+  Logger,
   NotFoundException,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../feature-limit/limits.enum';
+import { Tier } from '../feature-limit/domain/tier.domain';
 import { ItemToTrashType } from './dto/controllers/move-items-to-trash.dto';
 import {
   DeleteItemType,
@@ -170,6 +172,69 @@ describe('TrashController', () => {
       ).resolves.not.toThrow();
 
       expect(fileUseCases.moveFilesToTrash).toHaveBeenCalled();
+    });
+
+    it('When user is on a paid tier, then it should log trashed file and folder uuids', async () => {
+      const paidTier = Tier.build({ id: v4(), label: 'premium' });
+      const fileUuid = v4();
+      const folderUuid = v4();
+
+      jest.spyOn(fileUseCases, 'moveFilesToTrash').mockResolvedValue();
+      jest.spyOn(folderUseCases, 'moveFoldersToTrash').mockResolvedValue();
+      jest
+        .spyOn(userUseCases, 'getWorkspaceMembersByBrigeUser')
+        .mockResolvedValue([]);
+      const logSpy = jest.spyOn(Logger.prototype, 'log');
+
+      await controller.moveItemsToTrash(
+        {
+          items: [
+            { uuid: fileUuid, type: ItemToTrashType.FILE },
+            { uuid: folderUuid, type: ItemToTrashType.FOLDER },
+          ],
+        },
+        user,
+        paidTier,
+        'clientId',
+        '1.0.0',
+        requester,
+      );
+
+      expect(logSpy).toHaveBeenCalledWith(
+        { user: user.uuid, fileUuids: [fileUuid], folderUuids: [folderUuid] },
+        'User trashed items',
+      );
+    });
+
+    it('When user is on the free tier, then it should not log trashed items', async () => {
+      const freeTier = Tier.build({
+        id: v4(),
+        label: PLAN_FREE_INDIVIDUAL_TIER_LABEL,
+      });
+      const fileUuid = v4();
+
+      jest.spyOn(fileUseCases, 'moveFilesToTrash').mockResolvedValue();
+      jest.spyOn(folderUseCases, 'moveFoldersToTrash').mockResolvedValue();
+      jest
+        .spyOn(userUseCases, 'getWorkspaceMembersByBrigeUser')
+        .mockResolvedValue([]);
+      const logSpy = jest.spyOn(Logger.prototype, 'log');
+
+      await controller.moveItemsToTrash(
+        {
+          items: [{ uuid: fileUuid, type: ItemToTrashType.FILE }],
+        },
+        user,
+        freeTier,
+        'clientId',
+        '1.0.0',
+        requester,
+      );
+
+      expect(logSpy).not.toHaveBeenCalledWith(
+        expect.objectContaining({ fileUuids: expect.any(Array) }),
+        'User trashed items',
+      );
     });
 
     it('When an unexpected error occurs, then it should throw InternalServerErrorException', async () => {
