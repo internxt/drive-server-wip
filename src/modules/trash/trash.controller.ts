@@ -57,6 +57,7 @@ import {
 } from './trash-expiration.utils';
 import { AuditAction } from '../../common/audit-logs/audit-logs.attributes';
 import { AuditLog } from '../../common/audit-logs/decorators/audit-log.decorator';
+import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../feature-limit/limits.enum';
 
 @ApiTags('Trash')
 @Controller('storage/trash')
@@ -223,6 +224,14 @@ export class TrashController {
           : Promise.resolve(),
         this.folderUseCases.moveFoldersToTrash(user, folderIds, folderUuids),
       ]);
+
+      const isPaidUser = tier && tier.label !== PLAN_FREE_INDIVIDUAL_TIER_LABEL;
+      if (isPaidUser) {
+        this.logger.log(
+          { user: user.uuid, fileUuids, folderUuids },
+          'User trashed items',
+        );
+      }
 
       this.userUseCases
         .getWorkspaceMembersByBrigeUser(user.bridgeUser)

@@ -27,9 +27,8 @@ import {
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { SharingService } from '../sharing/sharing.service';
 import { type UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
-import { FileUseCases } from '../file/file.usecase';
 import { FileStatus } from '../file/file.domain';
-import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { SequelizeFileRepository } from '../file/file.repository';
 
 const folderId = 4;
 const user = newUser();
@@ -39,8 +38,7 @@ describe('FolderUseCases', () => {
   let folderRepository: SequelizeFolderRepository;
   let cryptoService: CryptoService;
   let sharingService: SharingService;
-  let fileUsecases: FileUseCases;
-  let featureLimitService: FeatureLimitService;
+  let fileRepository: SequelizeFileRepository;
 
   const userMocked = User.build({
     id: 1,
@@ -86,8 +84,9 @@ describe('FolderUseCases', () => {
     );
     cryptoService = module.get<CryptoService>(CryptoService);
     sharingService = module.get<SharingService>(SharingService);
-    fileUsecases = module.get<FileUseCases>(FileUseCases);
-    featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
+    fileRepository = module.get<SequelizeFileRepository>(
+      SequelizeFileRepository,
+    );
   });
 
   it('should be defined', () => {
@@ -1466,13 +1465,13 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'findByUuid')
         .mockResolvedValueOnce(rootFolder);
       jest
-        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
         .mockResolvedValueOnce([fileInRootFolder]);
       jest
         .spyOn(folderRepository, 'findAllByParentUuid')
         .mockResolvedValueOnce([childrenFolder]);
       jest
-        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
         .mockResolvedValueOnce([]);
 
       // Second iteration mocks for children folder
@@ -1480,7 +1479,7 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'findByUuid')
         .mockResolvedValueOnce(childrenFolder);
       jest
-        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
         .mockResolvedValueOnce([]);
       jest
         .spyOn(folderRepository, 'findAllByParentUuid')
@@ -1511,7 +1510,7 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'findByUuid')
         .mockResolvedValueOnce(rootFolder);
       jest
-        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
         .mockResolvedValueOnce([fileInRootFolder]);
       jest
         .spyOn(folderRepository, 'findAllByParentUuid')
@@ -1531,7 +1530,7 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'findByUuid')
         .mockResolvedValueOnce(rootFolder);
       jest
-        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
         .mockResolvedValueOnce([fileInRootFolder]);
       jest
         .spyOn(folderRepository, 'findAllByParentUuid')
@@ -1539,7 +1538,7 @@ describe('FolderUseCases', () => {
 
       await service.getFolderTree(user, rootFolder.uuid, true);
 
-      expect(fileUsecases.getFilesByFolderUuid).toHaveBeenCalledWith(
+      expect(fileRepository.getFilesByFolderUuid).toHaveBeenCalledWith(
         rootFolder.uuid,
         FileStatus.TRASHED,
       );
@@ -1561,7 +1560,7 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'findByUuid')
         .mockResolvedValueOnce(rootFolder);
       jest
-        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
         .mockResolvedValueOnce([fileInRootFolder]);
       jest
         .spyOn(folderRepository, 'findAllByParentUuid')
@@ -1572,7 +1571,7 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'findByUuid')
         .mockResolvedValueOnce(childrenFolder); // Children folder is fetch again from queue
       jest
-        .spyOn(fileUsecases, 'getFilesByFolderUuid')
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
         .mockResolvedValueOnce([]);
       jest
         .spyOn(folderRepository, 'findAllByParentUuid')
@@ -2293,46 +2292,6 @@ describe('FolderUseCases', () => {
         uuidSort,
       );
       expect(result).toEqual(folders);
-    });
-  });
-  describe('createFolderDevice', () => {
-    it('When plain name is not given, then it should throw an error', async () => {
-      const mockFolderData: Partial<FolderAttributes> = {
-        bucket: 'mock bucket',
-      };
-      await expect(
-        service.createFolderDevice(userMocked, mockFolderData),
-      ).rejects.toThrow(BadRequestException);
-      expect(folderRepository.createFolder).not.toHaveBeenCalled();
-    });
-
-    it('When bucket is not given, then it should throw an error', async () => {
-      const mockFolderData: Partial<FolderAttributes> = {
-        plainName: 'mock plain name',
-      };
-
-      await expect(
-        service.createFolderDevice(userMocked, mockFolderData),
-      ).rejects.toThrow(BadRequestException);
-      expect(folderRepository.createFolder).not.toHaveBeenCalled();
-    });
-
-    it('When both plain name and bucket are given, then it should create a folder', async () => {
-      const mockFolder = newFolder();
-      const mockFolderData: Partial<FolderAttributes> = {
-        plainName: 'mock plain name',
-        bucket: 'mock bucket',
-      };
-      jest
-        .spyOn(folderRepository, 'createFolder')
-        .mockResolvedValue(mockFolder);
-      const result = await service.createFolderDevice(
-        userMocked,
-        mockFolderData,
-      );
-
-      expect(result).toBe(mockFolder);
-      expect(folderRepository.createFolder).toHaveBeenCalledTimes(1);
     });
   });
 });
