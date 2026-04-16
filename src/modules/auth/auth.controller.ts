@@ -49,6 +49,8 @@ import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { Client } from '../../common/decorators/client.decorator';
 import { type ClientEnum } from '../../common/enums/platform.enum';
+import { MailService } from '../../externals/mail/mail.service';
+import { isManagedMailDomain } from './managed-mail-domains';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -61,7 +63,18 @@ export class AuthController {
     private readonly twoFactorAuthService: TwoFactorAuthService,
     private readonly authUseCases: AuthUsecases,
     private readonly featureLimitService: FeatureLimitService,
+    private readonly mailService: MailService,
   ) {}
+
+  private async resolveLoginEmail(email: string): Promise<string> {
+    if (!isManagedMailDomain(email)) return email;
+
+    const userId = await this.mailService.findUserIdByAddress(email);
+    if (!userId) return email;
+
+    const user = await this.userUseCases.findByUuid(userId);
+    return user?.email ?? email;
+  }
 
   @Post('/login')
   @HttpCode(HttpStatus.OK)
@@ -71,7 +84,7 @@ export class AuthController {
   @ApiOkResponse({ description: 'Retrieve details', type: LoginResponseDto })
   @Public()
   async login(@Body() body: LoginDto): Promise<LoginResponseDto> {
-    const email = body.email.toLowerCase();
+    const email = await this.resolveLoginEmail(body.email.toLowerCase());
 
     const user = await this.userUseCases.findByEmail(email);
 
@@ -129,8 +142,11 @@ export class AuthController {
         revocationKey: body.revocateKey,
       });
 
+      const email = await this.resolveLoginEmail(body.email.toLowerCase());
+
       const result = await this.userUseCases.loginAccess({
         ...body,
+        email,
         keys: { kyber, ecc },
       });
 
@@ -296,8 +312,11 @@ export class AuthController {
     try {
       const { ecc } = this.keyServerUseCases.parseKeysInput(body.keys);
 
+      const email = await this.resolveLoginEmail(body.email.toLowerCase());
+
       const result = await this.userUseCases.loginAccess({
         ...body,
+        email,
         keys: { ecc, kyber: null },
         platform,
       });
