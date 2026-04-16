@@ -849,7 +849,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         updatedAt: {
           [Op.gt]: updatedAfter,
         },
-        parentId: {
+        parentUuid: {
           [Op.not]: null,
         },
       },
