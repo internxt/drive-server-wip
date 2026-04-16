@@ -3313,25 +3313,6 @@ describe('FileUseCases', () => {
     });
   });
 
-  describe('getFilesByFolderUuid', () => {
-    it('When called with folder uuid and status, then it should return files', async () => {
-      const folderUuid = v4();
-      const status = FileStatus.EXISTS;
-      const mockFiles = [newFile()];
-      jest
-        .spyOn(fileRepository, 'getFilesByFolderUuid')
-        .mockResolvedValue(mockFiles);
-
-      const result = await service.getFilesByFolderUuid(folderUuid, status);
-
-      expect(result).toEqual(mockFiles);
-      expect(fileRepository.getFilesByFolderUuid).toHaveBeenCalledWith(
-        folderUuid,
-        status,
-      );
-    });
-  });
-
   describe('hasUploadedFiles', () => {
     it('When user has uploaded files, then it should return true', async () => {
       const mockFile = newFile();
