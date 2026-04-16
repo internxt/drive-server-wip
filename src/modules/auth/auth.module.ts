@@ -18,6 +18,7 @@ import { AuthUsecases } from './auth.usecase';
 import { CaptchaService } from '../../externals/captcha/captcha.service';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
+import { MailServiceModule } from '../../externals/mail/mail.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
     CacheManagerModule,
     FeatureLimitModule,
     AuditLogsModule,
+    MailServiceModule,
   ],
   providers: [
     CaptchaService,
