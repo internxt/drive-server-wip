@@ -11,7 +11,6 @@ import { type User } from '../user/user.domain';
 import { BridgeService } from './../../externals/bridge/bridge.service';
 import { CryptoService } from './../../externals/crypto/crypto.service';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { FileUseCases } from '../file/file.usecase';
 import { Folder, type FolderAttributes } from '../folder/folder.domain';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { type BackupModel } from './models/backup.model';
@@ -21,6 +20,8 @@ import { type CreateDeviceAndAttachFolderDto } from './dto/create-device-and-att
 import { type DevicePlatform } from './device.domain';
 import { type UpdateDeviceAndFolderDto } from './dto/update-device-and-folder.dto';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { SequelizeFileRepository } from '../file/file.repository';
+import { FileStatus } from '../file/file.domain';
 
 @Injectable()
 export class BackupUseCase {
@@ -32,8 +33,7 @@ export class BackupUseCase {
     @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUsecases: FolderUseCases,
     private readonly folderRepository: SequelizeFolderRepository,
-    @Inject(forwardRef(() => FileUseCases))
-    private readonly fileUsecases: FileUseCases,
+    private readonly fileRepository: SequelizeFileRepository,
   ) {}
 
   async deleteUserBackups(userId: number) {
@@ -49,6 +49,7 @@ export class BackupUseCase {
     return this.backupRepository.findAllLegacyDevices(user);
   }
 
+  // @deprecated
   async deleteDevice(user: User, deviceId: number) {
     const device = await this.backupRepository.findDeviceByUserAndId(
       user,
@@ -97,18 +98,20 @@ export class BackupUseCase {
       bucket = backupsBucket;
     }
 
-    const folders = await this.folderUsecases.getFolders(user.id, {
+    // We do not have an index to cover this query, but it is not a frequent operation
+    const folder = await this.folderRepository.findOne({
       bucket,
       plainName: deviceName,
       deleted: false,
       removed: false,
+      userId: user.id,
     });
 
-    if (folders.length > 0) {
+    if (folder) {
       throw new ConflictException('Folder with the same name already exists');
     }
 
-    const createdFolder = await this.folderUsecases.createFolderDevice(user, {
+    const createdFolder = await this.folderRepository.createFolder(user.id, {
       plainName: deviceName,
       bucket,
     });
@@ -483,16 +486,19 @@ export class BackupUseCase {
   }
 
   async isFolderEmpty(user: User, folder: Folder) {
-    const folders = await this.folderUsecases.getFoldersByParentUuid(
-      folder.uuid,
-      user.id,
-    );
-    const files = await this.fileUsecases.getByFolderAndUser(
-      folder.id,
-      user.id,
-      { deleted: false },
-    );
-    return folders.length === 0 && files.length === 0;
+    const folderInFolder = await this.folderRepository.findOne({
+      parentUuid: folder.uuid,
+      userId: user.id,
+      removed: false,
+      deleted: false,
+    });
+    const fileInFolder = await this.fileRepository.findOneBy({
+      folderUuid: folder.uuid,
+      userId: user.id,
+      status: FileStatus.EXISTS,
+    });
+
+    return !folderInFolder && !fileInFolder;
   }
 
   async sumExistentBackupSizes(userId: number) {

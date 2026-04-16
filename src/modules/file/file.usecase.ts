@@ -490,13 +490,6 @@ export class FileUseCases {
     };
   }
 
-  async getFilesByFolderUuid(
-    folderUuid: FileAttributes['folderUuid'],
-    status: FileStatus,
-  ) {
-    return this.fileRepository.getFilesByFolderUuid(folderUuid, status);
-  }
-
   getFilesByIds(user: User, fileIds: File['id'][]): Promise<File[]> {
     return this.fileRepository.findByIds(user.id, fileIds);
   }

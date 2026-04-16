@@ -29,12 +29,11 @@ import { v4 } from 'uuid';
 import { type UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { type FolderStatsDto } from './dto/responses/folder-stats.dto';
 import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
-import { FileUseCases } from '../file/file.usecase';
 import { type File, FileStatus } from '../file/file.domain';
 import { type CreateFolderDto } from './dto/create-folder.dto';
 import { type FolderModel } from './folder.model';
 import { type MoveFolderDto } from './dto/move-folder.dto';
-import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { SequelizeFileRepository } from '../file/file.repository';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -49,10 +48,8 @@ export class FolderUseCases {
     private readonly userRepository: SequelizeUserRepository,
     @Inject(forwardRef(() => SharingService))
     private readonly sharingUsecases: SharingService,
-    @Inject(forwardRef(() => FileUseCases))
-    private readonly fileUsecases: FileUseCases,
+    private readonly fileRepository: SequelizeFileRepository,
     private readonly cryptoService: CryptoService,
-    private readonly featureLimitService: FeatureLimitService,
   ) {}
 
   getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
@@ -143,7 +140,7 @@ export class FolderUseCases {
         throw new ForbiddenException('Folder does not belong to you!');
       }
 
-      folder.files = await this.fileUsecases.getFilesByFolderUuid(
+      folder.files = await this.fileRepository.getFilesByFolderUuid(
         folder.uuid,
         deleted ? FileStatus.TRASHED : FileStatus.EXISTS,
       );
@@ -288,13 +285,6 @@ export class FolderUseCases {
         };
       }),
     );
-  }
-
-  async createFolderDevice(user: User, folderData: Partial<FolderAttributes>) {
-    if (!folderData.plainName || !folderData.bucket) {
-      throw new BadRequestException('Folder name and bucket are required');
-    }
-    return this.folderRepository.createFolder(user.id, folderData);
   }
 
   async updateFolderMetaData(

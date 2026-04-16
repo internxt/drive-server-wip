@@ -6,7 +6,6 @@ import { SequelizeBackupRepository } from './backup.repository';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { FolderUseCases } from '../folder/folder.usecase';
-import { FileUseCases } from '../file/file.usecase';
 import {
   NotFoundException,
   ConflictException,
@@ -15,16 +14,17 @@ import {
 import { type Folder } from '../folder/folder.domain';
 import { DevicePlatform } from './device.domain';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
+import { SequelizeFileRepository } from '../file/file.repository';
 
 describe('BackupUseCase', () => {
   let backupUseCase: BackupUseCase;
   let backupRepository: SequelizeBackupRepository;
   let folderRepository: SequelizeFolderRepository;
+  let fileRepository: SequelizeFileRepository;
 
   let bridgeService: BridgeService;
   let cryptoService: CryptoService;
   let folderUseCases: FolderUseCases;
-  let fileUseCases: FileUseCases;
 
   const userMocked = newUser({
     attributes: {
@@ -55,9 +55,11 @@ describe('BackupUseCase', () => {
     bridgeService = module.get<BridgeService>(BridgeService);
     cryptoService = module.get<CryptoService>(CryptoService);
     folderUseCases = module.get<FolderUseCases>(FolderUseCases);
-    fileUseCases = module.get<FileUseCases>(FileUseCases);
     folderRepository = module.get<SequelizeFolderRepository>(
       SequelizeFolderRepository,
+    );
+    fileRepository = module.get<SequelizeFileRepository>(
+      SequelizeFileRepository,
     );
   });
 
@@ -81,9 +83,8 @@ describe('BackupUseCase', () => {
 
   describe('createDeviceAsFolder', () => {
     it('When a folder with the same name exists, then it should throw a ConflictException', async () => {
-      jest
-        .spyOn(folderUseCases, 'getFolders')
-        .mockResolvedValue([{ id: 1, name: 'Device Folder' }] as any);
+      const existentFolder = newFolder();
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValue(existentFolder);
 
       await expect(
         backupUseCase.createDeviceAsFolder(userMocked, 'Device Folder'),
@@ -92,10 +93,11 @@ describe('BackupUseCase', () => {
 
     it('When no folder with the same name exists, then it should create the folder', async () => {
       const mockFolder = newFolder();
-      jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue([]);
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValue(null);
       jest
-        .spyOn(folderUseCases, 'createFolderDevice')
+        .spyOn(folderRepository, 'createFolder')
         .mockResolvedValue(mockFolder);
+      jest.spyOn(backupUseCase, 'isFolderEmpty').mockResolvedValue(true);
 
       const result = await backupUseCase.createDeviceAsFolder(
         userMocked,
@@ -123,6 +125,7 @@ describe('BackupUseCase', () => {
       jest
         .spyOn(folderUseCases, 'getFoldersByUserId')
         .mockResolvedValue([mockFolder]);
+      jest.spyOn(backupUseCase, 'isFolderEmpty').mockResolvedValue(true);
 
       const result = await backupUseCase.getDevicesAsFolder(userMocked);
 
@@ -189,10 +192,9 @@ describe('BackupUseCase', () => {
   describe('isFolderEmpty', () => {
     it('When the folder has no subfolders or files, then it should return true', async () => {
       const parentFolder = newFolder();
-      jest
-        .spyOn(folderUseCases, 'getFoldersByParentUuid')
-        .mockResolvedValue([]);
-      jest.spyOn(fileUseCases, 'getByFolderAndUser').mockResolvedValue([]);
+
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValue(null);
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(null);
 
       const result = await backupUseCase.isFolderEmpty(
         userMocked,
@@ -203,12 +205,9 @@ describe('BackupUseCase', () => {
 
     it('When the folder has subfolders or files, then it should return false', async () => {
       const parentFolder = newFolder();
-      const mockFolder = newFolder();
-
-      jest
-        .spyOn(folderUseCases, 'getFoldersByParentUuid')
-        .mockResolvedValue([mockFolder]);
-      jest.spyOn(fileUseCases, 'getByFolderAndUser').mockResolvedValue([]);
+      const folderInBackup = newFolder();
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValue(folderInBackup);
+      jest.spyOn(fileRepository, 'findOneBy').mockResolvedValue(null);
 
       const result = await backupUseCase.isFolderEmpty(
         userMocked,
@@ -354,6 +353,7 @@ describe('BackupUseCase', () => {
       jest
         .spyOn(folderUseCases, 'updateByFolderIdAndForceUpdatedAt')
         .mockResolvedValue(updatedFolder);
+      jest.spyOn(backupUseCase, 'isFolderEmpty').mockResolvedValue(true);
 
       const result = await backupUseCase.updateDeviceAsFolder(
         userMocked,
@@ -570,6 +570,7 @@ describe('BackupUseCase', () => {
       jest
         .spyOn(folderRepository, 'findByUuids')
         .mockResolvedValue([mockFolder]);
+      jest.spyOn(backupUseCase, 'isFolderEmpty').mockResolvedValue(true);
 
       const result = await backupUseCase.getUserDevices(userMocked, {}, 10, 0);
 
@@ -837,6 +838,7 @@ describe('BackupUseCase', () => {
       jest
         .spyOn(backupRepository, 'createDevice')
         .mockResolvedValue(mockDevice);
+      jest.spyOn(backupUseCase, 'isFolderEmpty').mockResolvedValue(true);
 
       const result = await backupUseCase.createDeviceForExistingFolder(
         userMocked,
@@ -1078,6 +1080,7 @@ describe('BackupUseCase', () => {
       jest
         .spyOn(folderRepository, 'updateOneAndReturn')
         .mockResolvedValue(mockFolder);
+      jest.spyOn(backupUseCase, 'isFolderEmpty').mockResolvedValue(true);
 
       jest
         .spyOn(backupRepository, 'updateDeviceName')
