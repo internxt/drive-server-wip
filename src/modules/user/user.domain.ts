@@ -29,7 +29,6 @@ export class User implements UserAttributes {
   lastPasswordChangedAt: Date;
   tierId: string;
   emailVerified: boolean;
-  recoveryEmail: string;
   updatedAt: Date;
   createdAt: Date;
 
@@ -62,7 +61,6 @@ export class User implements UserAttributes {
     lastPasswordChangedAt,
     tierId,
     emailVerified,
-    recoveryEmail,
     updatedAt,
     createdAt,
   }: UserAttributes) {
@@ -94,7 +92,6 @@ export class User implements UserAttributes {
     this.lastPasswordChangedAt = lastPasswordChangedAt;
     this.tierId = tierId;
     this.emailVerified = emailVerified;
-    this.recoveryEmail = recoveryEmail;
     this.updatedAt = updatedAt;
     this.createdAt = createdAt;
   }

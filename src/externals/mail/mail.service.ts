@@ -46,6 +46,25 @@ export class MailService {
     };
   }
 
+  async findUserIdByAddress(address: string): Promise<string | null> {
+    const baseUrl = this.configService.get('apis.mail.url');
+    const headers = this.getAuthHeaders();
+
+    try {
+      const res = await this.httpClient.get(
+        `${baseUrl}/gateway/addresses/${encodeURIComponent(address)}`,
+        { headers },
+      );
+
+      return res.data?.userId ?? null;
+    } catch (error) {
+      if (error?.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   async createAccount(
     payload: CreateAccountPayload,
   ): Promise<CreateAccountResponse> {

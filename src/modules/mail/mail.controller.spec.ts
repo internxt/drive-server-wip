@@ -31,11 +31,7 @@ describe('MailController', () => {
 
     it('When called with valid input, then it should return the usecase result', async () => {
       const user = newUser();
-      const expected = {
-        token: 'token',
-        newToken: 'newToken',
-        address: 'john@inxt.eu',
-      };
+      const expected = { address: 'john@inxt.eu' };
 
       mailUseCases.createMailAccount.mockResolvedValueOnce(expected);
 
