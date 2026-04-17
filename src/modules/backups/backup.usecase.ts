@@ -142,6 +142,8 @@ export class BackupUseCase {
 
     const folders = await this.folderUsecases.getFoldersByUserId(user.id, {
       bucket: user.backupsBucket,
+      removed: false,
+      deleted: false,
     });
 
     return Promise.all(
