@@ -1152,7 +1152,7 @@ describe('SequelizeFolderRepository', () => {
       const mockResult = {
         file_count: '0',
         total_size: '0',
-        total_files_found: '0',
+        max_depth: null,
       };
 
       jest
@@ -1171,7 +1171,7 @@ describe('SequelizeFolderRepository', () => {
       const mockResult = {
         file_count: '500',
         total_size: '5000000',
-        total_files_found: '500',
+        max_depth: '5',
       };
 
       jest
@@ -1188,9 +1188,9 @@ describe('SequelizeFolderRepository', () => {
 
     it('When folder reaches maximum file count, then it should return exact count at boundary', async () => {
       const mockResult = {
-        file_count: '1000',
+        file_count: '10000',
         total_size: '10000000',
-        total_files_found: '1000',
+        max_depth: '5',
       };
 
       jest
@@ -1199,15 +1199,15 @@ describe('SequelizeFolderRepository', () => {
 
       const result = await repository.calculateFolderStats(folder.uuid);
 
-      expect(result.fileCount).toBe(1000);
+      expect(result.fileCount).toBe(10000);
       expect(result.isFileCountExact).toBe(true);
     });
 
     it('When folder exceeds maximum file count, then it should cap count and mark as approximate', async () => {
       const mockResult = {
-        file_count: '1500',
+        file_count: '10001',
         total_size: '15000000',
-        total_files_found: '1500',
+        max_depth: '5',
       };
 
       jest
@@ -1216,15 +1216,15 @@ describe('SequelizeFolderRepository', () => {
 
       const result = await repository.calculateFolderStats(folder.uuid);
 
-      expect(result.fileCount).toBe(1000);
+      expect(result.fileCount).toBe(10000);
       expect(result.isFileCountExact).toBe(false);
     });
 
     it('When folder exceeds maximum total items, then it should mark size as approximate', async () => {
       const mockResult = {
-        file_count: '12000',
+        file_count: '10001',
         total_size: '50000000',
-        total_files_found: '12000',
+        max_depth: '5',
       };
 
       jest
@@ -1241,7 +1241,7 @@ describe('SequelizeFolderRepository', () => {
       const mockResult = {
         file_count: '9973',
         total_size: '27634171904',
-        total_files_found: '9973',
+        max_depth: '10',
       };
 
       jest
@@ -1250,29 +1250,17 @@ describe('SequelizeFolderRepository', () => {
 
       const result = await repository.calculateFolderStats(folder.uuid);
 
-      expect(result.fileCount).toBe(1000);
+      expect(result.fileCount).toBe(9973);
       expect(result.totalSize).toBe(27634171904);
-      expect(result.isFileCountExact).toBe(false);
+      expect(result.isFileCountExact).toBe(true);
       expect(result.isTotalSizeExact).toBe(true);
-    });
-
-    it('When stats calculation times out, then it should throw timeout exception', async () => {
-      jest.spyOn(FolderModel.sequelize, 'query').mockRejectedValueOnce({
-        original: {
-          code: TIMEOUT_ERROR_CODE,
-        },
-      });
-
-      await expect(
-        repository.calculateFolderStats(folder.uuid),
-      ).rejects.toThrow(CalculateFolderSizeTimeoutException);
     });
 
     it('When folder stats are requested, then only existent files are counted', async () => {
       const mockResult = {
         file_count: '100',
         total_size: '1000000',
-        total_files_found: '100',
+        max_depth: '5',
       };
 
       jest
@@ -1286,7 +1274,9 @@ describe('SequelizeFolderRepository', () => {
         {
           replacements: {
             folderUuid: folder.uuid,
-            fileStatusCondition: [FileStatus.EXISTS],
+            maxDepth: 50,
+            fileStatus: FileStatus.EXISTS,
+            maxFiles: 10001,
           },
         },
       );

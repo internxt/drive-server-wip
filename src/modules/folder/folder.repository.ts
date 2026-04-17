@@ -939,16 +939,16 @@ export class SequelizeFolderRepository implements FolderRepository {
     totalSize: number;
     isTotalSizeExact: boolean;
   }> {
-    try {
-      const fileStatusCondition = [FileStatus.EXISTS];
+    const MAX_FILES = 10000;
+    const MAX_DEPTH = 50;
 
-      const calculateStatsQuery = `
+    const calculateStatsQuery = `
       WITH RECURSIVE folder_recursive AS (
         SELECT
           fl1.uuid,
           fl1.parent_uuid,
-          1 as depth,
-          fl1.user_id as owner_id
+          1 AS depth,
+          fl1.user_id AS owner_id
         FROM folders fl1
         WHERE fl1.uuid = :folderUuid
           AND fl1.removed = FALSE
@@ -962,57 +962,49 @@ export class SequelizeFolderRepository implements FolderRepository {
           fr.depth + 1,
           fr.owner_id
         FROM folders fl2
-        INNER JOIN folder_recursive fr
-          ON fr.uuid = fl2.parent_uuid
-        WHERE fr.depth < 100000
+        INNER JOIN folder_recursive fr ON fr.uuid = fl2.parent_uuid
+        WHERE fr.depth < :maxDepth
           AND fl2.user_id = fr.owner_id
           AND fl2.removed = FALSE
           AND fl2.deleted = FALSE
       ),
-      ranked_files AS (
-        SELECT
-          f.uuid,
-          f.size,
-          ROW_NUMBER() OVER (ORDER BY f.creation_time) as rn
+      limited_files AS (
+        SELECT f.uuid, f.size, fr.depth
         FROM folder_recursive fr
-        INNER JOIN files f
-          ON f.folder_uuid = fr.uuid
-          AND f.status IN (:fileStatusCondition)
+        INNER JOIN files f ON f.folder_uuid = fr.uuid
+        WHERE f.status = :fileStatus
+        LIMIT :maxFiles
       )
       SELECT
-        COUNT(uuid) as file_count,
-        COALESCE(SUM(size), 0) as total_size,
-        MAX(rn) as total_files_found
-      FROM ranked_files
-      WHERE rn <= 10000;
+        COUNT(*) AS file_count,
+        COALESCE(SUM(size), 0) AS total_size,
+        MAX(depth) AS max_depth
+      FROM limited_files
       `;
 
-      const [[result]]: any = await FolderModel.sequelize.query(
-        calculateStatsQuery,
-        {
-          replacements: {
-            folderUuid,
-            fileStatusCondition,
-          },
+    const [[result]]: any = await FolderModel.sequelize.query(
+      calculateStatsQuery,
+      {
+        replacements: {
+          folderUuid,
+          maxDepth: MAX_DEPTH,
+          fileStatus: FileStatus.EXISTS,
+          maxFiles: MAX_FILES + 1,
         },
-      );
+      },
+    );
 
-      const fileCount = Number.parseInt(result.file_count);
-      const totalFilesFound = Number.parseInt(result.total_files_found || 0);
+    const fileCount = Number.parseInt(result.file_count);
+    const hitFileLimit = fileCount > MAX_FILES;
+    const hitDepthLimit = Number.parseInt(result.max_depth) >= MAX_DEPTH;
+    const isExact = !hitFileLimit && !hitDepthLimit;
 
-      return {
-        fileCount: Math.min(fileCount, 1000),
-        isFileCountExact: totalFilesFound <= 1000,
-        totalSize: Number.parseInt(result.total_size),
-        isTotalSizeExact: totalFilesFound < 10000,
-      };
-    } catch (error) {
-      if (error.original?.code === '57014') {
-        throw new CalculateFolderSizeTimeoutException();
-      }
-
-      throw error;
-    }
+    return {
+      fileCount: Math.min(fileCount, MAX_FILES),
+      totalSize: Number.parseInt(result.total_size),
+      isFileCountExact: isExact,
+      isTotalSizeExact: isExact,
+    };
   }
 
   async getDeletedFoldersWithNotDeletedChildren(options: {
