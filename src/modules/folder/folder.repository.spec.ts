@@ -186,7 +186,7 @@ describe('SequelizeFolderRepository', () => {
         where: {
           ...whereClause,
           updatedAt: { [Op.gt]: updatedAfter },
-          parentId: { [Op.not]: null },
+          parentUuid: { [Op.not]: null },
         },
         include: [
           {
