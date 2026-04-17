@@ -4,15 +4,14 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.sequelize.query(`
-      CREATE INDEX CONCURRENTLY idx_deleted_files_updated_at
-      ON files (updated_at)
-      WHERE status = 'DELETED';
+      CREATE INDEX CONCURRENTLY IF NOT EXISTS users_email_idx
+      ON public.users(email);
     `);
   },
 
   async down(queryInterface, Sequelize) {
     await queryInterface.sequelize.query(`
-      DROP INDEX CONCURRENTLY IF EXISTS idx_deleted_files_updated_at;
+      DROP INDEX CONCURRENTLY IF EXISTS users_email_idx;
     `);
-  },
+  }
 };
