@@ -939,7 +939,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     totalSize: number;
     isTotalSizeExact: boolean;
   }> {
-    const MAX_FILES = 10000;
+    const MAX_FILES = 1001;
     const MAX_DEPTH = 50;
 
     const calculateStatsQuery = `
