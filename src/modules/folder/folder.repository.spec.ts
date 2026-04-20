@@ -1188,7 +1188,7 @@ describe('SequelizeFolderRepository', () => {
 
     it('When folder reaches maximum file count, then it should return exact count at boundary', async () => {
       const mockResult = {
-        file_count: '10000',
+        file_count: '1000',
         total_size: '10000000',
         max_depth: '5',
       };
@@ -1199,13 +1199,13 @@ describe('SequelizeFolderRepository', () => {
 
       const result = await repository.calculateFolderStats(folder.uuid);
 
-      expect(result.fileCount).toBe(10000);
+      expect(result.fileCount).toBe(1000);
       expect(result.isFileCountExact).toBe(true);
     });
 
     it('When folder exceeds maximum file count, then it should cap count and mark as approximate', async () => {
       const mockResult = {
-        file_count: '10001',
+        file_count: '1001',
         total_size: '15000000',
         max_depth: '5',
       };
@@ -1216,13 +1216,13 @@ describe('SequelizeFolderRepository', () => {
 
       const result = await repository.calculateFolderStats(folder.uuid);
 
-      expect(result.fileCount).toBe(10000);
+      expect(result.fileCount).toBe(1000);
       expect(result.isFileCountExact).toBe(false);
     });
 
     it('When folder exceeds maximum total items, then it should mark size as approximate', async () => {
       const mockResult = {
-        file_count: '10001',
+        file_count: '1001',
         total_size: '50000000',
         max_depth: '5',
       };
@@ -1239,7 +1239,7 @@ describe('SequelizeFolderRepository', () => {
 
     it('When folder has deep hierarchy, then it should include files from all nested levels', async () => {
       const mockResult = {
-        file_count: '9973',
+        file_count: '973',
         total_size: '27634171904',
         max_depth: '10',
       };
@@ -1250,7 +1250,7 @@ describe('SequelizeFolderRepository', () => {
 
       const result = await repository.calculateFolderStats(folder.uuid);
 
-      expect(result.fileCount).toBe(9973);
+      expect(result.fileCount).toBe(973);
       expect(result.totalSize).toBe(27634171904);
       expect(result.isFileCountExact).toBe(true);
       expect(result.isTotalSizeExact).toBe(true);
@@ -1276,7 +1276,7 @@ describe('SequelizeFolderRepository', () => {
             folderUuid: folder.uuid,
             maxDepth: 50,
             fileStatus: FileStatus.EXISTS,
-            maxFiles: 10001,
+            maxFiles: 1001,
           },
         },
       );

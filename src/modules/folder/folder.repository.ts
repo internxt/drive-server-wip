@@ -939,7 +939,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     totalSize: number;
     isTotalSizeExact: boolean;
   }> {
-    const MAX_FILES = 10000;
+    const MAX_FILES = 1000;
     const MAX_DEPTH = 50;
 
     const calculateStatsQuery = `
@@ -994,13 +994,13 @@ export class SequelizeFolderRepository implements FolderRepository {
       },
     );
 
-    const fileCount = Number.parseInt(result.file_count);
-    const hitFileLimit = fileCount > MAX_FILES;
+    const rawFileCount = Number.parseInt(result.file_count);
+    const hitFileLimit = rawFileCount > MAX_FILES;
     const hitDepthLimit = Number.parseInt(result.max_depth) >= MAX_DEPTH;
     const isExact = !hitFileLimit && !hitDepthLimit;
 
     return {
-      fileCount: Math.min(fileCount, MAX_FILES),
+      fileCount: hitFileLimit ? MAX_FILES : rawFileCount,
       totalSize: Number.parseInt(result.total_size),
       isFileCountExact: isExact,
       isTotalSizeExact: isExact,
