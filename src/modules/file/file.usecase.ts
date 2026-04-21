@@ -333,6 +333,11 @@ export class FileUseCases {
       } else {
         await this.checkEmptyFilesLimit(user);
       }
+    } else {
+      await this.featureLimitService.enforceMaxUploadFileSize(
+        user,
+        BigInt(newFileDto.size),
+      );
     }
 
     const newFileId = isFileEmpty ? null : newFileDto.fileId;
@@ -902,6 +907,11 @@ export class FileUseCases {
           workspaceOptions.workspace,
         );
       }
+    } else {
+      await this.featureLimitService.enforceMaxUploadFileSize(
+        user,
+        newFileData.size,
+      );
     }
 
     const newFileId = isFileEmpty ? null : newFileData.fileId;
