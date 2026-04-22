@@ -21,6 +21,7 @@ import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit
 import { type Limit } from '../feature-limit/domain/limit.domain';
 import { FeatureNameLimitMap } from './constants';
 import { FileUseCases } from '../file/file.usecase';
+import { LimitLabels } from '../feature-limit/limits.enum';
 
 @Injectable()
 export class GatewayUseCases {
@@ -409,6 +410,7 @@ export class GatewayUseCases {
     userUuid: string,
     externalLimitName: string,
     value: string,
+    tierId?: string,
   ): Promise<void> {
     const user = await this.userRepository.findByUuid(userUuid);
     if (!user) {
@@ -418,6 +420,28 @@ export class GatewayUseCases {
     const label = FeatureNameLimitMap[externalLimitName];
     if (!label) {
       throw new BadRequestException(`Not valid feature '${externalLimitName}'`);
+    }
+
+    if (label === LimitLabels['FileVersionEnabled']) {
+      if (!tierId) {
+        throw new BadRequestException(
+          `tierId is required for feature '${externalLimitName}'`,
+        );
+      }
+
+      const limit = await this.limitsRepository.findLimitByLabelAndTier(
+        tierId,
+        label,
+      );
+
+      if (!limit) {
+        throw new BadRequestException(
+          `It seems the value '${value}' is not valid for feature '${externalLimitName}'`,
+        );
+      }
+
+      await this.limitsRepository.upsertOverridenLimit(user.uuid, limit.id);
+      return;
     }
 
     const limit = await this.limitsRepository.findLimitByLabelAndValue(
