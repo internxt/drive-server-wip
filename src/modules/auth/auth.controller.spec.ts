@@ -24,6 +24,7 @@ import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 import { PlatformName } from '../../common/constants';
 import { ClientEnum } from '../../common/enums/platform.enum';
+import { MailService } from '../../externals/mail/mail.service';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -32,6 +33,7 @@ describe('AuthController', () => {
   let cryptoService: DeepMocked<CryptoService>;
   let twoFactorAuthService: DeepMocked<TwoFactorAuthService>;
   let featureLimitService: DeepMocked<FeatureLimitService>;
+  let mailService: DeepMocked<MailService>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -46,6 +48,7 @@ describe('AuthController', () => {
     cryptoService = moduleRef.get(CryptoService);
     twoFactorAuthService = moduleRef.get(TwoFactorAuthService);
     featureLimitService = moduleRef.get(FeatureLimitService);
+    mailService = moduleRef.get(MailService);
   });
 
   it('should be defined', () => {
@@ -105,6 +108,73 @@ describe('AuthController', () => {
       await authController.login(body);
 
       expect(userUseCases.findByEmail).toHaveBeenCalledWith(emailLowerCase);
+    });
+
+    it('When the email is not a managed mail domain, then it should not call the mail gateway', async () => {
+      const loginDto = new LoginDto();
+      loginDto.email = 'user@gmail.com';
+      const user = newUser({ attributes: { email: loginDto.email } });
+
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(user);
+      jest.spyOn(keyServerUseCases, 'findUserKeys').mockResolvedValueOnce({
+        ecc: newKeyServer({ userId: user.id }),
+        kyber: null,
+      });
+      jest.spyOn(cryptoService, 'encryptText').mockReturnValue('x');
+
+      await authController.login(loginDto);
+
+      expect(mailService.findUserIdByAddress).not.toHaveBeenCalled();
+    });
+
+    it('When the email is managed and the gateway resolves a primary email, then findByEmail uses the primary email', async () => {
+      const loginDto = new LoginDto();
+      loginDto.email = 'alias@inxt.eu';
+      const canonicalEmail = 'primary@gmail.com';
+      const resolvedUuid = v4();
+      const loginUser = newUser({
+        attributes: { email: canonicalEmail, id: 9 },
+      });
+
+      jest
+        .spyOn(mailService, 'findUserIdByAddress')
+        .mockResolvedValueOnce(resolvedUuid);
+      jest.spyOn(userUseCases, 'findByUuid').mockResolvedValueOnce(loginUser);
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(loginUser);
+      jest.spyOn(keyServerUseCases, 'findUserKeys').mockResolvedValueOnce({
+        ecc: newKeyServer({ userId: loginUser.id }),
+        kyber: null,
+      });
+      jest.spyOn(cryptoService, 'encryptText').mockReturnValue('encryptedText');
+
+      await authController.login(loginDto);
+
+      expect(mailService.findUserIdByAddress).toHaveBeenCalledWith(
+        loginDto.email,
+      );
+      expect(userUseCases.findByUuid).toHaveBeenCalledWith(resolvedUuid);
+      expect(userUseCases.findByEmail).toHaveBeenCalledWith(canonicalEmail);
+    });
+
+    it('When the email is managed but the gateway finds no user, then findByEmail uses the original address', async () => {
+      const loginDto = new LoginDto();
+      loginDto.email = 'unknown@inxt.me';
+      const user = newUser({ attributes: { email: loginDto.email } });
+
+      jest
+        .spyOn(mailService, 'findUserIdByAddress')
+        .mockResolvedValueOnce(null);
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(user);
+      jest.spyOn(keyServerUseCases, 'findUserKeys').mockResolvedValueOnce({
+        ecc: newKeyServer({ userId: user.id }),
+        kyber: null,
+      });
+      jest.spyOn(cryptoService, 'encryptText').mockReturnValue('encryptedText');
+
+      await authController.login(loginDto);
+
+      expect(userUseCases.findByUuid).not.toHaveBeenCalled();
+      expect(userUseCases.findByEmail).toHaveBeenCalledWith(loginDto.email);
     });
   });
 
@@ -189,6 +259,41 @@ describe('AuthController', () => {
           kyber: {
             ...kyberKey.toJSON(),
           },
+        },
+      });
+    });
+
+    it('When the email is managed and resolves to a primary account, then loginAccess receives the resolved email', async () => {
+      const dto = { ...loginAccessDto };
+      dto.email = 'alias@inxt.eu';
+      const canonicalEmail = 'primary@gmail.com';
+      const eccKey = newKeyServer({ ...dto });
+      const driveUser = newUser({ attributes: { email: canonicalEmail } });
+
+      jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
+        ecc: eccKey.toJSON(),
+        kyber: null,
+      });
+      jest
+        .spyOn(mailService, 'findUserIdByAddress')
+        .mockResolvedValueOnce(driveUser.uuid);
+      jest.spyOn(userUseCases, 'findByUuid').mockResolvedValueOnce(driveUser);
+      jest
+        .spyOn(userUseCases, 'loginAccess')
+        .mockResolvedValueOnce({ success: true } as any);
+
+      await authController.loginAccess(dto);
+
+      expect(userUseCases.loginAccess).toHaveBeenCalledWith({
+        ...dto,
+        email: canonicalEmail,
+        keys: {
+          ecc: {
+            publicKey: eccKey.publicKey,
+            privateKey: eccKey.privateKey,
+            revocationKey: eccKey.revocationKey,
+          },
+          kyber: null,
         },
       });
     });
