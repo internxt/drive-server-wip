@@ -252,7 +252,7 @@ export class FileUseCases {
       throw new NotFoundException('File not found');
     }
 
-    return this.decrypFileName(file);
+    return file;
   }
 
   async getFileVersions(
@@ -306,11 +306,6 @@ export class FileUseCases {
       throw new ForbiddenException('Folder is not yours');
     }
 
-    const cryptoFileName = this.cryptoService.encryptName(
-      newFileDto.plainName,
-      folder.id,
-    );
-
     const exists = await this.fileRepository.findByPlainNameAndFolderId(
       user.id,
       newFileDto.plainName,
@@ -339,7 +334,7 @@ export class FileUseCases {
 
     const newFile = await this.fileRepository.create({
       uuid: v4(),
-      name: cryptoFileName,
+      name: newFileDto.plainName,
       plainName: newFileDto.plainName,
       type: newFileDto.type,
       size: newFileDto.size,
@@ -447,18 +442,12 @@ export class FileUseCases {
       throw new ForbiddenException('This file is not yours');
     }
 
-    const plainName =
-      newFileMetadata.plainName ??
-      file.plainName ??
-      this.cryptoService.decryptName(file.name, file.folderId);
-    const cryptoFileName = newFileMetadata.plainName
-      ? this.cryptoService.encryptName(newFileMetadata.plainName, file.folderId)
-      : file.name;
+    const plainName = newFileMetadata.plainName ?? file.plainName;
     const type = newFileMetadata.type ?? file.type;
 
     const updatedFile = File.build({
       ...file,
-      name: cryptoFileName,
+      name: plainName,
       plainName,
       type,
     });
@@ -479,7 +468,6 @@ export class FileUseCases {
 
     await this.fileRepository.updateByUuidAndUserId(updatedFile.uuid, user.id, {
       plainName: updatedFile.plainName,
-      name: updatedFile.name,
       type: updatedFile.type,
       modificationTime: modificationTime,
     });
@@ -633,9 +621,7 @@ export class FileUseCases {
 
     const filesModified = files.map((file) => this.addOldAttributes(file));
 
-    return filesModified.map((file) =>
-      file.plainName ? file : this.decrypFileName(file),
-    );
+    return filesModified;
   }
 
   async getFiles(
@@ -672,9 +658,7 @@ export class FileUseCases {
       this.addOldAttributes(file),
     );
 
-    return filesWithThumbnailsModified.map((file) =>
-      file.plainName ? file : this.decrypFileName(file),
-    );
+    return filesWithThumbnailsModified;
   }
 
   async getTrashedFiles(
@@ -699,9 +683,7 @@ export class FileUseCases {
       this.addOldAttributes(file),
     );
 
-    return filesModified.map((file) =>
-      file.plainName ? file : this.decrypFileName(file),
-    );
+    return filesModified;
   }
 
   async getTrashedFilesInWorkspace(
@@ -728,9 +710,7 @@ export class FileUseCases {
       this.addOldAttributes(file),
     );
 
-    return filesModified.map((file) =>
-      file.plainName ? file : this.decrypFileName(file),
-    );
+    return filesModified;
   }
 
   async getWorkspaceFilesSizeSumByStatuses(
@@ -785,9 +765,7 @@ export class FileUseCases {
       this.addOldAttributes(file),
     );
 
-    return filesWithThumbnailsModified.map((file) =>
-      file.plainName ? file : this.decrypFileName(file),
-    );
+    return filesWithThumbnailsModified;
   }
 
   async getFilesNotDeleted(
@@ -1033,10 +1011,7 @@ export class FileUseCases {
       );
     }
 
-    const plainName =
-      destinationData.name ??
-      file.plainName ??
-      this.cryptoService.decryptName(file.name, file.folderId);
+    const plainName = destinationData.name ?? file.plainName;
     const type = destinationData.type ?? file.type;
 
     file.setPlainName(plainName);
@@ -1065,21 +1040,14 @@ export class FileUseCases {
       );
     }
 
-    const destinationEncryptedName = this.cryptoService.encryptName(
-      file.plainName,
-      destinationFolder.id,
-    );
-
     const updateData: Partial<File> = {
       folderId: destinationFolder.id,
       folderUuid: destinationFolder.uuid,
-      name: destinationEncryptedName,
+      name: plainName,
       status: FileStatus.EXISTS,
       plainName: file.plainName,
       type: file.type,
     };
-
-    const wasTrashed = file.status === FileStatus.TRASHED;
 
     await this.fileRepository.updateByUuidAndUserId(
       fileUuid,
@@ -1091,18 +1059,14 @@ export class FileUseCases {
   }
 
   decrypFileName(file: File): any {
-    const decryptedName =
-      file.plainName ??
-      this.cryptoService.decryptName(file.name, file.folderId);
-
-    if (decryptedName === '') {
+    if (file.plainName === '') {
       return File.build(file);
     }
 
     return File.build({
       ...file,
-      name: decryptedName,
-      plainName: decryptedName,
+      name: file.plainName,
+      plainName: file.plainName,
     });
   }
 
