@@ -96,7 +96,7 @@
     "sql-formatter": "^15.7.3",
     "stripe": "14.4.0",
     "swagger-ui-express": "^5.0.1",
-    "uuid": "^11.1.0"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@golevelup/ts-jest": "^1.2.1",
