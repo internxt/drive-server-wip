@@ -1,4 +1,8 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  PaymentRequiredException,
+  PaymentRequiredErrorCode,
+} from './exceptions/payment-required.exception';
 import { SequelizeFeatureLimitsRepository } from './feature-limit.repository';
 import { LimitLabels } from './limits.enum';
 import { PlatformName } from '../../common/constants';
@@ -6,6 +10,7 @@ import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspa
 import { SequelizeUserRepository } from '../user/user.repository';
 import { type Limit } from './domain/limit.domain';
 import { type User } from '../user/user.domain';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
 @Injectable()
 export class FeatureLimitService {
@@ -15,6 +20,7 @@ export class FeatureLimitService {
     private readonly limitsRepository: SequelizeFeatureLimitsRepository,
     private readonly workspaceRepository: SequelizeWorkspaceRepository,
     private readonly userRepository: SequelizeUserRepository,
+    private readonly cacheManagerService: CacheManagerService,
   ) {}
 
   async canUserAccessPlatform(
@@ -169,5 +175,53 @@ export class FeatureLimitService {
     ]);
 
     return userOverriddenLimits ?? tierLimits;
+  }
+
+  async enforceMaxUploadFileSize(user: User, fileSize: bigint): Promise<void> {
+    const userOverriddenLimit =
+      await this.limitsRepository.findUserOverriddenLimit(
+        user.uuid,
+        LimitLabels.MaxUploadFileSize,
+      );
+
+    let limitValue: string | null = null;
+
+    if (userOverriddenLimit) {
+      limitValue = userOverriddenLimit.value;
+    } else {
+      const cached = await this.cacheManagerService.getTierLimit(
+        user.tierId,
+        LimitLabels.MaxUploadFileSize,
+      );
+
+      if (cached !== null && cached !== undefined) {
+        limitValue = cached;
+      } else {
+        const tierLimit = await this.limitsRepository.findLimitByLabelAndTier(
+          user.tierId,
+          LimitLabels.MaxUploadFileSize,
+        );
+
+        if (!tierLimit) return;
+
+        limitValue = tierLimit.value;
+        await this.cacheManagerService
+          .setTierLimit(user.tierId, LimitLabels.MaxUploadFileSize, limitValue)
+          .catch((err) => {
+            this.logger.error(
+              `Failed to cache tier limit for tierId ${user.tierId}: ${err.message}`,
+            );
+          });
+      }
+    }
+
+    if (limitValue === null) return;
+
+    if (Number(fileSize) > Number(limitValue)) {
+      throw new PaymentRequiredException(
+        'File size exceeds the maximum allowed by your plan',
+        PaymentRequiredErrorCode.FileUploadSizeExceeded,
+      );
+    }
   }
 }

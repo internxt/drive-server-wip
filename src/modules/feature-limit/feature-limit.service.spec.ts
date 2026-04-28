@@ -14,12 +14,15 @@ import {
 } from '../../../test/fixtures';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
+import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { PaymentRequiredException } from './exceptions/payment-required.exception';
 
 describe('FeatureLimitService', () => {
   let service: FeatureLimitService;
   let limitsRepository: DeepMocked<SequelizeFeatureLimitsRepository>;
   let workspaceRepository: DeepMocked<SequelizeWorkspaceRepository>;
   let userRepository: DeepMocked<SequelizeUserRepository>;
+  let cacheManagerService: DeepMocked<CacheManagerService>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -33,6 +36,7 @@ describe('FeatureLimitService', () => {
     limitsRepository = moduleRef.get(SequelizeFeatureLimitsRepository);
     workspaceRepository = moduleRef.get(SequelizeWorkspaceRepository);
     userRepository = moduleRef.get(SequelizeUserRepository);
+    cacheManagerService = moduleRef.get(CacheManagerService);
   });
 
   describe('canUserAccessPlatform', () => {
@@ -367,6 +371,154 @@ describe('FeatureLimitService', () => {
         retentionDays: 0,
         maxVersions: 0,
       });
+    });
+  });
+
+  describe('enforceMaxUploadFileSize', () => {
+    const MB = 1024 * 1024;
+    const GB = 1024 * MB;
+
+    it('When user has no limit configured, then it should allow the upload', async () => {
+      const user = newUser({ attributes: { tierId: v4() } });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
+      cacheManagerService.getTierLimit.mockResolvedValueOnce(null);
+      limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(null);
+
+      await expect(
+        service.enforceMaxUploadFileSize(user, BigInt(500 * MB)),
+      ).resolves.not.toThrow();
+    });
+
+    it('When file size is under tier limit, then it should allow the upload', async () => {
+      const user = newUser({ attributes: { tierId: v4() } });
+      const limit = newFeatureLimit({
+        type: LimitTypes.Counter,
+        label: LimitLabels.MaxUploadFileSize,
+        value: String(100 * MB),
+      });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
+      cacheManagerService.getTierLimit.mockResolvedValueOnce(null);
+      limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(limit);
+
+      await expect(
+        service.enforceMaxUploadFileSize(user, BigInt(50 * MB)),
+      ).resolves.not.toThrow();
+    });
+
+    it('When file size exceeds tier limit, then it should throw', async () => {
+      const user = newUser({ attributes: { tierId: v4() } });
+      const limit = newFeatureLimit({
+        type: LimitTypes.Counter,
+        label: LimitLabels.MaxUploadFileSize,
+        value: String(100 * MB),
+      });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
+      cacheManagerService.getTierLimit.mockResolvedValueOnce(null);
+      limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(limit);
+
+      await expect(
+        service.enforceMaxUploadFileSize(user, BigInt(200 * MB)),
+      ).rejects.toThrow(PaymentRequiredException);
+    });
+
+    it('When user has an overridden limit, then it should use it instead of tier limit', async () => {
+      const user = newUser({ attributes: { tierId: v4() } });
+      const override = newFeatureLimit({
+        type: LimitTypes.Counter,
+        label: LimitLabels.MaxUploadFileSize,
+        value: String(10 * GB),
+      });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(override);
+
+      await expect(
+        service.enforceMaxUploadFileSize(user, BigInt(5 * GB)),
+      ).resolves.not.toThrow();
+      expect(cacheManagerService.getTierLimit).not.toHaveBeenCalled();
+      expect(limitsRepository.findLimitByLabelAndTier).not.toHaveBeenCalled();
+    });
+
+    it('When user overridden limit is exceeded, then it should throw', async () => {
+      const user = newUser({ attributes: { tierId: v4() } });
+      const override = newFeatureLimit({
+        type: LimitTypes.Counter,
+        label: LimitLabels.MaxUploadFileSize,
+        value: String(100 * MB),
+      });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(override);
+
+      await expect(
+        service.enforceMaxUploadFileSize(user, BigInt(200 * MB)),
+      ).rejects.toThrow(PaymentRequiredException);
+    });
+
+    it('When tier limit is cached, then it should not hit the DB', async () => {
+      const user = newUser({ attributes: { tierId: v4() } });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
+      cacheManagerService.getTierLimit.mockResolvedValueOnce(String(1 * GB));
+
+      await expect(
+        service.enforceMaxUploadFileSize(user, BigInt(500 * MB)),
+      ).resolves.not.toThrow();
+      expect(limitsRepository.findLimitByLabelAndTier).not.toHaveBeenCalled();
+    });
+
+    it('When tier limit is cached and exceeded, then it should throw without hitting DB', async () => {
+      const user = newUser({ attributes: { tierId: v4() } });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
+      cacheManagerService.getTierLimit.mockResolvedValueOnce(String(100 * MB));
+
+      await expect(
+        service.enforceMaxUploadFileSize(user, BigInt(200 * MB)),
+      ).rejects.toThrow(PaymentRequiredException);
+      expect(limitsRepository.findLimitByLabelAndTier).not.toHaveBeenCalled();
+    });
+
+    it('When cache miss occurs, then it should populate the cache from DB', async () => {
+      const user = newUser({ attributes: { tierId: v4() } });
+      const limit = newFeatureLimit({
+        type: LimitTypes.Counter,
+        label: LimitLabels.MaxUploadFileSize,
+        value: String(1 * GB),
+      });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
+      cacheManagerService.getTierLimit.mockResolvedValueOnce(null);
+      limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(limit);
+
+      await service.enforceMaxUploadFileSize(user, BigInt(500 * MB));
+
+      expect(cacheManagerService.setTierLimit).toHaveBeenCalledWith(
+        user.tierId,
+        LimitLabels.MaxUploadFileSize,
+        limit.value,
+      );
+    });
+
+    it('When cache write fails, then it should still allow the upload', async () => {
+      const user = newUser({ attributes: { tierId: v4() } });
+      const limit = newFeatureLimit({
+        type: LimitTypes.Counter,
+        label: LimitLabels.MaxUploadFileSize,
+        value: String(1 * GB),
+      });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
+      cacheManagerService.getTierLimit.mockResolvedValueOnce(null);
+      limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(limit);
+      cacheManagerService.setTierLimit.mockRejectedValueOnce(
+        new Error('Redis unavailable'),
+      );
+
+      await expect(
+        service.enforceMaxUploadFileSize(user, BigInt(500 * MB)),
+      ).resolves.not.toThrow();
     });
   });
 

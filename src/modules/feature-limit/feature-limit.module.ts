@@ -16,6 +16,7 @@ import { PaidPlansModel } from './models/paid-plans.model';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { FeatureLimitService } from './feature-limit.service';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
     forwardRef(() => SharingModule),
     forwardRef(() => UserModule),
     WorkspacesModule,
+    CacheManagerModule,
   ],
   providers: [
     SequelizeFeatureLimitsRepository,

@@ -11,6 +11,7 @@ export enum LimitLabels {
   RcloneAccess = 'rclone-access',
   TrashRetentionDays = 'trash-retention-days',
   ReferralAccess = 'referral-access',
+  MaxUploadFileSize = 'max-upload-file-size',
 }
 
 export enum LimitTypes {

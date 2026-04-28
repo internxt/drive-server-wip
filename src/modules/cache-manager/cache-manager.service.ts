@@ -101,6 +101,18 @@ export class CacheManagerService {
     return this.cacheManager.del(`${this.AVATAR_KEY_PREFIX}${userUuid}`);
   }
 
+  async getTierLimit(tierId: string, label: string) {
+    return this.cacheManager.get<string>(`tier-limit:${tierId}:${label}`);
+  }
+
+  async setTierLimit(tierId: string, label: string, value: string) {
+    await this.cacheManager.set(
+      `tier-limit:${tierId}:${label}`,
+      value,
+      this.TTL_10_MINUTES,
+    );
+  }
+
   async checkHealth(): Promise<void> {
     const key = 'health_check';
     const value = Date.now().toString();
