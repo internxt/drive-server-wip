@@ -13,9 +13,16 @@ import { SequelizeFileRepository } from './file.repository';
 import { UsageType } from '../usage/usage.domain';
 import { UsageModel } from '../usage/usage.model';
 import { FileModel } from './file.model';
-import { newFile } from '../../../test/fixtures';
+import { UserModel } from '../user/user.model';
+import { newFeatureLimit, newFile, newTier } from '../../../test/fixtures';
 import { Time } from '../../lib/time';
 import { type File, FileStatus } from './file.domain';
+import { type CreateFileDto } from './dto/create-file.dto';
+import { Limitmodel } from '../feature-limit/models/limit.model';
+import { TierModel } from '../feature-limit/models/tier.model';
+import { TierLimitsModel } from '../feature-limit/models/tier-limits.model';
+import { LimitLabels, LimitTypes } from '../feature-limit/limits.enum';
+import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
 
 describe('File module', () => {
   let app: NestExpressApplication;
@@ -23,14 +30,22 @@ describe('File module', () => {
   let fileUseCases: FileUseCases;
   let fileRepository: SequelizeFileRepository;
   let usageModel: typeof UsageModel;
+  let userModel: typeof UserModel;
   let fileModel: typeof FileModel;
+  let limitModel: typeof Limitmodel;
+  let tierModel: typeof TierModel;
+  let tierLimitsModel: typeof TierLimitsModel;
 
   beforeAll(async () => {
     app = await createTestApp();
     fileUseCases = app.get(FileUseCases);
     fileRepository = app.get(SequelizeFileRepository);
     usageModel = app.get(getModelToken(UsageModel));
+    userModel = app.get(getModelToken(UserModel));
     fileModel = app.get(getModelToken(FileModel));
+    limitModel = app.get(getModelToken(Limitmodel));
+    tierModel = app.get(getModelToken(TierModel));
+    tierLimitsModel = app.get(getModelToken(TierLimitsModel));
   });
 
   beforeEach(async () => {
@@ -364,6 +379,93 @@ describe('File module', () => {
           expect(Number(usages[0].delta)).toBe(fileSize);
         });
       });
+    });
+  });
+
+  describe('Max upload file size limit', () => {
+    const MB = 1024 * 1024;
+    let tier: TierModel;
+    let limit: Limitmodel;
+
+    const baseFileDto = (): CreateFileDto => ({
+      ...newFile({ attributes: { size: BigInt(50 * MB) } }).toJSON(),
+      folderUuid: testUser.rootFolder.uuid,
+    });
+
+    beforeEach(async () => {
+      const tierAttrs = newTier();
+      const limitAttrs = newFeatureLimit({
+        type: LimitTypes.Counter,
+        label: LimitLabels.MaxUploadFileSize,
+        value: String(100 * MB),
+      });
+
+      tier = await tierModel.create({
+        id: tierAttrs.id,
+        label: tierAttrs.label,
+        context: tierAttrs.context,
+      });
+
+      limit = await limitModel.create({
+        id: limitAttrs.id,
+        label: limitAttrs.label,
+        type: limitAttrs.type,
+        value: limitAttrs.value,
+      });
+
+      await tierLimitsModel.create({
+        id: v4(),
+        tierId: tier.id,
+        limitId: limit.id,
+      });
+
+      await userModel.update(
+        { tierId: tier.id },
+        { where: { uuid: testUser.user.uuid } },
+      );
+      testUser.user.tierId = tier.id;
+    });
+
+    afterEach(async () => {
+      await tierLimitsModel.destroy({ where: { tierId: tier.id } });
+      await limitModel.destroy({ where: { id: limit.id } });
+      await tierModel.destroy({ where: { id: tier.id } });
+    });
+
+    it('When file size exceeds the tier limit, then it should throw', async () => {
+      const dto: CreateFileDto = {
+        ...baseFileDto(),
+        size: BigInt(200 * MB),
+        fileId: 'oversized-file-12',
+      };
+
+      await expect(fileUseCases.createFile(testUser.user, dto)).rejects.toThrow(
+        PaymentRequiredException,
+      );
+    });
+
+    it('When file size is within the tier limit, then it should succeed', async () => {
+      await expect(
+        fileUseCases.createFile(testUser.user, baseFileDto()),
+      ).resolves.not.toThrow();
+    });
+
+    it('When user has no upload size limit configured, then it should succeed regardless of size', async () => {
+      await userModel.update(
+        { tierId: null },
+        { where: { uuid: testUser.user.uuid } },
+      );
+      testUser.user.tierId = null;
+
+      const dto: CreateFileDto = {
+        ...baseFileDto(),
+        size: BigInt(500 * MB),
+        fileId: 'large-file-nolimit',
+      };
+
+      await expect(
+        fileUseCases.createFile(testUser.user, dto),
+      ).resolves.not.toThrow();
     });
   });
 });
