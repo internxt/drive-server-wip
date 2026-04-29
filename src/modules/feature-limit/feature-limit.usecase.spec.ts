@@ -308,6 +308,95 @@ describe('FeatureLimitUsecases', () => {
     });
   });
 
+  describe('getUserFeatureLimits', () => {
+    const user = newUser();
+
+    it('When tier limit exists and no user override, then should return tier limit value', async () => {
+      const tierLimit = newFeatureLimit({
+        label: LimitLabels.MaxUploadFileSize,
+        type: LimitTypes.Counter,
+        value: '1073741824',
+      });
+
+      limitsRepository.findLimitsByLabelsAndTier.mockResolvedValueOnce([
+        tierLimit,
+      ]);
+      limitsRepository.findUserOverriddenLimitsByLabels.mockResolvedValueOnce(
+        [],
+      );
+
+      const result = await service.getUserFeatureLimits(user);
+
+      expect(result).toEqual({ maxUploadFileSize: 1073741824 });
+    });
+
+    it('When user override exists, then should return override value', async () => {
+      const tierLimit = newFeatureLimit({
+        label: LimitLabels.MaxUploadFileSize,
+        type: LimitTypes.Counter,
+        value: '1073741824',
+      });
+      const overrideLimit = newFeatureLimit({
+        label: LimitLabels.MaxUploadFileSize,
+        type: LimitTypes.Counter,
+        value: '10737418240',
+      });
+
+      limitsRepository.findLimitsByLabelsAndTier.mockResolvedValueOnce([
+        tierLimit,
+      ]);
+      limitsRepository.findUserOverriddenLimitsByLabels.mockResolvedValueOnce([
+        overrideLimit,
+      ]);
+
+      const result = await service.getUserFeatureLimits(user);
+
+      expect(result).toEqual({ maxUploadFileSize: 10737418240 });
+    });
+
+    it('When neither tier nor override exist, then should return null', async () => {
+      limitsRepository.findLimitsByLabelsAndTier.mockResolvedValueOnce([]);
+      limitsRepository.findUserOverriddenLimitsByLabels.mockResolvedValueOnce(
+        [],
+      );
+
+      const result = await service.getUserFeatureLimits(user);
+
+      expect(result).toEqual({ maxUploadFileSize: null });
+    });
+
+    it('When both tier and override exist, then override value should win', async () => {
+      const tierLimit = newFeatureLimit({
+        label: LimitLabels.MaxUploadFileSize,
+        type: LimitTypes.Counter,
+        value: '1073741824',
+      });
+      const overrideLimit = newFeatureLimit({
+        label: LimitLabels.MaxUploadFileSize,
+        type: LimitTypes.Counter,
+        value: '53687091200',
+      });
+
+      limitsRepository.findLimitsByLabelsAndTier.mockResolvedValueOnce([
+        tierLimit,
+      ]);
+      limitsRepository.findUserOverriddenLimitsByLabels.mockResolvedValueOnce([
+        overrideLimit,
+      ]);
+
+      const result = await service.getUserFeatureLimits(user);
+
+      expect(result).toEqual({ maxUploadFileSize: 53687091200 });
+      expect(limitsRepository.findLimitsByLabelsAndTier).toHaveBeenCalledWith(
+        user.tierId,
+        [LimitLabels.MaxUploadFileSize],
+      );
+      expect(
+        limitsRepository.findUserOverriddenLimitsByLabels,
+      ).toHaveBeenCalledWith(user.uuid, [LimitLabels.MaxUploadFileSize]);
+    });
+  });
+
   describe('checkCounterLimit', () => {
     const user = newUser();
 
