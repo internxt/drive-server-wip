@@ -522,6 +522,75 @@ describe('FeatureLimitService', () => {
     });
   });
 
+  describe('getMaxUploadFileSize', () => {
+    it('When no override and no tier limit exist, then it should return null', async () => {
+      const user = newUser({ attributes: { tierId: v4() } });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
+      limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(null);
+
+      const result = await service.getMaxUploadFileSize(user);
+
+      expect(result).toBeNull();
+      expect(limitsRepository.findUserOverriddenLimit).toHaveBeenCalledWith(
+        user.uuid,
+        LimitLabels.MaxUploadFileSize,
+      );
+      expect(limitsRepository.findLimitByLabelAndTier).toHaveBeenCalledWith(
+        user.tierId,
+        LimitLabels.MaxUploadFileSize,
+      );
+    });
+
+    it('When tier limit exists and no override, then it should return the tier limit value', async () => {
+      const user = newUser({ attributes: { tierId: v4() } });
+      const limit = newFeatureLimit({
+        type: LimitTypes.Counter,
+        label: LimitLabels.MaxUploadFileSize,
+        value: '1073741824',
+      });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
+      limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(limit);
+
+      const result = await service.getMaxUploadFileSize(user);
+
+      expect(result).toBe(1073741824);
+    });
+
+    it('When user override exists, then it should return the override value without hitting tier', async () => {
+      const user = newUser({ attributes: { tierId: v4() } });
+      const override = newFeatureLimit({
+        type: LimitTypes.Counter,
+        label: LimitLabels.MaxUploadFileSize,
+        value: '10737418240',
+      });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(override);
+
+      const result = await service.getMaxUploadFileSize(user);
+
+      expect(result).toBe(10737418240);
+      expect(limitsRepository.findLimitByLabelAndTier).not.toHaveBeenCalled();
+    });
+
+    it('When both override and tier limit exist, then override value should win', async () => {
+      const user = newUser({ attributes: { tierId: v4() } });
+      const override = newFeatureLimit({
+        type: LimitTypes.Counter,
+        label: LimitLabels.MaxUploadFileSize,
+        value: '53687091200',
+      });
+
+      limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(override);
+
+      const result = await service.getMaxUploadFileSize(user);
+
+      expect(result).toBe(53687091200);
+      expect(limitsRepository.findLimitByLabelAndTier).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getTier', () => {
     it('When tier exists, then it should return the tier', async () => {
       const tierId = v4();

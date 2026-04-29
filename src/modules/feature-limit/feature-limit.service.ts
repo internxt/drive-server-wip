@@ -177,6 +177,25 @@ export class FeatureLimitService {
     return userOverriddenLimits ?? tierLimits;
   }
 
+  async getMaxUploadFileSize(user: User): Promise<number | null> {
+    const userOverriddenLimit =
+      await this.limitsRepository.findUserOverriddenLimit(
+        user.uuid,
+        LimitLabels.MaxUploadFileSize,
+      );
+
+    if (userOverriddenLimit) {
+      return Number(userOverriddenLimit.value);
+    }
+
+    const tierLimit = await this.limitsRepository.findLimitByLabelAndTier(
+      user.tierId,
+      LimitLabels.MaxUploadFileSize,
+    );
+
+    return tierLimit ? Number(tierLimit.value) : null;
+  }
+
   async enforceMaxUploadFileSize(user: User, fileSize: bigint): Promise<void> {
     const userOverriddenLimit =
       await this.limitsRepository.findUserOverriddenLimit(

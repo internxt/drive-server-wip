@@ -14,12 +14,10 @@ import { ConfigModule } from '@nestjs/config';
 import { PaidPlansModel } from './models/paid-plans.model';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { FeatureLimitService } from './feature-limit.service';
-import { FeatureLimitController } from './feature-limit.controller';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 
 @Module({
-  controllers: [FeatureLimitController],
   imports: [
     SequelizeModule.forFeature([
       TierModel,

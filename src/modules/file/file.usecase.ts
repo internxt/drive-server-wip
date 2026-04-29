@@ -1266,13 +1266,20 @@ export class FileUseCases {
     return { versionable: true, limits };
   }
 
-  async getVersioningLimits(userUuid: string): Promise<{
-    enabled: boolean;
-    maxFileSize: number;
-    retentionDays: number;
-    maxVersions: number;
+  async getFileLimits(user: User): Promise<{
+    versioning: {
+      enabled: boolean;
+      maxFileSize: number;
+      retentionDays: number;
+      maxVersions: number;
+    };
+    maxUploadFileSize: number | null;
   }> {
-    return this.featureLimitService.getFileVersioningLimits(userUuid);
+    const [versioning, maxUploadFileSize] = await Promise.all([
+      this.featureLimitService.getFileVersioningLimits(user.uuid),
+      this.featureLimitService.getMaxUploadFileSize(user),
+    ]);
+    return { versioning, maxUploadFileSize };
   }
 
   async undoFileVersioning(

@@ -21,4 +21,7 @@ class VersioningLimitsDto {
 export class GetFileLimitsDto {
   @ApiProperty({ type: VersioningLimitsDto })
   versioning: VersioningLimitsDto;
+
+  @ApiProperty({ nullable: true, type: Number })
+  maxUploadFileSize: number | null;
 }
