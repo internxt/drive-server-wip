@@ -748,40 +748,40 @@ describe('FileController', () => {
   });
 
   describe('getLimits', () => {
-    it('When getLimits is called, then it should return versioning limits for the user', async () => {
+    it('When getLimits is called, then it should return file limits for the user', async () => {
       const versioningLimits = newVersioningLimits();
-      jest
-        .spyOn(fileUseCases, 'getVersioningLimits')
-        .mockResolvedValue(versioningLimits);
+      const limits = {
+        versioning: versioningLimits,
+        maxUploadFileSize: 1073741824,
+      };
+      jest.spyOn(fileUseCases, 'getFileLimits').mockResolvedValue(limits);
 
       const result = await fileController.getLimits(userMocked);
 
-      expect(result).toEqual({ versioning: versioningLimits });
-      expect(fileUseCases.getVersioningLimits).toHaveBeenCalledWith(
-        userMocked.uuid,
-      );
+      expect(result).toEqual(limits);
+      expect(fileUseCases.getFileLimits).toHaveBeenCalledWith(userMocked);
     });
 
-    it('When user has free tier, then it should return disabled versioning limits', async () => {
+    it('When user has free tier, then it should return disabled versioning limits and null maxUploadFileSize', async () => {
       const freeLimits = newVersioningLimits({
         enabled: false,
         maxFileSize: 0,
         retentionDays: 0,
         maxVersions: 0,
       });
-      jest
-        .spyOn(fileUseCases, 'getVersioningLimits')
-        .mockResolvedValue(freeLimits);
+      const limits = { versioning: freeLimits, maxUploadFileSize: null };
+      jest.spyOn(fileUseCases, 'getFileLimits').mockResolvedValue(limits);
 
       const result = await fileController.getLimits(userMocked);
 
-      expect(result).toEqual({ versioning: freeLimits });
+      expect(result).toEqual(limits);
       expect(result.versioning.enabled).toBe(false);
+      expect(result.maxUploadFileSize).toBeNull();
     });
 
-    it('When getVersioningLimits throws an error, then it should propagate the error', async () => {
+    it('When getFileLimits throws an error, then it should propagate the error', async () => {
       const error = new NotFoundException('User not found');
-      jest.spyOn(fileUseCases, 'getVersioningLimits').mockRejectedValue(error);
+      jest.spyOn(fileUseCases, 'getFileLimits').mockRejectedValue(error);
 
       await expect(fileController.getLimits(userMocked)).rejects.toThrow(
         NotFoundException,

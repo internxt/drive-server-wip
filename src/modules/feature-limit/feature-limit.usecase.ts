@@ -149,25 +149,4 @@ export class FeatureLimitUsecases {
   async getLimitByLabelAndTier(label: string, tierId: string) {
     return this.limitsRepository.findLimitByLabelAndTier(tierId, label);
   }
-
-  async getUserFeatureLimits(
-    user: User,
-  ): Promise<{ maxUploadFileSize: number | null }> {
-    const labels = [LimitLabels.MaxUploadFileSize];
-
-    const [tierLimits, userOverriddenLimits] = await Promise.all([
-      this.limitsRepository.findLimitsByLabelsAndTier(user.tierId, labels),
-      this.limitsRepository.findUserOverriddenLimitsByLabels(user.uuid, labels),
-    ]);
-
-    const limitsMap = new Map<string, string>(
-      [...tierLimits, ...userOverriddenLimits].map((l) => [l.label, l.value]),
-    );
-
-    return {
-      maxUploadFileSize: limitsMap.has(LimitLabels.MaxUploadFileSize)
-        ? Number(limitsMap.get(LimitLabels.MaxUploadFileSize))
-        : null,
-    };
-  }
 }

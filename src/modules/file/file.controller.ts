@@ -133,8 +133,7 @@ export class FileController {
   @ApiOkResponse({ type: GetFileLimitsDto })
   @ApiBearerAuth()
   async getLimits(@UserDecorator() user: User): Promise<GetFileLimitsDto> {
-    const versioning = await this.fileUseCases.getVersioningLimits(user.uuid);
-    return { versioning };
+    return this.fileUseCases.getFileLimits(user);
   }
 
   @Get('/:uuid/meta')
