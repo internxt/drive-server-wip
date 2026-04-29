@@ -8,17 +8,18 @@ import { FeatureLimit } from './feature-limits.guard';
 import { TierLimitsModel } from './models/tier-limits.model';
 import { UserOverriddenLimitModel } from './models/user-overridden-limit.model';
 import { SharingModule } from '../sharing/sharing.module';
-import { FeatureLimitsMigrationService } from './feature-limit-migration.service';
 import { UserModule } from '../user/user.module';
 import { HttpClientModule } from '../../externals/http/http.module';
 import { ConfigModule } from '@nestjs/config';
 import { PaidPlansModel } from './models/paid-plans.model';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { FeatureLimitService } from './feature-limit.service';
+import { FeatureLimitController } from './feature-limit.controller';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 
 @Module({
+  controllers: [FeatureLimitController],
   imports: [
     SequelizeModule.forFeature([
       TierModel,
@@ -37,7 +38,6 @@ import { CacheManagerModule } from '../cache-manager/cache-manager.module';
     SequelizeFeatureLimitsRepository,
     FeatureLimitUsecases,
     FeatureLimit,
-    FeatureLimitsMigrationService,
     ConfigModule,
     PaymentsService,
     FeatureLimitService,
