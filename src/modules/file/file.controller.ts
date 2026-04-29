@@ -23,6 +23,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiPaymentRequiredResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -60,6 +61,7 @@ import { Version } from '../../common/decorators/version.decorator';
 import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.decorator';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { UniqueConstraintFilter } from '../../common/filters/unique-constraint.filter';
+import { PaymentRequiredResponseDto } from '../feature-limit/exceptions/payment-required-response.dto';
 
 @ApiTags('File')
 @Controller('files')
@@ -77,6 +79,10 @@ export class FileController {
   })
   @ApiOkResponse({ type: FileDto })
   @ApiBearerAuth()
+  @ApiPaymentRequiredResponse({
+    type: PaymentRequiredResponseDto,
+    description: 'File size exceeds the maximum allowed by your plan',
+  })
   @RequiredSharingPermissions(SharingActionName.UploadFile)
   @UseGuards(SharingPermissionsGuard, UploadGuard)
   @UseInterceptors(RequestLoggerInterceptor)
@@ -259,6 +265,10 @@ export class FileController {
     },
   ])
   @ApiOkResponse({ type: FileDto })
+  @ApiPaymentRequiredResponse({
+    type: PaymentRequiredResponseDto,
+    description: 'File size exceeds the maximum allowed by your plan',
+  })
   @WorkspacesInBehalfValidationFile()
   async replaceFile(
     @UserDecorator() user: User,
