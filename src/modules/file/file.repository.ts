@@ -1089,6 +1089,7 @@ export class SequelizeFileRepository implements FileRepository {
       },
       useMaster: opts?.useMaster,
       limit,
+      order: [['updatedAt', 'ASC']],
     });
 
     return rows.map((r) => r.uuid);
