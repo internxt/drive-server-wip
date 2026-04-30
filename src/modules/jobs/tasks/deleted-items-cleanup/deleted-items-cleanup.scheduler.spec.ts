@@ -56,7 +56,7 @@ describe('DeletedItemsCleanupScheduler', () => {
       expect(queue.add).toHaveBeenCalledWith(
         expect.any(String),
         expect.any(Object),
-        expect.objectContaining({ jobId: '2026-04-30T14:30' }),
+        expect.objectContaining({ jobId: '2026-04-30T1430' }),
       );
 
       jest.useRealTimers();
