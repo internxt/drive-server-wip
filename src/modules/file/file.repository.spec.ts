@@ -1263,6 +1263,7 @@ describe('FileRepository', () => {
   describe('findDeletedFilesUpdatedBefore', () => {
     const cutoffDate = Time.now('2025-09-01T00:00:00Z');
     const limit = 100;
+    const orderBy = [['updatedAt', 'ASC']];
 
     it('When no files match, then it should return an empty array', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([] as FileModel[]);
@@ -1303,6 +1304,7 @@ describe('FileRepository', () => {
             status: FileStatus.DELETED,
             updatedAt: expect.objectContaining({ [Op.lt]: cutoffDate }),
           }),
+          order: orderBy,
         }),
       );
     });
@@ -1313,7 +1315,7 @@ describe('FileRepository', () => {
       await repository.findDeletedFilesUpdatedBefore(cutoffDate, limit);
 
       expect(fileModel.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({ limit }),
+        expect.objectContaining({ limit, order: orderBy }),
       );
     });
   });
