@@ -3,7 +3,11 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
-import { DeletedItemsCleanupTask } from './tasks/deleted-items-cleanup.task';
+import {
+  DeletedItemsCleanupScheduler,
+  DELETED_ITEMS_CLEANUP_QUEUE,
+} from './tasks/deleted-items-cleanup/deleted-items-cleanup.scheduler';
+import { DeletedItemsCleanupProcessor } from './tasks/deleted-items-cleanup/deleted-items-cleanup.processor';
 import { FileModule } from '../file/file.module';
 import { FolderModule } from '../folder/folder.module';
 import { UserModule } from '../user/user.module';
@@ -51,6 +55,7 @@ import { HardDeleteOldFilesProcessor } from './tasks/hard-delete-old-files/hard-
     }),
     BullModule.registerQueue({ name: TRASH_CLEANUP_QUEUE }),
     BullModule.registerQueue({ name: HARD_DELETE_OLD_FILES_QUEUE }),
+    BullModule.registerQueue({ name: DELETED_ITEMS_CLEANUP_QUEUE }),
     FileModule,
     FolderModule,
     UserModule,
@@ -59,7 +64,8 @@ import { HardDeleteOldFilesProcessor } from './tasks/hard-delete-old-files/hard-
     SecurityModule,
   ],
   providers: [
-    DeletedItemsCleanupTask,
+    DeletedItemsCleanupScheduler,
+    DeletedItemsCleanupProcessor,
     RedisService,
     SequelizeJobExecutionRepository,
     RetroActiveDeleteItemsCleanupTask,
