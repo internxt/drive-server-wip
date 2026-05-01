@@ -192,7 +192,8 @@ export class FolderUseCases {
   ): Promise<Folder> {
     const folder = await this.folderRepository.findById(folderId, deleted);
 
-    return folder ? this.decryptFolderName(folder) : null;
+    if (folder.plainName) return folder;
+    else return this.decryptFolderName(folder);
   }
 
   async getFolderByIdNoDecryption(
@@ -212,6 +213,7 @@ export class FolderUseCases {
   async createRootFolder(
     creator: User,
     name: FolderAttributes['name'],
+    plainName: FolderAttributes['plainName'],
     bucketId: string,
   ): Promise<Folder> {
     const isAGuestOnSharedWorkspace = creator.email !== creator.bridgeUser;
@@ -230,11 +232,10 @@ export class FolderUseCases {
       throw new Error('Invalid folder name');
     }
 
-    const encryptedFolderName = this.cryptoService.encryptName(name, null);
-
     const folder = await this.folderRepository.create(
       user.id,
-      encryptedFolderName,
+      name,
+      plainName,
       bucketId,
       null,
       '03-aes',
@@ -274,10 +275,7 @@ export class FolderUseCases {
         return {
           userId: user.id,
           plainName: folder.name,
-          name: this.cryptoService.encryptName(
-            folder.name,
-            folder.parentFolderId,
-          ),
+          name: folder.name,
           encryptVersion: '03-aes',
           bucket: null,
           parentId: folder.parentFolderId,
@@ -310,13 +308,8 @@ export class FolderUseCases {
       throw new ForbiddenException('This folder is not yours');
     }
 
-    const cryptoFileName = this.cryptoService.encryptName(
-      newFolderMetadata.plainName,
-      folder.parentId,
-    );
-
     const folderWithSameNameExists = await this.folderRepository.findOne({
-      name: cryptoFileName,
+      plainName: newFolderMetadata.plainName,
       parentUuid: folder.parentUuid,
       deleted: false,
       removed: false,
@@ -332,7 +325,7 @@ export class FolderUseCases {
       folder.id,
       {
         plainName: newFolderMetadata.plainName,
-        name: cryptoFileName,
+        name: newFolderMetadata.plainName,
         modificationTime: new Date(),
       },
     );
@@ -384,15 +377,10 @@ export class FolderUseCases {
       );
     }
 
-    const encryptedFolderName = this.cryptoService.encryptName(
-      newFolderDto.plainName,
-      parentFolder.id,
-    );
-
     const folder = await this.folderRepository.createWithAttributes({
       uuid: v4(),
       userId: user.id,
-      name: encryptedFolderName,
+      name: newFolderDto.plainName,
       plainName: newFolderDto.plainName,
       parentId: parentFolder.id,
       parentUuid: parentFolder.uuid,
@@ -924,13 +912,8 @@ export class FolderUseCases {
     const plainName =
       newName ?? this.cryptoService.decryptName(folder.name, folder.parentId);
 
-    const nameEncryptedWithDestination = this.cryptoService.encryptName(
-      plainName,
-      destinationFolder.id,
-    );
-
     const exists = await this.folderRepository.findByNameAndParentUuid(
-      nameEncryptedWithDestination,
+      plainName,
       plainName,
       destinationFolder.uuid,
       false,
@@ -950,7 +933,7 @@ export class FolderUseCases {
     const updateData: Partial<Folder> = {
       parentId: destinationFolder.id,
       parentUuid: destinationFolder.uuid,
-      name: nameEncryptedWithDestination,
+      name: plainName,
       plainName,
       deleted: false,
       deletedAt: null,
@@ -971,13 +954,8 @@ export class FolderUseCases {
       throw new BadRequestException('Invalid folder name');
     }
 
-    const newEncryptedName = this.cryptoService.encryptName(
-      newName,
-      folder.parentId,
-    );
-
     const exists = await this.folderRepository.findByNameAndParentUuid(
-      newEncryptedName,
+      newName,
       newName,
       folder.parentUuid,
       false,
@@ -990,7 +968,7 @@ export class FolderUseCases {
     }
 
     return await this.folderRepository.updateByFolderId(folder.id, {
-      name: newEncryptedName,
+      name: newName,
       plainName: newName,
     });
   }

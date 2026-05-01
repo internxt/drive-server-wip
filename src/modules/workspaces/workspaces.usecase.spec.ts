@@ -4190,6 +4190,7 @@ describe('WorkspacesUsecases', () => {
       expect(folderUseCases.createRootFolder).toHaveBeenCalledWith(
         workspaceUser,
         expect.any(String),
+        expect.any(String),
         bucket.id,
       );
       expect(workspaceRepository.create).toHaveBeenCalledWith(
