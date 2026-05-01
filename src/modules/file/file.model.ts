@@ -46,12 +46,7 @@ export class FileModel extends Model implements FileAttributes {
   @Column(DataType.VIRTUAL)
   get name(): string {
     const plainName = this.getDataValue('plainName');
-    const folderId = this.getDataValue('folderId');
-    if (!plainName || !folderId) return plainName ?? null;
-    return new AesService(process.env.CRYPTO_SECRET2).encrypt(
-      plainName,
-      folderId,
-    );
+    return plainName;
   }
 
   @Index

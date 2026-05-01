@@ -395,10 +395,6 @@ export class FileController {
       delete f.removed;
       delete f.removedAt;
 
-      if (!f.plainName) {
-        f.plainName = this.fileUseCases.decrypFileName(f).plainName;
-      }
-
       return f;
     });
   }
