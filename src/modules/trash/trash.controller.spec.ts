@@ -458,6 +458,7 @@ describe('TrashController', () => {
             parent: {
               plainName: parentFolder.plainName,
               status: parentFolder.status,
+              uuid: parentFolder.uuid,
             },
             expiresAt: expectedExpiresAt,
           };
@@ -532,6 +533,7 @@ describe('TrashController', () => {
             parent: {
               plainName: parentFolder.plainName,
               status: parentFolder.status,
+              uuid: parentFolder.uuid,
             },
             expiresAt: expectedExpiresAt,
           };
@@ -590,6 +592,7 @@ describe('TrashController', () => {
             parent: {
               plainName: mockFile.folder?.plainName ?? null,
               status: mockFile.folder?.status ?? null,
+              uuid: mockFile.folder?.uuid ?? null,
             },
             expiresAt: null,
           },
@@ -626,6 +629,7 @@ describe('TrashController', () => {
             parent: {
               plainName: mockFolder.parent?.plainName ?? null,
               status: mockFolder.parent?.status ?? null,
+              uuid: mockFolder.parent?.uuid ?? null,
             },
             expiresAt: null,
           },

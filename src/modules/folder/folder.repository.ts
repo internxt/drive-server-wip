@@ -331,7 +331,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         {
           model: FolderModel,
           as: 'parent',
-          attributes: ['plainName', 'removed', 'deleted'],
+          attributes: ['plainName', 'removed', 'deleted', 'uuid'],
           required: false,
         },
         ...include,

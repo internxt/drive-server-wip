@@ -532,7 +532,7 @@ export class SequelizeFileRepository implements FileRepository {
         {
           model: FolderModel,
           as: 'folder',
-          attributes: ['plainName', 'removed', 'deleted'],
+          attributes: ['plainName', 'removed', 'deleted', 'uuid'],
           required: false,
         },
         {

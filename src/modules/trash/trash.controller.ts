@@ -122,6 +122,7 @@ export class TrashController {
             parent: {
               plainName: file.folder?.plainName,
               status: file.folder?.status,
+              uuid: file.folder?.uuid,
             },
             expiresAt:
               retentionDays && file.updatedAt
@@ -150,6 +151,7 @@ export class TrashController {
               parent: {
                 plainName: folder.parent?.plainName ?? null,
                 status: folder.parent?.status ?? null,
+                uuid: folder.parent?.uuid ?? null,
               },
             }),
             expiresAt:

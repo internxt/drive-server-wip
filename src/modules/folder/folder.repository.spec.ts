@@ -397,7 +397,7 @@ describe('SequelizeFolderRepository', () => {
           include: expect.arrayContaining([
             expect.objectContaining({
               as: 'parent',
-              attributes: ['plainName', 'removed', 'deleted'],
+              attributes: ['plainName', 'removed', 'deleted', 'uuid'],
               required: false,
             }),
           ]),
@@ -469,7 +469,7 @@ describe('SequelizeFolderRepository', () => {
           include: expect.arrayContaining([
             expect.objectContaining({
               as: 'parent',
-              attributes: ['plainName', 'removed', 'deleted'],
+              attributes: ['plainName', 'removed', 'deleted', 'uuid'],
               required: false,
             }),
           ]),
