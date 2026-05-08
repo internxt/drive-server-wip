@@ -578,7 +578,7 @@ describe('FileRepository', () => {
           include: expect.arrayContaining([
             expect.objectContaining({
               as: 'folder',
-              attributes: ['plainName', 'uuid'],
+              attributes: ['plainName'],
               where: { deleted: false, removed: false },
               required: false,
             }),
@@ -650,7 +650,7 @@ describe('FileRepository', () => {
           include: expect.arrayContaining([
             expect.objectContaining({
               as: 'folder',
-              attributes: ['plainName', 'uuid'],
+              attributes: ['plainName'],
               where: { deleted: false, removed: false },
               required: false,
             }),

@@ -456,7 +456,7 @@ export class SequelizeFileRepository implements FileRepository {
     limit: number,
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
-    include?: Includeable[],
+    include: Includeable[] = [],
   ): Promise<File[]> {
     const appliedOrder = this.applyCollateToPlainNameSort(order);
 

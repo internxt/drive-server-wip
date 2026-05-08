@@ -1,8 +1,4 @@
 import { createMock } from '@golevelup/ts-jest';
-
-jest.mock('../../lib/query-timeout', () => ({
-  withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
-}));
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { SequelizeFolderRepository } from './folder.repository';
 import { FolderModel } from './folder.model';
@@ -18,6 +14,10 @@ import { SharingModel } from '../sharing/models';
 import { v4 } from 'uuid';
 import { randomInt } from 'crypto';
 import { Time } from '../../lib/time';
+
+jest.mock('../../lib/query-timeout', () => ({
+  withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
+}));
 
 jest.mock('./folder.model', () => ({
   FolderModel: {
@@ -397,7 +397,7 @@ describe('SequelizeFolderRepository', () => {
           include: expect.arrayContaining([
             expect.objectContaining({
               as: 'parent',
-              attributes: ['plainName', 'uuid'],
+              attributes: ['plainName'],
               where: { deleted: false, removed: false },
               required: false,
             }),
