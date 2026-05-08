@@ -115,13 +115,17 @@ export class TrashController {
           },
         );
 
-        const result = files.map((file) => ({
-          ...file.toJSON(),
-          expiresAt:
-            retentionDays && file.updatedAt
-              ? calculateTrashExpirationDate(retentionDays, file.updatedAt)
-              : null,
-        }));
+        const result = files.map((file) => {
+          const { folder: _folder, ...fileJson } = file.toJSON();
+          return {
+            ...fileJson,
+            parentFolderName: file.folder?.plainName ?? null,
+            expiresAt:
+              retentionDays && file.updatedAt
+                ? calculateTrashExpirationDate(retentionDays, file.updatedAt)
+                : null,
+          };
+        });
 
         return { result };
       } else {
@@ -135,13 +139,17 @@ export class TrashController {
           },
         );
 
-        const result = folders.map((folder) => ({
-          ...folder.toJSON(),
-          expiresAt:
-            retentionDays && folder.updatedAt
-              ? calculateTrashExpirationDate(retentionDays, folder.updatedAt)
-              : null,
-        }));
+        const result = folders.map((folder) => {
+          const { parent: _parent, ...folderJson } = folder.toJSON();
+          return {
+            ...folderJson,
+            parentFolderName: folder.parent?.plainName ?? null,
+            expiresAt:
+              retentionDays && folder.updatedAt
+                ? calculateTrashExpirationDate(retentionDays, folder.updatedAt)
+                : null,
+          };
+        });
 
         return { result };
       }

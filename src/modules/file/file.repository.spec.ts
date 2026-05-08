@@ -534,13 +534,67 @@ describe('FileRepository', () => {
     });
   });
 
+  describe('findTrashedNotExpired', () => {
+    const userId = 1;
+    const limit = 10;
+    const offset = 0;
+
+    it('When no expiration date is set, then it should return all trashed files regardless of when they were trashed', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findTrashedNotExpired(userId, null, limit, offset);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId, status: FileStatus.TRASHED },
+        }),
+      );
+    });
+
+    it('When an expiration date is set, then it should only return trashed files that have not yet expired', async () => {
+      const cutoffDate = new Date('2026-03-04');
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findTrashedNotExpired(userId, cutoffDate, limit, offset);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId,
+            status: FileStatus.TRASHED,
+            updatedAt: { [Op.gte]: cutoffDate },
+          },
+        }),
+      );
+    });
+
+    it('When retrieving trashed files, then it should also load the name of the folder each file belongs to', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findTrashedNotExpired(userId, null, limit, offset);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.arrayContaining([
+            expect.objectContaining({
+              as: 'folder',
+              attributes: ['plainName', 'uuid'],
+              where: { deleted: false, removed: false },
+              required: false,
+            }),
+          ]),
+        }),
+      );
+    });
+  });
+
   describe('findTrashedNotExpiredInWorkspace', () => {
     const createdBy = v4();
     const workspaceId = v4();
     const limit = 10;
     const offset = 0;
 
-    it('When cutoffDate is null, then it should query trashed files without a date filter', async () => {
+    it('When no expiration date is set, then it should return all trashed workspace files regardless of when they were trashed', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
 
       await repository.findTrashedNotExpiredInWorkspace(
@@ -558,7 +612,7 @@ describe('FileRepository', () => {
       );
     });
 
-    it('When cutoffDate is provided, then it should add an updatedAt >= cutoffDate filter', async () => {
+    it('When an expiration date is set, then it should only return workspace trashed files that have not yet expired', async () => {
       const cutoffDate = new Date('2026-03-04');
       jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
 
@@ -576,6 +630,31 @@ describe('FileRepository', () => {
             status: FileStatus.TRASHED,
             updatedAt: { [Op.gte]: cutoffDate },
           },
+        }),
+      );
+    });
+
+    it('When retrieving workspace trashed files, then it should also load the name of the folder each file belongs to', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findTrashedNotExpiredInWorkspace(
+        createdBy,
+        workspaceId,
+        null,
+        limit,
+        offset,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.arrayContaining([
+            expect.objectContaining({
+              as: 'folder',
+              attributes: ['plainName', 'uuid'],
+              where: { deleted: false, removed: false },
+              required: false,
+            }),
+          ]),
         }),
       );
     });

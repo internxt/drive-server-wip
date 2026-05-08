@@ -183,7 +183,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       structuredClone(order);
     const [, orderDirection] = order[plainNameIndex];
     newOrder[plainNameIndex] = Sequelize.literal(
-      `plain_name COLLATE "custom_numeric" ${
+      `"FolderModel"."plain_name" COLLATE "custom_numeric" ${
         orderDirection === 'ASC' ? 'ASC' : 'DESC'
       }`,
     );
@@ -250,17 +250,37 @@ export class SequelizeFolderRepository implements FolderRepository {
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
   ): Promise<Folder[]> {
-    return this.findAllCursor(
-      {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const folders = await this.folderModel.findAll({
+      limit,
+      offset,
+      where: {
         userId,
         deleted: true,
         removed: false,
         ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
       },
-      limit,
-      offset,
-      order,
-    );
+      include: [
+        {
+          model: FolderModel,
+          as: 'parent',
+          attributes: ['plainName'],
+          where: { deleted: false, removed: false },
+          required: false,
+        },
+        {
+          separate: true,
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
+      ],
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return folders.map(this.toDomain.bind(this));
   }
 
   async findTrashedNotExpiredInWorkspace(
@@ -271,18 +291,52 @@ export class SequelizeFolderRepository implements FolderRepository {
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
   ): Promise<Folder[]> {
-    return this.findAllCursorInWorkspace(
-      createdBy,
-      workspaceId,
-      {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const folders = await this.folderModel.findAll({
+      limit,
+      offset,
+      where: {
         deleted: true,
         removed: false,
         ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
       },
-      limit,
-      offset,
-      order,
-    );
+      include: [
+        {
+          model: FolderModel,
+          as: 'parent',
+          attributes: ['plainName', 'uuid'],
+          where: { deleted: false, removed: false },
+          required: false,
+        },
+        {
+          model: WorkspaceItemUserModel,
+          where: {
+            createdBy,
+            workspaceId,
+            itemType: WorkspaceItemType.Folder,
+          },
+          as: 'workspaceUser',
+          include: [
+            {
+              model: UserModel,
+              as: 'creator',
+              attributes: ['uuid', 'email', 'name', 'lastname', 'userId'],
+            },
+          ],
+        },
+        {
+          separate: true,
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
+      ],
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return folders.map(this.toDomain.bind(this));
   }
 
   async findAllCursorWithParent(

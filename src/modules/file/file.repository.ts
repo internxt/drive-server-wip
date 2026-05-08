@@ -9,6 +9,7 @@ import {
 } from './file.domain';
 import {
   type FindOptions,
+  type Includeable,
   Op,
   QueryTypes,
   Sequelize,
@@ -422,7 +423,7 @@ export class SequelizeFileRepository implements FileRepository {
       structuredClone(order);
     const [, orderDirection] = order[plainNameIndex];
     newOrder[plainNameIndex] = Sequelize.literal(
-      `plain_name COLLATE "custom_numeric" ${
+      `"FileModel"."plain_name" COLLATE "custom_numeric" ${
         orderDirection === 'ASC' ? 'ASC' : 'DESC'
       }`,
     );
@@ -455,17 +456,44 @@ export class SequelizeFileRepository implements FileRepository {
     limit: number,
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
+    include?: Includeable[],
   ): Promise<File[]> {
-    return this.findAllCursorWithThumbnails(
-      {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where: {
         userId,
         status: FileStatus.TRASHED,
         ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
       },
-      limit,
-      offset,
-      order,
-    );
+      include: [
+        {
+          model: FolderModel,
+          as: 'folder',
+          attributes: ['plainName'],
+          where: { deleted: false, removed: false },
+          required: false,
+        },
+        {
+          separate: true,
+          model: this.thumbnailModel,
+          required: false,
+        },
+        {
+          separate: true,
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
+        ...include,
+      ],
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
   }
 
   async findTrashedNotExpiredInWorkspace(
@@ -476,17 +504,56 @@ export class SequelizeFileRepository implements FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
   ): Promise<File[]> {
-    return this.findAllCursorWithThumbnailsInWorkspace(
-      createdBy,
-      workspaceId,
-      {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where: {
         status: FileStatus.TRASHED,
         ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
       },
-      limit,
-      offset,
-      order,
-    );
+      include: [
+        {
+          model: FolderModel,
+          as: 'folder',
+          attributes: ['plainName'],
+          where: { deleted: false, removed: false },
+          required: false,
+        },
+        {
+          model: this.thumbnailModel,
+          required: false,
+        },
+        {
+          separate: true,
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
+        {
+          model: WorkspaceItemUserModel,
+          where: {
+            createdBy,
+            workspaceId,
+            itemType: WorkspaceItemType.File,
+          },
+          as: 'workspaceUser',
+          include: [
+            {
+              model: UserModel,
+              as: 'creator',
+              attributes: ['uuid', 'email', 'name', 'lastname', 'userId'],
+              required: true,
+            },
+          ],
+        },
+      ],
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
   }
 
   async findAllCursorWhereUpdatedAfterInWorkspace(
@@ -1087,9 +1154,9 @@ export class SequelizeFileRepository implements FileRepository {
         status: FileStatus.DELETED,
         updatedAt: { [Op.lt]: cutoffDate },
       },
+      order: [['updatedAt', 'ASC']],
       useMaster: opts?.useMaster,
       limit,
-      order: [['updatedAt', 'ASC']],
     });
 
     return rows.map((r) => r.uuid);
