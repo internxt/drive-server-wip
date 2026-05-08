@@ -1,7 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, QueryTypes, Sequelize, type WhereOptions } from 'sequelize';
+import {
+  type Includeable,
+  Op,
+  QueryTypes,
+  Sequelize,
+  type WhereOptions,
+} from 'sequelize';
 import { v4 } from 'uuid';
 
 import { Folder } from './folder.domain';
@@ -250,30 +256,15 @@ export class SequelizeFolderRepository implements FolderRepository {
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
   ): Promise<Folder[]> {
-    const appliedOrder = this.applyCollateToPlainNameSort(order);
-
-    const folders = await this.folderModel.findAll({
+    return this.trashNotExpiredQuery({
+      cutoffDate,
       limit,
       offset,
+      order,
       where: {
         userId,
-        deleted: true,
-        removed: false,
-        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
       },
-      include: [
-        {
-          model: FolderModel,
-          as: 'parent',
-          attributes: ['plainName', 'removed', 'deleted'],
-          required: false,
-        },
-      ],
-      subQuery: false,
-      order: appliedOrder,
     });
-
-    return folders.map(this.toDomain.bind(this));
   }
 
   async findTrashedNotExpiredInWorkspace(
@@ -284,23 +275,12 @@ export class SequelizeFolderRepository implements FolderRepository {
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
   ): Promise<Folder[]> {
-    const appliedOrder = this.applyCollateToPlainNameSort(order);
-
-    const folders = await this.folderModel.findAll({
+    return this.trashNotExpiredQuery({
+      cutoffDate,
       limit,
       offset,
-      where: {
-        deleted: true,
-        removed: false,
-        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
-      },
+      order,
       include: [
-        {
-          model: FolderModel,
-          as: 'parent',
-          attributes: ['plainName', 'removed', 'deleted'],
-          required: false,
-        },
         {
           model: WorkspaceItemUserModel,
           where: {
@@ -317,6 +297,44 @@ export class SequelizeFolderRepository implements FolderRepository {
             },
           ],
         },
+      ],
+    });
+  }
+
+  async trashNotExpiredQuery({
+    cutoffDate,
+    limit,
+    offset,
+    order,
+    include = [],
+    where,
+  }: {
+    cutoffDate: Date | null;
+    limit: number;
+    offset: number;
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']>;
+    include?: Includeable[];
+    where?: WhereOptions<any>;
+  }): Promise<Folder[]> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const folders = await this.folderModel.findAll({
+      limit,
+      offset,
+      where: {
+        deleted: true,
+        removed: false,
+        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
+        ...where,
+      },
+      include: [
+        {
+          model: FolderModel,
+          as: 'parent',
+          attributes: ['plainName', 'removed', 'deleted'],
+          required: false,
+        },
+        ...include,
       ],
       subQuery: false,
       order: appliedOrder,

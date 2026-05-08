@@ -9,6 +9,7 @@ import {
 } from './file.domain';
 import {
   type FindOptions,
+  type Includeable,
   Op,
   QueryTypes,
   Sequelize,
@@ -456,34 +457,15 @@ export class SequelizeFileRepository implements FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
   ): Promise<File[]> {
-    const appliedOrder = this.applyCollateToPlainNameSort(order);
-
-    const files = await this.fileModel.findAll({
+    return this.trashedNotExpiredQuery({
+      cutoffDate,
       limit,
       offset,
+      order,
       where: {
         userId,
-        status: FileStatus.TRASHED,
-        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
       },
-      include: [
-        {
-          model: FolderModel,
-          as: 'folder',
-          attributes: ['plainName', 'removed', 'deleted'],
-          required: false,
-        },
-        {
-          separate: true,
-          model: this.thumbnailModel,
-          required: false,
-        },
-      ],
-      subQuery: false,
-      order: appliedOrder,
     });
-
-    return files.map(this.toDomain.bind(this));
   }
 
   async findTrashedNotExpiredInWorkspace(
@@ -494,26 +476,12 @@ export class SequelizeFileRepository implements FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
   ): Promise<File[]> {
-    const appliedOrder = this.applyCollateToPlainNameSort(order);
-
-    const files = await this.fileModel.findAll({
+    return this.trashedNotExpiredQuery({
+      cutoffDate,
       limit,
       offset,
-      where: {
-        status: FileStatus.TRASHED,
-        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
-      },
+      order,
       include: [
-        {
-          model: FolderModel,
-          as: 'folder',
-          attributes: ['plainName', 'removed', 'deleted'],
-          required: false,
-        },
-        {
-          model: this.thumbnailModel,
-          required: false,
-        },
         {
           model: WorkspaceItemUserModel,
           where: {
@@ -531,6 +499,47 @@ export class SequelizeFileRepository implements FileRepository {
             },
           ],
         },
+      ],
+    });
+  }
+
+  async trashedNotExpiredQuery({
+    cutoffDate,
+    limit,
+    offset,
+    order = [],
+    where,
+    include = [],
+  }: {
+    cutoffDate: Date | null;
+    limit: number;
+    offset: number;
+    order: Array<[keyof FileModel, string]>;
+    where?: WhereOptions<any>;
+    include?: Includeable[];
+  }): Promise<File[]> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where: {
+        status: FileStatus.TRASHED,
+        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
+        ...where,
+      },
+      include: [
+        {
+          model: FolderModel,
+          as: 'folder',
+          attributes: ['plainName', 'removed', 'deleted'],
+          required: false,
+        },
+        {
+          model: this.thumbnailModel,
+          required: false,
+        },
+        ...include,
       ],
       subQuery: false,
       order: appliedOrder,
