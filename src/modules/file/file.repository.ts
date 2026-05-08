@@ -9,7 +9,6 @@ import {
 } from './file.domain';
 import {
   type FindOptions,
-  type Includeable,
   Op,
   QueryTypes,
   Sequelize,
@@ -456,7 +455,6 @@ export class SequelizeFileRepository implements FileRepository {
     limit: number,
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
-    include: Includeable[] = [],
   ): Promise<File[]> {
     const appliedOrder = this.applyCollateToPlainNameSort(order);
 
@@ -472,8 +470,7 @@ export class SequelizeFileRepository implements FileRepository {
         {
           model: FolderModel,
           as: 'folder',
-          attributes: ['plainName'],
-          where: { deleted: false, removed: false },
+          attributes: ['plainName', 'removed', 'deleted'],
           required: false,
         },
         {
@@ -481,13 +478,6 @@ export class SequelizeFileRepository implements FileRepository {
           model: this.thumbnailModel,
           required: false,
         },
-        {
-          separate: true,
-          model: SharingModel,
-          attributes: ['type', 'id'],
-          required: false,
-        },
-        ...include,
       ],
       subQuery: false,
       order: appliedOrder,
@@ -517,18 +507,11 @@ export class SequelizeFileRepository implements FileRepository {
         {
           model: FolderModel,
           as: 'folder',
-          attributes: ['plainName'],
-          where: { deleted: false, removed: false },
+          attributes: ['plainName', 'removed', 'deleted'],
           required: false,
         },
         {
           model: this.thumbnailModel,
-          required: false,
-        },
-        {
-          separate: true,
-          model: SharingModel,
-          attributes: ['type', 'id'],
           required: false,
         },
         {

@@ -455,7 +455,10 @@ describe('TrashController', () => {
           const { folder: _folder, ...fileJson } = file.toJSON();
           return {
             ...fileJson,
-            parentFolderName: parentFolder.plainName,
+            parent: {
+              plainName: parentFolder.plainName,
+              status: parentFolder.status,
+            },
             expiresAt: expectedExpiresAt,
           };
         }),
@@ -481,7 +484,7 @@ describe('TrashController', () => {
         'files',
       );
 
-      expect((result.result[0] as any).parentFolderName).toBeNull();
+      expect((result.result[0] as any).parent.plainName).toBeUndefined();
       expect((result.result[0] as any).folder).toBeUndefined();
     });
 
@@ -526,14 +529,17 @@ describe('TrashController', () => {
           const { parent: _parent, ...folderJson } = folder.toJSON();
           return {
             ...folderJson,
-            parentFolderName: parentFolder.plainName,
+            parent: {
+              plainName: parentFolder.plainName,
+              status: parentFolder.status,
+            },
             expiresAt: expectedExpiresAt,
           };
         }),
       });
     });
 
-    it('When a trashed folder has no parent folder, then parentFolderName should be null', async () => {
+    it('When a trashed folder has no parent folder, then the parent folder name should be not returned', async () => {
       const mockFolder = newFolder({
         attributes: { deleted: true, removed: false },
       });
@@ -554,7 +560,6 @@ describe('TrashController', () => {
         'folders',
       );
 
-      expect((result.result[0] as any).parentFolderName).toBeNull();
       expect((result.result[0] as any).parent).toBeUndefined();
     });
 
@@ -582,7 +587,10 @@ describe('TrashController', () => {
         result: [
           {
             ...fileJson,
-            parentFolderName: mockFile.folder?.plainName ?? null,
+            parent: {
+              plainName: mockFile.folder?.plainName ?? null,
+              status: mockFile.folder?.status ?? null,
+            },
             expiresAt: null,
           },
         ],
@@ -615,7 +623,10 @@ describe('TrashController', () => {
         result: [
           {
             ...folderJson,
-            parentFolderName: mockFolder.parent?.plainName ?? null,
+            parent: {
+              plainName: mockFolder.parent?.plainName ?? null,
+              status: mockFolder.parent?.status ?? null,
+            },
             expiresAt: null,
           },
         ],

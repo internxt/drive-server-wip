@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op, QueryTypes, Sequelize, type WhereOptions } from 'sequelize';
 import { v4 } from 'uuid';
 
-import { Folder, FolderStatus } from './folder.domain';
+import { Folder } from './folder.domain';
 import { type FolderAttributes } from './folder.attributes';
 import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
@@ -265,14 +265,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         {
           model: FolderModel,
           as: 'parent',
-          attributes: ['plainName'],
-          where: { deleted: false, removed: false },
-          required: false,
-        },
-        {
-          separate: true,
-          model: SharingModel,
-          attributes: ['type', 'id'],
+          attributes: ['plainName', 'removed', 'deleted'],
           required: false,
         },
       ],
@@ -305,8 +298,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         {
           model: FolderModel,
           as: 'parent',
-          attributes: ['plainName', 'uuid'],
-          where: { deleted: false, removed: false },
+          attributes: ['plainName', 'removed', 'deleted'],
           required: false,
         },
         {
@@ -324,12 +316,6 @@ export class SequelizeFolderRepository implements FolderRepository {
               attributes: ['uuid', 'email', 'name', 'lastname', 'userId'],
             },
           ],
-        },
-        {
-          separate: true,
-          model: SharingModel,
-          attributes: ['type', 'id'],
-          required: false,
         },
       ],
       subQuery: false,
@@ -1256,19 +1242,6 @@ export class SequelizeFolderRepository implements FolderRepository {
     );
   }
 
-  private folderStatusWhereCondition(
-    status: FolderStatus,
-  ): Pick<FolderAttributes, 'deleted' | 'removed'> {
-    switch (status) {
-      case FolderStatus.EXISTS:
-        return { deleted: false, removed: false };
-      case FolderStatus.TRASHED:
-        return { deleted: true, removed: false };
-      case FolderStatus.DELETED:
-        return { deleted: true, removed: true };
-    }
-  }
-
   private toDomain(model: FolderModel): Folder {
     const buildUser = (userData: UserModel | null) =>
       userData ? User.build(userData) : null;
@@ -1278,9 +1251,5 @@ export class SequelizeFolderRepository implements FolderRepository {
       parent: model.parent ? Folder.build(model.parent) : null,
       user: buildUser(model.user || model.workspaceUser?.creator),
     });
-  }
-
-  private toModel(domain: Folder): Partial<FolderAttributes> {
-    return domain.toJSON();
   }
 }

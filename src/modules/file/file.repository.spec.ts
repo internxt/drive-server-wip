@@ -1,8 +1,4 @@
 import { Test, type TestingModule } from '@nestjs/testing';
-
-jest.mock('../../lib/query-timeout', () => ({
-  withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
-}));
 import { getModelToken } from '@nestjs/sequelize';
 import { createMock } from '@golevelup/ts-jest';
 import {
@@ -22,6 +18,10 @@ import { v4 } from 'uuid';
 import { UserModel } from '../user/user.model';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Time } from '../../lib/time';
+
+jest.mock('../../lib/query-timeout', () => ({
+  withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
+}));
 
 describe('FileRepository', () => {
   let repository: FileRepository;
@@ -578,8 +578,7 @@ describe('FileRepository', () => {
           include: expect.arrayContaining([
             expect.objectContaining({
               as: 'folder',
-              attributes: ['plainName'],
-              where: { deleted: false, removed: false },
+              attributes: ['plainName', 'removed', 'deleted'],
               required: false,
             }),
           ]),
@@ -650,8 +649,7 @@ describe('FileRepository', () => {
           include: expect.arrayContaining([
             expect.objectContaining({
               as: 'folder',
-              attributes: ['plainName'],
-              where: { deleted: false, removed: false },
+              attributes: ['plainName', 'removed', 'deleted'],
               required: false,
             }),
           ]),

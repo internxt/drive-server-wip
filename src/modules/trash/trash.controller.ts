@@ -119,7 +119,10 @@ export class TrashController {
           const { folder: _folder, ...fileJson } = file.toJSON();
           return {
             ...fileJson,
-            parentFolderName: file.folder?.plainName ?? null,
+            parent: {
+              plainName: file.folder?.plainName,
+              status: file.folder?.status,
+            },
             expiresAt:
               retentionDays && file.updatedAt
                 ? calculateTrashExpirationDate(retentionDays, file.updatedAt)
@@ -143,7 +146,12 @@ export class TrashController {
           const { parent: _parent, ...folderJson } = folder.toJSON();
           return {
             ...folderJson,
-            parentFolderName: folder.parent?.plainName ?? null,
+            ...(folder.parent !== null && {
+              parent: {
+                plainName: folder.parent?.plainName ?? null,
+                status: folder.parent?.status ?? null,
+              },
+            }),
             expiresAt:
               retentionDays && folder.updatedAt
                 ? calculateTrashExpirationDate(retentionDays, folder.updatedAt)
