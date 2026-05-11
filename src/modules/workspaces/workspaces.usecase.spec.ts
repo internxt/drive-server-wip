@@ -3898,8 +3898,15 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
+      const { folder: _folder, ...fileJson } = trashedFiles[0].toJSON();
       expect(result).toEqual({
-        result: [{ ...trashedFiles[0].toJSON(), expiresAt: null }],
+        result: [
+          {
+            ...fileJson,
+            parentFolderName: trashedFiles[0].folder?.plainName ?? null,
+            expiresAt: null,
+          },
+        ],
       });
       expect(fileUseCases.getTrashedFilesInWorkspace).toHaveBeenCalledWith(
         user.uuid,
@@ -3930,8 +3937,15 @@ describe('WorkspacesUsecases', () => {
         ['plainName', 'ASC'] as any,
       );
 
+      const { parent: _parent, ...folderJson } = trashedFolders[0].toJSON();
       expect(result).toEqual({
-        result: [{ ...trashedFolders[0].toJSON(), expiresAt: null }],
+        result: [
+          {
+            ...folderJson,
+            parentFolderName: trashedFolders[0].parent?.plainName ?? null,
+            expiresAt: null,
+          },
+        ],
       });
       expect(folderUseCases.getTrashedFoldersInWorkspace).toHaveBeenCalledWith(
         user.uuid,
@@ -3978,9 +3992,105 @@ describe('WorkspacesUsecases', () => {
         expectedCutoffDate,
         { limit, offset, sort: ['plainName', 'ASC'] },
       );
+      const { folder: _folder, ...fileJson } = trashedFiles[0].toJSON();
       expect(result).toEqual({
-        result: [{ ...trashedFiles[0].toJSON(), expiresAt: expectedExpiresAt }],
+        result: [
+          {
+            ...fileJson,
+            parentFolderName: trashedFiles[0].folder?.plainName ?? null,
+            expiresAt: expectedExpiresAt,
+          },
+        ],
       });
+    });
+
+    it('When a workspace trashed file has a parent folder, then its name should be returned as parentFolderName and the full folder object should not be exposed', async () => {
+      const parentFolder = newFolder({
+        attributes: { plainName: 'My Parent Folder' },
+      });
+      const trashedFile = newFile({ folder: parentFolder });
+      jest
+        .spyOn(fileUseCases, 'getTrashedFilesInWorkspace')
+        .mockResolvedValue([trashedFile]);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceResourcesOwner')
+        .mockResolvedValue(workspaceResourcesOwner);
+      jest
+        .spyOn(featureLimitsService, 'getUserLimitByLabel')
+        .mockResolvedValue(null);
+
+      const result = await service.getWorkspaceUserTrashedItems(
+        user,
+        workspaceId,
+        WorkspaceItemType.File,
+        limit,
+        offset,
+      );
+
+      expect(result.result[0]).toEqual(
+        expect.objectContaining({
+          parentFolderName: 'My Parent Folder',
+        }),
+      );
+      expect(result.result[0]).not.toHaveProperty('folder');
+    });
+
+    it('When a workspace trashed folder has a parent folder, then its name should be returned as parentFolderName and the full parent object should not be exposed', async () => {
+      const parentFolder = newFolder({
+        attributes: { plainName: 'Outer Folder' },
+      });
+      const trashedFolder = newFolder({ attributes: { deleted: true } });
+      trashedFolder.parent = parentFolder;
+      jest
+        .spyOn(folderUseCases, 'getTrashedFoldersInWorkspace')
+        .mockResolvedValue([trashedFolder]);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceResourcesOwner')
+        .mockResolvedValue(workspaceResourcesOwner);
+      jest
+        .spyOn(featureLimitsService, 'getUserLimitByLabel')
+        .mockResolvedValue(null);
+
+      const result = await service.getWorkspaceUserTrashedItems(
+        user,
+        workspaceId,
+        WorkspaceItemType.Folder,
+        limit,
+        offset,
+      );
+
+      expect(result.result[0]).toEqual(
+        expect.objectContaining({
+          parentFolderName: 'Outer Folder',
+        }),
+      );
+      expect(result.result[0]).not.toHaveProperty('parent');
+    });
+
+    it('When a workspace trashed file has no parent folder, then parentFolderName should be null', async () => {
+      const trashedFile = newFile();
+      trashedFile.folder = null;
+      jest
+        .spyOn(fileUseCases, 'getTrashedFilesInWorkspace')
+        .mockResolvedValue([trashedFile]);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceResourcesOwner')
+        .mockResolvedValue(workspaceResourcesOwner);
+      jest
+        .spyOn(featureLimitsService, 'getUserLimitByLabel')
+        .mockResolvedValue(null);
+
+      const result = await service.getWorkspaceUserTrashedItems(
+        user,
+        workspaceId,
+        WorkspaceItemType.File,
+        limit,
+        offset,
+      );
+
+      expect(result.result[0]).toEqual(
+        expect.objectContaining({ parentFolderName: null }),
+      );
     });
   });
 

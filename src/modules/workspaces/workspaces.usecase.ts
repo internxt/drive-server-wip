@@ -726,12 +726,24 @@ export class WorkspacesUsecases {
           );
 
     return {
-      result: items.map((item) => ({
-        ...item.toJSON(),
-        expiresAt: retentionDays
-          ? calculateTrashExpirationDate(retentionDays, item.updatedAt)
-          : null,
-      })),
+      result: items.map((item: File | Folder) => {
+        const parentFolderName =
+          itemType === WorkspaceItemType.File
+            ? ((item as File).folder?.plainName ?? null)
+            : ((item as Folder).parent?.plainName ?? null);
+        const {
+          folder: _folder,
+          parent: _parent,
+          ...rest
+        } = item.toJSON() as any;
+        return {
+          ...rest,
+          parentFolderName,
+          expiresAt: retentionDays
+            ? calculateTrashExpirationDate(retentionDays, item.updatedAt)
+            : null,
+        };
+      }),
     };
   }
 

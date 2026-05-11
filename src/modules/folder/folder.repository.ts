@@ -1,10 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, QueryTypes, Sequelize, type WhereOptions } from 'sequelize';
+import {
+  type Includeable,
+  Op,
+  QueryTypes,
+  Sequelize,
+  type WhereOptions,
+} from 'sequelize';
 import { v4 } from 'uuid';
 
-import { Folder, FolderStatus } from './folder.domain';
+import { Folder } from './folder.domain';
 import { type FolderAttributes } from './folder.attributes';
 import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
@@ -183,7 +189,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       structuredClone(order);
     const [, orderDirection] = order[plainNameIndex];
     newOrder[plainNameIndex] = Sequelize.literal(
-      `plain_name COLLATE "custom_numeric" ${
+      `"FolderModel"."plain_name" COLLATE "custom_numeric" ${
         orderDirection === 'ASC' ? 'ASC' : 'DESC'
       }`,
     );
@@ -250,17 +256,15 @@ export class SequelizeFolderRepository implements FolderRepository {
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
   ): Promise<Folder[]> {
-    return this.findAllCursor(
-      {
-        userId,
-        deleted: true,
-        removed: false,
-        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
-      },
+    return this.trashNotExpiredQuery({
+      cutoffDate,
       limit,
       offset,
       order,
-    );
+      where: {
+        userId,
+      },
+    });
   }
 
   async findTrashedNotExpiredInWorkspace(
@@ -271,18 +275,72 @@ export class SequelizeFolderRepository implements FolderRepository {
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
   ): Promise<Folder[]> {
-    return this.findAllCursorInWorkspace(
-      createdBy,
-      workspaceId,
-      {
-        deleted: true,
-        removed: false,
-        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
-      },
+    return this.trashNotExpiredQuery({
+      cutoffDate,
       limit,
       offset,
       order,
-    );
+      include: [
+        {
+          model: WorkspaceItemUserModel,
+          where: {
+            createdBy,
+            workspaceId,
+            itemType: WorkspaceItemType.Folder,
+          },
+          as: 'workspaceUser',
+          include: [
+            {
+              model: UserModel,
+              as: 'creator',
+              attributes: ['uuid', 'email', 'name', 'lastname', 'userId'],
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  async trashNotExpiredQuery({
+    cutoffDate,
+    limit,
+    offset,
+    order,
+    include = [],
+    where,
+  }: {
+    cutoffDate: Date | null;
+    limit: number;
+    offset: number;
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']>;
+    include?: Includeable[];
+    where?: WhereOptions<any>;
+  }): Promise<Folder[]> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const folders = await this.folderModel.findAll({
+      limit,
+      offset,
+      where: {
+        deleted: true,
+        removed: false,
+        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
+        ...where,
+      },
+      include: [
+        {
+          model: FolderModel,
+          as: 'parent',
+          attributes: ['plainName', 'removed', 'deleted', 'uuid'],
+          required: false,
+        },
+        ...include,
+      ],
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return folders.map(this.toDomain.bind(this));
   }
 
   async findAllCursorWithParent(
@@ -1202,19 +1260,6 @@ export class SequelizeFolderRepository implements FolderRepository {
     );
   }
 
-  private folderStatusWhereCondition(
-    status: FolderStatus,
-  ): Pick<FolderAttributes, 'deleted' | 'removed'> {
-    switch (status) {
-      case FolderStatus.EXISTS:
-        return { deleted: false, removed: false };
-      case FolderStatus.TRASHED:
-        return { deleted: true, removed: false };
-      case FolderStatus.DELETED:
-        return { deleted: true, removed: true };
-    }
-  }
-
   private toDomain(model: FolderModel): Folder {
     const buildUser = (userData: UserModel | null) =>
       userData ? User.build(userData) : null;
@@ -1224,9 +1269,5 @@ export class SequelizeFolderRepository implements FolderRepository {
       parent: model.parent ? Folder.build(model.parent) : null,
       user: buildUser(model.user || model.workspaceUser?.creator),
     });
-  }
-
-  private toModel(domain: Folder): Partial<FolderAttributes> {
-    return domain.toJSON();
   }
 }

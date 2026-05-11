@@ -9,6 +9,7 @@ import {
 } from './file.domain';
 import {
   type FindOptions,
+  type Includeable,
   Op,
   QueryTypes,
   Sequelize,
@@ -422,7 +423,7 @@ export class SequelizeFileRepository implements FileRepository {
       structuredClone(order);
     const [, orderDirection] = order[plainNameIndex];
     newOrder[plainNameIndex] = Sequelize.literal(
-      `plain_name COLLATE "custom_numeric" ${
+      `"FileModel"."plain_name" COLLATE "custom_numeric" ${
         orderDirection === 'ASC' ? 'ASC' : 'DESC'
       }`,
     );
@@ -456,16 +457,15 @@ export class SequelizeFileRepository implements FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
   ): Promise<File[]> {
-    return this.findAllCursorWithThumbnails(
-      {
-        userId,
-        status: FileStatus.TRASHED,
-        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
-      },
+    return this.trashedNotExpiredQuery({
+      cutoffDate,
       limit,
       offset,
       order,
-    );
+      where: {
+        userId,
+      },
+    });
   }
 
   async findTrashedNotExpiredInWorkspace(
@@ -476,17 +476,76 @@ export class SequelizeFileRepository implements FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
   ): Promise<File[]> {
-    return this.findAllCursorWithThumbnailsInWorkspace(
-      createdBy,
-      workspaceId,
-      {
-        status: FileStatus.TRASHED,
-        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
-      },
+    return this.trashedNotExpiredQuery({
+      cutoffDate,
       limit,
       offset,
       order,
-    );
+      include: [
+        {
+          model: WorkspaceItemUserModel,
+          where: {
+            createdBy,
+            workspaceId,
+            itemType: WorkspaceItemType.File,
+          },
+          as: 'workspaceUser',
+          include: [
+            {
+              model: UserModel,
+              as: 'creator',
+              attributes: ['uuid', 'email', 'name', 'lastname', 'userId'],
+              required: true,
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  async trashedNotExpiredQuery({
+    cutoffDate,
+    limit,
+    offset,
+    order = [],
+    where,
+    include = [],
+  }: {
+    cutoffDate: Date | null;
+    limit: number;
+    offset: number;
+    order: Array<[keyof FileModel, string]>;
+    where?: WhereOptions<any>;
+    include?: Includeable[];
+  }): Promise<File[]> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where: {
+        status: FileStatus.TRASHED,
+        ...(cutoffDate && { updatedAt: { [Op.gte]: cutoffDate } }),
+        ...where,
+      },
+      include: [
+        {
+          model: FolderModel,
+          as: 'folder',
+          attributes: ['plainName', 'removed', 'deleted', 'uuid'],
+          required: false,
+        },
+        {
+          model: this.thumbnailModel,
+          required: false,
+        },
+        ...include,
+      ],
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
   }
 
   async findAllCursorWhereUpdatedAfterInWorkspace(
@@ -1087,9 +1146,9 @@ export class SequelizeFileRepository implements FileRepository {
         status: FileStatus.DELETED,
         updatedAt: { [Op.lt]: cutoffDate },
       },
+      order: [['updatedAt', 'ASC']],
       useMaster: opts?.useMaster,
       limit,
-      order: [['updatedAt', 'ASC']],
     });
 
     return rows.map((r) => r.uuid);

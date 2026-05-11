@@ -1,8 +1,4 @@
 import { createMock } from '@golevelup/ts-jest';
-
-jest.mock('../../lib/query-timeout', () => ({
-  withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
-}));
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
 import { SequelizeFolderRepository } from './folder.repository';
 import { FolderModel } from './folder.model';
@@ -18,6 +14,10 @@ import { SharingModel } from '../sharing/models';
 import { v4 } from 'uuid';
 import { randomInt } from 'crypto';
 import { Time } from '../../lib/time';
+
+jest.mock('../../lib/query-timeout', () => ({
+  withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
+}));
 
 jest.mock('./folder.model', () => ({
   FolderModel: {
@@ -352,13 +352,67 @@ describe('SequelizeFolderRepository', () => {
     });
   });
 
+  describe('findTrashedNotExpired', () => {
+    const userId = 1;
+    const limit = 10;
+    const offset = 0;
+
+    it('When no expiration date is set, then it should return all trashed folders regardless of when they were trashed', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findTrashedNotExpired(userId, null, limit, offset);
+
+      expect(folderModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId, deleted: true, removed: false },
+        }),
+      );
+    });
+
+    it('When an expiration date is set, then it should only return trashed folders that have not yet expired', async () => {
+      const cutoffDate = new Date('2026-03-04');
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findTrashedNotExpired(userId, cutoffDate, limit, offset);
+
+      expect(folderModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId,
+            deleted: true,
+            removed: false,
+            updatedAt: { [Op.gte]: cutoffDate },
+          },
+        }),
+      );
+    });
+
+    it('When retrieving trashed folders, then it should also load the name of the parent folder each folder belongs to', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findTrashedNotExpired(userId, null, limit, offset);
+
+      expect(folderModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.arrayContaining([
+            expect.objectContaining({
+              as: 'parent',
+              attributes: ['plainName', 'removed', 'deleted', 'uuid'],
+              required: false,
+            }),
+          ]),
+        }),
+      );
+    });
+  });
+
   describe('findTrashedNotExpiredInWorkspace', () => {
     const createdBy = v4();
     const workspaceId = v4();
     const limit = 10;
     const offset = 0;
 
-    it('When cutoffDate is null, then it should query trashed folders without a date filter', async () => {
+    it('When no expiration date is set, then it should return all trashed workspace folders regardless of when they were trashed', async () => {
       jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
 
       await repository.findTrashedNotExpiredInWorkspace(
@@ -376,7 +430,7 @@ describe('SequelizeFolderRepository', () => {
       );
     });
 
-    it('When cutoffDate is provided, then it should add an updatedAt >= cutoffDate filter', async () => {
+    it('When an expiration date is set, then it should only return workspace trashed folders that have not yet expired', async () => {
       const cutoffDate = new Date('2026-03-04');
       jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
 
@@ -395,6 +449,30 @@ describe('SequelizeFolderRepository', () => {
             removed: false,
             updatedAt: { [Op.gte]: cutoffDate },
           },
+        }),
+      );
+    });
+
+    it('When retrieving workspace trashed folders, then it should also load the name of the parent folder each folder belongs to', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findTrashedNotExpiredInWorkspace(
+        createdBy,
+        workspaceId,
+        null,
+        limit,
+        offset,
+      );
+
+      expect(folderModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.arrayContaining([
+            expect.objectContaining({
+              as: 'parent',
+              attributes: ['plainName', 'removed', 'deleted', 'uuid'],
+              required: false,
+            }),
+          ]),
         }),
       );
     });

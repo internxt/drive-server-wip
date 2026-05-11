@@ -415,9 +415,15 @@ describe('TrashController', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('When type is files, then it should return trashed files', async () => {
+    it('When trashed files are returned, then each file should include the parent folder name and not expose the full folder object', async () => {
+      const parentFolder = newFolder({
+        attributes: { plainName: 'Parent folder' },
+      });
       const mockFiles = [
-        newFile({ attributes: { status: FileStatus.TRASHED } }),
+        newFile({
+          attributes: { status: FileStatus.TRASHED },
+          folder: parentFolder,
+        }),
       ];
       const expectedExpiresAt = new Date('2026-03-01');
       jest.spyOn(fileUseCases, 'getTrashedFiles').mockResolvedValue(mockFiles);
@@ -445,17 +451,53 @@ describe('TrashController', () => {
         },
       );
       expect(result).toEqual({
-        result: mockFiles.map((file) => ({
-          ...file.toJSON(),
-          expiresAt: expectedExpiresAt,
-        })),
+        result: mockFiles.map((file) => {
+          const { folder: _folder, ...fileJson } = file.toJSON();
+          return {
+            ...fileJson,
+            parent: {
+              plainName: parentFolder.plainName,
+              status: parentFolder.status,
+              uuid: parentFolder.uuid,
+            },
+            expiresAt: expectedExpiresAt,
+          };
+        }),
       });
     });
 
-    it('When type is folders, then it should return trashed folders', async () => {
-      const mockFolders = [
-        newFolder({ attributes: { deleted: true, removed: false } }),
-      ];
+    it('When a trashed file has no parent folder, then the parent folder should be null', async () => {
+      const mockFile = newFile({
+        attributes: { status: FileStatus.TRASHED },
+      });
+      mockFile.folder = null;
+      jest.spyOn(fileUseCases, 'getTrashedFiles').mockResolvedValue([mockFile]);
+      jest
+        .spyOn(trashUseCases, 'getTrashRetentionDays')
+        .mockResolvedValue(retentionDays);
+      jest
+        .spyOn(TrashExpirationUtils, 'calculateTrashExpirationDate')
+        .mockReturnValue(new Date('2026-03-01'));
+
+      const result = await controller.getTrashedFilesPaginated(
+        user,
+        validPagination,
+        'files',
+      );
+
+      expect((result.result[0] as any).parent.plainName).toBeUndefined();
+      expect((result.result[0] as any).folder).toBeUndefined();
+    });
+
+    it('When trashed folders are returned, then each folder should include the parent folder name and not expose the full parent object', async () => {
+      const parentFolder = newFolder({
+        attributes: { plainName: 'Parent folder' },
+      });
+      const mockFolder = newFolder({
+        attributes: { deleted: true, removed: false },
+      });
+      mockFolder.parent = parentFolder;
+      const mockFolders = [mockFolder];
       const expectedExpiresAt = new Date('2026-03-01');
       jest
         .spyOn(folderUseCases, 'getTrashedFolders')
@@ -484,11 +526,43 @@ describe('TrashController', () => {
         },
       );
       expect(result).toEqual({
-        result: mockFolders.map((folder) => ({
-          ...folder.toJSON(),
-          expiresAt: expectedExpiresAt,
-        })),
+        result: mockFolders.map((folder) => {
+          const { parent: _parent, ...folderJson } = folder.toJSON();
+          return {
+            ...folderJson,
+            parent: {
+              plainName: parentFolder.plainName,
+              status: parentFolder.status,
+              uuid: parentFolder.uuid,
+            },
+            expiresAt: expectedExpiresAt,
+          };
+        }),
       });
+    });
+
+    it('When a trashed folder has no parent folder, then the parent folder name should be not returned', async () => {
+      const mockFolder = newFolder({
+        attributes: { deleted: true, removed: false },
+      });
+      mockFolder.parent = null;
+      jest
+        .spyOn(folderUseCases, 'getTrashedFolders')
+        .mockResolvedValue([mockFolder]);
+      jest
+        .spyOn(trashUseCases, 'getTrashRetentionDays')
+        .mockResolvedValue(retentionDays);
+      jest
+        .spyOn(TrashExpirationUtils, 'calculateTrashExpirationDate')
+        .mockReturnValue(new Date('2026-03-01'));
+
+      const result = await controller.getTrashedFilesPaginated(
+        user,
+        validPagination,
+        'folders',
+      );
+
+      expect((result.result[0] as any).parent).toBeUndefined();
     });
 
     it('When type is files and a file has no updatedAt, then expiresAt should be null', async () => {
@@ -510,8 +584,19 @@ describe('TrashController', () => {
       expect(
         TrashExpirationUtils.calculateTrashExpirationDate,
       ).not.toHaveBeenCalled();
+      const { folder: _folder, ...fileJson } = mockFile.toJSON();
       expect(result).toEqual({
-        result: [{ ...mockFile.toJSON(), expiresAt: null }],
+        result: [
+          {
+            ...fileJson,
+            parent: {
+              plainName: mockFile.folder?.plainName ?? null,
+              status: mockFile.folder?.status ?? null,
+              uuid: mockFile.folder?.uuid ?? null,
+            },
+            expiresAt: null,
+          },
+        ],
       });
     });
 
@@ -536,8 +621,19 @@ describe('TrashController', () => {
       expect(
         TrashExpirationUtils.calculateTrashExpirationDate,
       ).not.toHaveBeenCalled();
+      const { parent: _parent, ...folderJson } = mockFolder.toJSON();
       expect(result).toEqual({
-        result: [{ ...mockFolder.toJSON(), expiresAt: null }],
+        result: [
+          {
+            ...folderJson,
+            parent: {
+              plainName: mockFolder.parent?.plainName ?? null,
+              status: mockFolder.parent?.status ?? null,
+              uuid: mockFolder.parent?.uuid ?? null,
+            },
+            expiresAt: null,
+          },
+        ],
       });
     });
 
