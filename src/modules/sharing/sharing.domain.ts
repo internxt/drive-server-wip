@@ -72,7 +72,7 @@ export interface SharingInviteAttributes extends Omit<
 > {
   id: string;
   type: 'SELF' | 'OWNER';
-  roleId: RoleAttributes['id'];
+  roleId: RoleAttributes['id'] | null;
   expirationAt?: Date;
 }
 
@@ -241,7 +241,7 @@ export class SharingInvite implements SharingInviteAttributes {
   encryptionKey: string;
   encryptionAlgorithm: string;
   type: 'SELF' | 'OWNER';
-  roleId: string;
+  roleId: string | null;
   createdAt: Date;
   updatedAt: Date;
   expirationAt: Date;

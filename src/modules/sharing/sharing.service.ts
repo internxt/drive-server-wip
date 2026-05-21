@@ -1078,15 +1078,15 @@ export class SharingService {
     user: User,
     createInviteDto: CreateInviteDto,
   ): Promise<SharingInvite> {
-    if (createInviteDto.sharedWith === user.email) {
-      throw new OwnerCannotBeSharedWithError();
-    }
-
     const isAnInvitation = createInviteDto.type === 'OWNER';
     const isARequestToJoin = createInviteDto.type === 'SELF';
 
     if (!isAnInvitation && !isARequestToJoin) {
       throw new BadRequestException();
+    }
+
+    if (isAnInvitation && createInviteDto.sharedWith === user.email) {
+      throw new OwnerCannotBeSharedWithError();
     }
 
     if (isAnInvitation) {
@@ -1098,6 +1098,15 @@ export class SharingService {
           'Encryption algorithm and encryption key are required',
         );
       }
+      if (!createInviteDto.roleId) {
+        throw new BadRequestException('roleId is required');
+      }
+    }
+
+    if (isARequestToJoin && createInviteDto.sharedWith !== user.email) {
+      throw new BadRequestException(
+        'A request must be created by the requester',
+      );
     }
 
     const [existentUser, preCreatedUser] = await Promise.all([
@@ -1145,9 +1154,15 @@ export class SharingService {
     }
     const resourceIsOwnedByUser = item.isOwnedBy(user);
 
-    if (!resourceIsOwnedByUser) {
+    if (isAnInvitation && !resourceIsOwnedByUser) {
       throw new ForbiddenException(
         'User does not have permission to share this item',
+      );
+    }
+
+    if (isARequestToJoin && resourceIsOwnedByUser) {
+      throw new BadRequestException(
+        'Owner cannot request access to its own item',
       );
     }
 
@@ -1158,6 +1173,7 @@ export class SharingService {
       id: v4(),
       ...createInviteDto,
       sharedWith: userJoining.uuid,
+      roleId: isARequestToJoin ? null : createInviteDto.roleId,
       createdAt: new Date(),
       updatedAt: new Date(),
       expirationAt: isUserPreCreated ? expirationAt : null,
@@ -1185,7 +1201,7 @@ export class SharingService {
 
     const createdInvite = await this.sharingRepository.createInvite(invite);
 
-    if (createInviteDto.notifyUser && !isUserPreCreated) {
+    if (isAnInvitation && createInviteDto.notifyUser && !isUserPreCreated) {
       const authToken = Sign(
         this.usersUsecases.getNewTokenPayload(userJoining),
         this.configService.get('secrets.jwt'),
@@ -1209,6 +1225,11 @@ export class SharingService {
           // no op
         });
     }
+
+    // Email notification for SELF requests is pending a dedicated template.
+    // The current invitation template only offers accept/decline, but
+    // accepting a request requires the owner to pick a role first, which
+    // cannot be done from an email button. See ticket for the new flow.
 
     if (isUserPreCreated) {
       const encodedUserEmail = encodeURIComponent(userJoining.email);
@@ -1343,21 +1364,6 @@ export class SharingService {
       throw new NotFoundException();
     }
 
-    if (!invite.isSharedWith(user)) {
-      throw new ForbiddenException();
-    }
-
-    if (invite.isARequest()) {
-      if (
-        !acceptInviteDto.encryptionAlgorithm ||
-        !acceptInviteDto.encryptionKey
-      ) {
-        throw new BadRequestException(
-          'This invitation is a request, the encryption key is required',
-        );
-      }
-    }
-
     let item: Item;
 
     if (invite.itemType === 'file') {
@@ -1368,11 +1374,34 @@ export class SharingService {
       throw new BadRequestException('Wrong invitation item type');
     }
 
+    if (invite.isARequest()) {
+      if (!item.isOwnedBy(user)) {
+        throw new ForbiddenException();
+      }
+      if (
+        !acceptInviteDto.encryptionAlgorithm ||
+        !acceptInviteDto.encryptionKey
+      ) {
+        throw new BadRequestException(
+          'This invitation is a request, the encryption key is required',
+        );
+      }
+      if (!acceptInviteDto.roleId) {
+        throw new BadRequestException(
+          'This invitation is a request, the roleId is required',
+        );
+      }
+    } else if (!invite.isSharedWith(user)) {
+      throw new ForbiddenException();
+    }
+
     const owner = await this.usersUsecases.findById(item.userId);
 
     if (!owner) {
       throw new NotFoundException('Owner of this resource not found');
     }
+
+    const roleId = invite.isARequest() ? acceptInviteDto.roleId : invite.roleId;
 
     const newSharing = Sharing.build({
       ...invite,
@@ -1390,7 +1419,7 @@ export class SharingService {
     await this.sharingRepository.createSharingRole({
       createdAt: new Date(),
       updatedAt: new Date(),
-      roleId: invite.roleId,
+      roleId,
       sharingId: sharing.id,
     });
     await this.sharingRepository.deleteInvite(invite);

@@ -234,6 +234,7 @@ export class SharingInviteModel
   type: SharingInviteAttributes['type'];
 
   @ForeignKey(() => RoleModel)
+  @AllowNull
   @Column(DataType.UUIDV4)
   roleId: SharingInviteAttributes['roleId'];
 
