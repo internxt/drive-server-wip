@@ -146,9 +146,9 @@ describe('AuthController', () => {
     });
 
     it('When an error occurs during login access, then it should throw an error', async () => {
-      userUseCases.loginAccess = jest
-        .fn()
-        .mockRejectedValue(new Error('Login access error'));
+      userUseCases.loginAccess.mockRejectedValue(
+        new Error('Login access error'),
+      );
 
       await expect(authController.loginAccess(loginAccessDto)).rejects.toThrow(
         Error,

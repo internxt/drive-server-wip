@@ -12,7 +12,7 @@ function buildJobId(): string {
   const date = Time.formatAsDateOnly(now);
   const hour = String(now.getUTCHours()).padStart(2, '0');
   const minutes = now.getUTCMinutes() < 30 ? '00' : '30';
-  return `${date}T${hour}:${minutes}`;
+  return `${date}T${hour}${minutes}`;
 }
 
 @Injectable()
