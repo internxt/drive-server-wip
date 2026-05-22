@@ -60,6 +60,8 @@ import {
   type GetFoldersInSharedFolderResponseDto,
 } from './dto/response/get-folders-in-shared-folder.dto';
 import { SequelizeFileRepository } from '../file/file.repository';
+import { NotificationService } from '../../externals/notifications/notification.service';
+import { AccessRequestToShareItemEvent } from '../../externals/notifications/events/access-request-to-share-item.event';
 
 class UserAlreadyHasRole extends BadRequestException {
   constructor() {
@@ -148,6 +150,7 @@ export class SharingService {
     private readonly usersUsecases: UserUseCases,
     private readonly configService: ConfigService,
     private readonly userReferralsRepository: SequelizeUserReferralsRepository,
+    private readonly notificationService: NotificationService,
   ) {}
 
   findSharingBy(where: Partial<Sharing>): Promise<Sharing | null> {
@@ -1224,6 +1227,22 @@ export class SharingService {
         .catch(() => {
           // no op
         });
+    }
+
+    if (isARequestToJoin) {
+      const owner = await this.usersUsecases.findById(item.userId);
+      if (owner) {
+        const event = new AccessRequestToShareItemEvent({
+          ownerUuid: owner.uuid,
+          ownerEmail: owner.email,
+          requesterEmail: user.email,
+          itemId: item.uuid,
+          itemType: createInviteDto.itemType,
+          itemName: item.plainName,
+          inviteId: createdInvite.id,
+        });
+        this.notificationService.add(event);
+      }
     }
 
     // Email notification for SELF requests is pending a dedicated template.

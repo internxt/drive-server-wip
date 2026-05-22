@@ -24,6 +24,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { HttpClientModule } from '../../externals/http/http.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { CaptchaService } from '../../externals/captcha/captcha.service';
+import { NotificationModule } from '../../externals/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { CaptchaService } from '../../externals/captcha/captcha.service';
     forwardRef(() => UserModule),
     forwardRef(() => FeatureLimitModule),
     HttpClientModule,
+    NotificationModule,
   ],
   controllers: [SharingController],
   providers: [

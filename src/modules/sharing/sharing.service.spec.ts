@@ -28,6 +28,7 @@ import { type FileUseCases } from '../file/file.usecase';
 import { type UserUseCases } from '../user/user.usecase';
 import { type SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 import { type SequelizeFileRepository } from '../file/file.repository';
+import { type NotificationService } from '../../externals/notifications/notification.service';
 import {
   type Role,
   SharedWithType,
@@ -61,6 +62,7 @@ describe('Sharing Use Cases', () => {
   let usersUsecases: DeepMocked<UserUseCases>;
   let userReferralsRepository: DeepMocked<SequelizeUserReferralsRepository>;
   let config: DeepMocked<ConfigService>;
+  let notificationService: DeepMocked<NotificationService>;
 
   beforeEach(async () => {
     sharingRepository = createMock<SequelizeSharingRepository>();
@@ -85,6 +87,8 @@ describe('Sharing Use Cases', () => {
       return configValues[key] || 'default-value';
     });
 
+    notificationService = createMock<NotificationService>();
+
     sharingService = new SharingService(
       sharingRepository,
       fileRepository,
@@ -93,6 +97,7 @@ describe('Sharing Use Cases', () => {
       usersUsecases,
       config,
       userReferralsRepository,
+      notificationService,
     );
   });
 
