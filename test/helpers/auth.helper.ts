@@ -19,6 +19,7 @@ export function generateAuthToken(user: User, jwtSecret?: string): string {
           user: user.bridgeUser,
           pass: user.userId,
         },
+        tierId: user.tierId,
       },
     },
     secret,

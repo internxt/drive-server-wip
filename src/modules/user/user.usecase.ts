@@ -908,6 +908,7 @@ export class UserUseCases {
           networkCredentials: {
             user: user.bridgeUser,
           },
+          tierId: user.tierId,
           workspaces: { owners },
           ...(platform && { platform }),
         },
