@@ -18,6 +18,7 @@ import {
   type SharingActionName,
   type SharingAttributes,
   SharingInvite,
+  type SharingInviteAttributes,
   type SharingRole,
   SharingType,
 } from './sharing.domain';
@@ -1077,6 +1078,124 @@ export class SharingService {
     };
   }
 
+  private validateOwnerInviteDto(user: User, dto: CreateInviteDto): void {
+    if (dto.sharedWith === user.email) {
+      throw new OwnerCannotBeSharedWithError();
+    }
+    if (!dto.encryptionAlgorithm || !dto.encryptionKey) {
+      throw new BadRequestException(
+        'Encryption algorithm and encryption key are required',
+      );
+    }
+    if (!dto.roleId) {
+      throw new BadRequestException('roleId is required');
+    }
+  }
+
+  private validateSelfRequestDto(user: User, dto: CreateInviteDto): void {
+    if (dto.sharedWith !== user.email) {
+      throw new BadRequestException(
+        'A request must be created by the requester',
+      );
+    }
+  }
+
+  private async getItemByInvite(
+    invite: Pick<SharingInviteAttributes, 'itemId' | 'itemType'>,
+  ): Promise<Item> {
+    if (invite.itemType === 'file') {
+      return this.fileUsecases.getByUuid(invite.itemId);
+    } else if (invite.itemType === 'folder') {
+      return this.folderUsecases.getByUuid(invite.itemId);
+    }
+    throw new BadRequestException('Wrong invitation item type');
+  }
+
+  private async notifyOwnerInviteCreated(
+    user: User,
+    userJoining: { uuid: string; email: string },
+    item: Item,
+    createdInvite: SharingInvite,
+    dto: CreateInviteDto,
+    isUserPreCreated: boolean,
+  ): Promise<void> {
+    const mailer = new MailerService(this.configService);
+
+    if (dto.notifyUser && !isUserPreCreated) {
+      const authToken = Sign(
+        this.usersUsecases.getNewTokenPayload(userJoining),
+        this.configService.get('secrets.jwt'),
+      );
+      mailer
+        .sendInvitationToSharingReceivedEmail(
+          user.email,
+          userJoining.email,
+          item.plainName,
+          {
+            acceptUrl: `${this.configService.get('clients.drive.web')}/sharings/${createdInvite.id}/accept?token=${authToken}`,
+            declineUrl: `${this.configService.get('clients.drive.web')}/sharings/${createdInvite.id}/decline?token=${authToken}`,
+            message: dto.notificationMessage || '',
+          },
+        )
+        .catch(() => {
+          // no op
+        });
+    }
+
+    // Email notification for SELF requests is pending a dedicated template.
+    // The current invitation template only offers accept/decline, but
+    // accepting a request requires the owner to pick a role first, which
+    // cannot be done from an email button. See ticket for the new flow.
+    if (isUserPreCreated) {
+      const encodedUserEmail = encodeURIComponent(userJoining.email);
+      try {
+        await mailer.sendInvitationToSharingGuestEmail(
+          user.email,
+          userJoining.email,
+          item.plainName,
+          {
+            signUpUrl: `${this.configService.get('clients.drive.web')}/shared-guest?invitation=${createdInvite.id}&email=${encodedUserEmail}`,
+            message: dto.notificationMessage || '',
+          },
+        );
+      } catch (error) {
+        Logger.error(
+          `[SHARING/GUESTUSEREMAIL] Error sending email pre created userId: ${userJoining.uuid}, error: ${JSON.stringify(error)}`,
+        );
+        await this.sharingRepository.deleteInvite(createdInvite);
+        throw error;
+      }
+    }
+  }
+
+  private async notifyAccessRequestCreated(
+    user: User,
+    item: Item,
+    createdInvite: SharingInvite,
+    itemType: SharingInviteAttributes['itemType'],
+  ): Promise<void> {
+    const owner = await this.usersUsecases.findById(item.userId);
+    if (!owner) {
+      Logger.warn(
+        `[SHARING/REQUEST] Owner not found for item ${item.uuid} (userId: ${item.userId}). Notification skipped for invite ${createdInvite.id}.`,
+      );
+      return;
+    }
+
+    // TODO: send the mail to the owner to accept the request
+
+    const event = new AccessRequestToShareItemEvent({
+      ownerUuid: owner.uuid,
+      ownerEmail: owner.email,
+      requesterEmail: user.email,
+      itemId: item.uuid,
+      itemType,
+      itemName: item.plainName,
+      inviteId: createdInvite.id,
+    });
+    this.notificationService.add(event);
+  }
+
   async createInvite(
     user: User,
     createInviteDto: CreateInviteDto,
@@ -1088,29 +1207,8 @@ export class SharingService {
       throw new BadRequestException();
     }
 
-    if (isAnInvitation && createInviteDto.sharedWith === user.email) {
-      throw new OwnerCannotBeSharedWithError();
-    }
-
-    if (isAnInvitation) {
-      if (
-        !createInviteDto.encryptionAlgorithm ||
-        !createInviteDto.encryptionKey
-      ) {
-        throw new BadRequestException(
-          'Encryption algorithm and encryption key are required',
-        );
-      }
-      if (!createInviteDto.roleId) {
-        throw new BadRequestException('roleId is required');
-      }
-    }
-
-    if (isARequestToJoin && createInviteDto.sharedWith !== user.email) {
-      throw new BadRequestException(
-        'A request must be created by the requester',
-      );
-    }
+    if (isAnInvitation) this.validateOwnerInviteDto(user, createInviteDto);
+    if (isARequestToJoin) this.validateSelfRequestDto(user, createInviteDto);
 
     const [existentUser, preCreatedUser] = await Promise.all([
       this.usersUsecases.findByEmail(createInviteDto.sharedWith),
@@ -1124,6 +1222,12 @@ export class SharingService {
     }
 
     const isUserPreCreated = !existentUser;
+
+    if (isARequestToJoin && isUserPreCreated) {
+      throw new BadRequestException(
+        'You must have an account to request access to this item',
+      );
+    }
 
     const [invitation, sharing] = await Promise.all([
       this.sharingRepository.getInviteByItemAndUser(
@@ -1139,22 +1243,11 @@ export class SharingService {
       }),
     ]);
 
-    const userAlreadyInvited = invitation !== null;
-    const userAlreadyJoined = sharing !== null;
-
-    if (userAlreadyInvited || userAlreadyJoined) {
+    if (invitation !== null || sharing !== null) {
       throw new UserAlreadyHasRole();
     }
 
-    let item: Item;
-
-    if (createInviteDto.itemType === 'file') {
-      item = await this.fileUsecases.getByUuid(createInviteDto.itemId);
-    } else if (createInviteDto.itemType === 'folder') {
-      item = await this.folderUsecases.getByUuid(createInviteDto.itemId);
-    } else {
-      throw new BadRequestException('Wrong "itemType" param');
-    }
+    const item = await this.getItemByInvite(createInviteDto);
     const resourceIsOwnedByUser = item.isOwnedBy(user);
 
     if (isAnInvitation && !resourceIsOwnedByUser) {
@@ -1182,19 +1275,17 @@ export class SharingService {
       expirationAt: isUserPreCreated ? expirationAt : null,
     });
 
-    const tooManyTimesShared = await this.isItemBeingSharedAboveTheLimit(
-      createInviteDto.itemId,
-      createInviteDto.itemType,
-      SharingType.Private,
-    );
-
-    if (tooManyTimesShared) {
+    if (
+      await this.isItemBeingSharedAboveTheLimit(
+        createInviteDto.itemId,
+        createInviteDto.itemType,
+        SharingType.Private,
+      )
+    ) {
       throw new BadRequestException('Limit for sharing an item reach');
     }
 
-    const shouldRemoveOtherSharings = !createInviteDto.persistPreviousSharing;
-
-    if (shouldRemoveOtherSharings) {
+    if (isAnInvitation && !createInviteDto.persistPreviousSharing) {
       await this.removeItemFromBeingShared(
         createInviteDto.itemType,
         createInviteDto.itemId,
@@ -1204,79 +1295,24 @@ export class SharingService {
 
     const createdInvite = await this.sharingRepository.createInvite(invite);
 
-    if (isAnInvitation && createInviteDto.notifyUser && !isUserPreCreated) {
-      const authToken = Sign(
-        this.usersUsecases.getNewTokenPayload(userJoining),
-        this.configService.get('secrets.jwt'),
+    if (isAnInvitation) {
+      await this.notifyOwnerInviteCreated(
+        user,
+        userJoining,
+        item,
+        createdInvite,
+        createInviteDto,
+        isUserPreCreated,
       );
-      new MailerService(this.configService)
-        .sendInvitationToSharingReceivedEmail(
-          user.email,
-          userJoining.email,
-          item.plainName,
-          {
-            acceptUrl: `${this.configService.get(
-              'clients.drive.web',
-            )}/sharings/${createdInvite.id}/accept?token=${authToken}`,
-            declineUrl: `${this.configService.get(
-              'clients.drive.web',
-            )}/sharings/${createdInvite.id}/decline?token=${authToken}`,
-            message: createInviteDto.notificationMessage || '',
-          },
-        )
-        .catch(() => {
-          // no op
-        });
     }
 
     if (isARequestToJoin) {
-      const owner = await this.usersUsecases.findById(item.userId);
-      if (owner) {
-        const event = new AccessRequestToShareItemEvent({
-          ownerUuid: owner.uuid,
-          ownerEmail: owner.email,
-          requesterEmail: user.email,
-          itemId: item.uuid,
-          itemType: createInviteDto.itemType,
-          itemName: item.plainName,
-          inviteId: createdInvite.id,
-        });
-        this.notificationService.add(event);
-      }
-    }
-
-    // Email notification for SELF requests is pending a dedicated template.
-    // The current invitation template only offers accept/decline, but
-    // accepting a request requires the owner to pick a role first, which
-    // cannot be done from an email button. See ticket for the new flow.
-
-    if (isUserPreCreated) {
-      const encodedUserEmail = encodeURIComponent(userJoining.email);
-      try {
-        await new MailerService(
-          this.configService,
-        ).sendInvitationToSharingGuestEmail(
-          user.email,
-          userJoining.email,
-          item.plainName,
-          {
-            signUpUrl: `${this.configService.get(
-              'clients.drive.web',
-            )}/shared-guest?invitation=${
-              createdInvite.id
-            }&email=${encodedUserEmail}`,
-            message: createInviteDto.notificationMessage || '',
-          },
-        );
-      } catch (error) {
-        Logger.error(
-          `[SHARING/GUESTUSEREMAIL] Error sending email pre created userId: ${
-            userJoining.uuid
-          }, error: ${JSON.stringify(error)}`,
-        );
-        await this.sharingRepository.deleteInvite(createdInvite);
-        throw error;
-      }
+      await this.notifyAccessRequestCreated(
+        user,
+        item,
+        createdInvite,
+        createInviteDto.itemType,
+      );
     }
 
     return createdInvite;
@@ -1383,15 +1419,7 @@ export class SharingService {
       throw new NotFoundException();
     }
 
-    let item: Item;
-
-    if (invite.itemType === 'file') {
-      item = await this.fileUsecases.getByUuid(invite.itemId);
-    } else if (invite.itemType === 'folder') {
-      item = await this.folderUsecases.getByUuid(invite.itemId);
-    } else {
-      throw new BadRequestException('Wrong invitation item type');
-    }
+    const item = await this.getItemByInvite(invite);
 
     if (invite.isARequest()) {
       if (!item.isOwnedBy(user)) {
@@ -1421,6 +1449,10 @@ export class SharingService {
     }
 
     const roleId = invite.isARequest() ? acceptInviteDto.roleId : invite.roleId;
+
+    if (!roleId) {
+      throw new BadRequestException('roleId is required to accept this invite');
+    }
 
     const newSharing = Sharing.build({
       ...invite,

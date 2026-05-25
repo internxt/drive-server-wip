@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsOptional, IsUUID } from 'class-validator';
 import { type SharingInvite } from '../sharing.domain';
 
 export class AcceptInviteDto {
@@ -20,5 +21,7 @@ export class AcceptInviteDto {
     description:
       'Role to assign to the requester (required when the invitation is a request)',
   })
-  roleId?: SharingInvite['roleId'];
+  @IsOptional()
+  @IsUUID()
+  roleId?: string;
 }
