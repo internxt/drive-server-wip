@@ -104,6 +104,7 @@ export async function createTestUser(
         networkCredentials: {
           user: user.bridgeUser,
         },
+        tierId: user.tierId,
       },
     },
     secret,
