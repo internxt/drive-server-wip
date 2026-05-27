@@ -1059,7 +1059,7 @@ describe('BackupUseCase', () => {
         .mockResolvedValue([mockFolder]);
       jest
         .spyOn(cryptoService, 'decryptName')
-        .mockReturnValueOnce('Decrypted Phone' as never);
+        .mockReturnValueOnce('Decrypted Phone');
 
       const result =
         await backupUseCase.getPhotoDevicesAsFolder(userWithPhotos);
@@ -1085,8 +1085,21 @@ describe('BackupUseCase', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When folder exists, then it should return it', async () => {
-      const mockFolder = newFolder();
+    it('When folder is not in the photos bucket, then it should throw', async () => {
+      const mockFolder = newFolder({ attributes: { bucket: v4() } });
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(mockFolder);
+
+      await expect(
+        backupUseCase.getPhotoDeviceAsFolder(userWithPhotos, 'folder-uuid'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When folder exists and is in the photos bucket, then it should return it', async () => {
+      const mockFolder = newFolder({
+        attributes: { bucket: userWithPhotos.photosBucket },
+      });
       jest
         .spyOn(folderUseCases, 'getFolderByUuid')
         .mockResolvedValue(mockFolder);
@@ -1161,8 +1174,25 @@ describe('BackupUseCase', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When folder exists, then it should update and return it', async () => {
-      const mockFolder = newFolder();
+    it('When folder is not in the photos bucket, then it should throw', async () => {
+      const mockFolder = newFolder({ attributes: { bucket: v4() } });
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(mockFolder);
+
+      await expect(
+        backupUseCase.updatePhotoDeviceAsFolder(
+          userWithPhotos,
+          'folder-uuid',
+          'New Name',
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When folder exists and is in the photos bucket, then it should update and return it', async () => {
+      const mockFolder = newFolder({
+        attributes: { bucket: userWithPhotos.photosBucket },
+      });
       const updatedFolder = newFolder({
         attributes: { ...mockFolder, plainName: 'New Name' },
       });

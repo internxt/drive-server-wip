@@ -507,6 +507,8 @@ export class BackupUseCase {
       throw new NotFoundException('Folder not found');
     }
 
+    this.verifyFolderIsPhotoDevice(user, folder);
+
     return this.addFolderAsDeviceProperties(
       user,
       this.decryptBackupFolderName(folder),
@@ -519,9 +521,7 @@ export class BackupUseCase {
       throw new NotFoundException('Folder not found');
     }
 
-    if (folder.bucket !== user.photosBucket) {
-      throw new BadRequestException('Folder is not in the photos bucket');
-    }
+    this.verifyFolderIsPhotoDevice(user, folder);
 
     await this.folderUsecases.deleteByUser(user, [folder]);
   }
@@ -536,12 +536,22 @@ export class BackupUseCase {
       throw new NotFoundException('Folder not found');
     }
 
+    this.verifyFolderIsPhotoDevice(user, folder);
+
     const updatedFolder =
       await this.folderUsecases.updateByFolderIdAndForceUpdatedAt(folder, {
         plainName: deviceName,
       });
 
     return this.addFolderAsDeviceProperties(user, updatedFolder);
+  }
+
+  private verifyFolderIsPhotoDevice(user: User, folder: Folder) {
+    if (folder.bucket !== user.photosBucket) {
+      throw new BadRequestException(
+        `${folder.uuid} is not a valid photos device`,
+      );
+    }
   }
 
   private verifyUserHasPhotosEnabled(user: User) {
