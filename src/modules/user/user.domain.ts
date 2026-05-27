@@ -24,6 +24,7 @@ export class User implements UserAttributes {
   welcomePack: boolean;
   registerCompleted: boolean;
   backupsBucket: string;
+  photosBucket: string;
   sharedWorkspace: boolean;
   avatar: string;
   lastPasswordChangedAt: Date;
@@ -56,6 +57,7 @@ export class User implements UserAttributes {
     welcomePack,
     registerCompleted,
     backupsBucket,
+    photosBucket,
     sharedWorkspace,
     avatar,
     lastPasswordChangedAt,
@@ -87,6 +89,7 @@ export class User implements UserAttributes {
     this.welcomePack = welcomePack;
     this.registerCompleted = registerCompleted;
     this.backupsBucket = backupsBucket;
+    this.photosBucket = photosBucket;
     this.sharedWorkspace = sharedWorkspace;
     this.avatar = avatar;
     this.lastPasswordChangedAt = lastPasswordChangedAt;
@@ -106,6 +109,10 @@ export class User implements UserAttributes {
 
   hasBackupsEnabled(): boolean {
     return !!this.backupsBucket;
+  }
+
+  hasPhotosEnabled(): boolean {
+    return !!this.photosBucket;
   }
 
   toJSON(): UserToJsonDto {
@@ -129,6 +136,7 @@ export class User implements UserAttributes {
       welcomePack: this.welcomePack,
       registerCompleted: this.registerCompleted,
       backupsBucket: this.backupsBucket,
+      photosBucket: this.photosBucket,
       sharedWorkspace: this.sharedWorkspace,
       avatar: this.avatar,
       lastPasswordChangedAt: this.lastPasswordChangedAt,

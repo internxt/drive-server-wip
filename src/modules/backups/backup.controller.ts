@@ -236,6 +236,64 @@ export class BackupController {
     return this.backupUseCases.getDevicesAsFolder(user);
   }
 
+  @Post('/photos/devices')
+  @ApiOperation({ summary: 'Create a photo device as folder' })
+  @ApiOkResponse({ type: DeviceAsFolder })
+  @ApiBearerAuth()
+  async createPhotoDeviceAsFolder(
+    @UserDecorator() user: User,
+    @Body() body: CreateDeviceAsFolderDto,
+  ): Promise<DeviceAsFolder> {
+    return this.backupUseCases.createPhotoDeviceAsFolder(user, body.deviceName);
+  }
+
+  @Get('/photos/devices')
+  @ApiOperation({ summary: 'Get all photo devices as folder' })
+  @ApiOkResponse({ type: DeviceAsFolder, isArray: true })
+  @ApiBearerAuth()
+  async getPhotoDevicesAsFolder(
+    @UserDecorator() user: User,
+  ): Promise<DeviceAsFolder[]> {
+    return this.backupUseCases.getPhotoDevicesAsFolder(user);
+  }
+
+  @Get('/photos/devices/:uuid')
+  @ApiOperation({ summary: 'Get photo device as folder by uuid' })
+  @ApiOkResponse({ type: DeviceAsFolder })
+  @ApiBearerAuth()
+  async getPhotoDeviceAsFolder(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+  ): Promise<DeviceAsFolder> {
+    return this.backupUseCases.getPhotoDeviceAsFolder(user, uuid);
+  }
+
+  @Delete('/photos/devices/:uuid')
+  @ApiOperation({ summary: 'Delete photo device as folder by uuid' })
+  @ApiBearerAuth()
+  async deletePhotoDeviceAsFolder(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+  ) {
+    return this.backupUseCases.deletePhotoDeviceAsFolder(user, uuid);
+  }
+
+  @Patch('/photos/devices/:uuid')
+  @ApiOperation({ summary: 'Update photo device as folder by uuid' })
+  @ApiOkResponse({ type: DeviceAsFolder })
+  @ApiBearerAuth()
+  async updatePhotoDeviceAsFolder(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+    @Body() body: CreateDeviceAsFolderDto,
+  ): Promise<DeviceAsFolder> {
+    return this.backupUseCases.updatePhotoDeviceAsFolder(
+      user,
+      uuid,
+      body.deviceName,
+    );
+  }
+
   @Get('/devices')
   @ApiOperation({
     summary:

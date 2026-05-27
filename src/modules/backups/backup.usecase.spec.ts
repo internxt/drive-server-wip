@@ -1,4 +1,5 @@
 import { newDevice, newFolder, newUser } from './../../../test/fixtures';
+import { v4 } from 'uuid';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { BackupUseCase } from './backup.usecase';
@@ -950,6 +951,235 @@ describe('BackupUseCase', () => {
         id: 1,
         userId: userMocked.id,
       });
+    });
+  });
+
+  describe('activatePhotos', () => {
+    it('When photos bucket already exists, then it should return it', async () => {
+      const existingBucket = v4();
+      const user = newUser({ attributes: { photosBucket: existingBucket } });
+      const result = await backupUseCase.activatePhotos(user);
+      expect(result).toEqual({ photosBucket: existingBucket });
+    });
+
+    it('When photos bucket does not exist, then it should create one', async () => {
+      const newBucket = v4();
+      const user = newUser({ attributes: { photosBucket: null } });
+      jest
+        .spyOn(bridgeService, 'createBucket')
+        .mockResolvedValue({ id: newBucket } as any);
+
+      const result = await backupUseCase.activatePhotos(user);
+      expect(result).toEqual({ photosBucket: newBucket });
+    });
+  });
+
+  describe('createPhotoDeviceAsFolder', () => {
+    const userWithPhotos = newUser({
+      attributes: { photosBucket: v4() },
+    });
+
+    it('When folder with same name exists, then it should throw ConflictException', async () => {
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValue(newFolder());
+
+      await expect(
+        backupUseCase.createPhotoDeviceAsFolder(userWithPhotos, 'My Phone'),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When no folder with same name exists, then it should create the folder', async () => {
+      const mockFolder = newFolder();
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValue(null);
+      jest
+        .spyOn(folderRepository, 'createFolder')
+        .mockResolvedValue(mockFolder);
+      jest.spyOn(backupUseCase, 'isFolderEmpty').mockResolvedValue(true);
+
+      const result = await backupUseCase.createPhotoDeviceAsFolder(
+        userWithPhotos,
+        'My Phone',
+      );
+      expect(result).toEqual(newBackupFolder(mockFolder));
+    });
+
+    it('When user has no photos bucket, then it should activate photos first', async () => {
+      const userWithoutPhotos = newUser({ attributes: { photosBucket: null } });
+      const mockFolder = newFolder();
+
+      jest
+        .spyOn(backupUseCase, 'activatePhotos')
+        .mockResolvedValue({ photosBucket: v4() });
+      jest.spyOn(folderRepository, 'findOne').mockResolvedValue(null);
+      jest
+        .spyOn(folderRepository, 'createFolder')
+        .mockResolvedValue(mockFolder);
+      jest.spyOn(backupUseCase, 'isFolderEmpty').mockResolvedValue(true);
+
+      await backupUseCase.createPhotoDeviceAsFolder(userWithoutPhotos, 'Phone');
+
+      expect(backupUseCase.activatePhotos).toHaveBeenCalledWith(
+        userWithoutPhotos,
+      );
+    });
+  });
+
+  describe('getPhotoDevicesAsFolder', () => {
+    const userWithPhotos = newUser({
+      attributes: { photosBucket: v4() },
+    });
+
+    it('When photos are not activated, then it should throw BadRequestException', async () => {
+      const userWithoutPhotos = newUser({ attributes: { photosBucket: null } });
+
+      await expect(
+        backupUseCase.getPhotoDevicesAsFolder(userWithoutPhotos),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When photos are activated, then it should return all photo devices as folders', async () => {
+      const mockFolder = newFolder();
+      jest
+        .spyOn(folderUseCases, 'getFoldersByUserId')
+        .mockResolvedValue([mockFolder]);
+      jest.spyOn(backupUseCase, 'isFolderEmpty').mockResolvedValue(true);
+
+      const result =
+        await backupUseCase.getPhotoDevicesAsFolder(userWithPhotos);
+
+      expect(result[0]).toEqual({
+        ...newBackupFolder(mockFolder),
+        plainName: mockFolder.plainName,
+      });
+    });
+
+    it('When folder has no plainName, then it should decrypt using bucket', async () => {
+      const mockFolder = newFolder({ attributes: { plainName: null } });
+      jest
+        .spyOn(folderUseCases, 'getFoldersByUserId')
+        .mockResolvedValue([mockFolder]);
+      jest
+        .spyOn(cryptoService, 'decryptName')
+        .mockReturnValueOnce('Decrypted Phone' as never);
+
+      const result =
+        await backupUseCase.getPhotoDevicesAsFolder(userWithPhotos);
+
+      expect(cryptoService.decryptName).toHaveBeenCalledWith(
+        mockFolder.name,
+        mockFolder.bucket,
+      );
+      expect(result[0].plainName).toBe('Decrypted Phone');
+    });
+  });
+
+  describe('getPhotoDeviceAsFolder', () => {
+    const userWithPhotos = newUser({
+      attributes: { photosBucket: v4() },
+    });
+
+    it('When folder does not exist, then it should throw NotFoundException', async () => {
+      jest.spyOn(folderUseCases, 'getFolderByUuid').mockResolvedValue(null);
+
+      await expect(
+        backupUseCase.getPhotoDeviceAsFolder(userWithPhotos, 'folder-uuid'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When folder exists, then it should return it', async () => {
+      const mockFolder = newFolder();
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(mockFolder);
+      jest.spyOn(backupUseCase, 'isFolderEmpty').mockResolvedValue(true);
+
+      const result = await backupUseCase.getPhotoDeviceAsFolder(
+        userWithPhotos,
+        'folder-uuid',
+      );
+      expect(result).toEqual(newBackupFolder(mockFolder));
+    });
+  });
+
+  describe('deletePhotoDeviceAsFolder', () => {
+    const userWithPhotos = newUser({
+      attributes: { photosBucket: v4() },
+    });
+
+    it('When folder does not exist, then it should throw NotFoundException', async () => {
+      jest.spyOn(folderUseCases, 'getFolderByUuid').mockResolvedValue(null);
+
+      await expect(
+        backupUseCase.deletePhotoDeviceAsFolder(userWithPhotos, 'folder-uuid'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When folder is not in the photos bucket, then it should throw BadRequestException', async () => {
+      const mockFolder = newFolder({ attributes: { bucket: 'other-bucket' } });
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(mockFolder);
+
+      await expect(
+        backupUseCase.deletePhotoDeviceAsFolder(userWithPhotos, 'folder-uuid'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When folder is in the photos bucket, then it should delete it', async () => {
+      const mockFolder = newFolder({
+        attributes: { bucket: userWithPhotos.photosBucket },
+      });
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(mockFolder);
+      jest.spyOn(folderUseCases, 'deleteByUser').mockResolvedValue(undefined);
+
+      await backupUseCase.deletePhotoDeviceAsFolder(
+        userWithPhotos,
+        'folder-uuid',
+      );
+
+      expect(folderUseCases.deleteByUser).toHaveBeenCalledWith(userWithPhotos, [
+        mockFolder,
+      ]);
+    });
+  });
+
+  describe('updatePhotoDeviceAsFolder', () => {
+    const userWithPhotos = newUser({
+      attributes: { photosBucket: v4() },
+    });
+
+    it('When folder does not exist, then it should throw NotFoundException', async () => {
+      jest.spyOn(folderUseCases, 'getFolderByUuid').mockResolvedValue(null);
+
+      await expect(
+        backupUseCase.updatePhotoDeviceAsFolder(
+          userWithPhotos,
+          'folder-uuid',
+          'New Name',
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When folder exists, then it should update and return it', async () => {
+      const mockFolder = newFolder();
+      const updatedFolder = newFolder({
+        attributes: { ...mockFolder, plainName: 'New Name' },
+      });
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuid')
+        .mockResolvedValue(mockFolder);
+      jest
+        .spyOn(folderUseCases, 'updateByFolderIdAndForceUpdatedAt')
+        .mockResolvedValue(updatedFolder);
+      jest.spyOn(backupUseCase, 'isFolderEmpty').mockResolvedValue(true);
+
+      const result = await backupUseCase.updatePhotoDeviceAsFolder(
+        userWithPhotos,
+        'folder-uuid',
+        'New Name',
+      );
+      expect(result).toEqual(newBackupFolder(updatedFolder));
     });
   });
 

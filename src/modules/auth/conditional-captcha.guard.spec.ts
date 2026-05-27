@@ -197,10 +197,5 @@ const createMockExecutionContext = (request: Partial<any>): ExecutionContext =>
     }),
   }) as unknown as ExecutionContext;
 
-const buildUserWithErrorLoginCount = (count: number) => ({
-  ...newUser(),
-  errorLoginCount: count,
-  isGuestOnSharedWorkspace: () => false,
-  toJSON: undefined,
-  hasBackupsEnabled: () => false,
-});
+const buildUserWithErrorLoginCount = (count: number) =>
+  newUser({ attributes: { errorLoginCount: count } });

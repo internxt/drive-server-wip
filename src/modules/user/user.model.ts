@@ -111,6 +111,10 @@ export class UserModel extends Model implements UserAttributes {
   @Column
   backupsBucket: string;
 
+  @AllowNull
+  @Column
+  photosBucket: string;
+
   @Default(false)
   @Column
   sharedWorkspace: boolean;

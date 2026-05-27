@@ -19,6 +19,7 @@ export interface UserToJsonDto {
   welcomePack: boolean;
   registerCompleted: boolean;
   backupsBucket: string;
+  photosBucket: string;
   sharedWorkspace: boolean;
   avatar: string;
   lastPasswordChangedAt?: Date;
