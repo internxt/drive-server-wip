@@ -374,32 +374,17 @@ export class SharingService {
     itemType: Sharing['itemType'],
     itemId: Sharing['itemId'],
   ): Promise<GetInvitesDto> {
-    let item: Item | null;
-
-    if (itemType === 'file') {
-      item = await this.fileUsecases.getByUuid(itemId);
-    } else if (itemType === 'folder') {
-      item = await this.folderUsecases.getByUuid(itemId);
-    }
+    const item = await this.getItemByInvite({ itemId, itemType });
 
     if (!item) {
       throw new NotFoundException();
     }
 
-    const isUserTheOwner = item.isOwnedBy(user);
-
-    if (!isUserTheOwner) {
+    if (!item.isOwnedBy(user)) {
       throw new ForbiddenException();
     }
 
-    return this.sharingRepository.getInvites(
-      {
-        itemId,
-        itemType,
-      },
-      100,
-      0,
-    );
+    return this.sharingRepository.getInvites({ itemId, itemType }, 100, 0);
   }
 
   async getInvitesByUser(
@@ -1169,15 +1154,13 @@ export class SharingService {
   }
 
   private async notifyAccessRequestCreated(
-    user: User,
     item: Item,
-    createdInvite: SharingInvite,
-    itemType: SharingInviteAttributes['itemType'],
+    payload: GetInviteDto,
   ): Promise<void> {
     const owner = await this.usersUsecases.findById(item.userId);
     if (!owner) {
       Logger.warn(
-        `[SHARING/REQUEST] Owner not found for item ${item.uuid} (userId: ${item.userId}). Notification skipped for invite ${createdInvite.id}.`,
+        `[SHARING/REQUEST] Owner not found for item ${item.uuid} (userId: ${item.userId}). Notification skipped for invite ${payload.id}.`,
       );
       return;
     }
@@ -1187,11 +1170,8 @@ export class SharingService {
     const event = new AccessRequestToShareItemEvent({
       ownerUuid: owner.uuid,
       ownerEmail: owner.email,
-      requesterEmail: user.email,
-      itemId: item.uuid,
-      itemType,
+      payload,
       itemName: item.plainName,
-      inviteId: createdInvite.id,
     });
     this.notificationService.add(event);
   }
@@ -1207,8 +1187,11 @@ export class SharingService {
       throw new BadRequestException();
     }
 
-    if (isAnInvitation) this.validateOwnerInviteDto(user, createInviteDto);
-    if (isARequestToJoin) this.validateSelfRequestDto(user, createInviteDto);
+    const validateInvite = isAnInvitation
+      ? this.validateOwnerInviteDto
+      : this.validateSelfRequestDto;
+
+    validateInvite(user, createInviteDto);
 
     const [existentUser, preCreatedUser] = await Promise.all([
       this.usersUsecases.findByEmail(createInviteDto.sharedWith),
@@ -1307,12 +1290,26 @@ export class SharingService {
     }
 
     if (isARequestToJoin) {
-      await this.notifyAccessRequestCreated(
-        user,
-        item,
-        createdInvite,
-        createInviteDto.itemType,
-      );
+      const payload: GetInviteDto = {
+        createdAt: createdInvite.createdAt,
+        id: createdInvite.id,
+        encryptedCode: createInviteDto.notificationMessage,
+        itemType: item.type as 'file' | 'folder',
+        invited: {
+          ...user,
+        },
+        encryptionAlgorithm: createdInvite.encryptionAlgorithm,
+        encryptionKey: createdInvite.encryptionKey,
+        itemId: createdInvite.itemId,
+        roleId: createdInvite.roleId,
+        sharedWith: createdInvite.sharedWith,
+        type: createdInvite.type,
+        updatedAt: createdInvite.updatedAt,
+        encryptedPassword: null,
+        expirationAt: createdInvite.expirationAt,
+      };
+
+      await this.notifyAccessRequestCreated(item, payload);
     }
 
     return createdInvite;

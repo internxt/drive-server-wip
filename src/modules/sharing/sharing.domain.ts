@@ -238,8 +238,8 @@ export class SharingInvite implements SharingInviteAttributes {
   itemId: ItemId;
   itemType: 'file' | 'folder';
   sharedWith: User['uuid'];
-  encryptionKey: string;
-  encryptionAlgorithm: string;
+  encryptionKey: string | null;
+  encryptionAlgorithm: string | null;
   type: 'SELF' | 'OWNER';
   roleId: string | null;
   createdAt: Date;

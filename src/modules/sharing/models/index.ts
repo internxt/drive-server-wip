@@ -224,9 +224,11 @@ export class SharingInviteModel
   })
   folder: FolderModel;
 
+  @AllowNull
   @Column(DataType.STRING)
   encryptionKey: SharingInviteAttributes['encryptionKey'];
 
+  @AllowNull
   @Column(DataType.STRING)
   encryptionAlgorithm: SharingInviteAttributes['encryptionAlgorithm'];
 
