@@ -1258,13 +1258,13 @@ export class SharingService {
       expirationAt: isUserPreCreated ? expirationAt : null,
     });
 
-    if (
-      await this.isItemBeingSharedAboveTheLimit(
-        createInviteDto.itemId,
-        createInviteDto.itemType,
-        SharingType.Private,
-      )
-    ) {
+    const tooManyTimesShared = await this.isItemBeingSharedAboveTheLimit(
+      createInviteDto.itemId,
+      createInviteDto.itemType,
+      SharingType.Private,
+    );
+
+    if (tooManyTimesShared) {
       throw new BadRequestException('Limit for sharing an item reach');
     }
 
