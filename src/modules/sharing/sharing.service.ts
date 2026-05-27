@@ -71,6 +71,14 @@ class UserAlreadyHasRole extends BadRequestException {
   }
 }
 
+class AccessRequestAlreadyCreatedError extends ConflictException {
+  constructor() {
+    super('Access request already created');
+    this.name = 'AccessRequestAlreadyCreatedError';
+    Object.setPrototypeOf(this, AccessRequestAlreadyCreatedError.prototype);
+  }
+}
+
 class OwnerCannotBeSharedWithError extends BadRequestException {
   constructor() {
     super('Owner cannot share the folder with itself');
@@ -380,7 +388,9 @@ export class SharingService {
       throw new NotFoundException();
     }
 
-    if (!item.isOwnedBy(user)) {
+    const isUserTheOwner = item.isOwnedBy(user);
+
+    if (!isUserTheOwner) {
       throw new ForbiddenException();
     }
 
@@ -1226,7 +1236,13 @@ export class SharingService {
       }),
     ]);
 
-    if (invitation !== null || sharing !== null) {
+    if (invitation !== null) {
+      if (isARequestToJoin && invitation.isARequest()) {
+        throw new AccessRequestAlreadyCreatedError();
+      }
+      throw new UserAlreadyHasRole();
+    }
+    if (sharing !== null) {
       throw new UserAlreadyHasRole();
     }
 
