@@ -19,6 +19,7 @@ import { UserNotificationTokensModel } from '../user/user-notification-tokens.mo
 import { ShareModule } from '../share/share.module';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
+import { PhotosController } from './photos/photos.controller';
 
 @Module({
   imports: [
@@ -40,7 +41,7 @@ import { ThumbnailModel } from '../thumbnail/thumbnail.model';
     BridgeModule,
     NotificationModule,
   ],
-  controllers: [BackupController],
+  controllers: [BackupController, PhotosController],
   providers: [
     SequelizeBackupRepository,
     BackupUseCase,
