@@ -442,6 +442,124 @@ export class BackupUseCase {
     };
   }
 
+  async activatePhotos(user: User) {
+    const { email, userId, photosBucket } = user;
+    if (photosBucket) {
+      return { photosBucket };
+    }
+    const bucket = await this.networkService.createBucket(email, userId);
+    await this.userRepository.updateByUuid(user.uuid, {
+      photosBucket: bucket.id,
+    });
+    return { photosBucket: bucket.id };
+  }
+
+  async createPhotoDeviceAsFolder(user: User, deviceName: string) {
+    let bucket = user.photosBucket;
+    if (!bucket) {
+      const { photosBucket } = await this.activatePhotos(user);
+      bucket = photosBucket;
+    }
+
+    const folder = await this.folderRepository.findOne({
+      bucket,
+      plainName: deviceName,
+      deleted: false,
+      removed: false,
+      userId: user.id,
+    });
+
+    if (folder) {
+      throw new ConflictException('Folder with the same name already exists');
+    }
+
+    const createdFolder = await this.folderRepository.createFolder(user.id, {
+      plainName: deviceName,
+      bucket,
+    });
+
+    return this.addFolderAsDeviceProperties(user, createdFolder);
+  }
+
+  async getPhotoDevicesAsFolder(user: User) {
+    this.verifyUserHasPhotosEnabled(user);
+
+    const folders = await this.folderUsecases.getFoldersByUserId(user.id, {
+      bucket: user.photosBucket,
+      removed: false,
+      deleted: false,
+    });
+
+    return Promise.all(
+      folders.map(async (folder) => {
+        const decryptedFolder = this.decryptBackupFolderName(folder);
+        return {
+          ...(await this.addFolderAsDeviceProperties(user, decryptedFolder)),
+          plainName: decryptedFolder.plainName,
+        };
+      }),
+    );
+  }
+
+  async getPhotoDeviceAsFolder(user: User, uuid: FolderAttributes['uuid']) {
+    const folder = await this.folderUsecases.getFolderByUuid(uuid, user);
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    this.verifyFolderIsPhotoDevice(user, folder);
+
+    return this.addFolderAsDeviceProperties(
+      user,
+      this.decryptBackupFolderName(folder),
+    );
+  }
+
+  async deletePhotoDeviceAsFolder(user: User, uuid: FolderAttributes['uuid']) {
+    const folder = await this.folderUsecases.getFolderByUuid(uuid, user);
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    this.verifyFolderIsPhotoDevice(user, folder);
+
+    await this.folderUsecases.deleteByUser(user, [folder]);
+  }
+
+  async updatePhotoDeviceAsFolder(
+    user: User,
+    uuid: FolderAttributes['uuid'],
+    deviceName: string,
+  ) {
+    const folder = await this.folderUsecases.getFolderByUuid(uuid, user);
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    this.verifyFolderIsPhotoDevice(user, folder);
+
+    const updatedFolder =
+      await this.folderUsecases.updateByFolderIdAndForceUpdatedAt(folder, {
+        plainName: deviceName,
+      });
+
+    return this.addFolderAsDeviceProperties(user, updatedFolder);
+  }
+
+  private verifyFolderIsPhotoDevice(user: User, folder: Folder) {
+    if (folder.bucket !== user.photosBucket) {
+      throw new BadRequestException(
+        `${folder.uuid} is not a valid photos device`,
+      );
+    }
+  }
+
+  private verifyUserHasPhotosEnabled(user: User) {
+    if (!user.hasPhotosEnabled()) {
+      throw new BadRequestException('Photos is not enabled for this user');
+    }
+  }
+
   private verifyUserHasBackupsEnabled(user: User) {
     if (!user.hasBackupsEnabled()) {
       throw new BadRequestException('Backups is not enabled for this user');
