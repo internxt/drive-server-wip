@@ -28,5 +28,5 @@ export class GetFileLimitsDto {
   @ApiProperty({
     description: 'Whether photos access is enabled for this tier',
   })
-  photosEnabled: boolean;
+  photosAccess: boolean;
 }

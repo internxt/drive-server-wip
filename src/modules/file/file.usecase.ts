@@ -1274,7 +1274,7 @@ export class FileUseCases {
       maxVersions: number;
     };
     maxUploadFileSize: number | null;
-    photosEnabled: boolean;
+    photosAccess: boolean;
   }> {
     const [versioning, maxUploadFileSize, photosAccessLimit] =
       await Promise.all([
@@ -1288,7 +1288,7 @@ export class FileUseCases {
     return {
       versioning,
       maxUploadFileSize,
-      photosEnabled: photosAccessLimit?.isFeatureEnabled() ?? false,
+      photosAccess: photosAccessLimit?.isFeatureEnabled() ?? false,
     };
   }
 

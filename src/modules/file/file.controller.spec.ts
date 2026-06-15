@@ -753,6 +753,7 @@ describe('FileController', () => {
       const limits = {
         versioning: versioningLimits,
         maxUploadFileSize: 1073741824,
+        photosAccess: true,
       };
       jest.spyOn(fileUseCases, 'getFileLimits').mockResolvedValue(limits);
 
@@ -769,7 +770,11 @@ describe('FileController', () => {
         retentionDays: 0,
         maxVersions: 0,
       });
-      const limits = { versioning: freeLimits, maxUploadFileSize: null };
+      const limits = {
+        versioning: freeLimits,
+        maxUploadFileSize: null,
+        photosAccess: false,
+      };
       jest.spyOn(fileUseCases, 'getFileLimits').mockResolvedValue(limits);
 
       const result = await fileController.getLimits(userMocked);
