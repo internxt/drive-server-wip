@@ -20,6 +20,7 @@ import { ShareModule } from '../share/share.module';
 import { ThumbnailModule } from '../thumbnail/thumbnail.module';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { PhotosController } from './photos/photos.controller';
+import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { PhotosController } from './photos/photos.controller';
     CryptoModule,
     BridgeModule,
     NotificationModule,
+    FeatureLimitModule,
   ],
   controllers: [BackupController, PhotosController],
   providers: [

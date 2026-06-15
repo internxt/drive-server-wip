@@ -24,4 +24,9 @@ export class GetFileLimitsDto {
 
   @ApiProperty({ nullable: true, type: Number })
   maxUploadFileSize: number | null;
+
+  @ApiProperty({
+    description: 'Whether photos access is enabled for this tier',
+  })
+  photosEnabled: boolean;
 }

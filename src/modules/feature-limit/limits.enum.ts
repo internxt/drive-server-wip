@@ -12,6 +12,7 @@ export enum LimitLabels {
   TrashRetentionDays = 'trash-retention-days',
   ReferralAccess = 'referral-access',
   MaxUploadFileSize = 'max-upload-file-size',
+  PhotosAccess = 'photos-access',
 }
 
 export enum LimitTypes {

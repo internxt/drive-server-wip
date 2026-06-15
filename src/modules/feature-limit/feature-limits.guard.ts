@@ -24,11 +24,13 @@ export class FeatureLimit implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const handler = context.getHandler();
+    const controller = context.getClass();
+
     const request = context.switchToHttp().getRequest();
     const user = request.user;
-    const metadata = this.reflector.get<ApplyLimitMetadata>(
+    const metadata = this.reflector.getAllAndMerge<ApplyLimitMetadata>(
       FEATURE_LIMIT_KEY,
-      handler,
+      [handler, controller],
     );
 
     if (!metadata) {
