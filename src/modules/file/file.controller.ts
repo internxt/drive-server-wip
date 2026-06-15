@@ -468,7 +468,11 @@ export class FileController {
     @UserDecorator() user: User,
     @Query('path') filePath: string,
   ): Promise<FileDto> {
-    if (!filePath || filePath.length === 0 || !filePath.includes('/')) {
+    if (
+      typeof filePath !== 'string' ||
+      filePath.length === 0 ||
+      !filePath.includes('/')
+    ) {
       throw new BadRequestException('Invalid path provided');
     }
 

@@ -795,7 +795,11 @@ export class FolderController {
     @UserDecorator() user: User,
     @Query('path') folderPath: string,
   ) {
-    if (!folderPath || folderPath.length === 0 || !folderPath.includes('/')) {
+    if (
+      typeof folderPath !== 'string' ||
+      folderPath.length === 0 ||
+      !folderPath.includes('/')
+    ) {
       throw new BadRequestException('Invalid path provided');
     }
 
