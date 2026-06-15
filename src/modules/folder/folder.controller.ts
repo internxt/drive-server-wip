@@ -49,7 +49,6 @@ import { StorageNotificationService } from '../../externals/notifications/storag
 import { Client } from '../../common/decorators/client.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
-import { getPathDepth } from '../../lib/path';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
 import { Requester } from '../auth/decorators/requester.decorator';
 import {
@@ -800,7 +799,7 @@ export class FolderController {
       throw new BadRequestException('Invalid path provided');
     }
 
-    if (getPathDepth(folderPath) > 20) {
+    if (folderPath.length > 1024) {
       throw new BadRequestException('Path is too deep');
     }
 
