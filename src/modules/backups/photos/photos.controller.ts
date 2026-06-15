@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -19,9 +20,14 @@ import { BackupUseCase } from '../backup.usecase';
 import { CreateDeviceAsFolderDto } from '../dto/create-device-as-folder.dto';
 import { ValidateUUIDPipe } from '../../../common/pipes/validate-uuid.pipe';
 import { DeviceAsFolder } from '../dto/responses/device-as-folder.dto';
+import { FeatureLimit } from '../../feature-limit/feature-limits.guard';
+import { ApplyLimit } from '../../feature-limit/decorators/apply-limit.decorator';
+import { LimitLabels } from '../../feature-limit/limits.enum';
 
 @ApiTags('Photos')
 @Controller('photos')
+@ApplyLimit({ limitLabels: [LimitLabels.PhotosAccess] })
+@UseGuards(FeatureLimit)
 export class PhotosController {
   constructor(private readonly backupUseCases: BackupUseCase) {}
 

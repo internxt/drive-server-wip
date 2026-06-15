@@ -1274,12 +1274,22 @@ export class FileUseCases {
       maxVersions: number;
     };
     maxUploadFileSize: number | null;
+    photosAccess: boolean;
   }> {
-    const [versioning, maxUploadFileSize] = await Promise.all([
-      this.featureLimitService.getFileVersioningLimits(user.uuid),
-      this.featureLimitService.getMaxUploadFileSize(user),
-    ]);
-    return { versioning, maxUploadFileSize };
+    const [versioning, maxUploadFileSize, photosAccessLimit] =
+      await Promise.all([
+        this.featureLimitService.getFileVersioningLimits(user.uuid),
+        this.featureLimitService.getMaxUploadFileSize(user),
+        this.featureLimitService.getUserLimitByLabel(
+          LimitLabels.PhotosAccess,
+          user,
+        ),
+      ]);
+    return {
+      versioning,
+      maxUploadFileSize,
+      photosAccess: photosAccessLimit?.isFeatureEnabled() ?? false,
+    };
   }
 
   async undoFileVersioning(

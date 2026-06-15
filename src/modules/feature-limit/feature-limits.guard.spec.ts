@@ -42,7 +42,7 @@ describe('FeatureLimitUsecases', () => {
   });
 
   it('When metadata is missing, it should throw', async () => {
-    jest.spyOn(reflector, 'get').mockReturnValue(undefined);
+    jest.spyOn(reflector, 'getAllAndMerge').mockReturnValue(undefined);
 
     const context = createMockExecutionContext({});
 
@@ -141,6 +141,9 @@ const createMockExecutionContext = (requestData: any): ExecutionContext => {
   return {
     getHandler: () => ({
       name: 'endPointHandler',
+    }),
+    getClass: () => ({
+      name: 'EndPointController',
     }),
     switchToHttp: () => ({
       getRequest: () => requestData,
