@@ -727,7 +727,7 @@ export class UserController {
       decodedContent = decoded as {
         payload?: { uuid?: string; action?: string };
       };
-    } catch (err) {
+    } catch (_err) {
       throw new ForbiddenException();
     }
 
@@ -824,7 +824,7 @@ export class UserController {
       ) {
         throw new ForbiddenException();
       }
-    } catch (err) {
+    } catch (_err) {
       throw new ForbiddenException();
     }
 
@@ -1035,7 +1035,7 @@ export class UserController {
         return { token, room: newRoom };
       } else {
         const roomCreator = await this.userUseCases.getBetaUserFromRoom(room);
-        if (roomCreator && roomCreator.uuid === user.uuid) {
+        if (roomCreator?.uuid === user.uuid) {
           token = generateJitsiJWT(user, room, true);
         } else {
           token = generateJitsiJWT(user, room, false);

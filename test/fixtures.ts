@@ -122,12 +122,15 @@ export const newFolder = (params?: NewFolderParams): Folder => {
     ),
   });
 
-  params?.attributes &&
+  if (params?.attributes) {
     Object.keys(params.attributes).forEach((key) => {
       folder[key] = params.attributes[key];
     });
+  }
 
-  params?.owner && (folder.userId = params.owner.id);
+  if (params?.owner) {
+    folder.userId = params.owner.id;
+  }
   folder.status = folder.getFolderStatus();
 
   return folder;
@@ -179,12 +182,15 @@ export const newFile = (params?: NewFilesParams): File => {
     ),
   });
 
-  params?.attributes &&
+  if (params?.attributes) {
     Object.keys(params.attributes).forEach((key) => {
       file[key] = params.attributes[key];
     });
+  }
 
-  params?.owner && (file.userId = params.owner.id);
+  if (params?.owner) {
+    file.userId = params.owner.id;
+  }
 
   return file;
 };
@@ -224,10 +230,11 @@ export const newUser = (params?: {
     emailVerified: false,
   });
 
-  params?.attributes &&
+  if (params?.attributes) {
     Object.keys(params.attributes).forEach((key) => {
       user[key] = params.attributes[key];
     });
+  }
 
   return user;
 };
@@ -366,10 +373,11 @@ export const newWorkspace = (params?: {
     ),
   });
 
-  params?.attributes &&
+  if (params?.attributes) {
     Object.keys(params.attributes).forEach((key) => {
       workspace[key] = params.attributes[key];
     });
+  }
 
   return workspace;
 };
@@ -409,10 +417,11 @@ export const newWorkspaceTeam = (params?: {
     ),
   });
 
-  params?.attributes &&
+  if (params?.attributes) {
     Object.keys(params.attributes).forEach((key) => {
       team[key] = params.attributes[key];
     });
+  }
 
   return team;
 };
@@ -444,10 +453,11 @@ export const newWorkspaceTeamUser = (params?: {
     ),
   });
 
-  params?.attributes &&
+  if (params?.attributes) {
     Object.keys(params.attributes).forEach((key) => {
       teamUser[key] = params.attributes[key];
     });
+  }
 
   return teamUser;
 };
@@ -476,10 +486,11 @@ export const newWorkspaceUser = (params?: {
     updatedAt: new Date(randomDataGenerator.date({ min: randomCreatedAt })),
   });
 
-  params?.attributes &&
+  if (params?.attributes) {
     Object.keys(params.attributes).forEach((key) => {
       workspaceUser[key] = params.attributes[key];
     });
+  }
 
   return workspaceUser;
 };
@@ -502,10 +513,11 @@ export const newWorkspaceInvite = (params?: {
     updatedAt: new Date(randomDataGenerator.date({ min: defaultCreatedAt })),
   });
 
-  params?.attributes &&
+  if (params?.attributes) {
     Object.keys(params.attributes).forEach((key) => {
       workspaceInvite[key] = params.attributes[key];
     });
+  }
 
   return workspaceInvite;
 };
@@ -531,10 +543,11 @@ export const newWorkspaceItemUser = (params?: {
     updatedAt: new Date(randomDataGenerator.date({ min: randomCreatedAt })),
   });
 
-  params?.attributes &&
+  if (params?.attributes) {
     Object.keys(params.attributes).forEach((key) => {
       workspaceItemUser[key] = params.attributes[key];
     });
+  }
 
   return workspaceItemUser;
 };
@@ -550,10 +563,11 @@ export const newNotificationToken = (
     createdAt: new Date(),
     updatedAt: new Date(),
   });
-  params?.attributes &&
+  if (params?.attributes) {
     Object.keys(params.attributes).forEach((key) => {
       token[key] = params.attributes[key];
     });
+  }
   return token;
 };
 
@@ -641,10 +655,11 @@ export const newUsage = (params?: { attributes?: Partial<Usage> }): Usage => {
     ),
   });
 
-  params?.attributes &&
+  if (params?.attributes) {
     Object.keys(params.attributes).forEach((key) => {
       usage[key] = params.attributes[key];
     });
+  }
 
   return usage;
 };
