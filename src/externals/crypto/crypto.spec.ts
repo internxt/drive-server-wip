@@ -55,9 +55,9 @@ describe('Crypto', () => {
   });
 
   describe('getFileDeterministicKey works', () => {
-    const buckeyKeyHex =
+    const bucketKeyHex =
       '5f1c199c1e0bea246e12710cef0296a0c4a6ee54b1248365bee3113f755461b5f36e92a9055a360fceef85f149ae5b5e29890421fe9b575f76acc82c8620bd83';
-    const bucketKey = Buffer.from(buckeyKeyHex, 'hex').subarray(0, 32);
+    const bucketKey = Buffer.from(bucketKeyHex, 'hex').subarray(0, 32);
     const index = Buffer.from([0, 0, 0, 1]);
     const mnemonic =
       'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';

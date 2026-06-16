@@ -861,12 +861,12 @@ export class FileUseCases {
     const { index } = await network.getFileInfo(file.bucket, file.fileId);
     let encryptionKey;
     if (isNewVersion) {
+      //here mnemonic is actually bucketKey
       encryptionKey = this.cryptoService.getFileDeterministicKey(
         Buffer.from(mnemonic, 'hex'),
         Buffer.from(index, 'hex'),
       );
     } else {
-      //here mnemonic is actually bucketKey
       encryptionKey = await Environment.utils.generateFileKey(
         mnemonic,
         file.bucket,

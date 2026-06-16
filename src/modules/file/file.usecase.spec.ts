@@ -3769,7 +3769,7 @@ describe('FileUseCases', () => {
     const encryptedBucketKey = aes.encrypt(bucketKeyHex, code);
     const bucketKey = Buffer.from(bucketKeyHex, 'hex');
 
-    it('When called with old sharing algorithm version, then should call intx library to compute the key', async () => {
+    it('When called with old sharing algorithm version, then should call inxt library to compute the key', async () => {
       const spyOldVersion = jest.spyOn(Environment.utils, 'generateFileKey');
       const spyNewVersion = jest.spyOn(
         cryptoService,

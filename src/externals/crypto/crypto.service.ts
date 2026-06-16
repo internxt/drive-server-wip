@@ -154,7 +154,7 @@ export class CryptoService {
     }
   }
 
-  getFileDeterministicKey(key: Buffer, data: Buffer | string): Buffer {
+  getFileDeterministicKey(key: Buffer, data: Buffer): Buffer {
     const hash = crypto.createHash('sha512');
     hash.update(key.subarray(0, 32)).update(data);
 
