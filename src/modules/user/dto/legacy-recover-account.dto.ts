@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsEncryptedMnemonic } from '../../../externals/crypto/decorators/is-encrypted-mnemonic.decorator';
 
 class EncryptedMnemonicDto {
   @ApiProperty({
@@ -87,7 +88,7 @@ export class LegacyRecoverAccountDto {
     example: 'password_encrypted_mnemonic',
     description: 'User mnemonic encrypted with the new pass',
   })
-  @IsNotEmpty()
+  @IsEncryptedMnemonic()
   mnemonic: string;
 
   @ApiProperty({

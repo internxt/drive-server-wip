@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEncryptedMnemonic } from '../../../externals/crypto/decorators/is-encrypted-mnemonic.decorator';
 
 export class UpdatePasswordDto {
   @IsString()
@@ -23,11 +24,12 @@ export class UpdatePasswordDto {
   })
   newSalt: string;
 
-  @IsString()
   @ApiProperty({
     example: 'newMnemonic',
     description: 'New mnemonic',
   })
+  @IsNotEmpty()
+  @IsEncryptedMnemonic()
   mnemonic: string;
 
   @IsString()

@@ -8,6 +8,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsEncryptedMnemonic } from '../../../externals/crypto/decorators/is-encrypted-mnemonic.decorator';
 
 class PrivateKeysDto {
   @ApiProperty()
@@ -55,7 +56,7 @@ export class RecoverAccountDto {
     example: 'some_encrypted_mnemonic',
     description: 'User mnemonic encrypted with the new pass',
   })
-  @IsNotEmpty()
+  @IsEncryptedMnemonic()
   mnemonic: string;
 
   @ApiProperty({
@@ -95,7 +96,7 @@ export class DeprecatedRecoverAccountDto {
     example: 'some_encrypted_mnemonic',
     description: 'User mnemonic encrypted with the new pass',
   })
-  @IsNotEmpty()
+  @IsEncryptedMnemonic()
   mnemonic: string;
 
   @ApiProperty({
