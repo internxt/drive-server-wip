@@ -2751,6 +2751,7 @@ describe('User use cases', () => {
         mnemonic: mockCredentials.mnemonic,
         password: decryptedPassword,
         hKey: decryptedSalt,
+        lastPasswordChangedAt: expect.any(Date),
       });
 
       expect(
@@ -2779,6 +2780,7 @@ describe('User use cases', () => {
         mnemonic: mockCredentials.mnemonic,
         password: decryptedPassword,
         hKey: decryptedSalt,
+        lastPasswordChangedAt: expect.any(Date),
       });
 
       expect(userUseCases.resetUser).toHaveBeenCalledWith(mockUser, {
@@ -2898,6 +2900,7 @@ describe('User use cases', () => {
         mnemonic: mockCredentials.mnemonic,
         password: decryptedPassword,
         hKey: decryptedSalt,
+        lastPasswordChangedAt: expect.any(Date),
       });
       expect(
         keyServerUseCases.updateByUserAndEncryptVersion,
@@ -2980,6 +2983,7 @@ describe('User use cases', () => {
         mnemonic: mockCredentials.mnemonic,
         password: decryptedPassword,
         hKey: decryptedSalt,
+        lastPasswordChangedAt: expect.any(Date),
       });
 
       expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
@@ -2999,6 +3003,7 @@ describe('User use cases', () => {
         mnemonic: mockCredentials.mnemonic,
         password: decryptedPassword,
         hKey: decryptedSalt,
+        lastPasswordChangedAt: expect.any(Date),
       });
 
       expect(userUseCases.resetUser).toHaveBeenCalledWith(mockUser, {
@@ -3030,6 +3035,7 @@ describe('User use cases', () => {
         mnemonic: mockCredentials.mnemonic,
         password: decryptedPassword,
         hKey: decryptedSalt,
+        lastPasswordChangedAt: expect.any(Date),
       });
 
       expect(keyServerRepository.deleteByUserId).toHaveBeenCalledWith(
@@ -3051,10 +3057,13 @@ describe('User use cases', () => {
   });
 
   describe('verifyAndDecodeAccountRecoveryToken', () => {
-    it('When token is valid, then it should return the user UUID', () => {
-      const userUuid = v4();
+    it('When token is valid and user has no lastPasswordChangedAt, then it should return the user UUID', async () => {
+      const mockUserForToken = newUser();
+      mockUserForToken.lastPasswordChangedAt = null;
+      const userUuid = mockUserForToken.uuid;
       const token = 'validToken';
       const decodedToken = {
+        iat: Math.floor(Date.now() / 1000),
         payload: {
           uuid: userUuid,
           action: 'recover-account',
@@ -3065,33 +3074,84 @@ describe('User use cases', () => {
         .spyOn(jwtLibrary, 'verifyToken')
         .mockReturnValue(decodedToken);
 
-      const result = userUseCases.verifyAndDecodeAccountRecoveryToken(token);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValue(mockUserForToken);
+
+      const result =
+        await userUseCases.verifyAndDecodeAccountRecoveryToken(token);
 
       expect(result).toEqual({ userUuid });
       expect(verifyTokenSpy).toHaveBeenCalledWith(token, getEnv().secrets.jwt);
     });
 
-    it('When token verification returns a string, then it should throw ForbiddenException', () => {
+    it('When token was issued after lastPasswordChangedAt, then it should return the user UUID', async () => {
+      const mockUserForToken = newUser();
+      mockUserForToken.lastPasswordChangedAt = new Date('2020-01-01');
+      const userUuid = mockUserForToken.uuid;
+      const token = 'validToken';
+      const decodedToken = {
+        iat: Math.floor(new Date('2021-01-01').getTime() / 1000),
+        payload: {
+          uuid: userUuid,
+          action: 'recover-account',
+        },
+      };
+
+      jest.spyOn(jwtLibrary, 'verifyToken').mockReturnValue(decodedToken);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValue(mockUserForToken);
+
+      const result =
+        await userUseCases.verifyAndDecodeAccountRecoveryToken(token);
+
+      expect(result).toEqual({ userUuid });
+    });
+
+    it('When token was issued before lastPasswordChangedAt, then it should throw ForbiddenException', async () => {
+      const mockUserForToken = newUser();
+      mockUserForToken.lastPasswordChangedAt = new Date('2021-01-01');
+      const token = 'validToken';
+      const decodedToken = {
+        iat: Math.floor(new Date('2020-01-01').getTime() / 1000),
+        payload: {
+          uuid: mockUserForToken.uuid,
+          action: 'recover-account',
+        },
+      };
+
+      jest.spyOn(jwtLibrary, 'verifyToken').mockReturnValue(decodedToken);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValue(mockUserForToken);
+
+      await expect(
+        userUseCases.verifyAndDecodeAccountRecoveryToken(token),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When token verification returns a string, then it should throw ForbiddenException', async () => {
       const token = 'invalidToken';
 
       jest.spyOn(jwtLibrary, 'verifyToken').mockReturnValue(token);
-      expect(() =>
+      await expect(
         userUseCases.verifyAndDecodeAccountRecoveryToken(token),
-      ).toThrow(ForbiddenException);
+      ).rejects.toThrow(ForbiddenException);
     });
 
-    it('When decoded content is missing, then it should throw ForbiddenException', () => {
+    it('When decoded content is missing, then it should throw ForbiddenException', async () => {
       const token = 'invalidToken';
       const decodedToken = { payload: null };
 
       jest.spyOn(jwtLibrary, 'verifyToken').mockReturnValue(decodedToken);
 
-      expect(() =>
+      await expect(
         userUseCases.verifyAndDecodeAccountRecoveryToken(token),
-      ).toThrow(ForbiddenException);
+      ).rejects.toThrow(ForbiddenException);
     });
 
-    it('When token verification throws JsonWebTokenError, then it should throw ForbiddenException with "Invalid token"', () => {
+    it('When token verification throws JsonWebTokenError, then it should throw ForbiddenException with "Invalid token"', async () => {
       const token = 'invalidToken';
       const error = new JsonWebTokenError('Invalid token');
 
@@ -3099,9 +3159,27 @@ describe('User use cases', () => {
         throw error;
       });
 
-      expect(() =>
+      await expect(
         userUseCases.verifyAndDecodeAccountRecoveryToken(token),
-      ).toThrow(new ForbiddenException('Invalid token'));
+      ).rejects.toThrow(new ForbiddenException('Invalid token'));
+    });
+
+    it('When user is not found, then it should throw ForbiddenException', async () => {
+      const token = 'validToken';
+      const decodedToken = {
+        iat: Math.floor(Date.now() / 1000),
+        payload: {
+          uuid: v4(),
+          action: 'recover-account',
+        },
+      };
+
+      jest.spyOn(jwtLibrary, 'verifyToken').mockReturnValue(decodedToken);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+
+      await expect(
+        userUseCases.verifyAndDecodeAccountRecoveryToken(token),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -3195,6 +3273,7 @@ describe('User use cases', () => {
         mnemonic: mnemonicEncryptedWithPassword,
         password: decryptedPasswordHash,
         hKey: decryptedSalt,
+        lastPasswordChangedAt: expect.any(Date),
       });
     });
 
@@ -3702,6 +3781,7 @@ describe('User use cases', () => {
         mnemonic: mockCredentials.mnemonic,
         password: decryptedPassword,
         hKey: decryptedSalt,
+        lastPasswordChangedAt: expect.any(Date),
       });
 
       expect(
@@ -3730,6 +3810,7 @@ describe('User use cases', () => {
         mnemonic: mockCredentials.mnemonic,
         password: decryptedPassword,
         hKey: decryptedSalt,
+        lastPasswordChangedAt: expect.any(Date),
       });
 
       expect(userUseCases.resetUser).toHaveBeenCalledWith(mockUser, {
