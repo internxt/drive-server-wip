@@ -1293,18 +1293,15 @@ describe('User Controller', () => {
         .spyOn(userUseCases, 'updateCredentialsOld')
         .mockResolvedValue(undefined);
 
-      (jwtUtils.verifyToken as jest.Mock).mockReturnValue({
-        payload: {
-          uuid: mockUser.uuid,
-          action: 'recover-account',
-        },
-      });
+      jest
+        .spyOn(userUseCases, 'verifyAndDecodeAccountRecoveryToken')
+        .mockResolvedValue({ userUuid: mockUser.uuid });
     });
 
     it('When token is invalid, then it throws ForbiddenException', async () => {
-      (jwtUtils.verifyToken as jest.Mock).mockImplementationOnce(() => {
-        throw new Error('Invalid token');
-      });
+      jest
+        .spyOn(userUseCases, 'verifyAndDecodeAccountRecoveryToken')
+        .mockRejectedValueOnce(new ForbiddenException('Invalid token'));
 
       const invalidToken = 'invalid_token';
       await expect(
@@ -1319,12 +1316,9 @@ describe('User Controller', () => {
     });
 
     it('When token has valid signature but incorrect properties, then it throws ForbiddenException', async () => {
-      (jwtUtils.verifyToken as jest.Mock).mockReturnValueOnce({
-        payload: {
-          uuid: 'invalid_uuid',
-          action: 'wrong_action',
-        },
-      });
+      jest
+        .spyOn(userUseCases, 'verifyAndDecodeAccountRecoveryToken')
+        .mockRejectedValueOnce(new ForbiddenException('Invalid token'));
 
       await expect(
         userController.recoverAccount(
@@ -1472,18 +1466,15 @@ describe('User Controller', () => {
         .spyOn(userUseCases, 'updateCredentials')
         .mockResolvedValue(undefined);
 
-      (jwtUtils.verifyToken as jest.Mock).mockReturnValue({
-        payload: {
-          uuid: mockUser.uuid,
-          action: 'recover-account',
-        },
-      });
+      jest
+        .spyOn(userUseCases, 'verifyAndDecodeAccountRecoveryToken')
+        .mockResolvedValue({ userUuid: mockUser.uuid });
     });
 
     it('When token is invalid, then it throws ForbiddenException', async () => {
-      (jwtUtils.verifyToken as jest.Mock).mockImplementationOnce(() => {
-        throw new Error('Invalid token');
-      });
+      jest
+        .spyOn(userUseCases, 'verifyAndDecodeAccountRecoveryToken')
+        .mockRejectedValueOnce(new ForbiddenException('Invalid token'));
 
       const invalidToken = 'invalid_token';
       await expect(
@@ -1498,12 +1489,9 @@ describe('User Controller', () => {
     });
 
     it('When token has valid signature but incorrect properties, then it throws ForbiddenException', async () => {
-      (jwtUtils.verifyToken as jest.Mock).mockReturnValueOnce({
-        payload: {
-          uuid: 'invalid_uuid',
-          action: 'wrong_action',
-        },
-      });
+      jest
+        .spyOn(userUseCases, 'verifyAndDecodeAccountRecoveryToken')
+        .mockRejectedValueOnce(new ForbiddenException('Invalid token'));
 
       await expect(
         userController.recoverAccountV2(
@@ -1695,7 +1683,7 @@ describe('User Controller', () => {
 
       jest
         .spyOn(userUseCases, 'verifyAndDecodeAccountRecoveryToken')
-        .mockReturnValue({
+        .mockResolvedValue({
           userUuid: mockUser.uuid,
         });
 

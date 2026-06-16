@@ -1049,6 +1049,7 @@ export class UserUseCases {
       mnemonic,
       password: this.cryptoService.decryptText(password),
       hKey: this.cryptoService.decryptText(salt),
+      lastPasswordChangedAt: new Date(),
     });
 
     const user = await this.userRepository.findByUuid(userUuid);
@@ -1105,6 +1106,7 @@ export class UserUseCases {
         mnemonic,
         password: this.cryptoService.decryptText(password),
         hKey: this.cryptoService.decryptText(salt),
+        lastPasswordChangedAt: new Date(),
       });
 
       return;
@@ -1147,6 +1149,7 @@ export class UserUseCases {
       mnemonic,
       password: this.cryptoService.decryptText(password),
       hKey: this.cryptoService.decryptText(salt),
+      lastPasswordChangedAt: new Date(),
     });
   }
 
@@ -1203,6 +1206,7 @@ export class UserUseCases {
       mnemonic,
       password: this.cryptoService.decryptText(password),
       hKey: this.cryptoService.decryptText(salt),
+      lastPasswordChangedAt: new Date(),
     });
 
     //  New keys were created, so we need to delete invitations made with the old keys
@@ -1213,12 +1217,13 @@ export class UserUseCases {
     ]);
   }
 
-  verifyAndDecodeAccountRecoveryToken(token: string): {
+  async verifyAndDecodeAccountRecoveryToken(token: string): Promise<{
     userUuid: string;
-  } {
+  }> {
     try {
       const jwtSecret = getEnv().secrets.jwt;
       const decoded = verifyToken<{
+        iat?: number;
         payload: { uuid?: string; action?: string };
       }>(token, jwtSecret);
 
@@ -1242,6 +1247,20 @@ export class UserUseCases {
           )}`,
         );
         throw new ForbiddenException('Invalid token');
+      }
+
+      const user = await this.userRepository.findByUuid(decodedContent.uuid);
+
+      if (!user) {
+        throw new ForbiddenException('Invalid token');
+      }
+
+      if (
+        user.lastPasswordChangedAt !== null &&
+        decoded.iat !== undefined &&
+        user.lastPasswordChangedAt > Time.convertTimestampToDate(decoded.iat)
+      ) {
+        throw new ForbiddenException('Token expired');
       }
 
       return { userUuid: decodedContent.uuid };

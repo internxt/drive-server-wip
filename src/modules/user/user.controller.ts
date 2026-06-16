@@ -56,12 +56,7 @@ import {
   DeprecatedRecoverAccountDto,
 } from './dto/recover-account.dto';
 import { LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
-import {
-  generateJitsiJWT,
-  verifyToken,
-  verifyWithDefaultSecret,
-} from '../../lib/jwt';
-import getEnv from '../../config/configuration';
+import { generateJitsiJWT, verifyWithDefaultSecret } from '../../lib/jwt';
 import { v4, validate } from 'uuid';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
@@ -715,42 +710,19 @@ export class UserController {
   ) {
     const { token, reset } = query;
     const { mnemonic, password, salt } = body;
-    let decodedContent: { payload?: { uuid?: string; action?: string } };
 
-    try {
-      const decoded = verifyToken(token, getEnv().secrets.jwt);
-
-      if (typeof decoded === 'string') {
-        throw new ForbiddenException();
-      }
-
-      decodedContent = decoded as {
-        payload?: { uuid?: string; action?: string };
-      };
-    } catch (_err) {
-      throw new ForbiddenException();
-    }
-
-    if (
-      !decodedContent.payload?.action ||
-      !decodedContent.payload?.uuid ||
-      decodedContent.payload.action !== 'recover-account' ||
-      !validate(decodedContent.payload.uuid)
-    ) {
-      throw new ForbiddenException();
-    }
+    const decodedData =
+      await this.userUseCases.verifyAndDecodeAccountRecoveryToken(token);
 
     if (reset && reset !== 'true' && reset !== 'false') {
       throw new BadRequestException('Invalid value for parameter "reset"');
     }
     const shouldResetAccount = reset === 'true';
 
-    const userUuid = decodedContent.payload.uuid;
-
     try {
       if (shouldResetAccount) {
         await this.userUseCases.updateCredentialsOld(
-          userUuid,
+          decodedData.userUuid,
           {
             mnemonic,
             password,
@@ -761,7 +733,7 @@ export class UserController {
       } else {
         const deprecatedRecoverAccountDto = body;
 
-        await this.userUseCases.updateCredentialsOld(userUuid, {
+        await this.userUseCases.updateCredentialsOld(decodedData.userUuid, {
           mnemonic,
           password,
           salt,
@@ -771,12 +743,12 @@ export class UserController {
 
       await this.auditLogService.log({
         entityType: AuditEntityType.User,
-        entityId: userUuid,
+        entityId: decodedData.userUuid,
         action: shouldResetAccount
           ? AuditAction.AccountReset
           : AuditAction.AccountRecovery,
         performerType: AuditPerformerType.User,
-        performerId: userUuid,
+        performerId: decodedData.userUuid,
       });
     } catch (err) {
       this.logger.error(
@@ -784,7 +756,7 @@ export class UserController {
           (err as Error).message
         }, BODY ${JSON.stringify({
           ...body,
-          user: { uuid: userUuid },
+          user: { uuid: decodedData.userUuid },
         })}, STACK: ${(err as Error).stack}`,
       );
       throw err;
@@ -803,32 +775,10 @@ export class UserController {
   ) {
     const { token, reset } = query;
     const { mnemonic, password, salt } = body;
-    let decodedContent: { payload?: { uuid?: string; action?: string } };
 
-    try {
-      const decoded = verifyToken(token, getEnv().secrets.jwt);
+    const decodedData =
+      await this.userUseCases.verifyAndDecodeAccountRecoveryToken(token);
 
-      if (typeof decoded === 'string') {
-        throw new ForbiddenException();
-      }
-
-      decodedContent = decoded as {
-        payload?: { uuid?: string; action?: string };
-      };
-
-      if (
-        !decodedContent.payload?.action ||
-        !decodedContent.payload.uuid ||
-        decodedContent.payload.action !== 'recover-account' ||
-        !validate(decodedContent.payload.uuid)
-      ) {
-        throw new ForbiddenException();
-      }
-    } catch (_err) {
-      throw new ForbiddenException();
-    }
-
-    const userUuid = decodedContent.payload.uuid;
     const shouldResetAccount = reset === 'true';
     const invalidRecoverInput = !shouldResetAccount && !body.privateKeys;
 
@@ -838,8 +788,7 @@ export class UserController {
       );
     }
 
-    const uuidsMatch = decodedContent.payload.uuid === body.uuid;
-    if (body.uuid && !uuidsMatch) {
+    if (body.uuid && decodedData.userUuid !== body.uuid) {
       throw new BadRequestException(
         'Backup file does not match the users uuid',
       );
@@ -847,11 +796,11 @@ export class UserController {
 
     try {
       this.logger.log(
-        `[RECOVER_ACCOUNT] Recovering account for user: ${userUuid}`,
+        `[RECOVER_ACCOUNT] Recovering account for user: ${decodedData.userUuid}`,
       );
 
       await this.userUseCases.updateCredentials(
-        userUuid,
+        decodedData.userUuid,
         {
           mnemonic,
           password,
@@ -865,17 +814,17 @@ export class UserController {
       );
 
       this.logger.log(
-        `[RECOVER_ACCOUNT] Account recovered successfully for user: ${userUuid}`,
+        `[RECOVER_ACCOUNT] Account recovered successfully for user: ${decodedData.userUuid}`,
       );
 
       await this.auditLogService.log({
         entityType: AuditEntityType.User,
-        entityId: userUuid,
+        entityId: decodedData.userUuid,
         action: shouldResetAccount
           ? AuditAction.AccountReset
           : AuditAction.AccountRecovery,
         performerType: AuditPerformerType.User,
-        performerId: userUuid,
+        performerId: decodedData.userUuid,
       });
     } catch (err) {
       this.logger.error(
@@ -883,7 +832,7 @@ export class UserController {
           (err as Error).message
         }, BODY ${JSON.stringify({
           ...body,
-          user: { uuid: userUuid },
+          user: { uuid: decodedData.userUuid },
         })}, STACK: ${(err as Error).stack}`,
       );
       throw err;
@@ -904,7 +853,7 @@ export class UserController {
     const { token } = body;
 
     const decodedToken =
-      this.userUseCases.verifyAndDecodeAccountRecoveryToken(token);
+      await this.userUseCases.verifyAndDecodeAccountRecoveryToken(token);
 
     const { userUuid } = decodedToken;
 
