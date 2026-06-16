@@ -3780,7 +3780,7 @@ describe('FileUseCases', () => {
         index: Buffer.from(index).toString('hex'),
       } as FileInfo);
 
-      const result = await service.getEncryptionKeyFromFile(
+      await service.getEncryptionKeyFromFile(
         file,
         encryptedMnemonic,
         code,
@@ -3804,7 +3804,7 @@ describe('FileUseCases', () => {
         index: Buffer.from(index).toString('hex'),
       } as FileInfo);
 
-      const result = await service.getEncryptionKeyFromFile(
+      await service.getEncryptionKeyFromFile(
         file,
         encryptedBucketKey,
         code,

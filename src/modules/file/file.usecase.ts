@@ -863,7 +863,7 @@ export class FileUseCases {
     if (isNewVersion) {
       //here mnemonic is actually bucketKey
       const bucketKey = Buffer.from(mnemonic, 'hex').subarray(0, 32);
-      const result = await Environment.utils.getFileDeterministicKey(
+      const result = Environment.utils.getFileDeterministicKey(
         bucketKey,
         Buffer.from(index, 'hex'),
       );
