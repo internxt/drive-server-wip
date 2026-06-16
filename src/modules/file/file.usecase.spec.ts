@@ -3769,10 +3769,10 @@ describe('FileUseCases', () => {
     const encryptedBucketKey = aes.encrypt(bucketKeyHex, code);
     const bucketKey = Buffer.from(bucketKeyHex, 'hex');
 
-    it('When called with old sharing algorithm version, then should call inxt library to compute the key', async () => {
+    it('When called with old sharing algorithm version, then should compute full file key', async () => {
       const spyOldVersion = jest.spyOn(Environment.utils, 'generateFileKey');
       const spyNewVersion = jest.spyOn(
-        cryptoService,
+        Environment.utils,
         'getFileDeterministicKey',
       );
 
@@ -3793,10 +3793,10 @@ describe('FileUseCases', () => {
       expect(spyNewVersion).not.toHaveBeenCalled();
     });
 
-    it('When called with new sharing algorithm version, then should call crypto service to compute the key', async () => {
+    it('When called with new sharing algorithm version, then should compute deterministic key', async () => {
       const spyOldVersion = jest.spyOn(Environment.utils, 'generateFileKey');
       const spyNewVersion = jest.spyOn(
-        cryptoService,
+        Environment.utils,
         'getFileDeterministicKey',
       );
 
@@ -3812,7 +3812,10 @@ describe('FileUseCases', () => {
         true,
       );
 
-      expect(spyNewVersion).toHaveBeenCalledWith(bucketKey, index);
+      expect(spyNewVersion).toHaveBeenCalledWith(
+        bucketKey.subarray(0, 32),
+        index,
+      );
 
       expect(spyOldVersion).not.toHaveBeenCalled();
     });
