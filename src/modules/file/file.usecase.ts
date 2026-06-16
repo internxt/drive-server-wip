@@ -855,14 +855,24 @@ export class FileUseCases {
     encryptedMnemonic: string,
     code: string,
     network: Environment,
+    isNewVersion: boolean,
   ): Promise<string> {
     const mnemonic = aes.decrypt(encryptedMnemonic, code);
     const { index } = await network.getFileInfo(file.bucket, file.fileId);
-    const encryptionKey = await Environment.utils.generateFileKey(
-      mnemonic,
-      file.bucket,
-      Buffer.from(index, 'hex'),
-    );
+    let encryptionKey;
+    if (isNewVersion) {
+      encryptionKey = this.cryptoService.getFileDeterministicKey(
+        Buffer.from(mnemonic, 'hex'),
+        Buffer.from(index, 'hex'),
+      );
+    } else {
+      //here mnemonic is actually bucketKey
+      encryptionKey = await Environment.utils.generateFileKey(
+        mnemonic,
+        file.bucket,
+        Buffer.from(index, 'hex'),
+      );
+    }
     return encryptionKey.toString('hex');
   }
 

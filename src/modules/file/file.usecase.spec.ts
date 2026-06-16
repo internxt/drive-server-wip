@@ -1,5 +1,7 @@
 import { Test, type TestingModule } from '@nestjs/testing';
+import { Environment } from '@internxt/inxt-js';
 import { createMock } from '@golevelup/ts-jest';
+import { aes } from '@internxt/lib';
 import {
   FileUseCases,
   RECENT_FILES_DAYS,
@@ -59,6 +61,7 @@ import {
   RestoreFileVersionAction,
   UndoFileVersioningAction,
 } from './actions';
+import { type FileInfo } from '@internxt/inxt-js/build/api';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -3716,6 +3719,126 @@ describe('FileUseCases', () => {
         limits,
       });
       expect(result).toEqual({ deletedCount: 150 });
+    });
+  });
+
+  describe('getEncryptionKeyFromFile', () => {
+    const bucketId = 'test bucket id';
+    const file = File.build({
+      id: 1,
+      fileId: '',
+      name: '',
+      type: 'jpg',
+      size: null,
+      bucket: bucketId,
+      folderId: 4,
+      encryptVersion: '',
+      deleted: false,
+      deletedAt: new Date(),
+      userId: 1,
+      creationTime: new Date(),
+      modificationTime: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      uuid: '723274e5-ca2a-4e61-bf17-d9fba3b8d430',
+      folderUuid: '',
+      removed: false,
+      removedAt: undefined,
+      plainName: 'test',
+      status: FileStatus.EXISTS,
+    });
+
+    const network = new Environment({
+      bridgePass: 'test-pass',
+      bridgeUser: 'test-user',
+      bridgeUrl: 'test-url',
+      appDetails: {
+        clientName: 'drive-server-wip',
+        clientVersion: '1.0.0',
+      },
+    });
+
+    const index = Buffer.from([0, 0, 0, 1]);
+    const mnemonic =
+      'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+    const code = 'test code';
+    const encryptedMnemonic = aes.encrypt(mnemonic, code);
+
+    const bucketKeyHex =
+      '5f1c199c1e0bea246e12710cef0296a0c4a6ee54b1248365bee3113f755461b5f36e92a9055a360fceef85f149ae5b5e29890421fe9b575f76acc82c8620bd83';
+    const encryptedBucketKey = aes.encrypt(bucketKeyHex, code);
+    const bucketKey = Buffer.from(bucketKeyHex, 'hex');
+
+    it('When called with old sharing algorithm version, then should call intx library to compute the key', async () => {
+      const spyOldVersion = jest.spyOn(Environment.utils, 'generateFileKey');
+      const spyNewVersion = jest.spyOn(
+        cryptoService,
+        'getFileDeterministicKey',
+      );
+
+      jest.spyOn(Environment.prototype, 'getFileInfo').mockResolvedValue({
+        index: Buffer.from(index).toString('hex'),
+      } as FileInfo);
+
+      const result = await service.getEncryptionKeyFromFile(
+        file,
+        encryptedMnemonic,
+        code,
+        network,
+        false,
+      );
+
+      expect(spyOldVersion).toHaveBeenCalledWith(mnemonic, bucketId, index);
+
+      expect(spyNewVersion).not.toHaveBeenCalled();
+    });
+
+    it('When called with new sharing algorithm version, then should call crypto service to compute the key', async () => {
+      const spyOldVersion = jest.spyOn(Environment.utils, 'generateFileKey');
+      const spyNewVersion = jest.spyOn(
+        cryptoService,
+        'getFileDeterministicKey',
+      );
+
+      jest.spyOn(Environment.prototype, 'getFileInfo').mockResolvedValue({
+        index: Buffer.from(index).toString('hex'),
+      } as FileInfo);
+
+      const result = await service.getEncryptionKeyFromFile(
+        file,
+        encryptedBucketKey,
+        code,
+        network,
+        true,
+      );
+
+      expect(spyNewVersion).toHaveBeenCalledWith(bucketKey, index);
+
+      expect(spyOldVersion).not.toHaveBeenCalled();
+    });
+
+    it('When new version is called with bucket key corresponding to mnemonic, resulting key is the same as in the old version', async () => {
+      jest.spyOn(Environment.prototype, 'getFileInfo').mockResolvedValue({
+        index: Buffer.from(index).toString('hex'),
+      } as FileInfo);
+
+      const resultOld = await service.getEncryptionKeyFromFile(
+        file,
+        encryptedMnemonic,
+        code,
+        network,
+        false,
+      );
+
+      const resultNew = await service.getEncryptionKeyFromFile(
+        file,
+        encryptedBucketKey,
+        code,
+        network,
+        true,
+      );
+
+      expect(resultNew).toBe(resultOld);
     });
   });
 });

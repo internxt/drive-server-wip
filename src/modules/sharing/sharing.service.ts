@@ -136,6 +136,8 @@ type PublicSharingInfo = Pick<
 
 type SharingItemInfo = Pick<Item, 'plainName' | 'type' | 'size'>;
 
+const NEW_SHARING_VERSION = 'inxt-v3';
+
 @Injectable()
 export class SharingService {
   constructor(
@@ -706,6 +708,7 @@ export class SharingService {
         sharing.encryptionKey,
         code,
         network,
+        sharing.encryptionAlgorithm === NEW_SHARING_VERSION,
       );
 
       file.encryptionKey = encryptionKey;

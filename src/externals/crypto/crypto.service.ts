@@ -154,6 +154,13 @@ export class CryptoService {
     }
   }
 
+  getFileDeterministicKey(key: Buffer, data: Buffer | string): Buffer {
+    const hash = crypto.createHash('sha512');
+    hash.update(key.subarray(0, 32)).update(data);
+
+    return hash.digest().subarray(0, 32);
+  }
+
   hashBcrypt(text: string): string | null {
     try {
       return bcrypt.hashSync(text.toString(), 8);
