@@ -267,7 +267,7 @@ export class TrashController {
             });
           });
         })
-        .catch((err) => {
+        .catch((_err) => {
           // no op
         });
     } catch (err) {
@@ -359,13 +359,17 @@ export class TrashController {
 
     for (const item of items) {
       if (item.type === DeleteItemType.FILE) {
-        item.uuid
-          ? filesUuids.push(item.uuid)
-          : filesIds.push(parseInt(item.id, 10));
+        if (item.uuid) {
+          filesUuids.push(item.uuid);
+        } else {
+          filesIds.push(parseInt(item.id, 10));
+        }
       } else if (item.type === DeleteItemType.FOLDER) {
-        item.uuid
-          ? foldersUuids.push(item.uuid)
-          : foldersIds.push(parseInt(item.id, 10));
+        if (item.uuid) {
+          foldersUuids.push(item.uuid);
+        } else {
+          foldersIds.push(parseInt(item.id, 10));
+        }
       }
     }
     if (filesIds.length !== 0) {

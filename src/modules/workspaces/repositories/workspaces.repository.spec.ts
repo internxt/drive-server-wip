@@ -338,7 +338,7 @@ describe('SequelizeWorkspaceRepository', () => {
         searchValue,
       );
 
-      expect(response).toBeTruthy;
+      expect(response).toBeTruthy();
       expect(spyWUM).toHaveBeenCalledWith({
         where: expect.objectContaining({
           workspaceId: workspaceId,
