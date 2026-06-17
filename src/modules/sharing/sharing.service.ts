@@ -246,12 +246,13 @@ export class SharingService {
           clientVersion: '1.0.0',
         },
       });
-      const fileInfo = await network.getFileInfo(item.bucket, item.fileId);
 
-      const encryptionKey = await Environment.utils.generateFileKey(
-        aes.decrypt(sharing.encryptionKey, code),
-        item.bucket,
-        Buffer.from(fileInfo.index, 'hex'),
+      const encryptionKey = await this.fileUsecases.getEncryptionKeyFromFile(
+        item,
+        sharing.encryptionKey,
+        code,
+        network,
+        sharing.encryptionAlgorithm === NEW_SHARING_VERSION,
       );
       response['itemToken'] = await network.createFileToken(
         item.bucket,
@@ -259,7 +260,7 @@ export class SharingService {
         'PULL',
       );
 
-      response.encryptionKey = encryptionKey.toString('hex');
+      response.encryptionKey = encryptionKey;
     } else {
       item = await this.folderUsecases.getByUuid(sharing.itemId);
       if (item.isRemoved()) {
