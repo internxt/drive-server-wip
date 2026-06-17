@@ -3,6 +3,7 @@ import { generateMnemonic } from 'bip39';
 import { aes } from '@internxt/lib';
 import { generateNewKeys } from '../../src/externals/asymmetric-encryption/openpgp';
 import { importEsmPackage } from '../../src/lib/import-esm-package';
+import { encryptMnemonicForTest } from './mnemonic-test.helper';
 
 const TEST_KEYS_ENCRYPTION_PASSWORD = 'test-keys-password';
 
@@ -96,13 +97,17 @@ export async function generateValidRegistrationData(
   const uniqueId = `${timestamp}-${randomSuffix}`;
 
   const keys = await initializeTestKeys();
+  const password = overrides.password ?? generateHashedPassword();
+  const mnemonic =
+    overrides.mnemonic ??
+    encryptMnemonicForTest(generateMnemonic(256), password);
 
   return {
     name: 'Test',
     lastname: 'User',
     email: overrides.email || `test-${uniqueId}@test.com`,
-    password: generateHashedPassword(),
-    mnemonic: generateMnemonic(256),
+    password,
+    mnemonic,
     salt: generateSalt(),
     keys: {
       ecc: keys.ecc,

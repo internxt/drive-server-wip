@@ -10,6 +10,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { type UserAttributes } from '../user.attributes';
 import { Type } from 'class-transformer';
 import { EccKeysDto, KyberKeysDto } from '../../keyserver/dto/keys.dto';
+import { IsEncryptedMnemonic } from '../../../externals/crypto/decorators/is-encrypted-mnemonic.decorator';
 import {
   IsEncryptedPassword,
   IsEncryptedSalt,
@@ -77,6 +78,7 @@ export class CreateUserDto {
       'test test test test test test test test test test test test test test test test test test test test test test test test',
     description: 'The mnemonic used to derive encryption keys',
   })
+  @IsEncryptedMnemonic()
   mnemonic: UserAttributes['mnemonic'];
 
   @IsEncryptedSalt()
