@@ -15,11 +15,6 @@ import { IsEncryptedKeyOfSize } from '../../../externals/asymmetric-encryption/d
 // so the plaintext payload is Math.ceil(1632 / 3) * 4 = 2176 bytes.
 const KYBER512_PRIVATE_KEY_BASE64_BYTES = 2176;
 
-// Encrypted ECC key (openpgp@6, ed25519Legacy, drive-web, always same fixed
-// userID 'inxt@inxt.com') weighs 907 bytes, rarely 903.
-const ECC_PRIVATE_KEY_MIN_PAYLOAD_BYTES = 903;
-const ECC_PRIVATE_KEY_MAX_PAYLOAD_BYTES = 907;
-
 export class KyberKeysDto {
   @IsString()
   @IsNotEmpty()
@@ -52,10 +47,7 @@ export class EccKeysDto {
 
   @IsString()
   @IsNotEmpty()
-  @IsEncryptedKeyOfSize({
-    minPayloadBytes: ECC_PRIVATE_KEY_MIN_PAYLOAD_BYTES,
-    maxPayloadBytes: ECC_PRIVATE_KEY_MAX_PAYLOAD_BYTES,
-  })
+  @IsEncryptedKeyOfSize()
   @ApiProperty({
     example: 'privateKeyExample',
     description: 'Private key',
