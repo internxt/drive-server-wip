@@ -8,9 +8,8 @@ import {
 const AES_GCM_HEADER_BYTES = 64 + 16 + 16;
 
 /**
- * Validates a key encrypted with AesService.encrypt() (src/externals/crypto/aes.ts).
+ * Validates a key encrypted with AES-256-GCM (base64-encoded, salt+iv+tag+payload).
  * @param exactPayloadBytes if given, decoded blob must be exactly header + this many bytes
- *   (AES-GCM has no padding, so encrypting a known-size plaintext yields a known-size blob)
  */
 export function IsEncryptedKeyOfSize(
   exactPayloadBytes?: number,
@@ -41,11 +40,7 @@ export function IsEncryptedKeyOfSize(
           return decoded.length > AES_GCM_HEADER_BYTES;
         },
         defaultMessage(args: ValidationArguments) {
-          const expected =
-            exactPayloadBytes !== undefined
-              ? `exactly ${AES_GCM_HEADER_BYTES + exactPayloadBytes} bytes`
-              : `more than ${AES_GCM_HEADER_BYTES} bytes`;
-          return `${args.property} must be a valid AES-256-GCM encrypted key (base64, salt+iv+tag+payload, ${expected} decoded)`;
+          return `${args.property} is not a valid encrypted key`;
         },
       },
     });

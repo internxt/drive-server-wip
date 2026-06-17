@@ -4,8 +4,7 @@ import {
   type ValidationArguments,
 } from 'class-validator';
 
-// Confirmed via kem.publicKeyBytes from @dashlane/pqc-kem-kyber512-node, the lib used in
-// src/externals/asymmetric-encryption/providers/kyber.provider.ts.
+// Confirmed via kem.publicKeyBytes from @dashlane/pqc-kem-kyber512-node
 const KYBER512_PUBLIC_KEY_BYTES = 800;
 
 export function IsKyberPublicKey(validationOptions?: ValidationOptions) {
@@ -29,7 +28,7 @@ export function IsKyberPublicKey(validationOptions?: ValidationOptions) {
           }
         },
         defaultMessage(args: ValidationArguments) {
-          return `${args.property} must be a valid Kyber512 public key (${KYBER512_PUBLIC_KEY_BYTES} bytes base64-encoded)`;
+          return `${args.property} is not a valid Kyber public key`;
         },
       },
     });

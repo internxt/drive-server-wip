@@ -27,7 +27,7 @@ export function IsOpenPgpPublicKey(validationOptions?: ValidationOptions) {
           }
         },
         defaultMessage(args: ValidationArguments) {
-          return `${args.property} must be a valid OpenPGP public key`;
+          return `${args.property} is not a valid OpenPGP public key`;
         },
       },
     });
