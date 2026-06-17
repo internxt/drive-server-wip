@@ -111,7 +111,7 @@ export async function generateValidRegistrationData(
 }
 
 export function generateHashedPassword(): string {
-  return '$2a$08$' + v4().replace(/-/g, '').substring(0, 53);
+  return (v4() + v4()).replace(/-/g, '').substring(0, 64);
 }
 
 export function generateSalt(): string {

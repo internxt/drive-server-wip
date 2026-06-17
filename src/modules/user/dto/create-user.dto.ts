@@ -11,6 +11,10 @@ import { type UserAttributes } from '../user.attributes';
 import { Type } from 'class-transformer';
 import { EccKeysDto, KyberKeysDto } from '../../keyserver/dto/keys.dto';
 import { IsEncryptedMnemonic } from '../../../externals/crypto/decorators/is-encrypted-mnemonic.decorator';
+import {
+  IsEncryptedPassword,
+  IsEncryptedSalt,
+} from '../../../externals/crypto/decorators/password-dto.validators';
 
 class KeysDto {
   @Type(() => EccKeysDto)
@@ -60,8 +64,7 @@ export class CreateUserDto {
   })
   email: UserAttributes['email'];
 
-  @IsNotEmpty()
-  @IsString()
+  @IsEncryptedPassword()
   @ApiProperty({
     example: '$2a$08$4SN2l.8dM0fSUTzni3i61u047Sr/R3ocJYxbxmKdEmGJcVOj1sHIi',
     description: 'Hashed password',
@@ -78,8 +81,7 @@ export class CreateUserDto {
   @IsEncryptedMnemonic()
   mnemonic: UserAttributes['mnemonic'];
 
-  @IsNotEmpty()
-  @IsString()
+  @IsEncryptedSalt()
   @ApiProperty({
     example: 'salt',
     description: 'Salt',
