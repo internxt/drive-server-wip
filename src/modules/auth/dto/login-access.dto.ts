@@ -8,6 +8,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { KeysDto } from '../../keyserver/dto/keys.dto';
+import { IsEncryptedPassword } from '../../../externals/crypto/decorators/password-dto.validators';
 
 class OptionalKeyGroup extends PartialType(KeysDto) {}
 
@@ -24,8 +25,7 @@ export class LoginAccessDto {
     example: 'some_hashed_pass',
     description: 'User password',
   })
-  @IsNotEmpty()
-  @IsString()
+  @IsEncryptedPassword()
   password: string;
 
   @ApiProperty({

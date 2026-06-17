@@ -1,6 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+import {
+  IsEncryptedPassword,
+  IsEncryptedSalt,
+} from '../../../externals/crypto/decorators/password-dto.validators';
 
 class EncryptedMnemonicDto {
   @ApiProperty({
@@ -73,14 +77,14 @@ export class LegacyRecoverAccountDto {
     example: 'hashed_password',
     description: 'New user pass hashed',
   })
-  @IsNotEmpty()
+  @IsEncryptedPassword()
   password: string;
 
   @ApiProperty({
     example: 'password_salt',
     description: 'Hashed password salt',
   })
-  @IsNotEmpty()
+  @IsEncryptedSalt()
   salt: string;
 
   @ApiProperty({

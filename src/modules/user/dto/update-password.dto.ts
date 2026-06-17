@@ -1,22 +1,26 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsEncryptedPassword,
+  IsEncryptedSalt,
+} from '../../../externals/crypto/decorators/password-dto.validators';
 
 export class UpdatePasswordDto {
-  @IsString()
+  @IsEncryptedPassword()
   @ApiProperty({
     example: 'currentPassword',
     description: 'Current password',
   })
   currentPassword: string;
 
-  @IsString()
+  @IsEncryptedPassword()
   @ApiProperty({
     example: 'newPassword',
     description: 'New password',
   })
   newPassword: string;
 
-  @IsString()
+  @IsEncryptedSalt()
   @ApiProperty({
     example: 'newSalt',
     description: 'New salt',
