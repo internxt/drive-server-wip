@@ -2,6 +2,7 @@ import { v4 } from 'uuid';
 import { generateMnemonic } from 'bip39';
 import { generateNewKeys } from '../../src/externals/asymmetric-encryption/openpgp';
 import { importEsmPackage } from '../../src/lib/import-esm-package';
+import { encryptMnemonicForTest } from './mnemonic-test.helper';
 
 export interface RegisterUserDto {
   name: string;
@@ -89,13 +90,17 @@ export async function generateValidRegistrationData(
   const uniqueId = `${timestamp}-${randomSuffix}`;
 
   const keys = await initializeTestKeys();
+  const password = overrides.password ?? generateHashedPassword();
+  const mnemonic =
+    overrides.mnemonic ??
+    encryptMnemonicForTest(generateMnemonic(256), password);
 
   return {
     name: 'Test',
     lastname: 'User',
     email: overrides.email || `test-${uniqueId}@test.com`,
-    password: generateHashedPassword(),
-    mnemonic: generateMnemonic(256),
+    password,
+    mnemonic,
     salt: generateSalt(),
     keys: {
       ecc: keys.ecc,
