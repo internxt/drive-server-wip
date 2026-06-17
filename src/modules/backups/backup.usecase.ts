@@ -142,6 +142,7 @@ export class BackupUseCase {
 
     const folders = await this.folderUsecases.getFoldersByUserId(user.id, {
       bucket: user.backupsBucket,
+      parentId: null,
       removed: false,
       deleted: false,
     });
