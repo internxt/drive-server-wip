@@ -232,7 +232,10 @@ describe('User Authentication E2E', () => {
 
         await request(app.getHttpServer())
           .post('/auth/login/access')
-          .send({ email, password: generateHashedPassword() })
+          .send({
+            email,
+            password: cryptoService.encryptText(generateHashedPassword()),
+          })
           .expect(HttpStatus.UNAUTHORIZED);
       });
 
@@ -241,7 +244,7 @@ describe('User Authentication E2E', () => {
           .post('/auth/login/access')
           .send({
             email: 'nonexistent@test.com',
-            password: generateHashedPassword(),
+            password: cryptoService.encryptText(generateHashedPassword()),
           })
           .expect(HttpStatus.UNAUTHORIZED);
       });
@@ -279,7 +282,10 @@ describe('User Authentication E2E', () => {
         for (let i = 1; i <= 3; i++) {
           await request(app.getHttpServer())
             .post('/auth/login/access')
-            .send({ email, password: generateHashedPassword() })
+            .send({
+              email,
+              password: cryptoService.encryptText(generateHashedPassword()),
+            })
             .expect(HttpStatus.UNAUTHORIZED);
 
           const user = await userModel.findOne({ where: { id: userId } });
@@ -298,7 +304,10 @@ describe('User Authentication E2E', () => {
 
         await request(app.getHttpServer())
           .post('/auth/login/access')
-          .send({ email, password: generateHashedPassword() })
+          .send({
+            email,
+            password: cryptoService.encryptText(generateHashedPassword()),
+          })
           .expect(HttpStatus.FORBIDDEN);
       });
 

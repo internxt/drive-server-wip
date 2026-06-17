@@ -8,6 +8,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import {
+  IsEncryptedPassword,
+  IsEncryptedSalt,
+} from '../../../externals/crypto/decorators/password-dto.validators';
 
 class PrivateKeysDto {
   @ApiProperty()
@@ -34,7 +38,7 @@ export class RecoverAccountDto {
     example: 'some_hashed_pass',
     description: 'New user pass hashed',
   })
-  @IsNotEmpty()
+  @IsEncryptedPassword()
   password: string;
 
   @ApiProperty({
@@ -48,7 +52,7 @@ export class RecoverAccountDto {
     example: 'some_salt',
     description: 'Hashed password salt',
   })
-  @IsNotEmpty()
+  @IsEncryptedSalt()
   salt: string;
 
   @ApiProperty({
@@ -81,14 +85,14 @@ export class DeprecatedRecoverAccountDto {
     example: 'some_hashed_pass',
     description: 'New user pass hashed',
   })
-  @IsNotEmpty()
+  @IsEncryptedPassword()
   password: string;
 
   @ApiProperty({
     example: 'some_salt',
     description: 'Hashed password salt',
   })
-  @IsNotEmpty()
+  @IsEncryptedSalt()
   salt: string;
 
   @ApiProperty({
