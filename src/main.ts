@@ -66,25 +66,28 @@ async function bootstrap() {
   app.disable('x-powered-by');
   app.enableShutdownHooks();
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Drive API')
-    .setDescription('Drive API')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .addBearerAuth(undefined, 'gateway')
-    .build();
+  if (!config.isProduction) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Drive API')
+      .setDescription('Drive API')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .addBearerAuth(undefined, 'gateway')
+      .build();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig, {
-    ignoreGlobalPrefix: true,
-  });
+    const document = SwaggerModule.createDocument(app, swaggerConfig, {
+      ignoreGlobalPrefix: true,
+    });
 
-  const customOptions: SwaggerCustomOptions = {
-    swaggerOptions: {
-      persistAuthorization: true,
-    },
-  };
+    const customOptions: SwaggerCustomOptions = {
+      swaggerOptions: {
+        persistAuthorization: true,
+      },
+    };
 
-  SwaggerModule.setup('api', app, document, customOptions);
+    SwaggerModule.setup('api', app, document, customOptions);
+  }
+
   await app.listen(APP_PORT);
   logger.log(`Application listening on port: ${APP_PORT}`);
   logger.log(`Trusting proxy enabled: ${enableTrustProxy ? 'yes' : 'no'}`);
