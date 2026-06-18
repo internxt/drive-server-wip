@@ -1,4 +1,12 @@
-import jwt, { type JwtHeader } from 'jsonwebtoken';
+import jwt, { type JwtHeader, type SignOptions } from 'jsonwebtoken';
+
+export function signWithExpiry(
+  payload: string | object | Buffer,
+  secret: jwt.Secret,
+  options?: Omit<SignOptions, 'expiresIn'> & { expiresIn?: string | number },
+): string {
+  return jwt.sign(payload, secret, options as SignOptions);
+}
 
 export function SignEmail(
   email: string,
@@ -9,7 +17,7 @@ export function SignEmail(
   const payload = { email, ...(customIat ? { iat: customIat } : null) };
 
   const token = expirationTime
-    ? jwt.sign(payload, secret, { expiresIn: expirationTime })
+    ? signWithExpiry(payload, secret, { expiresIn: expirationTime })
     : jwt.sign(payload, secret);
 
   return token;
@@ -21,7 +29,7 @@ export function Sign(
   expirationTime?: string | number,
 ): string {
   const token = expirationTime
-    ? jwt.sign(payload, secret, { expiresIn: expirationTime })
+    ? signWithExpiry(payload, secret, { expiresIn: expirationTime })
     : jwt.sign(payload, secret);
 
   return token;
@@ -36,7 +44,7 @@ export function SignWithCustomDuration(
   secret: string,
   expiresIn: string,
 ): string {
-  return jwt.sign(payload, secret, { expiresIn });
+  return signWithExpiry(payload, secret, { expiresIn });
 }
 
 export function SignWithRS256AndHeader(

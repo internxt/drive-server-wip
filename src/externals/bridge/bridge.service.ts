@@ -1,5 +1,5 @@
 import { Logger, Inject, Injectable, HttpStatus } from '@nestjs/common';
-import { sign } from 'jsonwebtoken';
+import { signWithExpiry } from '../../middlewares/passport';
 import { ConfigService } from '@nestjs/config';
 import { type FileAttributes } from '../../modules/file/file.domain';
 import { type User } from '../../modules/user/user.domain';
@@ -12,7 +12,7 @@ import { BridgeException } from './exception/bridge.exception';
 import { BridgeUserEmailAlreadyInUseException } from './exception/bridge-user-email-already-in-use.exception';
 
 function signToken(duration: string, secret: string, isDevelopment?: boolean) {
-  return sign({}, Buffer.from(secret, 'base64').toString('utf8'), {
+  return signWithExpiry({}, Buffer.from(secret, 'base64').toString('utf8'), {
     algorithm: 'RS256',
     expiresIn: duration,
     ...(isDevelopment ? { allowInsecureKeySizes: true } : null),
