@@ -1,8 +1,5 @@
 import jwt, { type JwtHeader, type SignOptions } from 'jsonwebtoken';
 
-// `expiresIn` is typed as a template-literal union (`StringValue`) in
-// @types/jsonwebtoken, but jsonwebtoken accepts any duration string at
-// runtime. This cast is the single place that bridges the two.
 export function signWithExpiry(
   payload: string | object | Buffer,
   secret: jwt.Secret,
