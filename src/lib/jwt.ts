@@ -1,6 +1,9 @@
-import { type JwtPayload, sign, verify } from 'jsonwebtoken';
+import { type JwtPayload, verify } from 'jsonwebtoken';
 import getEnv from '../config/configuration';
-import { SignWithRS256AndHeader } from '../middlewares/passport';
+import {
+  SignWithRS256AndHeader,
+  signWithExpiry,
+} from '../middlewares/passport';
 import {
   getJitsiJWTHeader,
   getJitsiJWTPayload,
@@ -12,14 +15,14 @@ export function generateTokenWithPlainSecret(
   payload: Record<string, unknown>,
   duration: string,
   secret: string,
-) {
-  return sign(payload, secret, { expiresIn: duration });
+): string {
+  return signWithExpiry(payload, secret, { expiresIn: duration });
 }
 
 export function generateWithDefaultSecret(
   payload: Record<string, unknown>,
   duration: string,
-) {
+): string {
   return generateTokenWithPlainSecret(payload, duration, getEnv().secrets.jwt);
 }
 
