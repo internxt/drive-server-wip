@@ -5,6 +5,8 @@ import {
   IsEncryptedPassword,
   IsEncryptedSalt,
 } from '../../../externals/crypto/decorators/password-dto.validators';
+import { IsEncryptedKeyOfSize } from '../../../externals/asymmetric-encryption/decorators/encrypted-key.validator';
+import { KYBER512_PRIVATE_KEY_BASE64_BYTES } from '../../keyserver/dto/keys.dto';
 
 export class UpdatePasswordDto {
   @IsEncryptedPassword()
@@ -38,6 +40,7 @@ export class UpdatePasswordDto {
 
   @IsString()
   @MaxLength(3200)
+  @IsEncryptedKeyOfSize()
   @ApiProperty({
     example: 'encryptedPrivateKey',
     description: 'Ecc private key encrypted with new password',
@@ -47,6 +50,7 @@ export class UpdatePasswordDto {
   @IsOptional()
   @IsString()
   @MaxLength(3200)
+  @IsEncryptedKeyOfSize(KYBER512_PRIVATE_KEY_BASE64_BYTES)
   @ApiProperty({
     example: 'encryptedPrivateKey',
     description: 'Kyber private key encrypted with new password',
