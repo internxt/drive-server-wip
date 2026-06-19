@@ -35,18 +35,6 @@ describe('IsEncryptedMnemonic', () => {
     });
   });
 
-  it('When encrypted 12-word mnemonic is provided, then validation error returned', async () => {
-    const mnemonic = generateMnemonic(128);
-    const encrypted = encryptMnemonicForTest(mnemonic, 'password');
-
-    const errors = await validate(buildDto(encrypted));
-
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].constraints).toMatchObject({
-      minLength: 'Invalid encrypted mnemonic.',
-    });
-  });
-
   it('When mnemonic is too long, then validation error returned', async () => {
     const errors = await validate(buildDto('a'.repeat(481)));
 

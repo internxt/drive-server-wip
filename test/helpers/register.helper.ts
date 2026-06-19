@@ -1,8 +1,11 @@
 import { v4 } from 'uuid';
 import { generateMnemonic } from 'bip39';
+import { aes } from '@internxt/lib';
 import { generateNewKeys } from '../../src/externals/asymmetric-encryption/openpgp';
 import { importEsmPackage } from '../../src/lib/import-esm-package';
 import { encryptMnemonicForTest } from './mnemonic-test.helper';
+
+const TEST_KEYS_ENCRYPTION_PASSWORD = 'test-keys-password';
 
 export interface RegisterUserDto {
   name: string;
@@ -47,7 +50,10 @@ async function generateEccKeys(): Promise<EccKeys> {
   const keys = await generateNewKeys();
   return {
     publicKey: keys.publicKeyArmored,
-    privateKey: keys.privateKeyArmored,
+    privateKey: aes.encrypt(
+      keys.privateKeyArmored,
+      TEST_KEYS_ENCRYPTION_PASSWORD,
+    ),
     revocationKey: keys.revocationCertificate,
   };
 }
@@ -58,9 +64,10 @@ async function generateKyberKeys(): Promise<KyberKeys> {
   >('@dashlane/pqc-kem-kyber512-node');
   const kem = await kemBuilder();
   const keys = await kem.keypair();
+  const privateKeyBase64 = Buffer.from(keys.privateKey).toString('base64');
   return {
     publicKey: Buffer.from(keys.publicKey).toString('base64'),
-    privateKey: Buffer.from(keys.privateKey).toString('base64'),
+    privateKey: aes.encrypt(privateKeyBase64, TEST_KEYS_ENCRYPTION_PASSWORD),
   };
 }
 
