@@ -13,7 +13,7 @@ import { IsEncryptedKeyOfSize } from '../../../externals/asymmetric-encryption/d
 // Kyber512 raw private key is 1632 bytes (see kyber-public-key.validator.ts).
 // aes.encrypt() is fed its base64 string (see getKeys() in the key-generation client),
 // so the plaintext payload is Math.ceil(1632 / 3) * 4 = 2176 bytes.
-const KYBER512_PRIVATE_KEY_BASE64_BYTES = 2176;
+export const KYBER512_PRIVATE_KEY_BASE64_BYTES = 2176;
 
 export class KyberKeysDto {
   @IsString()
