@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsOptional } from 'class-validator';
 import { type SharingInvite } from '../sharing.domain';
 import { type User } from '../../user/user.domain';
 
@@ -49,10 +49,11 @@ export class CreateInviteDto {
 
   @ApiProperty({
     example: '84f47d08-dc7c-43dc-b27c-bec4edaa9598',
-    description: 'Invited user role regarding the item',
+    description:
+      'Invited user role regarding the item. Required for "OWNER" invitations; ignored for "SELF" requests (the owner sets the role at accept time).',
   })
-  @IsNotEmpty()
-  roleId: SharingInvite['roleId'];
+  @IsOptional()
+  roleId?: SharingInvite['roleId'];
 
   @ApiProperty({
     example: 'true | false',

@@ -224,9 +224,11 @@ export class SharingInviteModel
   })
   folder: FolderModel;
 
+  @AllowNull
   @Column(DataType.STRING)
   encryptionKey: SharingInviteAttributes['encryptionKey'];
 
+  @AllowNull
   @Column(DataType.STRING)
   encryptionAlgorithm: SharingInviteAttributes['encryptionAlgorithm'];
 
@@ -234,6 +236,7 @@ export class SharingInviteModel
   type: SharingInviteAttributes['type'];
 
   @ForeignKey(() => RoleModel)
+  @AllowNull
   @Column(DataType.UUIDV4)
   roleId: SharingInviteAttributes['roleId'];
 

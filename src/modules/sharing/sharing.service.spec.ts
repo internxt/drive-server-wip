@@ -28,6 +28,7 @@ import { type FileUseCases } from '../file/file.usecase';
 import { type UserUseCases } from '../user/user.usecase';
 import { type SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 import { type SequelizeFileRepository } from '../file/file.repository';
+import { type NotificationService } from '../../externals/notifications/notification.service';
 import {
   type Role,
   SharedWithType,
@@ -61,6 +62,7 @@ describe('Sharing Use Cases', () => {
   let usersUsecases: DeepMocked<UserUseCases>;
   let userReferralsRepository: DeepMocked<SequelizeUserReferralsRepository>;
   let config: DeepMocked<ConfigService>;
+  let notificationService: DeepMocked<NotificationService>;
 
   beforeEach(async () => {
     sharingRepository = createMock<SequelizeSharingRepository>();
@@ -85,6 +87,8 @@ describe('Sharing Use Cases', () => {
       return configValues[key] || 'default-value';
     });
 
+    notificationService = createMock<NotificationService>();
+
     sharingService = new SharingService(
       sharingRepository,
       fileRepository,
@@ -93,6 +97,7 @@ describe('Sharing Use Cases', () => {
       usersUsecases,
       config,
       userReferralsRepository,
+      notificationService,
     );
   });
 
@@ -1683,9 +1688,10 @@ describe('Sharing Use Cases', () => {
       expect(sharingRepository.createInvite).toHaveBeenCalled();
     });
 
-    it('When creating SELF type invite without encryption, then it works', async () => {
+    it('When a non-owner requests access (SELF), then it creates the invite without encryption', async () => {
       const selfInviteDto = {
         ...createInviteDto,
+        sharedWith: inviteeUser.email,
         type: 'SELF' as const,
         encryptionKey: undefined,
         encryptionAlgorithm: undefined,
@@ -1700,9 +1706,45 @@ describe('Sharing Use Cases', () => {
       sharingRepository.getInvitesCountBy.mockResolvedValue(20);
       sharingRepository.createInvite.mockResolvedValue(expect.any(Object));
 
-      await sharingService.createInvite(owner, selfInviteDto);
+      await sharingService.createInvite(inviteeUser, selfInviteDto);
 
       expect(sharingRepository.createInvite).toHaveBeenCalled();
+    });
+
+    it('When SELF request is created by someone other than the requester, then it throws BadRequestException', async () => {
+      const selfInviteDto = {
+        ...createInviteDto,
+        sharedWith: inviteeUser.email,
+        type: 'SELF' as const,
+        encryptionKey: undefined,
+        encryptionAlgorithm: undefined,
+      };
+
+      await expect(
+        sharingService.createInvite(owner, selfInviteDto),
+      ).rejects.toThrow('A request must be created by the requester');
+    });
+
+    it('When owner requests access to their own item (SELF), then it throws BadRequestException', async () => {
+      const selfInviteDto = {
+        ...createInviteDto,
+        sharedWith: owner.email,
+        type: 'SELF' as const,
+        encryptionKey: undefined,
+        encryptionAlgorithm: undefined,
+      };
+
+      usersUsecases.findByEmail.mockResolvedValue(owner);
+      usersUsecases.findPreCreatedByEmail.mockResolvedValue(null);
+      sharingRepository.getInviteByItemAndUser.mockResolvedValue(null);
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      sharingRepository.getSharingsCountBy.mockResolvedValue(10);
+      sharingRepository.getInvitesCountBy.mockResolvedValue(20);
+
+      await expect(
+        sharingService.createInvite(owner, selfInviteDto),
+      ).rejects.toThrow('Owner cannot request access to its own item');
     });
 
     it('When creating OWNER type invite without encryption, then it throws BadRequestException', async () => {
@@ -1731,6 +1773,7 @@ describe('Sharing Use Cases', () => {
     const acceptInviteDto = {
       encryptionKey: 'encryptionKey',
       encryptionAlgorithm: 'aes-256-gcm',
+      roleId: v4(),
     };
 
     it('When user accepts invite, then it creates sharing and deletes invite', async () => {
@@ -1782,16 +1825,17 @@ describe('Sharing Use Cases', () => {
     it('When user is not the invited user, then it throws ForbiddenException', async () => {
       const otherUser = newUser();
       invite.isSharedWith = jest.fn().mockReturnValue(false);
+      jest.spyOn(invite, 'isARequest').mockReturnValue(false);
       sharingRepository.getInviteById.mockResolvedValue(invite);
+      folderUseCases.getByUuid.mockResolvedValue(folder);
 
       await expect(
         sharingService.acceptInvite(otherUser, invite.id, acceptInviteDto),
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('When accepting request without encryption, then it throws BadRequestException', async () => {
+    it('When the owner accepts a request without encryption, then it throws BadRequestException', async () => {
       jest.spyOn(invite, 'isARequest').mockReturnValue(true);
-      jest.spyOn(invite, 'isSharedWith').mockReturnValue(true);
 
       const incompleteDto = {
         encryptionKey: undefined,
@@ -1799,12 +1843,41 @@ describe('Sharing Use Cases', () => {
       };
 
       sharingRepository.getInviteById.mockResolvedValue(invite);
+      folderUseCases.getByUuid.mockResolvedValue(folder);
 
       await expect(
-        sharingService.acceptInvite(inviteeUser, invite.id, incompleteDto),
+        sharingService.acceptInvite(owner, invite.id, incompleteDto),
       ).rejects.toThrow(
         'This invitation is a request, the encryption key is required',
       );
+    });
+
+    it('When the owner accepts a request with encryption, then it creates the sharing', async () => {
+      jest.spyOn(invite, 'isARequest').mockReturnValue(true);
+
+      sharingRepository.getInviteById.mockResolvedValue(invite);
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      usersUsecases.findById.mockResolvedValue(owner);
+      usersUsecases.findByUuid.mockResolvedValue(inviteeUser);
+      sharingRepository.createSharing.mockResolvedValue(expect.any(Object));
+      sharingRepository.createSharingRole.mockResolvedValue();
+      sharingRepository.deleteInvite.mockResolvedValue();
+
+      await sharingService.acceptInvite(owner, invite.id, acceptInviteDto);
+
+      expect(sharingRepository.createSharing).toHaveBeenCalled();
+      expect(sharingRepository.deleteInvite).toHaveBeenCalledWith(invite);
+    });
+
+    it('When the requester tries to accept their own request, then it throws ForbiddenException', async () => {
+      jest.spyOn(invite, 'isARequest').mockReturnValue(true);
+
+      sharingRepository.getInviteById.mockResolvedValue(invite);
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+
+      await expect(
+        sharingService.acceptInvite(inviteeUser, invite.id, acceptInviteDto),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('When owner not found, then it throws NotFoundException', async () => {
