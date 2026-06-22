@@ -30,6 +30,7 @@ import { KeyServerUseCases } from '../keyserver/key-server.usecase';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { LoginDto } from './dto/login-dto';
 import { LoginAccessDto } from './dto/login-access.dto';
+import { CliLoginAccessDto } from './dto/cli-login-access.dto';
 import { User as UserDecorator } from './decorators/user.decorator';
 import { TwoFactorAuthService } from './two-factor-auth.service';
 import { DeleteTfaDto } from './dto/delete-tfa.dto';
@@ -279,7 +280,7 @@ export class AuthController {
   })
   @Public()
   async cliLoginAccess(
-    @Body() body: LoginAccessDto,
+    @Body() body: CliLoginAccessDto,
     @Client() client: string,
   ): Promise<LoginAccessResponseDto> {
     let platform = ClientToPlatformMap[client as ClientEnum];
@@ -293,11 +294,7 @@ export class AuthController {
       'Attempting platform login',
     );
     try {
-      const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(body.keys, {
-        privateKey: body.privateKey,
-        publicKey: body.publicKey,
-        revocationKey: body.revocateKey,
-      });
+      const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(body.keys);
 
       const result = await this.userUseCases.loginAccess({
         ...body,
