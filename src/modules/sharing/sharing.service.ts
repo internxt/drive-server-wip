@@ -49,7 +49,7 @@ import { MailerService } from '../../externals/mailer/mailer.service';
 import { Sign } from '../../middlewares/passport';
 import { type CreateSharingDto } from './dto/create-sharing.dto';
 import { aes } from '@internxt/lib';
-import { Environment } from '@internxt/inxt-js';
+import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
 import { type Workspace } from '../workspaces/domains/workspaces.domain';
@@ -150,6 +150,7 @@ export class SharingService {
     private readonly usersUsecases: UserUseCases,
     private readonly configService: ConfigService,
     private readonly userReferralsRepository: SequelizeUserReferralsRepository,
+    private readonly bridgeService: BridgeService,
   ) {}
 
   findSharingBy(where: Partial<Sharing>): Promise<Sharing | null> {
@@ -237,15 +238,10 @@ export class SharingService {
       if (item.isDeleted()) {
         throw new NotFoundException();
       }
-      const network = new Environment({
-        bridgePass: owner.userId,
-        bridgeUser: owner.bridgeUser,
-        bridgeUrl: getEnv().apis.storage.url,
-        appDetails: {
-          clientName: 'drive-server-wip',
-          clientVersion: '1.0.0',
-        },
-      });
+      const network = this.bridgeService.createNetworkEnvironment(
+        owner.bridgeUser,
+        owner.userId,
+      );
 
       const encryptionKey = await this.fileUsecases.getEncryptionKeyFromFile(
         item,
@@ -693,15 +689,10 @@ export class SharingService {
       getFilesFromFolder(owner.id, folder.id),
     ]);
 
-    const network = new Environment({
-      bridgePass: owner.userId,
-      bridgeUser: owner.bridgeUser,
-      bridgeUrl: getEnv().apis.storage.url,
-      appDetails: {
-        clientName: 'drive-server-wip',
-        clientVersion: '1.0.0',
-      },
-    });
+    const network = this.bridgeService.createNetworkEnvironment(
+      owner.bridgeUser,
+      owner.userId,
+    );
 
     const encryptionPromises = items.map(async (file) => {
       const encryptionKey = await this.fileUsecases.getEncryptionKeyFromFile(

@@ -56,6 +56,7 @@ export default () => ({
         username: process.env.GATEWAY_USER,
         password: process.env.GATEWAY_PASS,
       },
+      internxtClient: process.env.STORAGE_API_INTERNXT_CLIENT || 'drive-server',
     },
     drive: {
       url: process.env.DRIVE_API_URL,
