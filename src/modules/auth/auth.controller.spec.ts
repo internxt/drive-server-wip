@@ -604,11 +604,8 @@ describe('AuthController', () => {
       );
     });
 
-    it('When CLI login access includes both ecc and kyber keys, then it should parse and pass them correctly', async () => {
+    it('When CLI login access includes ecc keys, then it should parse and pass them correctly', async () => {
       const eccKey = newKeyServer();
-      const kyberKey = newKeyServer({
-        encryptVersion: UserKeysEncryptVersions.Kyber,
-      });
       const mockUser = newUser({ attributes: { tierId: v4() } });
       const mockLoginResult = {
         success: true,
@@ -621,14 +618,11 @@ describe('AuthController', () => {
         ecc: {
           ...eccKey.toJSON(),
         },
-        kyber: {
-          ...kyberKey.toJSON(),
-        },
       };
 
       jest.spyOn(keyServerUseCases, 'parseKeysInput').mockReturnValueOnce({
         ecc: eccKey.toJSON(),
-        kyber: kyberKey.toJSON(),
+        kyber: undefined,
       });
 
       jest
@@ -647,9 +641,7 @@ describe('AuthController', () => {
           ecc: {
             ...eccKey.toJSON(),
           },
-          kyber: {
-            ...kyberKey.toJSON(),
-          },
+          kyber: null,
         },
         platform: PlatformName.CLI,
       });
