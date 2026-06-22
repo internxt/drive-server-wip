@@ -52,6 +52,7 @@ import {
   newPreCreatedUser,
 } from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
+import { JWT_12HOURS_EXPIRATION } from '../auth/constants';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import * as openpgpUtils from '../../externals/asymmetric-encryption/openpgp';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
@@ -889,7 +890,7 @@ describe('User use cases', () => {
   });
 
   describe('getUserNotificationTokens', () => {
-    it("When getting notification tokens, Then it should return the user's tokens", async () => {
+    it('When getting notification tokens, Then it should return the user\'s tokens', async () => {
       const user = newUser();
       const mockTokens: UserNotificationTokens[] = [
         newNotificationToken(),
@@ -935,13 +936,13 @@ describe('User use cases', () => {
       expect(SignEmail).toHaveBeenCalledWith(
         user.email,
         jwtSecret,
-        '3d',
+        JWT_12HOURS_EXPIRATION,
         customIat,
       );
 
       expect(Sign).toHaveBeenCalledWith(
         {
-          jti: expect.stringMatching(`[a-f0-9-]{36}`),
+          jti: expect.stringMatching('[a-f0-9-]{36}'),
           sub: user.uuid,
           payload: {
             uuid: user.uuid,
@@ -960,7 +961,7 @@ describe('User use cases', () => {
           iat: customIat,
         },
         jwtSecret,
-        '3d',
+        JWT_12HOURS_EXPIRATION,
       );
     });
 
@@ -981,13 +982,13 @@ describe('User use cases', () => {
       expect(SignEmail).toHaveBeenCalledWith(
         user.email,
         jwtSecret,
-        '3d',
+        JWT_12HOURS_EXPIRATION,
         undefined,
       );
 
       expect(Sign).toHaveBeenCalledWith(
         {
-          jti: expect.stringMatching(`[a-f0-9-]{36}`),
+          jti: expect.stringMatching('[a-f0-9-]{36}'),
           sub: user.uuid,
           payload: {
             uuid: user.uuid,
@@ -1005,7 +1006,7 @@ describe('User use cases', () => {
           },
         },
         jwtSecret,
-        '3d',
+        JWT_12HOURS_EXPIRATION,
       );
     });
 
@@ -1032,7 +1033,7 @@ describe('User use cases', () => {
 
       expect(Sign).toHaveBeenCalledWith(
         {
-          jti: expect.stringMatching(`[a-f0-9-]{36}`),
+          jti: expect.stringMatching('[a-f0-9-]{36}'),
           sub: user.uuid,
           payload: {
             uuid: user.uuid,

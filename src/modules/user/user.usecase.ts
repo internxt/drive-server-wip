@@ -66,6 +66,7 @@ import { UserEmailAlreadyInUseException } from './exception/user-email-already-i
 import { UserNotFoundException } from './exception/user-not-found.exception';
 import { getTokenDefaultIat, verifyToken } from '../../lib/jwt';
 import getEnv from '../../config/configuration';
+import { JWT_12HOURS_EXPIRATION } from '../auth/constants';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 import { Time } from '../../lib/time';
@@ -346,7 +347,7 @@ export class UserUseCases {
     }
 
     console.info(
-      `(usersReferralsService.redeemUserReferral) ` +
+      '(usersReferralsService.redeemUserReferral) ' +
         `The user '${uuid}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
     );
   }
@@ -489,7 +490,7 @@ export class UserUseCases {
       const { newToken, token } = await this.getAuthTokens(
         user,
         undefined,
-        '3d',
+        JWT_12HOURS_EXPIRATION,
       );
 
       return {
@@ -876,7 +877,7 @@ export class UserUseCases {
   async getAuthTokens(
     user: User,
     customIat?: number,
-    tokenExpirationTime: string | number = '3d',
+    tokenExpirationTime: string | number = JWT_12HOURS_EXPIRATION,
     platform?: string,
   ): Promise<{ token: string; newToken: string }> {
     const jti = v4();
@@ -1229,7 +1230,7 @@ export class UserUseCases {
 
       if (typeof decoded === 'string') {
         Logger.error(
-          `[RECOVER-ACCOUNT/VERIFY-AND-DECODE-TOKEN]: Token is a string`,
+          '[RECOVER-ACCOUNT/VERIFY-AND-DECODE-TOKEN]: Token is a string',
         );
         throw new ForbiddenException('Invalid token');
       }
@@ -1535,7 +1536,11 @@ export class UserUseCases {
       user.username = emails.newEmail;
     }
 
-    const { newToken, token } = await this.getAuthTokens(user, undefined, '3d');
+    const { newToken, token } = await this.getAuthTokens(
+      user,
+      undefined,
+      JWT_12HOURS_EXPIRATION,
+    );
 
     return {
       ...emails,
@@ -1642,7 +1647,7 @@ export class UserUseCases {
     const { token, newToken } = await this.getAuthTokens(
       userData,
       undefined,
-      '3d',
+      JWT_12HOURS_EXPIRATION,
       loginAccessDto.platform,
     );
     await this.userRepository.loginFailed(userData, false);
