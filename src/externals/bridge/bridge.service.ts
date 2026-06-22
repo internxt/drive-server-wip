@@ -7,6 +7,7 @@ import { type UserAttributes } from '../../modules/user/user.attributes';
 import { CryptoService } from '../crypto/crypto.service';
 import { HttpClient } from '../http/http.service';
 import { AxiosError } from 'axios';
+import { Environment } from '@internxt/inxt-js';
 import { BridgeUserNotFoundException } from './exception/bridge-user-not-found.exception';
 import { BridgeException } from './exception/bridge.exception';
 import { BridgeUserEmailAlreadyInUseException } from './exception/bridge-user-email-already-in-use.exception';
@@ -49,6 +50,27 @@ export class BridgeService {
     };
   }
 
+  private clientHeader() {
+    return {
+      'internxt-client': this.configService.get('apis.storage.internxtClient'),
+    };
+  }
+
+  createNetworkEnvironment(
+    bridgeUser: UserAttributes['bridgeUser'],
+    bridgePass: UserAttributes['userId'],
+  ): Environment {
+    return new Environment({
+      bridgePass,
+      bridgeUser,
+      bridgeUrl: this.networkUrl,
+      appDetails: {
+        clientName: this.configService.get('apis.storage.internxtClient'),
+        clientVersion: '1.0.0',
+      },
+    });
+  }
+
   async createBucket(
     networkUser: UserAttributes['bridgeUser'],
     networkPass: UserAttributes['userId'],
@@ -73,6 +95,7 @@ export class BridgeService {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Basic ${credential}`,
+        ...this.clientHeader(),
       },
     };
 
@@ -106,6 +129,7 @@ export class BridgeService {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${jwt}`,
+          ...this.clientHeader(),
         },
       },
     );
@@ -123,6 +147,7 @@ export class BridgeService {
       headers: {
         'Content-Type': 'application/json',
         ...this.authorizationHeaders(user.bridgeUser, user.userId),
+        ...this.clientHeader(),
       },
     };
 
@@ -150,7 +175,7 @@ export class BridgeService {
       const password = this.configService.get('apis.storage.auth.password');
 
       const params = {
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...this.clientHeader() },
         auth: { username, password },
       };
 
@@ -179,7 +204,7 @@ export class BridgeService {
       const password = this.configService.get('apis.storage.auth.password');
 
       const params = {
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...this.clientHeader() },
         auth: { username, password },
       };
 
@@ -214,6 +239,7 @@ export class BridgeService {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Basic ${basicAuth}`,
+          ...this.clientHeader(),
         },
       })
       .then<number>((response) => response.data.maxSpaceBytes);
@@ -231,6 +257,7 @@ export class BridgeService {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${jwt}`,
+          ...this.clientHeader(),
         },
       };
 
@@ -260,6 +287,7 @@ export class BridgeService {
         headers: {
           'Content-Type': 'application/json',
           ...this.authorizationHeaders(user.bridgeUser, user.userId),
+          ...this.clientHeader(),
         },
       };
 
@@ -283,6 +311,7 @@ export class BridgeService {
       const params = {
         headers: {
           'Content-Type': 'application/json',
+          ...this.clientHeader(),
         },
       };
 

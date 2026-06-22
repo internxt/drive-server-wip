@@ -88,7 +88,8 @@ describe('Bridge Service', () => {
         {
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Basic ZmFrZUBpbnRlcm54dC5jb206MzYxMjEzNDY4Mzk0OTQ0Mjk3NDM=`,
+            Authorization: 'Basic ZmFrZUBpbnRlcm54dC5jb206MzYxMjEzNDY4Mzk0OTQ0Mjk3NDM=',
+            'internxt-client': testUrl,
           },
         },
       );

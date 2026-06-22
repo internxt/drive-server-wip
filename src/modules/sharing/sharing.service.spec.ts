@@ -39,6 +39,7 @@ import {
 import { FileStatus, type FileAttributes } from '../file/file.domain';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
 import { type GetInviteDto } from './dto/get-invites.dto';
+import { type BridgeService } from '../../externals/bridge/bridge.service';
 
 jest.mock('../../lib/jwt');
 jest.mock('../../externals/mailer/mailer.service', () => ({
@@ -61,6 +62,7 @@ describe('Sharing Use Cases', () => {
   let usersUsecases: DeepMocked<UserUseCases>;
   let userReferralsRepository: DeepMocked<SequelizeUserReferralsRepository>;
   let config: DeepMocked<ConfigService>;
+  let bridgeService: DeepMocked<BridgeService>;
 
   beforeEach(async () => {
     sharingRepository = createMock<SequelizeSharingRepository>();
@@ -70,6 +72,7 @@ describe('Sharing Use Cases', () => {
     usersUsecases = createMock<UserUseCases>();
     userReferralsRepository = createMock<SequelizeUserReferralsRepository>();
     config = createMock<ConfigService>();
+    bridgeService = createMock<BridgeService>();
 
     // Mock specific config values that are needed for MailerService
     config.get.mockImplementation((key: string) => {
@@ -93,6 +96,7 @@ describe('Sharing Use Cases', () => {
       usersUsecases,
       config,
       userReferralsRepository,
+      bridgeService,
     );
   });
 
