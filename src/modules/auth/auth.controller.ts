@@ -294,11 +294,11 @@ export class AuthController {
       'Attempting platform login',
     );
     try {
-      const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(body.keys);
+      const { ecc } = this.keyServerUseCases.parseKeysInput(body.keys);
 
       const result = await this.userUseCases.loginAccess({
         ...body,
-        keys: { kyber, ecc },
+        keys: { ecc, kyber: null },
         platform,
       });
 

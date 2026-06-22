@@ -32,32 +32,12 @@ class CliEccKeysDto {
   revocationKey?: string;
 }
 
-class CliKyberKeysDto {
-  @IsString()
-  @IsNotEmpty()
-  @IsKyberPublicKey()
-  @ApiProperty({ example: 'publicKeyExample', required: false })
-  publicKey: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @IsEncryptedKeyOfSize(KYBER512_PRIVATE_KEY_BASE64_BYTES)
-  @ApiProperty({ example: 'privateKeyExample', required: false })
-  privateKey: string;
-}
-
 class CliKeysDto {
   @IsOptional()
   @Type(() => CliEccKeysDto)
   @ValidateNested()
   @ApiProperty({ type: CliEccKeysDto, required: false })
   ecc?: CliEccKeysDto;
-
-  @IsOptional()
-  @Type(() => CliKyberKeysDto)
-  @ValidateNested()
-  @ApiProperty({ type: CliKyberKeysDto, required: false })
-  kyber?: CliKyberKeysDto;
 }
 
 export class CliLoginAccessDto {
