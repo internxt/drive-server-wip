@@ -13,7 +13,6 @@ import {
   type TestUserContext,
 } from '../../../test/helpers/user.helper';
 import { createTestApp } from '../../../test/helpers/test-app.helper';
-import { AesService } from '../../externals/crypto/aes';
 
 describe('Folder module', () => {
   let app: NestExpressApplication;
@@ -116,11 +115,7 @@ describe('Folder module', () => {
         type: file.type,
       });
 
-      const aes = new AesService(process.env.CRYPTO_SECRET2);
-      const decryptedName = aes.decrypt(
-        response.body.files[0].name,
-        response.body.files[0].folderId,
-      );
+      const decryptedName = response.body.files[0].name;
       expect(decryptedName).toEqual(file.plainName);
     });
 
