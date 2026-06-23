@@ -47,7 +47,6 @@ import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.g
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../../common/decorators/client.decorator';
-import { getPathDepth } from '../../lib/path';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { FileDto } from './dto/responses/file.dto';
 import { GetFileLimitsDto } from './dto/get-file-limits.dto';
@@ -469,11 +468,15 @@ export class FileController {
     @UserDecorator() user: User,
     @Query('path') filePath: string,
   ): Promise<FileDto> {
-    if (!filePath || filePath.length === 0 || !filePath.includes('/')) {
+    if (
+      typeof filePath !== 'string' ||
+      filePath.length === 0 ||
+      !filePath.includes('/')
+    ) {
       throw new BadRequestException('Invalid path provided');
     }
 
-    if (getPathDepth(filePath) > 20) {
+    if (filePath.length > 1024) {
       throw new BadRequestException('Path is too deep');
     }
 
