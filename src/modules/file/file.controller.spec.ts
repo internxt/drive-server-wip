@@ -191,11 +191,8 @@ describe('FileController', () => {
       );
     });
 
-    it('When get file metadata by path is requested with a path deep > 20, then it should throw an error', () => {
-      const longPath =
-        '/' +
-        Array.from({ length: 21 }, (_, i) => `folder${i}`).join('/') +
-        '/file.test';
+    it('When get file metadata by path is requested with a path length > 1024, then it should throw an error', () => {
+      const longPath = '/' + 'a'.repeat(1025);
 
       expect(
         fileController.getFileMetaByPath(userMocked, longPath),
