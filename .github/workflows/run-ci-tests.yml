@@ -15,30 +15,18 @@ jobs:
       SENDGRID_MODE_SANDBOX: true
     strategy:
       matrix:
-        node-version: [20.x]
+        node-version: [22.x]
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Setup Node ${{ matrix.node-version }}
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
-          registry-url: 'https://npm.pkg.github.com'
-
-      # We should see why permissions field is not doing the job. This should be removed
-      # You cannot read packages from other private repos with GITHUB_TOKEN
-      # You have to use a PAT instead https://github.com/actions/setup-node/issues/49
-      - name: Configure npm authentication
-        env:
-          PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-        run: |
-          echo "@internxt:registry=https://npm.pkg.github.com" >> .npmrc
-          echo "//npm.pkg.github.com/:_authToken=${PERSONAL_ACCESS_TOKEN}" >> .npmrc
-          echo "always-auth=true" >> .npmrc
 
       - name: Setup environment
-        uses: hoverkraft-tech/compose-action@b716db5b717cb9b81e391fe638e5aceaa2299e43
+        uses: hoverkraft-tech/compose-action@11beaa1c2dae4e8ed7b1665aa074723b6cecb0e4
         with:
           compose-file: './infrastructure/docker-compose.yml'
 

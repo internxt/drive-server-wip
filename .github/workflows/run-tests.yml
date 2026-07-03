@@ -21,23 +21,12 @@ jobs:
         node-version: [20.x]
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
-          registry-url: 'https://npm.pkg.github.com'
-
-      # We should see why permissions field is not doing the job. This should be removed
-      - run: echo "@internxt:registry=https://npm.pkg.github.com" >> .npmrc
-      # You cannot read packages from other private repos with GITHUB_TOKEN
-      # You have to use a PAT instead https://github.com/actions/setup-node/issues/49
-      - name: Configure NPM authentication
-        run: echo "//npm.pkg.github.com/:_authToken=${NPM_TOKEN}" >> .npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-      - run: echo "always-auth=true" >> .npmrc
 
       - name: Install dependencies
         run: npm ci --ignore-scripts
