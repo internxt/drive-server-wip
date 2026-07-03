@@ -4,8 +4,6 @@ WORKDIR /usr/app
 
 COPY package.json ./
 COPY package-lock.json ./
-COPY .npmrc* ./
-RUN test -f .npmrc || cp .npmrc.template .npmrc
 RUN npm ci --ignore-scripts
 
 COPY tsconfig.json ./
