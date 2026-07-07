@@ -52,7 +52,7 @@ import {
   newPreCreatedUser,
 } from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
-import { JWT_12HOURS_EXPIRATION } from '../auth/constants';
+import { JWT_32HOURS_EXPIRATION } from '../auth/constants';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import * as openpgpUtils from '../../externals/asymmetric-encryption/openpgp';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
@@ -936,7 +936,7 @@ describe('User use cases', () => {
       expect(SignEmail).toHaveBeenCalledWith(
         user.email,
         jwtSecret,
-        JWT_12HOURS_EXPIRATION,
+        JWT_32HOURS_EXPIRATION,
         customIat,
       );
 
@@ -961,7 +961,7 @@ describe('User use cases', () => {
           iat: customIat,
         },
         jwtSecret,
-        JWT_12HOURS_EXPIRATION,
+        JWT_32HOURS_EXPIRATION,
       );
     });
 
@@ -982,7 +982,7 @@ describe('User use cases', () => {
       expect(SignEmail).toHaveBeenCalledWith(
         user.email,
         jwtSecret,
-        JWT_12HOURS_EXPIRATION,
+        JWT_32HOURS_EXPIRATION,
         undefined,
       );
 
@@ -1006,7 +1006,7 @@ describe('User use cases', () => {
           },
         },
         jwtSecret,
-        JWT_12HOURS_EXPIRATION,
+        JWT_32HOURS_EXPIRATION,
       );
     });
 
