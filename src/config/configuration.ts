@@ -51,8 +51,7 @@ export default () => ({
       key: process.env.NOTIFICATIONS_API_KEY,
     },
     storage: {
-      // temp
-      url: 'https://gateway.internxt.com/network',
+      url: process.env.STORAGE_API_URL,
       auth: {
         username: process.env.GATEWAY_USER,
         password: process.env.GATEWAY_PASS,
