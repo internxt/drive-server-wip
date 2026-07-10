@@ -18,6 +18,7 @@ import { DeviceModule } from './modules/device/device.module';
 import { CryptoModule } from './externals/crypto/crypto.module';
 import { SharedWorkspaceModule } from './shared-workspace/shared-workspace.module';
 import { ThumbnailModule } from './modules/thumbnail/thumbnail.module';
+import { FavoriteModule } from './modules/favorite/favorite.module';
 import { FuzzySearchModule } from './modules/fuzzy-search/fuzzy-search.module';
 import { SharingModule } from './modules/sharing/sharing.module';
 import { AppSumoModule } from './modules/app-sumo/app-sumo.module';
@@ -143,6 +144,7 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
     CryptoModule,
     SharedWorkspaceModule,
     ThumbnailModule,
+    FavoriteModule,
     FuzzySearchModule,
     SharingModule,
     AppSumoModule,
