@@ -67,6 +67,9 @@ export class BridgeService {
       appDetails: {
         clientName: this.configService.get('apis.storage.internxtClient'),
         clientVersion: '1.0.0',
+        customHeaders: {
+          ...this.clientHeader(),
+        },
       },
     });
   }
