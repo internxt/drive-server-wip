@@ -1,10 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { sign } from 'jsonwebtoken';
+import { signWithExpiry } from '../../middlewares/passport';
 import { ConfigService } from '@nestjs/config';
 import { HttpClient } from '../http/http.service';
 
 function signToken(duration: string, secret: string, isDevelopment?: boolean) {
-  return sign({}, Buffer.from(secret, 'base64').toString('utf8'), {
+  return signWithExpiry({}, Buffer.from(secret, 'base64').toString('utf8'), {
     algorithm: 'RS256',
     expiresIn: duration,
     ...(isDevelopment ? { allowInsecureKeySizes: true } : null),
