@@ -40,6 +40,8 @@ export class FolderDto {
   removed: boolean;
   @ApiProperty()
   deleted: boolean;
+  @ApiProperty({ required: false })
+  isFavorite?: boolean;
 }
 
 export class FoldersDto {

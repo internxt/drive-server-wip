@@ -21,4 +21,5 @@ export interface FolderAttributes {
   creationTime: Date;
   modificationTime: Date;
   sharings?: Sharing[];
+  isFavorite?: boolean;
 }

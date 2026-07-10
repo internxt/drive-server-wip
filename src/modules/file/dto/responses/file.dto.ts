@@ -41,6 +41,8 @@ export class FileDto {
   plainName: string;
   @ApiProperty({ enum: FileStatus })
   status: FileStatus;
+  @ApiProperty({ required: false })
+  isFavorite?: boolean;
 }
 
 export class FilesDto {

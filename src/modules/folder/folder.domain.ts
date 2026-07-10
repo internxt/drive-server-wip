@@ -49,6 +49,7 @@ export class Folder implements FolderAttributes {
   modificationTime: Date;
   sharings?: Sharing[];
   status: FolderStatus;
+  isFavorite?: boolean;
 
   private constructor({
     id,
@@ -71,6 +72,7 @@ export class Folder implements FolderAttributes {
     sharings,
     creationTime,
     modificationTime,
+    isFavorite,
   }: FolderAttributes) {
     this.type = 'folder';
     this.id = id;
@@ -94,6 +96,7 @@ export class Folder implements FolderAttributes {
     this.sharings = sharings;
     this.creationTime = creationTime;
     this.modificationTime = modificationTime;
+    this.isFavorite = isFavorite;
     this.status = this.getFolderStatus();
   }
 
@@ -204,6 +207,7 @@ export class Folder implements FolderAttributes {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       sharings: this.sharings,
+      isFavorite: this.isFavorite,
     };
   }
 }
