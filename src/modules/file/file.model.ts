@@ -145,8 +145,6 @@ export class FileModel extends Model implements FileAttributes {
   @HasMany(() => FavoriteModel, { sourceKey: 'uuid', foreignKey: 'itemId' })
   favorites: FavoriteModel[];
 
-  // isFavorite is not a column in the files table: its value is computed from
-  // the favorites association when mapping to the domain. It is declared here
-  // only so the model's keys stay in sync with FileAttributes for typing.
+  // TODO: remove when ordering types in repository are fixed
   declare isFavorite?: boolean;
 }
