@@ -540,6 +540,27 @@ export class FolderUseCases {
     ]);
   }
 
+  async getFavoriteFolders(
+    user: User,
+    updatedAfter: Date,
+    pagination: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFolder;
+    },
+  ): Promise<Folder[]> {
+    const order: SortParamsFolder = pagination.sort ?? [['updatedAt', 'ASC']];
+
+    return this.folderRepository.findAllCursorWhereUpdatedAfterFavorites(
+      user.uuid,
+      { deleted: false, removed: false },
+      updatedAfter,
+      pagination.limit,
+      pagination.offset,
+      order,
+    );
+  }
+
   async getFoldersByParentUuid(
     parentUuid: FolderAttributes['uuid'],
     userId: UserAttributes['id'],
@@ -686,7 +707,12 @@ export class FolderUseCases {
   async getFolders(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFolder;
+      favoriteUserUuid?: UserAttributes['uuid'];
+    } = {
       limit: 20,
       offset: 0,
     },
@@ -696,6 +722,7 @@ export class FolderUseCases {
       options.limit,
       options.offset,
       options.sort,
+      options.favoriteUserUuid,
     );
 
     return foldersWithMaybePlainName.map((folder) =>

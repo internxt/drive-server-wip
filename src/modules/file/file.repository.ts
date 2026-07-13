@@ -31,6 +31,8 @@ import {
 } from '../workspaces/attributes/workspace-items-users.attributes';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { FavoriteModel } from '../favorite/favorite.model';
+import { FavoriteItemType, type FavoriteAttributes } from '../favorite/favorite.domain';
 
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
@@ -48,6 +50,7 @@ export interface FileRepository {
     limit: number,
     offset: number,
     order: Array<[keyof FileModel, string]>,
+    favoriteUserUuid?: FavoriteAttributes['userId'],
   ): Promise<Array<File> | []>;
   findAllCursorInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
@@ -74,6 +77,28 @@ export interface FileRepository {
     offset: number,
     additionalOrders?: Array<[keyof FileModel, string]>,
   ): Promise<File[]>;
+  findAllCursorFavorites(
+    userUuid: FavoriteAttributes['userId'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]>,
+  ): Promise<Array<File> | []>;
+  findAllCursorWhereUpdatedAfterFavorites(
+    userUuid: FavoriteAttributes['userId'],
+    where: Partial<FileAttributes>,
+    updatedAtAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders?: Array<[keyof FileModel, string]>,
+  ): Promise<File[]>;
+  findAllCursorWithThumbnails(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]>,
+    favoriteUserUuid?: FavoriteAttributes['userId'],
+  ): Promise<Array<File> | []>;
   findAllCursorWithThumbnailsInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
@@ -436,6 +461,7 @@ export class SequelizeFileRepository implements FileRepository {
     limit: number,
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
+    favoriteUserUuid?: FavoriteAttributes['userId'],
   ): Promise<Array<File> | []> {
     const appliedOrder = this.applyCollateToPlainNameSort(order);
 
@@ -443,6 +469,7 @@ export class SequelizeFileRepository implements FileRepository {
       limit,
       offset,
       where,
+      include: this.favoriteInclude(favoriteUserUuid),
       subQuery: false,
       order: appliedOrder,
     });
@@ -572,6 +599,59 @@ export class SequelizeFileRepository implements FileRepository {
     return files;
   }
 
+  async findAllCursorWhereUpdatedAfterFavorites(
+    userUuid: FavoriteAttributes['userId'],
+    where: Partial<FileAttributes>,
+    updatedAtAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FileModel, string]> = [],
+  ): Promise<File[]> {
+    const files = await this.findAllCursorFavorites(
+      userUuid,
+      {
+        ...where,
+        updatedAt: { [Op.gt]: updatedAtAfter },
+      },
+      limit,
+      offset,
+      additionalOrders,
+    );
+
+    return files;
+  }
+
+  async findAllCursorFavorites(
+    userUuid: FavoriteAttributes['userId'],
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const files = await this.fileModel.findAll({
+      limit,
+      offset,
+      where,
+      include: [
+        {
+          model: FavoriteModel,
+          where: {
+            userId: userUuid,
+            itemType: FavoriteItemType.File,
+          },
+          as: 'favorites',
+          required: true,
+        },
+      ],
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
   async findAllCursorInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
@@ -666,6 +746,7 @@ export class SequelizeFileRepository implements FileRepository {
     limit: number,
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
+    favoriteUserUuid?: FavoriteAttributes['userId'],
   ): Promise<Array<File> | []> {
     const appliedOrder = this.applyCollateToPlainNameSort(order);
 
@@ -685,6 +766,7 @@ export class SequelizeFileRepository implements FileRepository {
           attributes: ['type', 'id'],
           required: false,
         },
+        ...this.favoriteInclude(favoriteUserUuid),
       ],
       subQuery: false,
       order: appliedOrder,
@@ -1164,6 +1246,20 @@ export class SequelizeFileRepository implements FileRepository {
     await this.fileModel.destroy({ where });
   }
 
+  private favoriteInclude(favoriteUserUuid?: FavoriteAttributes['userId']) {
+    if (!favoriteUserUuid) {
+      return [];
+    }
+    return [
+      {
+        separate: true,
+        model: FavoriteModel,
+        where: { userId: favoriteUserUuid, itemType: FavoriteItemType.File },
+        required: false,
+      },
+    ];
+  }
+
   private toDomain(model: FileModel): File {
     const buildUser = (userData: UserModel | null) =>
       userData ? User.build(userData) : null;
@@ -1172,6 +1268,7 @@ export class SequelizeFileRepository implements FileRepository {
       ...model.toJSON(),
       folder: model.folder ? Folder.build(model.folder) : null,
       user: buildUser(model.user || model.workspaceUser?.creator),
+      isFavorite: model.favorites ? model.favorites.length > 0 : undefined,
     });
     return file;
   }

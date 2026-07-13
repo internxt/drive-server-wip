@@ -232,6 +232,82 @@ describe('FolderUseCases', () => {
     });
   });
 
+  describe('getFavoriteFolders', () => {
+    it('When called, then it returns the favorite folders updated after the given date', async () => {
+      const updatedAfter = new Date('2023-01-01T00:00:00Z');
+      const mockFolders = [newFolder(), newFolder()];
+      jest
+        .spyOn(folderRepository, 'findAllCursorWhereUpdatedAfterFavorites')
+        .mockResolvedValueOnce(mockFolders);
+
+      const result = await service.getFavoriteFolders(user, updatedAfter, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(
+        folderRepository.findAllCursorWhereUpdatedAfterFavorites,
+      ).toHaveBeenCalledWith(
+        user.uuid,
+        { deleted: false, removed: false },
+        updatedAfter,
+        20,
+        0,
+        [['updatedAt', 'ASC']],
+      );
+      expect(result).toEqual(mockFolders);
+    });
+
+    it('When a sort option is provided, then it is forwarded to the repository', async () => {
+      const updatedAfter = new Date('2023-01-01T00:00:00Z');
+      jest
+        .spyOn(folderRepository, 'findAllCursorWhereUpdatedAfterFavorites')
+        .mockResolvedValueOnce([]);
+
+      await service.getFavoriteFolders(user, updatedAfter, {
+        limit: 20,
+        offset: 0,
+        sort: [['plainName', 'DESC']],
+      });
+
+      expect(
+        folderRepository.findAllCursorWhereUpdatedAfterFavorites,
+      ).toHaveBeenCalledWith(
+        user.uuid,
+        { deleted: false, removed: false },
+        updatedAfter,
+        20,
+        0,
+        [['plainName', 'DESC']],
+      );
+    });
+  });
+
+  describe('getFolders', () => {
+    it('When favoriteUserUuid is provided, then it is forwarded to findAllCursor', async () => {
+      jest.spyOn(folderRepository, 'findAllCursor').mockResolvedValueOnce([]);
+
+      await service.getFolders(
+        user.id,
+        { parentUuid: 'parent-uuid', deleted: false, removed: false },
+        { limit: 20, offset: 0, favoriteUserUuid: user.uuid },
+      );
+
+      expect(folderRepository.findAllCursor).toHaveBeenCalledWith(
+        {
+          parentUuid: 'parent-uuid',
+          deleted: false,
+          removed: false,
+          userId: user.id,
+        },
+        20,
+        0,
+        undefined,
+        user.uuid,
+      );
+    });
+  });
+
   describe('get folder use case', () => {
     it('calls getFolder and return folder', async () => {
       const mockFolder = newFolder({

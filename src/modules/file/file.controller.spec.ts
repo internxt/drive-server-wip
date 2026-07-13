@@ -30,6 +30,7 @@ import { type ReplaceFileDto } from './dto/replace-file.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { type GetFilesDto } from './dto/get-files.dto';
 import { SortOrder } from '../../common/order.type';
+import { type GetFavoriteFilesDto } from './dto/get-favorite-files.dto';
 
 describe('FileController', () => {
   let fileController: FileController;
@@ -630,6 +631,39 @@ describe('FileController', () => {
           requester,
         ),
       ).rejects.toThrow(error);
+    });
+  });
+
+  describe('getFavoriteFiles', () => {
+    it('When called, then it returns the favorite files from the use case', async () => {
+      const mockFiles = [newFile(), newFile()];
+      jest
+        .spyOn(fileUseCases, 'getFavoriteFiles')
+        .mockResolvedValueOnce(mockFiles as any);
+
+      const queryParams: GetFavoriteFilesDto = {
+        limit: 50,
+        offset: 0,
+        sort: 'plainName',
+        order: SortOrder.ASC,
+        updatedAt: '2023-01-01T00:00:00.000Z',
+      };
+
+      const result = await fileController.getFavoriteFiles(
+        userMocked,
+        queryParams,
+      );
+
+      expect(result).toEqual(mockFiles);
+      expect(fileUseCases.getFavoriteFiles).toHaveBeenCalledWith(
+        userMocked,
+        expect.any(Date),
+        {
+          limit: 50,
+          offset: 0,
+          sort: [['plainName', 'ASC']],
+        },
+      );
     });
   });
 

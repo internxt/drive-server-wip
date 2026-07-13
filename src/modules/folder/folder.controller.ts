@@ -25,7 +25,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { FolderUseCases } from './folder.usecase';
+import { FolderUseCases, type SortParamsFolder } from './folder.usecase';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.decorator';
 import { User } from '../user/user.domain';
@@ -70,6 +70,7 @@ import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { GetFilesInFoldersDto } from './dto/get-files-in-folder.dto';
 import { GetFoldersInFoldersDto } from './dto/get-folders-in-folder.dto';
 import { GetFoldersQueryDto } from './dto/get-folders.dto';
+import { GetFavoriteFoldersDto } from './dto/get-favorite-folders.dto';
 
 class BadRequestWrongFolderIdException extends BadRequestException {
   constructor() {
@@ -203,6 +204,7 @@ export class FolderController {
         limit: query.limit,
         offset: query.offset,
         sort: query.sort && query.order && [[query.sort, query.order]],
+        favoriteUserUuid: user.uuid,
       },
     );
 
@@ -292,6 +294,7 @@ export class FolderController {
         limit: query.limit,
         offset: query.offset,
         sort: query.sort && query.order && [[query.sort, query.order]],
+        favoriteUserUuid: user.uuid,
       },
     );
 
@@ -449,7 +452,11 @@ export class FolderController {
           deleted: false,
           removed: false,
         },
-        { limit: query.limit, offset: query.offset },
+        {
+          limit: query.limit,
+          offset: query.offset,
+          favoriteUserUuid: user.uuid,
+        },
       ),
       this.fileUseCases.getFiles(
         user.id,
@@ -457,7 +464,11 @@ export class FolderController {
           folderUuid: folderUuid,
           status: FileStatus.EXISTS,
         },
-        { limit: query.limit, offset: query.offset },
+        {
+          limit: query.limit,
+          offset: query.offset,
+          favoriteUserUuid: user.uuid,
+        },
       ),
     ]);
 
@@ -816,6 +827,34 @@ export class FolderController {
       throw new NotFoundException('Folder not found');
     }
     return folder;
+  }
+
+  @Get('/favorites')
+  @ApiOkResponse({ isArray: true, type: FolderDto })
+  async getFavoriteFolders(
+    @UserDecorator() user: User,
+    @Query() query: GetFavoriteFoldersDto,
+  ): Promise<FolderDto[]> {
+    const sort: SortParamsFolder | undefined =
+      query.sort && query.order ? [[query.sort, query.order]] : undefined;
+
+    const folders = await this.folderUseCases.getFavoriteFolders(
+      user,
+      new Date(query.updatedAt || 1),
+      {
+        limit: query.limit,
+        offset: query.offset,
+        sort,
+      },
+    );
+
+    return folders.map((f) => {
+      if (!f.plainName) {
+        f.plainName = this.folderUseCases.decryptFolderName(f).plainName;
+      }
+
+      return { ...f, status: f.getFolderStatus() };
+    });
   }
 
   @Delete('/:uuid')

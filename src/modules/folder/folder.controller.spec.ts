@@ -18,6 +18,7 @@ import { FileStatus } from '../file/file.domain';
 import { StorageNotificationService } from './../../externals/notifications/storage.notifications.service';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { SortOrder } from '../../common/order.type';
+import { type GetFavoriteFoldersDto } from './dto/get-favorite-folders.dto';
 
 const requester = newUser();
 
@@ -140,6 +141,11 @@ describe('FolderController', () => {
         { limit: 50, offset: 0, sort: 'id', order: SortOrder.ASC },
       );
       expect(result).toEqual({ files: expectedSubfiles });
+      expect(fileUseCases.getFiles).toHaveBeenCalledWith(
+        userMocked.id,
+        expect.objectContaining({ folderUuid: folder.uuid }),
+        expect.objectContaining({ favoriteUserUuid: userMocked.uuid }),
+      );
     });
 
     it('When get folder subfolders are requested by folder uuid, then the child folders are returned', async () => {
@@ -171,6 +177,11 @@ describe('FolderController', () => {
       );
 
       expect(result).toEqual({ folders: mappedSubfolders });
+      expect(folderUseCases.getFolders).toHaveBeenCalledWith(
+        userMocked.id,
+        expect.objectContaining({ parentUuid: folder.uuid }),
+        expect.objectContaining({ favoriteUserUuid: userMocked.uuid }),
+      );
     });
   });
 
@@ -258,6 +269,16 @@ describe('FolderController', () => {
         children: mappedSubfolders,
         files: expectedSubfiles,
       });
+      expect(folderUseCases.getFolders).toHaveBeenCalledWith(
+        userMocked.id,
+        expect.any(Object),
+        expect.objectContaining({ favoriteUserUuid: userMocked.uuid }),
+      );
+      expect(fileUseCases.getFiles).toHaveBeenCalledWith(
+        userMocked.id,
+        expect.any(Object),
+        expect.objectContaining({ favoriteUserUuid: userMocked.uuid }),
+      );
     });
   });
 
@@ -903,6 +924,44 @@ describe('FolderController', () => {
         userMocked.id,
         { parentId: folderId, deleted: false, removed: false },
         { limit, offset, sort: [['plainName', 'ASC']] },
+      );
+    });
+  });
+
+  describe('getFavoriteFolders', () => {
+    it('When called, then it returns the favorite folders from the use case', async () => {
+      const mockFolders = [newFolder(), newFolder()];
+      jest
+        .spyOn(folderUseCases, 'getFavoriteFolders')
+        .mockResolvedValueOnce(mockFolders);
+      jest
+        .spyOn(folderUseCases, 'decryptFolderName')
+        .mockImplementation((f) => f);
+
+      const queryParams: GetFavoriteFoldersDto = {
+        limit: 50,
+        offset: 0,
+        sort: 'plainName',
+        order: SortOrder.ASC,
+        updatedAt: '2023-01-01T00:00:00.000Z',
+      };
+
+      const result = await folderController.getFavoriteFolders(
+        userMocked,
+        queryParams,
+      );
+
+      expect(result).toEqual(
+        mockFolders.map((f) => ({ ...f, status: f.getFolderStatus() })),
+      );
+      expect(folderUseCases.getFavoriteFolders).toHaveBeenCalledWith(
+        userMocked,
+        expect.any(Date),
+        {
+          limit: 50,
+          offset: 0,
+          sort: [['plainName', 'ASC']],
+        },
       );
     });
   });

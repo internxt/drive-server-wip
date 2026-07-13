@@ -26,6 +26,8 @@ import { FileStatus } from '../file/file.domain';
 import { UserModel } from '../user/user.model';
 import { User } from '../user/user.domain';
 import { type UserAttributes } from '../user/user.attributes';
+import { FavoriteModel } from '../favorite/favorite.model';
+import { FavoriteItemType, type FavoriteAttributes } from '../favorite/favorite.domain';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -100,6 +102,21 @@ interface FolderRepository {
     limit: number,
     offset: number,
     additionalOrders: Array<[keyof FolderAttributes, string]>,
+  ): Promise<Array<Folder>>;
+  findAllCursorFavorites(
+    userUuid: FavoriteAttributes['userId'],
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
+  ): Promise<Array<Folder> | []>;
+  findAllCursorWhereUpdatedAfterFavorites(
+    userUuid: FavoriteAttributes['userId'],
+    where: Partial<Folder>,
+    updatedAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
   ): Promise<Array<Folder>>;
   updateByFolderId(
     folderId: FolderAttributes['id'],
@@ -227,6 +244,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     limit: number,
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
+    favoriteUserUuid?: FavoriteAttributes['userId'],
   ): Promise<Array<Folder> | []> {
     const appliedOrder = this.applyCollateToPlainNameSort(order);
 
@@ -243,6 +261,7 @@ export class SequelizeFolderRepository implements FolderRepository {
           attributes: ['type', 'id'],
           required: false,
         },
+        ...this.favoriteInclude(favoriteUserUuid),
       ],
     });
 
@@ -397,6 +416,43 @@ export class SequelizeFolderRepository implements FolderRepository {
               attributes: ['uuid', 'email', 'name', 'lastname', 'userId'],
             },
           ],
+        },
+        {
+          separate: true,
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
+      ],
+      limit,
+      offset,
+      where,
+      subQuery: false,
+      order: appliedOrder,
+    });
+
+    return folders.map(this.toDomain.bind(this));
+  }
+
+  async findAllCursorFavorites(
+    userUuid: FavoriteAttributes['userId'],
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
+  ): Promise<Array<Folder> | []> {
+    const appliedOrder = this.applyCollateToPlainNameSort(order);
+
+    const folders = await this.folderModel.findAll({
+      include: [
+        {
+          model: FavoriteModel,
+          where: {
+            userId: userUuid,
+            itemType: FavoriteItemType.Folder,
+          },
+          as: 'favorites',
+          required: true,
         },
         {
           separate: true,
@@ -929,6 +985,33 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map(this.toDomain.bind(this));
   }
 
+  async findAllCursorWhereUpdatedAfterFavorites(
+    userUuid: FavoriteAttributes['userId'],
+    where: Partial<Folder>,
+    updatedAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
+  ): Promise<Array<Folder>> {
+    const folders = await this.findAllCursorFavorites(
+      userUuid,
+      {
+        ...where,
+        updatedAt: {
+          [Op.gt]: updatedAfter,
+        },
+        parentUuid: {
+          [Op.not]: null,
+        },
+      },
+      limit,
+      offset,
+      additionalOrders,
+    );
+
+    return folders;
+  }
+
   async calculateFolderSize(
     folderUuid: string,
     includeTrash = true,
@@ -1260,6 +1343,23 @@ export class SequelizeFolderRepository implements FolderRepository {
     );
   }
 
+  private favoriteInclude(favoriteUserUuid?: FavoriteAttributes['userId']) {
+    if (!favoriteUserUuid) {
+      return [];
+    }
+    return [
+      {
+        separate: true,
+        model: FavoriteModel,
+        where: {
+          userId: favoriteUserUuid,
+          itemType: FavoriteItemType.Folder,
+        },
+        required: false,
+      },
+    ];
+  }
+
   private toDomain(model: FolderModel): Folder {
     const buildUser = (userData: UserModel | null) =>
       userData ? User.build(userData) : null;
@@ -1268,6 +1368,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       ...model.toJSON(),
       parent: model.parent ? Folder.build(model.parent) : null,
       user: buildUser(model.user || model.workspaceUser?.creator),
+      isFavorite: model.favorites ? model.favorites.length > 0 : undefined,
     });
   }
 }

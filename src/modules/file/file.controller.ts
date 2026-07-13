@@ -41,6 +41,7 @@ import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { WorkspacesInBehalfValidationFile } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { CreateFileDto } from './dto/create-file.dto';
 import { GetFilesDto } from './dto/get-files.dto';
+import { GetFavoriteFilesDto } from './dto/get-favorite-files.dto';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
@@ -503,6 +504,24 @@ export class FileController {
         })} STACK: ${err.stack || 'NO STACK'}`,
       );
     }
+  }
+
+  @Get('/favorites')
+  @ApiOperation({
+    summary: 'Gets favorite files',
+  })
+  @ApiOkResponse({ isArray: true, type: FileDto })
+  async getFavoriteFiles(
+    @UserDecorator() user: User,
+    @Query() queryParams: GetFavoriteFilesDto,
+  ): Promise<FileDto[]> {
+    const { limit, offset, sort, order, updatedAt } = queryParams;
+
+    return this.fileUseCases.getFavoriteFiles(
+      user,
+      new Date(updatedAt || 1),
+      { limit, offset, sort: sort && order && [[sort, order]] },
+    );
   }
 
   @Post('/thumbnail')

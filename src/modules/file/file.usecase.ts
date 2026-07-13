@@ -651,6 +651,7 @@ export class FileUseCases {
       offset: number;
       sort?: SortParamsFile;
       withoutThumbnails?: boolean;
+      favoriteUserUuid?: UserAttributes['uuid'];
     } = {
       limit: 20,
       offset: 0,
@@ -663,6 +664,7 @@ export class FileUseCases {
         options.limit,
         options.offset,
         options.sort,
+        options.favoriteUserUuid,
       );
     else
       filesWithMaybePlainName =
@@ -671,6 +673,7 @@ export class FileUseCases {
           options.limit,
           options.offset,
           options.sort,
+          options.favoriteUserUuid,
         );
 
     const filesWithThumbnailsModified = filesWithMaybePlainName.map((file) =>
@@ -814,6 +817,29 @@ export class FileUseCases {
       options.limit,
       options.offset,
     );
+  }
+
+  async getFavoriteFiles(
+    user: User,
+    updatedAfter: Date,
+    pagination: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFile;
+    },
+  ): Promise<FileDto[]> {
+    const order: SortParamsFile = pagination.sort ?? [['updatedAt', 'ASC']];
+
+    const files = await this.fileRepository.findAllCursorWhereUpdatedAfterFavorites(
+      user.uuid,
+      { status: FileStatus.EXISTS },
+      updatedAfter,
+      pagination.limit,
+      pagination.offset,
+      order,
+    );
+
+    return files.map((file) => file.toJSON());
   }
 
   async getByFolderAndUser(

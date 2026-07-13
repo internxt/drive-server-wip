@@ -331,6 +331,102 @@ describe('FileUseCases', () => {
     });
   });
 
+  describe('getFavoriteFiles', () => {
+    it('When called, then it returns the favorite files updated after the given date', async () => {
+      const updatedAfter = new Date('2023-01-01T00:00:00Z');
+      const mockFiles = [newFile(), newFile()];
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfterFavorites')
+        .mockResolvedValueOnce(mockFiles);
+
+      const result = await service.getFavoriteFiles(userMocked, updatedAfter, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfterFavorites,
+      ).toHaveBeenCalledWith(
+        userMocked.uuid,
+        { status: FileStatus.EXISTS },
+        updatedAfter,
+        20,
+        0,
+        [['updatedAt', 'ASC']],
+      );
+      expect(result).toEqual(mockFiles.map((file) => file.toJSON()));
+    });
+
+    it('When a sort option is provided, then it is forwarded to the repository', async () => {
+      const updatedAfter = new Date('2023-01-01T00:00:00Z');
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfterFavorites')
+        .mockResolvedValueOnce([]);
+
+      await service.getFavoriteFiles(userMocked, updatedAfter, {
+        limit: 20,
+        offset: 0,
+        sort: [['plainName', 'DESC']],
+      });
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfterFavorites,
+      ).toHaveBeenCalledWith(
+        userMocked.uuid,
+        { status: FileStatus.EXISTS },
+        updatedAfter,
+        20,
+        0,
+        [['plainName', 'DESC']],
+      );
+    });
+  });
+
+  describe('getFiles', () => {
+    it('When favoriteUserUuid is provided, then it is forwarded to findAllCursorWithThumbnails', async () => {
+      jest
+        .spyOn(fileRepository, 'findAllCursorWithThumbnails')
+        .mockResolvedValueOnce([]);
+
+      await service.getFiles(
+        userMocked.id,
+        { folderUuid: 'folder-uuid' },
+        { limit: 20, offset: 0, favoriteUserUuid: userMocked.uuid },
+      );
+
+      expect(fileRepository.findAllCursorWithThumbnails).toHaveBeenCalledWith(
+        { folderUuid: 'folder-uuid', userId: userMocked.id },
+        20,
+        0,
+        undefined,
+        userMocked.uuid,
+      );
+    });
+
+    it('When withoutThumbnails is true and favoriteUserUuid is provided, then it is forwarded to findAllCursor', async () => {
+      jest.spyOn(fileRepository, 'findAllCursor').mockResolvedValueOnce([]);
+
+      await service.getFiles(
+        userMocked.id,
+        { folderUuid: 'folder-uuid' },
+        {
+          limit: 20,
+          offset: 0,
+          withoutThumbnails: true,
+          favoriteUserUuid: userMocked.uuid,
+        },
+      );
+
+      expect(fileRepository.findAllCursor).toHaveBeenCalledWith(
+        { folderUuid: 'folder-uuid', userId: userMocked.id },
+        20,
+        0,
+        undefined,
+        userMocked.uuid,
+      );
+    });
+  });
+
   describe('decrypt file name', () => {
     const fileAttributes: FileAttributes = {
       id: 0,
