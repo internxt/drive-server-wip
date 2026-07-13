@@ -63,6 +63,8 @@ import {
   UndoFileVersioningAction,
 } from './actions';
 import { type Workspace } from '../workspaces/domains/workspaces.domain';
+import { FavoriteUseCases } from '../favorite/favorite.usecase';
+import { FavoriteItemType } from '../favorite/favorite.domain';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -102,6 +104,7 @@ export class FileUseCases {
     private readonly createFileVersionAction: CreateFileVersionAction,
     private readonly restoreFileVersionAction: RestoreFileVersionAction,
     private readonly undoFileVersioningAction: UndoFileVersioningAction,
+    private readonly favoriteUsecases: FavoriteUseCases,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -209,6 +212,11 @@ export class FileUseCases {
         SharingItemType.File,
       ),
       this.thumbnailUsecases.deleteThumbnailByFileUuid(user, uuid),
+      this.favoriteUsecases.bulkRemoveFavorites(
+        user,
+        [uuid],
+        FavoriteItemType.File,
+      ),
     ]);
 
     await this.fileRepository.deleteFilesByUser(user, [file]);
@@ -872,6 +880,11 @@ export class FileUseCases {
         user,
         allFileUuids,
         SharingItemType.File,
+      ),
+      this.favoriteUsecases.bulkRemoveFavorites(
+        user,
+        allFileUuids,
+        FavoriteItemType.File,
       ),
     ]);
   }

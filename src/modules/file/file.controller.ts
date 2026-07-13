@@ -42,6 +42,8 @@ import { WorkspacesInBehalfValidationFile } from '../workspaces/guards/workspace
 import { CreateFileDto } from './dto/create-file.dto';
 import { GetFilesDto } from './dto/get-files.dto';
 import { GetFavoriteFilesDto } from './dto/get-favorite-files.dto';
+import { FavoriteUseCases } from '../favorite/favorite.usecase';
+import { FavoriteItemType } from '../favorite/favorite.domain';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
@@ -71,6 +73,7 @@ export class FileController {
     private readonly fileUseCases: FileUseCases,
     private readonly storageNotificationService: StorageNotificationService,
     private readonly thumbnailUseCases: ThumbnailUseCases,
+    private readonly favoriteUseCases: FavoriteUseCases,
   ) {}
 
   @Post('/')
@@ -581,6 +584,44 @@ export class FileController {
     });
 
     return { deleted: true };
+  }
+
+  @Put('/:uuid/favorite')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Mark file as favorite',
+  })
+  @ApiOkResponse({ description: 'File marked as favorite' })
+  async markFileAsFavorite(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+  ): Promise<{ favorited: true }> {
+    await this.favoriteUseCases.markAsFavorite(
+      user,
+      uuid,
+      FavoriteItemType.File,
+    );
+
+    return { favorited: true };
+  }
+
+  @Delete('/:uuid/favorite')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Unmark file as favorite',
+  })
+  @ApiOkResponse({ description: 'File unmarked as favorite' })
+  async unmarkFileAsFavorite(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+  ): Promise<{ favorited: false }> {
+    await this.favoriteUseCases.unmarkAsFavorite(
+      user,
+      uuid,
+      FavoriteItemType.File,
+    );
+
+    return { favorited: false };
   }
 
   @Delete('/:bucketId/:fileId')

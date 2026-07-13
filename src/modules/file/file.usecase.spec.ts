@@ -62,6 +62,8 @@ import {
   UndoFileVersioningAction,
 } from './actions';
 import { type FileInfo } from '@internxt/inxt-js/build/api';
+import { FavoriteUseCases } from '../favorite/favorite.usecase';
+import { FavoriteItemType } from '../favorite/favorite.domain';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -87,6 +89,7 @@ describe('FileUseCases', () => {
   let restoreFileVersionAction: RestoreFileVersionAction;
   let undoFileVersioningAction: UndoFileVersioningAction;
   let userUsecases: UserUseCases;
+  let favoriteUseCases: FavoriteUseCases;
 
   const userMocked = newUser({
     attributes: {
@@ -133,6 +136,7 @@ describe('FileUseCases', () => {
       UndoFileVersioningAction,
     );
     userUsecases = module.get<UserUseCases>(UserUseCases);
+    favoriteUseCases = module.get<FavoriteUseCases>(FavoriteUseCases);
   });
 
   afterEach(() => {
@@ -203,6 +207,22 @@ describe('FileUseCases', () => {
         userMocked,
         [...fileUuids, ...files.map((file) => file.uuid)],
         SharingItemType.File,
+      );
+    });
+
+    it('When you try to trash files, then it also removes them from favorites', async () => {
+      const files = [newFile(), newFile()];
+      const fileUuids = ['656a3abb-36ab-47ee-8303-6e4198f2a32a'];
+      const fileIds = [fileId];
+
+      jest.spyOn(fileRepository, 'findByFileIds').mockResolvedValueOnce(files);
+
+      await service.moveFilesToTrash(userMocked, fileIds, fileUuids);
+
+      expect(favoriteUseCases.bulkRemoveFavorites).toHaveBeenCalledWith(
+        userMocked,
+        [...fileUuids, ...files.map((file) => file.uuid)],
+        FavoriteItemType.File,
       );
     });
   });
@@ -305,6 +325,9 @@ describe('FileUseCases', () => {
       jest
         .spyOn(thumbnailUseCases, 'deleteThumbnailByFileUuid')
         .mockResolvedValueOnce();
+      jest
+        .spyOn(favoriteUseCases, 'bulkRemoveFavorites')
+        .mockResolvedValueOnce();
       jest.spyOn(fileRepository, 'deleteFilesByUser').mockResolvedValueOnce();
 
       const { id, uuid } = await service.deleteFilePermanently(mockUser, {
@@ -320,6 +343,12 @@ describe('FileUseCases', () => {
       expect(thumbnailUseCases.deleteThumbnailByFileUuid).toHaveBeenCalledWith(
         mockUser,
         mockFile.uuid,
+      );
+
+      expect(favoriteUseCases.bulkRemoveFavorites).toHaveBeenCalledWith(
+        mockUser,
+        [mockFile.uuid],
+        FavoriteItemType.File,
       );
 
       expect(fileRepository.deleteFilesByUser).toHaveBeenCalledWith(mockUser, [

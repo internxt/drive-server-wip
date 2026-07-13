@@ -30,6 +30,8 @@ import { type ReplaceFileDto } from './dto/replace-file.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { type GetFilesDto } from './dto/get-files.dto';
 import { SortOrder } from '../../common/order.type';
+import { FavoriteUseCases } from '../favorite/favorite.usecase';
+import { FavoriteItemType } from '../favorite/favorite.domain';
 import { type GetFavoriteFilesDto } from './dto/get-favorite-files.dto';
 
 describe('FileController', () => {
@@ -37,6 +39,7 @@ describe('FileController', () => {
   let fileUseCases: FileUseCases;
   let thumbnailUseCases: ThumbnailUseCases;
   let storageNotificationService: StorageNotificationService;
+  let favoriteUseCases: FavoriteUseCases;
 
   let file: File;
   const clientId = ClientEnum.Web;
@@ -89,6 +92,7 @@ describe('FileController', () => {
     storageNotificationService = module.get<StorageNotificationService>(
       StorageNotificationService,
     );
+    favoriteUseCases = module.get<FavoriteUseCases>(FavoriteUseCases);
     file = newFile();
   });
 
@@ -631,6 +635,60 @@ describe('FileController', () => {
           requester,
         ),
       ).rejects.toThrow(error);
+    });
+  });
+
+  describe('markFileAsFavorite', () => {
+    it('When a valid uuid is provided, then it marks the file as favorite', async () => {
+      jest.spyOn(favoriteUseCases, 'markAsFavorite').mockResolvedValueOnce({
+        id: 'favorite-id',
+        userId: userMocked.uuid,
+        itemId: file.uuid,
+        itemType: FavoriteItemType.File,
+        createdAt: new Date(),
+      } as any);
+
+      const result = await fileController.markFileAsFavorite(
+        userMocked,
+        file.uuid,
+      );
+
+      expect(favoriteUseCases.markAsFavorite).toHaveBeenCalledWith(
+        userMocked,
+        file.uuid,
+        FavoriteItemType.File,
+      );
+      expect(result).toEqual({ favorited: true });
+    });
+
+    it('When the file does not exist, then it should throw', async () => {
+      jest
+        .spyOn(favoriteUseCases, 'markAsFavorite')
+        .mockRejectedValueOnce(new NotFoundException());
+
+      await expect(
+        fileController.markFileAsFavorite(userMocked, file.uuid),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('unmarkFileAsFavorite', () => {
+    it('When a valid uuid is provided, then it unmarks the file as favorite', async () => {
+      jest
+        .spyOn(favoriteUseCases, 'unmarkAsFavorite')
+        .mockResolvedValueOnce(undefined);
+
+      const result = await fileController.unmarkFileAsFavorite(
+        userMocked,
+        file.uuid,
+      );
+
+      expect(favoriteUseCases.unmarkAsFavorite).toHaveBeenCalledWith(
+        userMocked,
+        file.uuid,
+        FavoriteItemType.File,
+      );
+      expect(result).toEqual({ favorited: false });
     });
   });
 

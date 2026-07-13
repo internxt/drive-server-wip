@@ -29,6 +29,8 @@ import { SharingService } from '../sharing/sharing.service';
 import { type UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { FileStatus } from '../file/file.domain';
 import { SequelizeFileRepository } from '../file/file.repository';
+import { FavoriteUseCases } from '../favorite/favorite.usecase';
+import { FavoriteItemType } from '../favorite/favorite.domain';
 
 const folderId = 4;
 const user = newUser();
@@ -39,6 +41,7 @@ describe('FolderUseCases', () => {
   let cryptoService: CryptoService;
   let sharingService: SharingService;
   let fileRepository: SequelizeFileRepository;
+  let favoriteUseCases: FavoriteUseCases;
 
   const userMocked = User.build({
     id: 1,
@@ -87,6 +90,7 @@ describe('FolderUseCases', () => {
     fileRepository = module.get<SequelizeFileRepository>(
       SequelizeFileRepository,
     );
+    favoriteUseCases = module.get<FavoriteUseCases>(FavoriteUseCases);
   });
 
   it('should be defined', () => {
@@ -172,6 +176,11 @@ describe('FolderUseCases', () => {
         user,
         [mockBackupFolder.uuid, mockFolder.uuid],
         'folder',
+      );
+      expect(favoriteUseCases.bulkRemoveFavorites).toHaveBeenCalledWith(
+        user,
+        [mockBackupFolder.uuid, mockFolder.uuid],
+        FavoriteItemType.Folder,
       );
     });
 

@@ -71,6 +71,8 @@ import { GetFilesInFoldersDto } from './dto/get-files-in-folder.dto';
 import { GetFoldersInFoldersDto } from './dto/get-folders-in-folder.dto';
 import { GetFoldersQueryDto } from './dto/get-folders.dto';
 import { GetFavoriteFoldersDto } from './dto/get-favorite-folders.dto';
+import { FavoriteUseCases } from '../favorite/favorite.usecase';
+import { FavoriteItemType } from '../favorite/favorite.domain';
 
 class BadRequestWrongFolderIdException extends BadRequestException {
   constructor() {
@@ -87,6 +89,7 @@ export class FolderController {
     private readonly folderUseCases: FolderUseCases,
     private readonly fileUseCases: FileUseCases,
     private readonly storageNotificationService: StorageNotificationService,
+    private readonly favoriteUseCases: FavoriteUseCases,
   ) {}
 
   @Post('/')
@@ -875,5 +878,43 @@ export class FolderController {
       user: user,
       clientId,
     });
+  }
+
+  @Put('/:uuid/favorite')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Mark folder as favorite',
+  })
+  @ApiOkResponse({ description: 'Folder marked as favorite' })
+  async markFolderAsFavorite(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+  ): Promise<{ favorited: true }> {
+    await this.favoriteUseCases.markAsFavorite(
+      user,
+      uuid,
+      FavoriteItemType.Folder,
+    );
+
+    return { favorited: true };
+  }
+
+  @Delete('/:uuid/favorite')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Unmark folder as favorite',
+  })
+  @ApiOkResponse({ description: 'Folder unmarked as favorite' })
+  async unmarkFolderAsFavorite(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+  ): Promise<{ favorited: false }> {
+    await this.favoriteUseCases.unmarkAsFavorite(
+      user,
+      uuid,
+      FavoriteItemType.Folder,
+    );
+
+    return { favorited: false };
   }
 }

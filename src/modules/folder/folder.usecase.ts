@@ -34,6 +34,8 @@ import { type CreateFolderDto } from './dto/create-folder.dto';
 import { type FolderModel } from './folder.model';
 import { type MoveFolderDto } from './dto/move-folder.dto';
 import { SequelizeFileRepository } from '../file/file.repository';
+import { FavoriteUseCases } from '../favorite/favorite.usecase';
+import { FavoriteItemType } from '../favorite/favorite.domain';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -50,6 +52,7 @@ export class FolderUseCases {
     private readonly sharingUsecases: SharingService,
     private readonly fileRepository: SequelizeFileRepository,
     private readonly cryptoService: CryptoService,
+    private readonly favoriteUsecases: FavoriteUseCases,
   ) {}
 
   getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
@@ -536,6 +539,11 @@ export class FolderUseCases {
         user,
         folders.map((folder) => folder.uuid),
         SharingItemType.Folder,
+      ),
+      this.favoriteUsecases.bulkRemoveFavorites(
+        user,
+        folders.map((folder) => folder.uuid),
+        FavoriteItemType.Folder,
       ),
     ]);
   }
@@ -1055,6 +1063,10 @@ export class FolderUseCases {
     await this.folderRepository.deleteByUser(user, folders);
   }
 
+  // Unlike FileUseCases.deleteFilePermanently, this doesn't clean up sharings
+  // or favorites rows referencing these folders (pre-existing gap for sharings,
+  // not introduced by favorites). Harmless for listings, since both queries
+  // already filter by deleted/removed, but leaves orphaned rows behind.
   async deleteNotRootFolderByUser(
     user: User,
     folders: Folder[],
