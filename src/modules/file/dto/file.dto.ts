@@ -28,4 +28,5 @@ export class FileDto {
   status: FileStatus;
   thumbnails?: Thumbnail[];
   sharings?: Sharing[];
+  isFavorite?: boolean;
 }

@@ -57,6 +57,11 @@ import {
   type FileVersionAttributes,
   FileVersionStatus,
 } from '../src/modules/file/file-version.domain';
+import {
+  Favorite,
+  type FavoriteAttributes,
+  FavoriteItemType,
+} from '../src/modules/favorite/favorite.domain';
 
 export const constants = {
   BUCKET_ID_LENGTH: 24,
@@ -550,6 +555,29 @@ export const newWorkspaceItemUser = (params?: {
   }
 
   return workspaceItemUser;
+};
+
+export const newFavorite = (params?: {
+  attributes?: Partial<FavoriteAttributes>;
+  userId?: User['uuid'];
+  itemId?: string;
+  itemType?: FavoriteItemType;
+}): Favorite => {
+  const favorite = Favorite.build({
+    id: v4(),
+    userId: params?.userId || v4(),
+    itemId: params?.itemId || v4(),
+    itemType: params?.itemType || FavoriteItemType.File,
+    createdAt: randomDataGenerator.date(),
+  });
+
+  if (params?.attributes) {
+    Object.keys(params.attributes).forEach((key) => {
+      favorite[key] = params.attributes[key];
+    });
+  }
+
+  return favorite;
 };
 
 export const newNotificationToken = (

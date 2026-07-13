@@ -23,6 +23,7 @@ import { type Sharing } from '../sharing/sharing.domain';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Sequelize } from 'sequelize';
 import { AesService } from '../../externals/crypto/aes';
+import { FavoriteModel } from '../favorite/favorite.model';
 
 @Table({
   underscored: true,
@@ -140,4 +141,10 @@ export class FileModel extends Model implements FileAttributes {
 
   @HasMany(() => SharingModel, { sourceKey: 'uuid', foreignKey: 'itemId' })
   sharings: Sharing[];
+
+  @HasMany(() => FavoriteModel, { sourceKey: 'uuid', foreignKey: 'itemId' })
+  favorites: FavoriteModel[];
+
+  // TODO: remove when ordering types in repository are fixed
+  declare isFavorite?: boolean;
 }

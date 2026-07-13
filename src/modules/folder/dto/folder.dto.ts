@@ -17,4 +17,5 @@ export class FolderDto {
   createdAt: Date;
   updatedAt: Date;
   sharings?: Sharing[];
+  isFavorite?: boolean;
 }

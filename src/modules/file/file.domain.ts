@@ -42,6 +42,7 @@ export interface FileAttributes {
   status: FileStatus;
   thumbnails?: Thumbnail[];
   sharings?: Sharing[];
+  isFavorite?: boolean;
 }
 
 export interface FileOptions {
@@ -77,6 +78,7 @@ export class File implements FileAttributes {
   status: FileStatus;
   sharings?: Sharing[];
   thumbnails?: Thumbnail[];
+  isFavorite?: boolean;
 
   private constructor({
     id,
@@ -104,6 +106,7 @@ export class File implements FileAttributes {
     status,
     thumbnails,
     sharings,
+    isFavorite,
   }: FileAttributes) {
     this.id = id;
     this.fileId = fileId;
@@ -130,6 +133,7 @@ export class File implements FileAttributes {
     this.status = status;
     this.thumbnails = thumbnails;
     this.sharings = sharings;
+    this.isFavorite = isFavorite;
   }
 
   static build(file: FileAttributes): File {
@@ -220,6 +224,7 @@ export class File implements FileAttributes {
       status: this.status,
       thumbnails: this.thumbnails,
       sharings: this.sharings,
+      isFavorite: this.isFavorite,
     };
   }
 }

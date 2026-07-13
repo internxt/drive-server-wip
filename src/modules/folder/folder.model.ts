@@ -20,6 +20,7 @@ import { type Sharing } from '../sharing/sharing.domain';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Sequelize } from 'sequelize';
 import { DeviceModel } from '../backups/models/device.model';
+import { FavoriteModel } from '../favorite/favorite.model';
 
 @Table({
   underscored: true,
@@ -108,4 +109,7 @@ export class FolderModel extends Model implements FolderAttributes {
     sourceKey: 'uuid',
   })
   workspaceUser: WorkspaceItemUserModel;
+
+  @HasMany(() => FavoriteModel, { sourceKey: 'uuid', foreignKey: 'itemId' })
+  favorites: FavoriteModel[];
 }
