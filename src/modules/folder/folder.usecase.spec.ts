@@ -1912,8 +1912,8 @@ describe('FolderUseCases', () => {
     const userMocked = newUser();
     userMocked.rootFolderId = 1;
     const folderMocked: Folder[] = [
-      { id: 2, parentId: 1 } as Folder,
-      { id: 3, parentId: null } as Folder,
+      { id: 2, parentId: 1, uuid: v4() } as Folder,
+      { id: 3, parentId: null, uuid: v4() } as Folder,
     ];
 
     it('When folders are deleted successfully, then it should call deleteByUser ', async () => {
@@ -1924,6 +1924,21 @@ describe('FolderUseCases', () => {
       expect(folderRepository.deleteByUser).toHaveBeenCalledWith(userMocked, [
         folderMocked[0],
       ]);
+    });
+
+    it('When folders are deleted, then their favorites rows are cleaned up', async () => {
+      jest.spyOn(folderRepository, 'deleteByUser').mockResolvedValue(undefined);
+      jest
+        .spyOn(favoriteUseCases, 'bulkRemoveFavorites')
+        .mockResolvedValue(undefined);
+
+      await service.deleteNotRootFolderByUser(userMocked, [folderMocked[0]]);
+
+      expect(favoriteUseCases.bulkRemoveFavorites).toHaveBeenCalledWith(
+        userMocked,
+        [folderMocked[0].uuid],
+        FavoriteItemType.Folder,
+      );
     });
 
     it('When trying to delete the root folder, then it should throw an error', async () => {

@@ -1061,10 +1061,6 @@ export class FolderUseCases {
     await this.folderRepository.deleteByUser(user, folders);
   }
 
-  // Unlike FileUseCases.deleteFilePermanently, this doesn't clean up sharings
-  // or favorites rows referencing these folders (pre-existing gap for sharings,
-  // not introduced by favorites). Harmless for listings, since both queries
-  // already filter by deleted/removed, but leaves orphaned rows behind.
   async deleteNotRootFolderByUser(
     user: User,
     folders: Folder[],
@@ -1075,7 +1071,14 @@ export class FolderUseCases {
     if (isRootFolder) {
       throw new NotAcceptableException('Cannot delete root folder');
     }
-    await this.folderRepository.deleteByUser(user, folders);
+    await Promise.all([
+      this.folderRepository.deleteByUser(user, folders),
+      this.favoriteUsecases.bulkRemoveFavorites(
+        user,
+        folders.map((folder) => folder.uuid),
+        FavoriteItemType.Folder,
+      ),
+    ]);
   }
 
   getFolderSizeByUuid(
