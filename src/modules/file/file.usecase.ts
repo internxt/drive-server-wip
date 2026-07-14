@@ -829,7 +829,6 @@ export class FileUseCases {
 
   async getFavoriteFiles(
     user: User,
-    updatedAfter: Date,
     pagination: {
       limit: number;
       offset: number;
@@ -838,10 +837,9 @@ export class FileUseCases {
   ): Promise<FileDto[]> {
     const order: SortParamsFile = pagination.sort ?? [['updatedAt', 'ASC']];
 
-    const files = await this.fileRepository.findAllCursorWhereUpdatedAfterFavorites(
+    const files = await this.fileRepository.findAllCursorFavorites(
       user.uuid,
       { status: FileStatus.EXISTS },
-      updatedAfter,
       pagination.limit,
       pagination.offset,
       order,

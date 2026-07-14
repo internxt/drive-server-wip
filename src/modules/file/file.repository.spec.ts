@@ -534,64 +534,6 @@ describe('FileRepository', () => {
     });
   });
 
-  describe('findAllCursorWhereUpdatedAfterFavorites', () => {
-    const userUuid = v4();
-    const updatedAtAfter = new Date();
-    const limit = 10;
-    const offset = 0;
-    const additionalOrders = [['updatedAt', 'ASC']] as Array<
-      [keyof FileModel, string]
-    >;
-    const whereClause: Partial<FileAttributes> = { status: FileStatus.EXISTS };
-
-    it('When sort options are not provided, it should default to none', async () => {
-      jest.spyOn(repository, 'findAllCursorFavorites');
-
-      await repository.findAllCursorWhereUpdatedAfterFavorites(
-        userUuid,
-        whereClause,
-        updatedAtAfter,
-        limit,
-        offset,
-      );
-
-      expect(repository.findAllCursorFavorites).toHaveBeenCalledWith(
-        userUuid,
-        {
-          ...whereClause,
-          updatedAt: { [Op.gt]: updatedAtAfter },
-        },
-        limit,
-        offset,
-        [],
-      );
-    });
-
-    it('When sort options are provided, it should sort favorite files', async () => {
-      jest.spyOn(repository, 'findAllCursorFavorites');
-
-      await repository.findAllCursorWhereUpdatedAfterFavorites(
-        userUuid,
-        whereClause,
-        updatedAtAfter,
-        limit,
-        offset,
-        additionalOrders,
-      );
-
-      expect(repository.findAllCursorFavorites).toHaveBeenCalledWith(
-        userUuid,
-        {
-          ...whereClause,
-          updatedAt: { [Op.gt]: updatedAtAfter },
-        },
-        limit,
-        offset,
-        additionalOrders,
-      );
-    });
-  });
-
   describe('findAllCursor isFavorite enrichment', () => {
     const userUuid = v4();
     const where = { status: FileStatus.EXISTS };

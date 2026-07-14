@@ -550,7 +550,6 @@ export class FolderUseCases {
 
   async getFavoriteFolders(
     user: User,
-    updatedAfter: Date,
     pagination: {
       limit: number;
       offset: number;
@@ -559,10 +558,9 @@ export class FolderUseCases {
   ): Promise<Folder[]> {
     const order: SortParamsFolder = pagination.sort ?? [['updatedAt', 'ASC']];
 
-    return this.folderRepository.findAllCursorWhereUpdatedAfterFavorites(
+    return this.folderRepository.findAllCursorFavorites(
       user.uuid,
       { deleted: false, removed: false },
-      updatedAfter,
       pagination.limit,
       pagination.offset,
       order,

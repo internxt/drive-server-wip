@@ -242,24 +242,20 @@ describe('FolderUseCases', () => {
   });
 
   describe('getFavoriteFolders', () => {
-    it('When called, then it returns the favorite folders updated after the given date', async () => {
-      const updatedAfter = new Date('2023-01-01T00:00:00Z');
+    it('When called, then it returns the favorite folders of the user', async () => {
       const mockFolders = [newFolder(), newFolder()];
       jest
-        .spyOn(folderRepository, 'findAllCursorWhereUpdatedAfterFavorites')
+        .spyOn(folderRepository, 'findAllCursorFavorites')
         .mockResolvedValueOnce(mockFolders);
 
-      const result = await service.getFavoriteFolders(user, updatedAfter, {
+      const result = await service.getFavoriteFolders(user, {
         limit: 20,
         offset: 0,
       });
 
-      expect(
-        folderRepository.findAllCursorWhereUpdatedAfterFavorites,
-      ).toHaveBeenCalledWith(
+      expect(folderRepository.findAllCursorFavorites).toHaveBeenCalledWith(
         user.uuid,
         { deleted: false, removed: false },
-        updatedAfter,
         20,
         0,
         [['updatedAt', 'ASC']],
@@ -268,23 +264,19 @@ describe('FolderUseCases', () => {
     });
 
     it('When a sort option is provided, then it is forwarded to the repository', async () => {
-      const updatedAfter = new Date('2023-01-01T00:00:00Z');
       jest
-        .spyOn(folderRepository, 'findAllCursorWhereUpdatedAfterFavorites')
+        .spyOn(folderRepository, 'findAllCursorFavorites')
         .mockResolvedValueOnce([]);
 
-      await service.getFavoriteFolders(user, updatedAfter, {
+      await service.getFavoriteFolders(user, {
         limit: 20,
         offset: 0,
         sort: [['plainName', 'DESC']],
       });
 
-      expect(
-        folderRepository.findAllCursorWhereUpdatedAfterFavorites,
-      ).toHaveBeenCalledWith(
+      expect(folderRepository.findAllCursorFavorites).toHaveBeenCalledWith(
         user.uuid,
         { deleted: false, removed: false },
-        updatedAfter,
         20,
         0,
         [['plainName', 'DESC']],

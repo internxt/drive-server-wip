@@ -84,14 +84,6 @@ export interface FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]>,
   ): Promise<Array<File> | []>;
-  findAllCursorWhereUpdatedAfterFavorites(
-    userUuid: FavoriteAttributes['userId'],
-    where: Partial<FileAttributes>,
-    updatedAtAfter: Date,
-    limit: number,
-    offset: number,
-    additionalOrders?: Array<[keyof FileModel, string]>,
-  ): Promise<File[]>;
   findAllCursorWithThumbnails(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -587,28 +579,6 @@ export class SequelizeFileRepository implements FileRepository {
     const files = await this.findAllCursorInWorkspace(
       createdBy,
       workspaceId,
-      {
-        ...where,
-        updatedAt: { [Op.gt]: updatedAtAfter },
-      },
-      limit,
-      offset,
-      additionalOrders,
-    );
-
-    return files;
-  }
-
-  async findAllCursorWhereUpdatedAfterFavorites(
-    userUuid: FavoriteAttributes['userId'],
-    where: Partial<FileAttributes>,
-    updatedAtAfter: Date,
-    limit: number,
-    offset: number,
-    additionalOrders: Array<[keyof FileModel, string]> = [],
-  ): Promise<File[]> {
-    const files = await this.findAllCursorFavorites(
-      userUuid,
       {
         ...where,
         updatedAt: { [Op.gt]: updatedAtAfter },

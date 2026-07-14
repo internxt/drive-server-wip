@@ -110,14 +110,6 @@ interface FolderRepository {
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
   ): Promise<Array<Folder> | []>;
-  findAllCursorWhereUpdatedAfterFavorites(
-    userUuid: FavoriteAttributes['userId'],
-    where: Partial<Folder>,
-    updatedAfter: Date,
-    limit: number,
-    offset: number,
-    additionalOrders: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
-  ): Promise<Array<Folder>>;
   updateByFolderId(
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
@@ -463,7 +455,12 @@ export class SequelizeFolderRepository implements FolderRepository {
       ],
       limit,
       offset,
-      where,
+      where: {
+        ...where,
+        parentUuid: {
+          [Op.not]: null,
+        },
+      },
       subQuery: false,
       order: appliedOrder,
     });
@@ -983,33 +980,6 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
 
     return folders.map(this.toDomain.bind(this));
-  }
-
-  async findAllCursorWhereUpdatedAfterFavorites(
-    userUuid: FavoriteAttributes['userId'],
-    where: Partial<Folder>,
-    updatedAfter: Date,
-    limit: number,
-    offset: number,
-    additionalOrders: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
-  ): Promise<Array<Folder>> {
-    const folders = await this.findAllCursorFavorites(
-      userUuid,
-      {
-        ...where,
-        updatedAt: {
-          [Op.gt]: updatedAfter,
-        },
-        parentUuid: {
-          [Op.not]: null,
-        },
-      },
-      limit,
-      offset,
-      additionalOrders,
-    );
-
-    return folders;
   }
 
   async calculateFolderSize(

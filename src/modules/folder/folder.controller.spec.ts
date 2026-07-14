@@ -18,9 +18,6 @@ import { FileStatus } from '../file/file.domain';
 import { StorageNotificationService } from './../../externals/notifications/storage.notifications.service';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { SortOrder } from '../../common/order.type';
-import { FavoriteUseCases } from '../favorite/favorite.usecase';
-import { FavoriteItemType } from '../favorite/favorite.domain';
-import { type GetFavoriteFoldersDto } from './dto/get-favorite-folders.dto';
 
 const requester = newUser();
 
@@ -30,7 +27,6 @@ describe('FolderController', () => {
   let fileUseCases: FileUseCases;
   let folder: Folder;
   let storageNotificationService: StorageNotificationService;
-  let favoriteUseCases: FavoriteUseCases;
 
   const userMocked = User.build({
     id: 1,
@@ -79,7 +75,6 @@ describe('FolderController', () => {
     storageNotificationService = module.get<StorageNotificationService>(
       StorageNotificationService,
     );
-    favoriteUseCases = module.get<FavoriteUseCases>(FavoriteUseCases);
     folder = newFolder();
   });
 
@@ -928,98 +923,6 @@ describe('FolderController', () => {
         userMocked.id,
         { parentId: folderId, deleted: false, removed: false },
         { limit, offset, sort: [['plainName', 'ASC']] },
-      );
-    });
-  });
-
-  describe('markFolderAsFavorite', () => {
-    it('When a valid uuid is provided, then it marks the folder as favorite', async () => {
-      jest.spyOn(favoriteUseCases, 'markAsFavorite').mockResolvedValueOnce({
-        id: 'favorite-id',
-        userId: userMocked.uuid,
-        itemId: folder.uuid,
-        itemType: FavoriteItemType.Folder,
-        createdAt: new Date(),
-      } as any);
-
-      const result = await folderController.markFolderAsFavorite(
-        userMocked,
-        folder.uuid,
-      );
-
-      expect(favoriteUseCases.markAsFavorite).toHaveBeenCalledWith(
-        userMocked,
-        folder.uuid,
-        FavoriteItemType.Folder,
-      );
-      expect(result).toEqual({ favorited: true });
-    });
-
-    it('When the folder does not exist, then it should throw', async () => {
-      jest
-        .spyOn(favoriteUseCases, 'markAsFavorite')
-        .mockRejectedValueOnce(new NotFoundException());
-
-      await expect(
-        folderController.markFolderAsFavorite(userMocked, folder.uuid),
-      ).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  describe('unmarkFolderAsFavorite', () => {
-    it('When a valid uuid is provided, then it unmarks the folder as favorite', async () => {
-      jest
-        .spyOn(favoriteUseCases, 'unmarkAsFavorite')
-        .mockResolvedValueOnce(undefined);
-
-      const result = await folderController.unmarkFolderAsFavorite(
-        userMocked,
-        folder.uuid,
-      );
-
-      expect(favoriteUseCases.unmarkAsFavorite).toHaveBeenCalledWith(
-        userMocked,
-        folder.uuid,
-        FavoriteItemType.Folder,
-      );
-      expect(result).toEqual({ favorited: false });
-    });
-  });
-
-  describe('getFavoriteFolders', () => {
-    it('When called, then it returns the favorite folders from the use case', async () => {
-      const mockFolders = [newFolder(), newFolder()];
-      jest
-        .spyOn(folderUseCases, 'getFavoriteFolders')
-        .mockResolvedValueOnce(mockFolders);
-      jest
-        .spyOn(folderUseCases, 'decryptFolderName')
-        .mockImplementation((f) => f);
-
-      const queryParams: GetFavoriteFoldersDto = {
-        limit: 50,
-        offset: 0,
-        sort: 'plainName',
-        order: SortOrder.ASC,
-        updatedAt: '2023-01-01T00:00:00.000Z',
-      };
-
-      const result = await folderController.getFavoriteFolders(
-        userMocked,
-        queryParams,
-      );
-
-      expect(result).toEqual(
-        mockFolders.map((f) => ({ ...f, status: f.getFolderStatus() })),
-      );
-      expect(folderUseCases.getFavoriteFolders).toHaveBeenCalledWith(
-        userMocked,
-        expect.any(Date),
-        {
-          limit: 50,
-          offset: 0,
-          sort: [['plainName', 'ASC']],
-        },
       );
     });
   });

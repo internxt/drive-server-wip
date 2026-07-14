@@ -398,7 +398,10 @@ describe('SequelizeFolderRepository', () => {
         ],
         limit,
         offset,
-        where: whereClause,
+        where: {
+          ...whereClause,
+          parentUuid: { [Op.not]: null },
+        },
         subQuery: false,
         order,
       });
@@ -1168,80 +1171,6 @@ describe('SequelizeFolderRepository', () => {
         offset,
       });
       expect(result).toHaveLength(1);
-    });
-  });
-
-  describe('findAllCursorWhereUpdatedAfterFavorites', () => {
-    const userUuid = 'user-uuid';
-    const updatedAfter = new Date('2023-01-01T00:00:00Z');
-    const whereClause = { deleted: false, removed: false };
-    const limit = 10;
-    const offset = 0;
-    const additionalOrders: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [
-      ['updatedAt', 'ASC'],
-    ];
-
-    it('When no order is provided, it should default to nothing', async () => {
-      jest.spyOn(repository, 'findAllCursorFavorites');
-
-      await repository.findAllCursorWhereUpdatedAfterFavorites(
-        userUuid,
-        whereClause,
-        updatedAfter,
-        limit,
-        offset,
-      );
-
-      expect(repository.findAllCursorFavorites).toHaveBeenCalledWith(
-        userUuid,
-        {
-          ...whereClause,
-          updatedAt: { [Op.gt]: updatedAfter },
-          parentUuid: { [Op.not]: null },
-        },
-        limit,
-        offset,
-        [],
-      );
-    });
-
-    it('When order is provided, then it sorts favorite folders', async () => {
-      jest.spyOn(repository, 'findAllCursorFavorites');
-
-      await repository.findAllCursorWhereUpdatedAfterFavorites(
-        userUuid,
-        whereClause,
-        updatedAfter,
-        limit,
-        offset,
-        additionalOrders,
-      );
-
-      expect(repository.findAllCursorFavorites).toHaveBeenCalledWith(
-        userUuid,
-        {
-          ...whereClause,
-          updatedAt: { [Op.gt]: updatedAfter },
-          parentUuid: { [Op.not]: null },
-        },
-        limit,
-        offset,
-        additionalOrders,
-      );
-    });
-
-    it('When no favorite folders are found, then it should return an empty array', async () => {
-      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
-
-      const result = await repository.findAllCursorWhereUpdatedAfterFavorites(
-        userUuid,
-        whereClause,
-        updatedAfter,
-        limit,
-        offset,
-      );
-
-      expect(result).toEqual([]);
     });
   });
 
