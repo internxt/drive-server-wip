@@ -140,6 +140,11 @@ describe('FolderController', () => {
         { limit: 50, offset: 0, sort: 'id', order: SortOrder.ASC },
       );
       expect(result).toEqual({ files: expectedSubfiles });
+      expect(fileUseCases.getFiles).toHaveBeenCalledWith(
+        userMocked.id,
+        expect.objectContaining({ folderUuid: folder.uuid }),
+        expect.objectContaining({ favoriteUserUuid: userMocked.uuid }),
+      );
     });
 
     it('When get folder subfolders are requested by folder uuid, then the child folders are returned', async () => {
@@ -171,6 +176,11 @@ describe('FolderController', () => {
       );
 
       expect(result).toEqual({ folders: mappedSubfolders });
+      expect(folderUseCases.getFolders).toHaveBeenCalledWith(
+        userMocked.id,
+        expect.objectContaining({ parentUuid: folder.uuid }),
+        expect.objectContaining({ favoriteUserUuid: userMocked.uuid }),
+      );
     });
   });
 
@@ -258,6 +268,16 @@ describe('FolderController', () => {
         children: mappedSubfolders,
         files: expectedSubfiles,
       });
+      expect(folderUseCases.getFolders).toHaveBeenCalledWith(
+        userMocked.id,
+        expect.any(Object),
+        expect.objectContaining({ favoriteUserUuid: userMocked.uuid }),
+      );
+      expect(fileUseCases.getFiles).toHaveBeenCalledWith(
+        userMocked.id,
+        expect.any(Object),
+        expect.objectContaining({ favoriteUserUuid: userMocked.uuid }),
+      );
     });
   });
 

@@ -34,6 +34,8 @@ import { type CreateFolderDto } from './dto/create-folder.dto';
 import { type FolderModel } from './folder.model';
 import { type MoveFolderDto } from './dto/move-folder.dto';
 import { SequelizeFileRepository } from '../file/file.repository';
+import { FavoriteUseCases } from '../favorite/favorite.usecase';
+import { FavoriteItemType } from '../favorite/favorite.domain';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -50,6 +52,7 @@ export class FolderUseCases {
     private readonly sharingUsecases: SharingService,
     private readonly fileRepository: SequelizeFileRepository,
     private readonly cryptoService: CryptoService,
+    private readonly favoriteUsecases: FavoriteUseCases,
   ) {}
 
   getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
@@ -537,7 +540,31 @@ export class FolderUseCases {
         folders.map((folder) => folder.uuid),
         SharingItemType.Folder,
       ),
+      this.favoriteUsecases.bulkRemoveFavorites(
+        user,
+        folders.map((folder) => folder.uuid),
+        FavoriteItemType.Folder,
+      ),
     ]);
+  }
+
+  async getFavoriteFolders(
+    user: User,
+    pagination: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFolder;
+    },
+  ): Promise<Folder[]> {
+    const order: SortParamsFolder = pagination.sort ?? [['updatedAt', 'ASC']];
+
+    return this.folderRepository.findAllCursorFavorites(
+      user.uuid,
+      { deleted: false, removed: false },
+      pagination.limit,
+      pagination.offset,
+      order,
+    );
   }
 
   async getFoldersByParentUuid(
@@ -686,7 +713,12 @@ export class FolderUseCases {
   async getFolders(
     userId: FolderAttributes['userId'],
     where: Partial<FolderAttributes>,
-    options: { limit: number; offset: number; sort?: SortParamsFolder } = {
+    options: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFolder;
+      favoriteUserUuid?: UserAttributes['uuid'];
+    } = {
       limit: 20,
       offset: 0,
     },
@@ -696,6 +728,7 @@ export class FolderUseCases {
       options.limit,
       options.offset,
       options.sort,
+      options.favoriteUserUuid,
     );
 
     return foldersWithMaybePlainName.map((folder) =>
@@ -1038,7 +1071,14 @@ export class FolderUseCases {
     if (isRootFolder) {
       throw new NotAcceptableException('Cannot delete root folder');
     }
-    await this.folderRepository.deleteByUser(user, folders);
+    await Promise.all([
+      this.folderRepository.deleteByUser(user, folders),
+      this.favoriteUsecases.bulkRemoveFavorites(
+        user,
+        folders.map((folder) => folder.uuid),
+        FavoriteItemType.Folder,
+      ),
+    ]);
   }
 
   getFolderSizeByUuid(

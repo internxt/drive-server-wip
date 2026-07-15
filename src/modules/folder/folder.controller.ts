@@ -203,6 +203,7 @@ export class FolderController {
         limit: query.limit,
         offset: query.offset,
         sort: query.sort && query.order && [[query.sort, query.order]],
+        favoriteUserUuid: user.uuid,
       },
     );
 
@@ -292,6 +293,7 @@ export class FolderController {
         limit: query.limit,
         offset: query.offset,
         sort: query.sort && query.order && [[query.sort, query.order]],
+        favoriteUserUuid: user.uuid,
       },
     );
 
@@ -449,7 +451,11 @@ export class FolderController {
           deleted: false,
           removed: false,
         },
-        { limit: query.limit, offset: query.offset },
+        {
+          limit: query.limit,
+          offset: query.offset,
+          favoriteUserUuid: user.uuid,
+        },
       ),
       this.fileUseCases.getFiles(
         user.id,
@@ -457,7 +463,11 @@ export class FolderController {
           folderUuid: folderUuid,
           status: FileStatus.EXISTS,
         },
-        { limit: query.limit, offset: query.offset },
+        {
+          limit: query.limit,
+          offset: query.offset,
+          favoriteUserUuid: user.uuid,
+        },
       ),
     ]);
 
@@ -837,4 +847,5 @@ export class FolderController {
       clientId,
     });
   }
+
 }

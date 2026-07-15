@@ -459,6 +459,238 @@ describe('FileRepository', () => {
     });
   });
 
+  describe('findAllCursorFavorites', () => {
+    const userUuid = v4();
+    const where = { status: FileStatus.EXISTS };
+    const limit = 10;
+    const offset = 0;
+    const order: Array<[keyof FileModel, string]> = [['updatedAt', 'ASC']];
+    const mockFile = newFile();
+    const toJson = {
+      id: mockFile.id,
+      uuid: mockFile.uuid,
+      name: mockFile.name,
+      folderId: mockFile.folderId,
+      folderUuid: mockFile.folderUuid,
+      userId: mockFile.userId,
+      status: mockFile.status,
+      plainName: mockFile.plainName,
+      type: mockFile.type,
+      deleted: false,
+      removed: false,
+    };
+    const model: FileModel = {
+      ...mockFile,
+      user: { id: mockFile.userId, name: 'John Doe' },
+      folder: { uuid: mockFile.folderId, plainName: mockFile.plainName },
+      toJSON: () => ({ ...toJson }),
+    } as any;
+
+    it('when called with valid parameters then it joins by favorites and returns mapped files', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([model]);
+
+      const result = await repository.findAllCursorFavorites(
+        userUuid,
+        where,
+        limit,
+        offset,
+        order,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        limit,
+        offset,
+        where,
+        include: [
+          expect.objectContaining({
+            where: expect.objectContaining({
+              userId: userUuid,
+              itemType: 'file',
+            }),
+            as: 'favorites',
+            required: true,
+          }),
+        ],
+        subQuery: false,
+        order: expect.any(Array),
+      });
+      expect(result).toEqual(
+        expect.arrayContaining([expect.objectContaining(toJson)]),
+      );
+    });
+
+    it('when no favorite files are found then it returns an empty array', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      const result = await repository.findAllCursorFavorites(
+        userUuid,
+        where,
+        limit,
+        offset,
+        order,
+      );
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('findAllCursor isFavorite enrichment', () => {
+    const userUuid = v4();
+    const where = { status: FileStatus.EXISTS };
+    const limit = 10;
+    const offset = 0;
+    const order: Array<[keyof FileModel, string]> = [['updatedAt', 'ASC']];
+    const mockFile = newFile();
+    const toJson = {
+      id: mockFile.id,
+      uuid: mockFile.uuid,
+      name: mockFile.name,
+      folderId: mockFile.folderId,
+      folderUuid: mockFile.folderUuid,
+      userId: mockFile.userId,
+      status: mockFile.status,
+      plainName: mockFile.plainName,
+      type: mockFile.type,
+      deleted: false,
+      removed: false,
+    };
+
+    it('When findAllCursor is called without favoriteUserUuid, then no favorites join is added', async () => {
+      const model: FileModel = {
+        ...mockFile,
+        toJSON: () => ({ ...toJson }),
+      } as any;
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([model]);
+
+      const result = await repository.findAllCursor(where, limit, offset, order);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ include: [] }),
+      );
+      expect(result[0].isFavorite).toBeUndefined();
+    });
+
+    it('When findAllCursor is called with favoriteUserUuid, then a LEFT JOIN to favorites for that user is added', async () => {
+      const model: FileModel = {
+        ...mockFile,
+        favorites: [{ id: v4() }],
+        toJSON: () => ({ ...toJson }),
+      } as any;
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([model]);
+
+      const result = await repository.findAllCursor(
+        where,
+        limit,
+        offset,
+        order,
+        userUuid,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: [
+            expect.objectContaining({
+              where: { userId: userUuid, itemType: 'file' },
+              required: false,
+              separate: true,
+            }),
+          ],
+        }),
+      );
+      expect(result[0].isFavorite).toBe(true);
+    });
+
+    it('When the joined favorites collection is empty, then isFavorite is false', async () => {
+      const model: FileModel = {
+        ...mockFile,
+        favorites: [],
+        toJSON: () => ({ ...toJson }),
+      } as any;
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([model]);
+
+      const result = await repository.findAllCursor(
+        where,
+        limit,
+        offset,
+        order,
+        userUuid,
+      );
+
+      expect(result[0].isFavorite).toBe(false);
+    });
+  });
+
+  describe('findAllCursorWithThumbnails isFavorite enrichment', () => {
+    const userUuid = v4();
+    const where = { status: FileStatus.EXISTS };
+    const limit = 10;
+    const offset = 0;
+    const order: Array<[keyof FileModel, string]> = [['updatedAt', 'ASC']];
+    const mockFile = newFile();
+    const toJson = {
+      id: mockFile.id,
+      uuid: mockFile.uuid,
+      name: mockFile.name,
+      folderId: mockFile.folderId,
+      folderUuid: mockFile.folderUuid,
+      userId: mockFile.userId,
+      status: mockFile.status,
+      plainName: mockFile.plainName,
+      type: mockFile.type,
+      deleted: false,
+      removed: false,
+    };
+
+    it('When called with favoriteUserUuid, then the favorites join is appended to the thumbnails/sharings includes', async () => {
+      const model: FileModel = {
+        ...mockFile,
+        favorites: [{ id: v4() }],
+        toJSON: () => ({ ...toJson }),
+      } as any;
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([model]);
+
+      const result = await repository.findAllCursorWithThumbnails(
+        where,
+        limit,
+        offset,
+        order,
+        userUuid,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.arrayContaining([
+            expect.objectContaining({
+              where: { userId: userUuid, itemType: 'file' },
+              required: false,
+              separate: true,
+            }),
+          ]),
+        }),
+      );
+      expect(result[0].isFavorite).toBe(true);
+    });
+
+    it('When called without favoriteUserUuid, then only thumbnails/sharings includes are present', async () => {
+      const model: FileModel = {
+        ...mockFile,
+        toJSON: () => ({ ...toJson }),
+      } as any;
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([model]);
+
+      const result = await repository.findAllCursorWithThumbnails(
+        where,
+        limit,
+        offset,
+        order,
+      );
+
+      const callArgs = (fileModel.findAll as jest.Mock).mock.calls[0][0];
+      expect(callArgs.include).toHaveLength(2);
+      expect(result[0].isFavorite).toBeUndefined();
+    });
+  });
+
   describe('findAllCursorWithThumbnailsInWorkspace', () => {
     const createdBy = v4();
     const workspaceId = v4();

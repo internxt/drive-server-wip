@@ -62,6 +62,8 @@ import {
   UndoFileVersioningAction,
 } from './actions';
 import { type FileInfo } from '@internxt/inxt-js/build/api';
+import { FavoriteUseCases } from '../favorite/favorite.usecase';
+import { FavoriteItemType } from '../favorite/favorite.domain';
 
 const fileId = '6295c99a241bb000083f1c6a';
 const userId = 1;
@@ -87,6 +89,7 @@ describe('FileUseCases', () => {
   let restoreFileVersionAction: RestoreFileVersionAction;
   let undoFileVersioningAction: UndoFileVersioningAction;
   let userUsecases: UserUseCases;
+  let favoriteUseCases: FavoriteUseCases;
 
   const userMocked = newUser({
     attributes: {
@@ -133,6 +136,7 @@ describe('FileUseCases', () => {
       UndoFileVersioningAction,
     );
     userUsecases = module.get<UserUseCases>(UserUseCases);
+    favoriteUseCases = module.get<FavoriteUseCases>(FavoriteUseCases);
   });
 
   afterEach(() => {
@@ -203,6 +207,22 @@ describe('FileUseCases', () => {
         userMocked,
         [...fileUuids, ...files.map((file) => file.uuid)],
         SharingItemType.File,
+      );
+    });
+
+    it('When you try to trash files, then it also removes them from favorites', async () => {
+      const files = [newFile(), newFile()];
+      const fileUuids = ['656a3abb-36ab-47ee-8303-6e4198f2a32a'];
+      const fileIds = [fileId];
+
+      jest.spyOn(fileRepository, 'findByFileIds').mockResolvedValueOnce(files);
+
+      await service.moveFilesToTrash(userMocked, fileIds, fileUuids);
+
+      expect(favoriteUseCases.bulkRemoveFavorites).toHaveBeenCalledWith(
+        userMocked,
+        [...fileUuids, ...files.map((file) => file.uuid)],
+        FavoriteItemType.File,
       );
     });
   });
@@ -305,6 +325,9 @@ describe('FileUseCases', () => {
       jest
         .spyOn(thumbnailUseCases, 'deleteThumbnailByFileUuid')
         .mockResolvedValueOnce();
+      jest
+        .spyOn(favoriteUseCases, 'bulkRemoveFavorites')
+        .mockResolvedValueOnce();
       jest.spyOn(fileRepository, 'deleteFilesByUser').mockResolvedValueOnce();
 
       const { id, uuid } = await service.deleteFilePermanently(mockUser, {
@@ -322,12 +345,106 @@ describe('FileUseCases', () => {
         mockFile.uuid,
       );
 
+      expect(favoriteUseCases.bulkRemoveFavorites).toHaveBeenCalledWith(
+        mockUser,
+        [mockFile.uuid],
+        FavoriteItemType.File,
+      );
+
       expect(fileRepository.deleteFilesByUser).toHaveBeenCalledWith(mockUser, [
         mockFile,
       ]);
 
       expect(id).toBe(mockFile.id);
       expect(uuid).toBe(mockFile.uuid);
+    });
+  });
+
+  describe('getFavoriteFiles', () => {
+    it('When called, then it returns the favorite files of the user', async () => {
+      const mockFiles = [newFile(), newFile()];
+      jest
+        .spyOn(fileRepository, 'findAllCursorFavorites')
+        .mockResolvedValueOnce(mockFiles);
+
+      const result = await service.getFavoriteFiles(userMocked, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(fileRepository.findAllCursorFavorites).toHaveBeenCalledWith(
+        userMocked.uuid,
+        { status: FileStatus.EXISTS },
+        20,
+        0,
+        [['updatedAt', 'ASC']],
+      );
+      expect(result).toEqual(mockFiles.map((file) => file.toJSON()));
+    });
+
+    it('When a sort option is provided, then it is forwarded to the repository', async () => {
+      jest
+        .spyOn(fileRepository, 'findAllCursorFavorites')
+        .mockResolvedValueOnce([]);
+
+      await service.getFavoriteFiles(userMocked, {
+        limit: 20,
+        offset: 0,
+        sort: [['plainName', 'DESC']],
+      });
+
+      expect(fileRepository.findAllCursorFavorites).toHaveBeenCalledWith(
+        userMocked.uuid,
+        { status: FileStatus.EXISTS },
+        20,
+        0,
+        [['plainName', 'DESC']],
+      );
+    });
+  });
+
+  describe('getFiles', () => {
+    it('When favoriteUserUuid is provided, then it is forwarded to findAllCursorWithThumbnails', async () => {
+      jest
+        .spyOn(fileRepository, 'findAllCursorWithThumbnails')
+        .mockResolvedValueOnce([]);
+
+      await service.getFiles(
+        userMocked.id,
+        { folderUuid: 'folder-uuid' },
+        { limit: 20, offset: 0, favoriteUserUuid: userMocked.uuid },
+      );
+
+      expect(fileRepository.findAllCursorWithThumbnails).toHaveBeenCalledWith(
+        { folderUuid: 'folder-uuid', userId: userMocked.id },
+        20,
+        0,
+        undefined,
+        userMocked.uuid,
+      );
+    });
+
+    it('When withoutThumbnails is true and favoriteUserUuid is provided, then it is forwarded to findAllCursor', async () => {
+      jest.spyOn(fileRepository, 'findAllCursor').mockResolvedValueOnce([]);
+
+      await service.getFiles(
+        userMocked.id,
+        { folderUuid: 'folder-uuid' },
+        {
+          limit: 20,
+          offset: 0,
+          withoutThumbnails: true,
+          favoriteUserUuid: userMocked.uuid,
+        },
+      );
+
+      expect(fileRepository.findAllCursor).toHaveBeenCalledWith(
+        { folderUuid: 'folder-uuid', userId: userMocked.id },
+        20,
+        0,
+        undefined,
+        userMocked.uuid,
+      );
     });
   });
 

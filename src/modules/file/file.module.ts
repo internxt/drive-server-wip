@@ -21,6 +21,7 @@ import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { RedisService } from '../../externals/redis/redis.service';
 import { TrashModule } from '../trash/trash.module';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
+import { FavoriteModule } from '../favorite/favorite.module';
 import {
   DeleteFileVersionAction,
   GetFileVersionsAction,
@@ -45,6 +46,7 @@ import {
     FeatureLimitModule,
     forwardRef(() => TrashModule),
     CacheManagerModule,
+    forwardRef(() => FavoriteModule),
   ],
   controllers: [FileController],
   providers: [

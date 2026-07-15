@@ -29,6 +29,8 @@ import { SharingService } from '../sharing/sharing.service';
 import { type UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { FileStatus } from '../file/file.domain';
 import { SequelizeFileRepository } from '../file/file.repository';
+import { FavoriteUseCases } from '../favorite/favorite.usecase';
+import { FavoriteItemType } from '../favorite/favorite.domain';
 
 const folderId = 4;
 const user = newUser();
@@ -39,6 +41,7 @@ describe('FolderUseCases', () => {
   let cryptoService: CryptoService;
   let sharingService: SharingService;
   let fileRepository: SequelizeFileRepository;
+  let favoriteUseCases: FavoriteUseCases;
 
   const userMocked = User.build({
     id: 1,
@@ -87,6 +90,7 @@ describe('FolderUseCases', () => {
     fileRepository = module.get<SequelizeFileRepository>(
       SequelizeFileRepository,
     );
+    favoriteUseCases = module.get<FavoriteUseCases>(FavoriteUseCases);
   });
 
   it('should be defined', () => {
@@ -173,6 +177,11 @@ describe('FolderUseCases', () => {
         [mockBackupFolder.uuid, mockFolder.uuid],
         'folder',
       );
+      expect(favoriteUseCases.bulkRemoveFavorites).toHaveBeenCalledWith(
+        user,
+        [mockBackupFolder.uuid, mockFolder.uuid],
+        FavoriteItemType.Folder,
+      );
     });
 
     it('When only ids are passed, then only folders by id should be searched', async () => {
@@ -228,6 +237,74 @@ describe('FolderUseCases', () => {
           removed: true,
           removedAt: expect.any(Date),
         },
+      );
+    });
+  });
+
+  describe('getFavoriteFolders', () => {
+    it('When called, then it returns the favorite folders of the user', async () => {
+      const mockFolders = [newFolder(), newFolder()];
+      jest
+        .spyOn(folderRepository, 'findAllCursorFavorites')
+        .mockResolvedValueOnce(mockFolders);
+
+      const result = await service.getFavoriteFolders(user, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(folderRepository.findAllCursorFavorites).toHaveBeenCalledWith(
+        user.uuid,
+        { deleted: false, removed: false },
+        20,
+        0,
+        [['updatedAt', 'ASC']],
+      );
+      expect(result).toEqual(mockFolders);
+    });
+
+    it('When a sort option is provided, then it is forwarded to the repository', async () => {
+      jest
+        .spyOn(folderRepository, 'findAllCursorFavorites')
+        .mockResolvedValueOnce([]);
+
+      await service.getFavoriteFolders(user, {
+        limit: 20,
+        offset: 0,
+        sort: [['plainName', 'DESC']],
+      });
+
+      expect(folderRepository.findAllCursorFavorites).toHaveBeenCalledWith(
+        user.uuid,
+        { deleted: false, removed: false },
+        20,
+        0,
+        [['plainName', 'DESC']],
+      );
+    });
+  });
+
+  describe('getFolders', () => {
+    it('When favoriteUserUuid is provided, then it is forwarded to findAllCursor', async () => {
+      jest.spyOn(folderRepository, 'findAllCursor').mockResolvedValueOnce([]);
+
+      await service.getFolders(
+        user.id,
+        { parentUuid: 'parent-uuid', deleted: false, removed: false },
+        { limit: 20, offset: 0, favoriteUserUuid: user.uuid },
+      );
+
+      expect(folderRepository.findAllCursor).toHaveBeenCalledWith(
+        {
+          parentUuid: 'parent-uuid',
+          deleted: false,
+          removed: false,
+          userId: user.id,
+        },
+        20,
+        0,
+        undefined,
+        user.uuid,
       );
     });
   });
@@ -1835,8 +1912,8 @@ describe('FolderUseCases', () => {
     const userMocked = newUser();
     userMocked.rootFolderId = 1;
     const folderMocked: Folder[] = [
-      { id: 2, parentId: 1 } as Folder,
-      { id: 3, parentId: null } as Folder,
+      { id: 2, parentId: 1, uuid: v4() } as Folder,
+      { id: 3, parentId: null, uuid: v4() } as Folder,
     ];
 
     it('When folders are deleted successfully, then it should call deleteByUser ', async () => {
@@ -1847,6 +1924,21 @@ describe('FolderUseCases', () => {
       expect(folderRepository.deleteByUser).toHaveBeenCalledWith(userMocked, [
         folderMocked[0],
       ]);
+    });
+
+    it('When folders are deleted, then their favorites rows are cleaned up', async () => {
+      jest.spyOn(folderRepository, 'deleteByUser').mockResolvedValue(undefined);
+      jest
+        .spyOn(favoriteUseCases, 'bulkRemoveFavorites')
+        .mockResolvedValue(undefined);
+
+      await service.deleteNotRootFolderByUser(userMocked, [folderMocked[0]]);
+
+      expect(favoriteUseCases.bulkRemoveFavorites).toHaveBeenCalledWith(
+        userMocked,
+        [folderMocked[0].uuid],
+        FavoriteItemType.Folder,
+      );
     });
 
     it('When trying to delete the root folder, then it should throw an error', async () => {

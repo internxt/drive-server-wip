@@ -63,6 +63,8 @@ import {
   UndoFileVersioningAction,
 } from './actions';
 import { type Workspace } from '../workspaces/domains/workspaces.domain';
+import { FavoriteUseCases } from '../favorite/favorite.usecase';
+import { FavoriteItemType } from '../favorite/favorite.domain';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -102,6 +104,7 @@ export class FileUseCases {
     private readonly createFileVersionAction: CreateFileVersionAction,
     private readonly restoreFileVersionAction: RestoreFileVersionAction,
     private readonly undoFileVersioningAction: UndoFileVersioningAction,
+    private readonly favoriteUsecases: FavoriteUseCases,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -209,6 +212,11 @@ export class FileUseCases {
         SharingItemType.File,
       ),
       this.thumbnailUsecases.deleteThumbnailByFileUuid(user, uuid),
+      this.favoriteUsecases.bulkRemoveFavorites(
+        user,
+        [uuid],
+        FavoriteItemType.File,
+      ),
     ]);
 
     await this.fileRepository.deleteFilesByUser(user, [file]);
@@ -651,6 +659,7 @@ export class FileUseCases {
       offset: number;
       sort?: SortParamsFile;
       withoutThumbnails?: boolean;
+      favoriteUserUuid?: UserAttributes['uuid'];
     } = {
       limit: 20,
       offset: 0,
@@ -663,6 +672,7 @@ export class FileUseCases {
         options.limit,
         options.offset,
         options.sort,
+        options.favoriteUserUuid,
       );
     else
       filesWithMaybePlainName =
@@ -671,6 +681,7 @@ export class FileUseCases {
           options.limit,
           options.offset,
           options.sort,
+          options.favoriteUserUuid,
         );
 
     const filesWithThumbnailsModified = filesWithMaybePlainName.map((file) =>
@@ -816,6 +827,27 @@ export class FileUseCases {
     );
   }
 
+  async getFavoriteFiles(
+    user: User,
+    pagination: {
+      limit: number;
+      offset: number;
+      sort?: SortParamsFile;
+    },
+  ): Promise<FileDto[]> {
+    const order: SortParamsFile = pagination.sort ?? [['updatedAt', 'ASC']];
+
+    const files = await this.fileRepository.findAllCursorFavorites(
+      user.uuid,
+      { status: FileStatus.EXISTS },
+      pagination.limit,
+      pagination.offset,
+      order,
+    );
+
+    return files.map((file) => file.toJSON());
+  }
+
   async getByFolderAndUser(
     folderId: FolderAttributes['id'],
     userId: FolderAttributes['userId'],
@@ -846,6 +878,11 @@ export class FileUseCases {
         user,
         allFileUuids,
         SharingItemType.File,
+      ),
+      this.favoriteUsecases.bulkRemoveFavorites(
+        user,
+        allFileUuids,
+        FavoriteItemType.File,
       ),
     ]);
   }

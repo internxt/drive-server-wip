@@ -14,6 +14,7 @@ import { NotificationModule } from '../../externals/notifications/notifications.
 import { TrashModule } from '../trash/trash.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
+import { FavoriteModule } from '../favorite/favorite.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { CacheManagerModule } from '../cache-manager/cache-manager.module';
     forwardRef(() => TrashModule),
     FeatureLimitModule,
     CacheManagerModule,
+    forwardRef(() => FavoriteModule),
   ],
   controllers: [FolderController],
   providers: [SequelizeFolderRepository, CryptoService, FolderUseCases],
