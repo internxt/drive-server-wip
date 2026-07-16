@@ -66,7 +66,7 @@ import { UserEmailAlreadyInUseException } from './exception/user-email-already-i
 import { UserNotFoundException } from './exception/user-not-found.exception';
 import { getTokenDefaultIat, verifyToken } from '../../lib/jwt';
 import getEnv from '../../config/configuration';
-import { JWT_32HOURS_EXPIRATION } from '../auth/constants';
+import { JWT_12HOURS_EXPIRATION } from '../auth/constants';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
 import { Time } from '../../lib/time';
@@ -490,7 +490,7 @@ export class UserUseCases {
       const { newToken, token } = await this.getAuthTokens(
         user,
         undefined,
-        JWT_32HOURS_EXPIRATION,
+        JWT_12HOURS_EXPIRATION,
       );
 
       return {
@@ -877,7 +877,7 @@ export class UserUseCases {
   async getAuthTokens(
     user: User,
     customIat?: number,
-    tokenExpirationTime: string | number = JWT_32HOURS_EXPIRATION,
+    tokenExpirationTime: string | number = JWT_12HOURS_EXPIRATION,
     platform?: string,
   ): Promise<{ token: string; newToken: string }> {
     const jti = v4();
@@ -1539,7 +1539,7 @@ export class UserUseCases {
     const { newToken, token } = await this.getAuthTokens(
       user,
       undefined,
-      JWT_32HOURS_EXPIRATION,
+      JWT_12HOURS_EXPIRATION,
     );
 
     return {
@@ -1647,7 +1647,7 @@ export class UserUseCases {
     const { token, newToken } = await this.getAuthTokens(
       userData,
       undefined,
-      JWT_32HOURS_EXPIRATION,
+      JWT_12HOURS_EXPIRATION,
       loginAccessDto.platform,
     );
     await this.userRepository.loginFailed(userData, false);
