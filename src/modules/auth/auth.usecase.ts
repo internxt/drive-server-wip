@@ -1,7 +1,7 @@
 import { JwtService } from '@nestjs/jwt';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { Injectable } from '@nestjs/common';
-import { JWT_12HOURS_EXPIRATION } from './constants';
+import { JWT_7DAYS_EXPIRATION } from './constants';
 
 @Injectable()
 export class AuthUsecases {
@@ -19,7 +19,7 @@ export class AuthUsecases {
       if (ttl > 0) {
         await this.cacheManagerService.blacklistJwt(
           tokenClaims.jti,
-          ttl ?? JWT_12HOURS_EXPIRATION,
+          ttl ?? JWT_7DAYS_EXPIRATION,
         );
       }
     }
