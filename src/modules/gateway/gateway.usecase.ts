@@ -14,7 +14,7 @@ import { StorageNotificationService } from '../../externals/notifications/storag
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
-import { JWT_32HOURS_EXPIRATION } from '../auth/constants';
+import { JWT_1DAY_EXPIRATION } from '../auth/constants';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { type Workspace } from '../workspaces/domains/workspaces.domain';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
@@ -245,7 +245,7 @@ export class GatewayUseCases {
     const tokens = await this.userUseCases.getAuthTokens(
       user,
       undefined,
-      JWT_32HOURS_EXPIRATION,
+      JWT_1DAY_EXPIRATION,
     );
 
     const folder = await this.folderRepository.findById(user.rootFolderId);

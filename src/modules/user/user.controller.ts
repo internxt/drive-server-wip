@@ -90,7 +90,7 @@ import { GetUserLimitDto } from './dto/responses/get-user-limit.dto';
 import { GetUploadStatusDto } from './dto/responses/get-upload-status.dto';
 import { GenerateMnemonicResponseDto } from './dto/responses/generate-mnemonic.dto';
 import { ClientEnum } from '../../common/enums/platform.enum';
-import { JWT_32HOURS_EXPIRATION } from '../auth/constants';
+import { JWT_7DAYS_EXPIRATION } from '../auth/constants';
 import { IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import { RefreshUserAvatarDto } from './dto/responses/refresh-avatar.dto';
 import { GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
@@ -445,7 +445,7 @@ export class UserController {
   ): Promise<RefreshUserTokensDto> {
     const userCredentials = await this.userUseCases.getUserCredentials(
       user,
-      JWT_32HOURS_EXPIRATION,
+      JWT_7DAYS_EXPIRATION,
     );
     return userCredentials;
   }
@@ -482,7 +482,7 @@ export class UserController {
 
       const userCredentials = await this.userUseCases.getUserCredentials(
         user,
-        JWT_32HOURS_EXPIRATION,
+        JWT_7DAYS_EXPIRATION,
       );
 
       this.logger.log(
@@ -1163,7 +1163,7 @@ export class UserController {
     } catch (err) {
       this.logger.error(
         { err, token },
-        '[DEACTIVATION] Error confirming deactivation',
+        `[DEACTIVATION] Error confirming deactivation`,
       );
       throw err;
     }
