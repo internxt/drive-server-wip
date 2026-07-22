@@ -8,7 +8,7 @@ describe('FuzzySearchQueryDto', () => {
     const dto = new FuzzySearchQueryDto();
 
     const errors = await validate(dto);
-    expect(errors.length).toBe(0);
+    expect(errors).toHaveLength(0);
   });
 
   test('When valid data with all fields is passed, then no errors should be returned', async () => {
@@ -22,7 +22,7 @@ describe('FuzzySearchQueryDto', () => {
     });
 
     const errors = await validate(dto);
-    expect(errors.length).toBe(0);
+    expect(errors).toHaveLength(0);
     expect(dto.offset).toBe(10);
     expect(dto.minSize).toBe(1024);
     expect(dto.maxSize).toBe(5242880);
@@ -32,7 +32,7 @@ describe('FuzzySearchQueryDto', () => {
     const dto = plainToInstance(FuzzySearchQueryDto, { type: 'pdf' });
 
     const errors = await validate(dto);
-    expect(errors.length).toBe(0);
+    expect(errors).toHaveLength(0);
     expect(dto.type).toEqual([FileCategory.Pdf]);
   });
 
@@ -83,14 +83,14 @@ describe('FuzzySearchQueryDto', () => {
     });
 
     const errors = await validate(dto);
-    expect(errors.length).toBe(0);
+    expect(errors).toHaveLength(0);
   });
 
   test('When maxSize is passed without minSize, then it should pass', async () => {
     const dto = plainToInstance(FuzzySearchQueryDto, { maxSize: '500' });
 
     const errors = await validate(dto);
-    expect(errors.length).toBe(0);
+    expect(errors).toHaveLength(0);
   });
 
   test('When modifiedAfter is not a valid date, then it should fail', async () => {
