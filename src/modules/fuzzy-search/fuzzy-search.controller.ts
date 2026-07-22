@@ -1,17 +1,10 @@
-import {
-  Controller,
-  DefaultValuePipe,
-  Get,
-  HttpCode,
-  Param,
-  ParseIntPipe,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, HttpCode, Param, Query } from '@nestjs/common';
 import { FuzzySearchUseCases } from './fuzzy-search.usecase';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { User } from '../user/user.domain';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { FuzzySearchResults } from './dto/fuzzy-search-result.dto';
+import { FuzzySearchQueryDto } from './dto/fuzzy-search-query.dto';
 
 @ApiTags('Fuzzy')
 @Controller('fuzzy')
@@ -30,9 +23,9 @@ export class FuzzySearchController {
   async fuzzySearch(
     @UserDecorator() user: User,
     @Param('search') search: string,
-    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @Query() query: FuzzySearchQueryDto,
   ): Promise<FuzzySearchResults> {
-    const data = await this.usecases.fuzzySearch(user.uuid, search, offset);
+    const data = await this.usecases.fuzzySearch(user.uuid, search, query);
 
     return { data };
   }

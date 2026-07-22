@@ -16,19 +16,80 @@ type LookUpResult = Array<{
   item?: Record<string, unknown>;
 }>;
 
+export interface FuzzySearchFilters {
+  offset?: number;
+  itemTypes?: ItemType[];
+  extensions?: string[];
+  minSize?: number;
+  maxSize?: number;
+  modifiedAfter?: string;
+  modifiedBefore?: string;
+}
+
 export interface LookUpRepository {
   search(
     userUuid: UserAttributes['uuid'],
     partialName: string,
-    offset: number,
+    filters?: FuzzySearchFilters,
   ): Promise<LookUpResult>;
   workspaceSearch(
     userUuid: UserAttributes['uuid'],
     workspaceUserUuid: WorkspaceAttributes['workspaceUserId'],
     workspaceId: WorkspaceAttributes['id'],
     partialName: string,
-    offset: number,
+    filters?: FuzzySearchFilters,
   ): Promise<LookUpResult>;
+}
+
+interface FilterClauses {
+  includeFiles: boolean;
+  includeFolders: boolean;
+  fileWhere: string;
+  folderWhere: string;
+  replacements: Record<string, unknown>;
+}
+
+function buildFilterClauses(filters: FuzzySearchFilters): FilterClauses {
+  const includeFiles = !filters.itemTypes || filters.itemTypes.includes('file');
+  const includeFolders =
+    (!filters.itemTypes || filters.itemTypes.includes('folder')) &&
+    filters.minSize === undefined &&
+    filters.maxSize === undefined;
+
+  const fileClauses: string[] = [];
+  const folderClauses: string[] = [];
+  const replacements: Record<string, unknown> = {};
+
+  if (filters.extensions?.length) {
+    fileClauses.push('AND LOWER(f."type") IN (:extensions)');
+    replacements.extensions = filters.extensions;
+  }
+  if (filters.minSize !== undefined) {
+    fileClauses.push('AND f."size" >= :minSize');
+    replacements.minSize = filters.minSize;
+  }
+  if (filters.maxSize !== undefined) {
+    fileClauses.push('AND f."size" <= :maxSize');
+    replacements.maxSize = filters.maxSize;
+  }
+  if (filters.modifiedAfter !== undefined) {
+    fileClauses.push('AND f."modification_time" >= :modifiedAfter');
+    folderClauses.push('AND fo."modification_time" >= :modifiedAfter');
+    replacements.modifiedAfter = filters.modifiedAfter;
+  }
+  if (filters.modifiedBefore !== undefined) {
+    fileClauses.push('AND f."modification_time" <= :modifiedBefore');
+    folderClauses.push('AND fo."modification_time" <= :modifiedBefore');
+    replacements.modifiedBefore = filters.modifiedBefore;
+  }
+
+  return {
+    includeFiles,
+    includeFolders,
+    fileWhere: fileClauses.join('\n        '),
+    folderWhere: folderClauses.join('\n        '),
+    replacements,
+  };
 }
 
 function toResult(rows: Record<string, unknown>[]): LookUpResult {
@@ -64,10 +125,11 @@ export class SequelizeLookUpRepository implements LookUpRepository {
   async search(
     userUuid: UserAttributes['uuid'],
     partialName: string,
-    offset = 0,
+    filters: FuzzySearchFilters = {},
   ): Promise<LookUpResult> {
-    const rows = await this.sequelize.query<Record<string, unknown>>(
-      `
+    const clauses = buildFilterClauses(filters);
+
+    const filesSelect = `
       SELECT
           f."uuid"                                                              AS "id",
           f."uuid"                                                              AS "itemId",
@@ -88,9 +150,10 @@ export class SequelizeLookUpRepository implements LookUpRepository {
       WHERE f."user_id" = (SELECT id FROM users WHERE uuid = :userUuid)
         AND f."status" = 'EXISTS'
         AND (f."plain_name" % :partialName OR similarity(f."plain_name", :partialName) > 0.0)
+        ${clauses.fileWhere}
+      `;
 
-      UNION ALL
-
+    const foldersSelect = `
       SELECT
           fo."uuid"                                                             AS "id",
           fo."uuid"                                                             AS "itemId",
@@ -113,17 +176,14 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         AND NOT fo."removed"
         AND fo."parent_uuid" IS NOT NULL
         AND (fo."plain_name" % :partialName OR similarity(fo."plain_name", :partialName) > 0.0)
+        ${clauses.folderWhere}
+      `;
 
-      ORDER BY "exactMatch" DESC, "similarity" DESC
-      LIMIT 10 OFFSET :offset
-      `,
-      {
-        replacements: { userUuid, partialName, offset },
-        type: QueryTypes.SELECT,
-      },
-    );
-
-    return toResult(rows);
+    return this.runSearch(clauses, filesSelect, foldersSelect, {
+      userUuid,
+      partialName,
+      offset: filters.offset ?? 0,
+    });
   }
 
   async workspaceSearch(
@@ -131,10 +191,11 @@ export class SequelizeLookUpRepository implements LookUpRepository {
     workspaceUserUuid: WorkspaceAttributes['workspaceUserId'],
     workspaceId: WorkspaceAttributes['id'],
     partialName: string,
-    offset = 0,
+    filters: FuzzySearchFilters = {},
   ): Promise<LookUpResult> {
-    const rows = await this.sequelize.query<Record<string, unknown>>(
-      `
+    const clauses = buildFilterClauses(filters);
+
+    const filesSelect = `
       SELECT
           f."uuid"                                                              AS "id",
           f."uuid"                                                              AS "itemId",
@@ -158,9 +219,10 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         AND wiu.created_by = :userUuid
         AND wiu.workspace_id = :workspaceId
         AND (f."plain_name" % :partialName OR similarity(f."plain_name", :partialName) > 0.0)
+        ${clauses.fileWhere}
+      `;
 
-      UNION ALL
-
+    const foldersSelect = `
       SELECT
           fo."uuid"                                                             AS "id",
           fo."uuid"                                                             AS "itemId",
@@ -186,18 +248,41 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         AND wiu.created_by = :userUuid
         AND wiu.workspace_id = :workspaceId
         AND (fo."plain_name" % :partialName OR similarity(fo."plain_name", :partialName) > 0.0)
+        ${clauses.folderWhere}
+      `;
 
+    return this.runSearch(clauses, filesSelect, foldersSelect, {
+      userUuid,
+      workspaceUserUuid,
+      workspaceId,
+      partialName,
+      offset: filters.offset ?? 0,
+    });
+  }
+
+  private async runSearch(
+    clauses: FilterClauses,
+    filesSelect: string,
+    foldersSelect: string,
+    baseReplacements: Record<string, unknown>,
+  ): Promise<LookUpResult> {
+    const selects = [
+      ...(clauses.includeFiles ? [filesSelect] : []),
+      ...(clauses.includeFolders ? [foldersSelect] : []),
+    ];
+
+    if (selects.length === 0) {
+      return [];
+    }
+
+    const rows = await this.sequelize.query<Record<string, unknown>>(
+      `
+      ${selects.join('\n      UNION ALL\n')}
       ORDER BY "exactMatch" DESC, "similarity" DESC
       LIMIT 10 OFFSET :offset
       `,
       {
-        replacements: {
-          userUuid,
-          workspaceUserUuid,
-          workspaceId,
-          partialName,
-          offset,
-        },
+        replacements: { ...baseReplacements, ...clauses.replacements },
         type: QueryTypes.SELECT,
       },
     );
