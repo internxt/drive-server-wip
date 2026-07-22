@@ -78,6 +78,7 @@ import { type ChangeUserAssignedSpaceDto } from './dto/change-user-assigned-spac
 import { PaymentsService } from '../../externals/payments/payments.service';
 import { type SharingAccessTokenData } from '../sharing/guards/sharings-token.interface';
 import { FuzzySearchUseCases } from '../fuzzy-search/fuzzy-search.usecase';
+import { type FuzzySearchQueryDto } from '../fuzzy-search/dto/fuzzy-search-query.dto';
 import { type WorkspaceLog } from './domains/workspace-log.domain';
 import { type TrashItem } from './interceptors/workspaces-logs.interceptor';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
@@ -2968,7 +2969,7 @@ export class WorkspacesUsecases {
     user: User,
     workspaceId: Workspace['id'],
     search: string,
-    offset: number,
+    query: FuzzySearchQueryDto,
   ) {
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
@@ -2980,7 +2981,7 @@ export class WorkspacesUsecases {
       user.uuid,
       workspace,
       search,
-      offset,
+      query,
     );
 
     return searchResults;

@@ -14,8 +14,6 @@ import {
   InternalServerErrorException,
   ForbiddenException,
   NotFoundException,
-  DefaultValuePipe,
-  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -26,6 +24,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { WorkspacesUsecases } from './workspaces.usecase';
+import { FuzzySearchQueryDto } from '../fuzzy-search/dto/fuzzy-search-query.dto';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { type WorkspaceAttributes } from './attributes/workspace.attributes';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -1225,13 +1224,13 @@ export class WorkspacesController {
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
     @Param('search') search: string,
-    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @Query() query: FuzzySearchQueryDto,
   ) {
     return this.workspaceUseCases.searchWorkspaceContent(
       user,
       workspaceId,
       search,
-      offset,
+      query,
     );
   }
 

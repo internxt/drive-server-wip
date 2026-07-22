@@ -6120,7 +6120,7 @@ describe('WorkspacesUsecases', () => {
       jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
 
       await expect(
-        service.searchWorkspaceContent(user, workspaceId, query, 0),
+        service.searchWorkspaceContent(user, workspaceId, query, { offset: 0 }),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -6150,7 +6150,7 @@ describe('WorkspacesUsecases', () => {
         user,
         workspace.id,
         query,
-        0,
+        { offset: 0 },
       );
 
       expect(result[0]).toMatchObject({
