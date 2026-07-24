@@ -43,6 +43,7 @@ export default () => ({
     gateway: process.env.GATEWAY_SECRET,
     driveGateway: process.env.DRIVE_GATEWAY_PUBLIC_SECRET,
     captcha: process.env.RECAPTCHA_V3,
+    turnstileCaptcha: process.env.TURNSTILE_SECRET,
     jitsiSecret: process.env.JITSI_SECRET,
   },
   apis: {
@@ -65,8 +66,12 @@ export default () => ({
       url: process.env.SHARE_DOMAINS,
     },
     captcha: {
+      provider: process.env.CAPTCHA_PROVIDER || 'recaptcha',
       url: process.env.RECAPTCHA_V3_ENDPOINT,
       threshold: process.env.RECAPTCHA_V3_SCORE_THRESHOLD,
+      turnstileUrl:
+        process.env.TURNSTILE_ENDPOINT ||
+        'https://challenges.cloudflare.com/turnstile/v0/siteverify',
     },
     payments: {
       url: process.env.PAYMENTS_API_URL,
