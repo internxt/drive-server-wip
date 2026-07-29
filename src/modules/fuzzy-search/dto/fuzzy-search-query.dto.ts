@@ -10,36 +10,10 @@ import {
   IsString,
   MaxLength,
   Min,
-  registerDecorator,
-  type ValidationArguments,
-  type ValidationOptions,
 } from 'class-validator';
 
 export const MAX_TYPE_FILTERS = 250;
 export const MAX_TYPE_FILTER_LENGTH = 20;
-
-function IsGreaterOrEqualThanMinSize(validationOptions?: ValidationOptions) {
-  return function (object: object, propertyName: string) {
-    registerDecorator({
-      name: 'isGreaterOrEqualThanMinSize',
-      target: object.constructor,
-      propertyName: propertyName,
-      options: validationOptions,
-      validator: {
-        validate(value: unknown, args: ValidationArguments) {
-          const { minSize } = args.object as FuzzySearchQueryDto;
-          if (minSize === undefined || typeof value !== 'number') {
-            return true;
-          }
-          return value >= minSize;
-        },
-        defaultMessage() {
-          return 'maxSize must be greater than or equal to minSize';
-        },
-      },
-    });
-  };
-}
 
 export class FuzzySearchQueryDto {
   @ApiProperty({
@@ -101,7 +75,6 @@ export class FuzzySearchQueryDto {
   @IsInt()
   @Type(() => Number)
   @Min(0)
-  @IsGreaterOrEqualThanMinSize()
   maxSize?: number;
 
   @ApiProperty({
