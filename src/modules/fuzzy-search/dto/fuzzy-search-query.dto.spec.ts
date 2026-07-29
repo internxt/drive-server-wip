@@ -88,10 +88,20 @@ describe('FuzzySearchQueryDto', () => {
     expect(errors.length).toBeGreaterThan(0);
   });
 
-  test('When maxSize is lower than minSize, then it should pass so the search returns an empty result', async () => {
+  test('When maxSize is lower than minSize, then it should fail', async () => {
     const dto = plainToInstance(FuzzySearchQueryDto, {
       minSize: '1000',
       maxSize: '500',
+    });
+
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  test('When maxSize is equal to minSize, then it should pass', async () => {
+    const dto = plainToInstance(FuzzySearchQueryDto, {
+      minSize: '1000',
+      maxSize: '1000',
     });
 
     const errors = await validate(dto);
