@@ -9,7 +9,8 @@ import { type FuzzySearchQueryDto } from './dto/fuzzy-search-query.dto';
 import { type Workspace } from '../workspaces/domains/workspaces.domain';
 import { type UserAttributes } from '../user/user.attributes';
 import { type ItemType } from './look-up.domain';
-import { FileCategory, resolveCategoriesToExtensions } from './file-categories';
+
+const FOLDER_TYPE_FILTER = 'folder';
 
 export class FuzzySearchUseCases {
   constructor(
@@ -51,16 +52,16 @@ export class FuzzySearchUseCases {
 
     if (query.type?.length) {
       const itemTypes: ItemType[] = [];
-      const fileCategories = query.type.filter(
-        (category) => category !== FileCategory.Folder,
+      const extensions = query.type.filter(
+        (type) => type !== FOLDER_TYPE_FILTER,
       );
 
-      if (query.type.includes(FileCategory.Folder)) {
+      if (query.type.includes(FOLDER_TYPE_FILTER)) {
         itemTypes.push('folder');
       }
-      if (fileCategories.length) {
+      if (extensions.length) {
         itemTypes.push('file');
-        filters.extensions = resolveCategoriesToExtensions(fileCategories);
+        filters.extensions = [...new Set(extensions)];
       }
 
       filters.itemTypes = itemTypes;
