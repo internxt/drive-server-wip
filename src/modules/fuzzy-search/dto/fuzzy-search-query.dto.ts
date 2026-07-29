@@ -1,18 +1,22 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsDateString,
-  IsEnum,
   IsInt,
   IsNumber,
   IsOptional,
+  IsString,
+  MaxLength,
   Min,
   registerDecorator,
   type ValidationArguments,
   type ValidationOptions,
 } from 'class-validator';
-import { FileCategory } from '../file-categories';
+
+export const MAX_TYPE_FILTERS = 250;
+export const MAX_TYPE_FILTER_LENGTH = 20;
 
 function IsGreaterOrEqualThanMinSize(validationOptions?: ValidationOptions) {
   return function (object: object, propertyName: string) {
@@ -52,28 +56,28 @@ export class FuzzySearchQueryDto {
 
   @ApiProperty({
     description:
-      'File categories to filter by (single value or repeated param)',
-    enum: FileCategory,
+      'File extensions to filter by, or the reserved value "folder" to include folders (single value or repeated param)',
+    type: String,
     isArray: true,
     required: false,
-    example: ['image', 'pdf'],
+    maxItems: MAX_TYPE_FILTERS,
+    example: ['jpg', 'pdf', 'folder'],
   })
   @IsOptional()
   @IsArray()
-  @IsEnum(FileCategory, {
-    each: true,
-    message: (args: ValidationArguments) =>
-      `Unknown type "${args.value}". Allowed values are: ${Object.values(
-        FileCategory,
-      ).join(', ')}`,
-  })
+  @ArrayMaxSize(MAX_TYPE_FILTERS)
+  @IsString({ each: true })
+  @MaxLength(MAX_TYPE_FILTER_LENGTH, { each: true })
   @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return [value];
+    const values = typeof value === 'string' ? [value] : value;
+    if (!Array.isArray(values)) {
+      return values;
     }
-    return value;
+    return values.map((entry) =>
+      typeof entry === 'string' ? entry.toLowerCase() : entry,
+    );
   })
-  type?: FileCategory[];
+  type?: string[];
 
   @ApiProperty({
     description: 'Minimum file size in bytes (folders are excluded)',

@@ -1,7 +1,9 @@
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
-import { FuzzySearchQueryDto } from './fuzzy-search-query.dto';
-import { FileCategory } from '../file-categories';
+import {
+  FuzzySearchQueryDto,
+  MAX_TYPE_FILTERS,
+} from './fuzzy-search-query.dto';
 
 describe('FuzzySearchQueryDto', () => {
   test('When no fields are passed, then no errors should be returned', async () => {
@@ -14,7 +16,7 @@ describe('FuzzySearchQueryDto', () => {
   test('When valid data with all fields is passed, then no errors should be returned', async () => {
     const dto = plainToInstance(FuzzySearchQueryDto, {
       offset: '10',
-      type: ['image', 'pdf'],
+      type: ['jpg', 'pdf'],
       minSize: '1024',
       maxSize: '5242880',
       modifiedAfter: '2026-01-01T00:00:00.000Z',
@@ -33,12 +35,32 @@ describe('FuzzySearchQueryDto', () => {
 
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
-    expect(dto.type).toEqual([FileCategory.Pdf]);
+    expect(dto.type).toEqual(['pdf']);
   });
 
-  test('When type contains an unknown category, then it should fail', async () => {
+  test('When type values contain uppercase characters, then they should be lowercased', async () => {
+    const dto = plainToInstance(FuzzySearchQueryDto, { type: ['JPG', 'Pdf'] });
+
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+    expect(dto.type).toEqual(['jpg', 'pdf']);
+  });
+
+  test('When a type value exceeds the maximum length, then it should fail', async () => {
     const dto = plainToInstance(FuzzySearchQueryDto, {
-      type: ['image', 'documents'],
+      type: ['jpg', 'a'.repeat(21)],
+    });
+
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  test('When more types than the maximum allowed are passed, then it should fail', async () => {
+    const dto = plainToInstance(FuzzySearchQueryDto, {
+      type: Array.from(
+        { length: MAX_TYPE_FILTERS + 1 },
+        (_, index) => `${index}`,
+      ),
     });
 
     const errors = await validate(dto);
