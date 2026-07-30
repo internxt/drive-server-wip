@@ -193,4 +193,18 @@ describe('FavoriteUseCases', () => {
       expect(favoriteRepository.bulkDelete).not.toHaveBeenCalled();
     });
   });
+
+  describe('removeOrphanedFavorites', () => {
+    it('When called, then it deletes the orphaned favorites of the user', async () => {
+      jest
+        .spyOn(favoriteRepository, 'deleteOrphanedByUser')
+        .mockResolvedValueOnce();
+
+      await service.removeOrphanedFavorites(user);
+
+      expect(favoriteRepository.deleteOrphanedByUser).toHaveBeenCalledWith(
+        user.uuid,
+      );
+    });
+  });
 });

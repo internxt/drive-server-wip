@@ -879,11 +879,6 @@ export class FileUseCases {
         allFileUuids,
         SharingItemType.File,
       ),
-      this.favoriteUsecases.bulkRemoveFavorites(
-        user,
-        allFileUuids,
-        FavoriteItemType.File,
-      ),
     ]);
   }
 
@@ -923,7 +918,14 @@ export class FileUseCases {
    * @param files Files to be deleted
    */
   async deleteByUser(user: User, files: File[]): Promise<void> {
-    await this.fileRepository.deleteFilesByUser(user, files);
+    await Promise.all([
+      this.fileRepository.deleteFilesByUser(user, files),
+      this.favoriteUsecases.bulkRemoveFavorites(
+        user,
+        files.map((file) => file.uuid),
+        FavoriteItemType.File,
+      ),
+    ]);
   }
 
   async replaceFile(

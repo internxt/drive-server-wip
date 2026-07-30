@@ -500,7 +500,10 @@ describe('FileRepository', () => {
       expect(fileModel.findAll).toHaveBeenCalledWith({
         limit,
         offset,
-        where,
+        where: {
+          ...where,
+          [Op.and]: expect.anything(),
+        },
         include: [
           expect.objectContaining({
             where: expect.objectContaining({

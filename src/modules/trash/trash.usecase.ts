@@ -4,6 +4,7 @@ import { type User } from '../user/user.domain';
 import { type File } from '../file/file.domain';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
+import { FavoriteUseCases } from '../favorite/favorite.usecase';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TrashEmptyRequestedEvent } from './events/trash-empty-requested.event';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
@@ -21,6 +22,8 @@ export class TrashUseCases {
     private readonly fileUseCases: FileUseCases,
     @Inject(forwardRef(() => FolderUseCases))
     private readonly folderUseCases: FolderUseCases,
+    @Inject(forwardRef(() => FavoriteUseCases))
+    private readonly favoriteUseCases: FavoriteUseCases,
     private readonly eventEmitter: EventEmitter2,
     private readonly featureLimitService: FeatureLimitService,
   ) {}
@@ -96,6 +99,8 @@ export class TrashUseCases {
     };
 
     await Promise.all([deleteFolders(), deleteFiles()]);
+
+    await this.favoriteUseCases.removeOrphanedFavorites(trashOwner);
   }
 
   /**

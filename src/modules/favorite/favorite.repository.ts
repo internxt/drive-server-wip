@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import { FavoriteModel } from './favorite.model';
 import { Favorite } from './favorite.domain';
 
@@ -25,6 +25,7 @@ interface FavoriteRepository {
     itemId: Favorite['itemId'],
     itemType: Favorite['itemType'],
   ): Promise<boolean>;
+  deleteOrphanedByUser(userId: Favorite['userId']): Promise<void>;
 }
 
 @Injectable()
@@ -79,6 +80,30 @@ export class SequelizeFavoriteRepository implements FavoriteRepository {
       where: { userId, itemId, itemType },
     });
     return count > 0;
+  }
+
+  async deleteOrphanedByUser(userId: Favorite['userId']): Promise<void> {
+    await this.favoriteModel.sequelize.query(
+      `
+      DELETE FROM favorites
+      WHERE user_id = :userId
+        AND (
+          (item_type = 'file' AND EXISTS (
+            SELECT 1 FROM files
+            WHERE files.uuid = favorites.item_id AND files.status = 'DELETED'
+          ))
+          OR
+          (item_type = 'folder' AND EXISTS (
+            SELECT 1 FROM folders
+            WHERE folders.uuid = favorites.item_id AND folders.removed = true
+          ))
+        )
+      `,
+      {
+        replacements: { userId },
+        type: QueryTypes.DELETE,
+      },
+    );
   }
 
   private toDomain(model: FavoriteModel): Favorite {

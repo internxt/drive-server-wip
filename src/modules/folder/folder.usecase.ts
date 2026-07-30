@@ -542,7 +542,7 @@ export class FolderUseCases {
       ),
       this.favoriteUsecases.bulkRemoveFavorites(
         user,
-        folders.map((folder) => folder.uuid),
+        backups.map((folder) => folder.uuid),
         FavoriteItemType.Folder,
       ),
     ]);
@@ -1058,7 +1058,14 @@ export class FolderUseCases {
   }
 
   async deleteByUser(user: User, folders: Folder[]): Promise<void> {
-    await this.folderRepository.deleteByUser(user, folders);
+    await Promise.all([
+      this.folderRepository.deleteByUser(user, folders),
+      this.favoriteUsecases.bulkRemoveFavorites(
+        user,
+        folders.map((folder) => folder.uuid),
+        FavoriteItemType.Folder,
+      ),
+    ]);
   }
 
   async deleteNotRootFolderByUser(

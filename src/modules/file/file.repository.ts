@@ -575,7 +575,10 @@ export class SequelizeFileRepository implements FileRepository {
     const files = await this.fileModel.findAll({
       limit,
       offset,
-      where,
+      where: {
+        ...where,
+        [Op.and]: this.ancestorsNotTrashedNorRemovedCondition(),
+      },
       include: [
         {
           model: FavoriteModel,
@@ -592,6 +595,25 @@ export class SequelizeFileRepository implements FileRepository {
     });
 
     return files.map(this.toDomain.bind(this));
+  }
+
+  private ancestorsNotTrashedNorRemovedCondition(): Literal {
+    return Sequelize.literal(`NOT EXISTS (
+      WITH RECURSIVE ancestors AS (
+        SELECT fl1.uuid, fl1.parent_uuid, fl1.deleted, fl1.removed, 1 AS depth
+        FROM folders fl1
+        WHERE fl1.uuid = "FileModel"."folder_uuid"
+
+        UNION ALL
+
+        SELECT fl2.uuid, fl2.parent_uuid, fl2.deleted, fl2.removed, ancestors.depth + 1
+        FROM folders fl2
+        INNER JOIN ancestors ON fl2.uuid = ancestors.parent_uuid
+        WHERE ancestors.depth < 100000
+      )
+      SELECT 1 FROM ancestors
+      WHERE ancestors.deleted = TRUE OR ancestors.removed = TRUE
+    )`);
   }
 
   async findAllCursorInWorkspace(

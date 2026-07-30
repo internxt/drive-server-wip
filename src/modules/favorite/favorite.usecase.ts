@@ -53,4 +53,8 @@ export class FavoriteUseCases {
 
     await this.favoriteRepository.bulkDelete(user.uuid, itemIds, itemType);
   }
+
+  async removeOrphanedFavorites(user: User): Promise<void> {
+    await this.favoriteRepository.deleteOrphanedByUser(user.uuid);
+  }
 }

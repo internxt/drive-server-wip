@@ -6,6 +6,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TrashUseCases } from './trash.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
+import { FavoriteUseCases } from '../favorite/favorite.usecase';
 import { newUser, newFile, newFolder } from '../../../test/fixtures';
 import { TrashEmptyRequestedEvent } from './events/trash-empty-requested.event';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
@@ -14,6 +15,7 @@ describe('Trash Use Cases', () => {
   let service: TrashUseCases,
     fileUseCases: FileUseCases,
     folderUseCases: FolderUseCases,
+    favoriteUseCases: FavoriteUseCases,
     eventEmitter: EventEmitter2,
     featureLimitService: FeatureLimitService;
 
@@ -28,6 +30,7 @@ describe('Trash Use Cases', () => {
     service = module.get<TrashUseCases>(TrashUseCases);
     fileUseCases = module.get<FileUseCases>(FileUseCases);
     folderUseCases = module.get<FolderUseCases>(FolderUseCases);
+    favoriteUseCases = module.get<FavoriteUseCases>(FavoriteUseCases);
     eventEmitter = module.get<EventEmitter2>(EventEmitter2);
     featureLimitService = module.get<FeatureLimitService>(FeatureLimitService);
   });
@@ -165,6 +168,24 @@ describe('Trash Use Cases', () => {
       expect(fileUseCases.deleteUserTrashedFilesBatch).toHaveBeenCalledWith(
         user,
         chunkSize,
+      );
+    });
+
+    it('When the trash deletion finishes, then it sweeps the favorites of the removed items', async () => {
+      jest
+        .spyOn(folderUseCases, 'deleteUserTrashedFoldersBatch')
+        .mockResolvedValue(0);
+      jest
+        .spyOn(fileUseCases, 'deleteUserTrashedFilesBatch')
+        .mockResolvedValue(0);
+      jest
+        .spyOn(favoriteUseCases, 'removeOrphanedFavorites')
+        .mockResolvedValue(undefined);
+
+      await service.performTrashDeletion(user, 10, 10);
+
+      expect(favoriteUseCases.removeOrphanedFavorites).toHaveBeenCalledWith(
+        user,
       );
     });
   });
