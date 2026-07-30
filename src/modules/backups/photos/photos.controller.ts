@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -23,6 +24,8 @@ import { DeviceAsFolder } from '../dto/responses/device-as-folder.dto';
 import { FeatureLimit } from '../../feature-limit/feature-limits.guard';
 import { ApplyLimit } from '../../feature-limit/decorators/apply-limit.decorator';
 import { LimitLabels } from '../../feature-limit/limits.enum';
+import { GetFilesInFolderTreeDto } from './dto/get-files-in-folder-tree.dto';
+import { FileDto } from '../../file/dto/responses/file.dto';
 
 @ApiTags('Photos')
 @Controller('photos')
@@ -86,6 +89,29 @@ export class PhotosController {
       user,
       uuid,
       body.deviceName,
+    );
+  }
+
+  @Get('/devices/folders/:uuid/files')
+  @ApiOperation({
+    summary: 'Get all files inside a folder',
+  })
+  @ApiOkResponse({ type: FileDto, isArray: true })
+  @ApiBearerAuth()
+  async getFilesInFolderTree(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
+    @Query() query: GetFilesInFolderTreeDto,
+  ) {
+    const updatedAfter = query.updatedAt
+      ? new Date(query.updatedAt)
+      : new Date(0);
+
+    return this.backupUseCases.getFilesInFolderTree(
+      user,
+      folderUuid,
+      updatedAfter,
+      query.cursor,
     );
   }
 }

@@ -99,6 +99,117 @@ describe('FileRepository', () => {
     });
   });
 
+  describe('getFilesByFolderUuids', () => {
+    it('When called, then it fetches existent files updated after the given date, limited and ordered', async () => {
+      const folderUuids = [v4(), v4()];
+      const updatedAfter = new Date();
+      const file = newFile();
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
+
+      const result = await repository.getFilesByFolderUuids(
+        folderUuids,
+        updatedAfter,
+        1000,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: {
+          folderUuid: { [Op.in]: folderUuids },
+          status: FileStatus.EXISTS,
+          updatedAt: { [Op.gt]: updatedAfter },
+        },
+        order: [['updatedAt', 'ASC']],
+        limit: 1000,
+      });
+      expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('getFilesByFolderUuidsPaginated', () => {
+    it('When called and there are fewer results than the page size, then hasMore is false', async () => {
+      const folderUuids = [v4(), v4()];
+      const updatedAfter = new Date();
+      const file = newFile();
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
+
+      const result = await repository.getFilesByFolderUuidsPaginated(
+        folderUuids,
+        updatedAfter,
+        1000,
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: {
+          folderUuid: { [Op.in]: folderUuids },
+          status: FileStatus.EXISTS,
+          updatedAt: { [Op.gt]: updatedAfter },
+        },
+        order: [
+          ['updatedAt', 'ASC'],
+          ['uuid', 'ASC'],
+        ],
+        limit: 1001,
+      });
+      expect(result).toEqual({ files: expect.any(Array), hasMore: false });
+      expect(result.files).toHaveLength(1);
+    });
+
+    it('When there is one more row than the page size, then hasMore is true and the extra row is dropped', async () => {
+      const folderUuids = [v4()];
+      const updatedAfter = new Date();
+      const files = [newFile(), newFile()];
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(files as any);
+
+      const result = await repository.getFilesByFolderUuidsPaginated(
+        folderUuids,
+        updatedAfter,
+        1,
+      );
+
+      expect(result.hasMore).toBe(true);
+      expect(result.files).toHaveLength(1);
+    });
+
+    it('When a cursor is provided, then it filters by the cursor tuple', async () => {
+      const folderUuids = [v4()];
+      const updatedAfter = new Date();
+      const cursorUpdatedAt = new Date('2024-01-01T00:00:00.000Z');
+      const cursorUuid = v4();
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.getFilesByFolderUuidsPaginated(
+        folderUuids,
+        updatedAfter,
+        1000,
+        {
+          updatedAt: cursorUpdatedAt.toISOString(),
+          uuid: cursorUuid,
+        },
+      );
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: {
+          folderUuid: { [Op.in]: folderUuids },
+          status: FileStatus.EXISTS,
+          updatedAt: { [Op.gt]: updatedAfter },
+          [Op.or]: [
+            { updatedAt: { [Op.gt]: cursorUpdatedAt } },
+            { updatedAt: cursorUpdatedAt, uuid: { [Op.gt]: cursorUuid } },
+          ],
+        },
+        order: [
+          ['updatedAt', 'ASC'],
+          ['uuid', 'ASC'],
+        ],
+        limit: 1001,
+      });
+    });
+  });
+
   describe('findFilesInFolderByName', () => {
     const folderUuid = v4();
 

@@ -16,6 +16,7 @@ import {
   type WhereOptions,
 } from 'sequelize';
 import { type Literal } from 'sequelize/types/utils';
+import { type FileCursor } from '../../common/cursor.util';
 
 import { User } from '../user/user.domain';
 import { UserModel } from './../user/user.model';
@@ -140,6 +141,17 @@ export interface FileRepository {
     folderUuid: Folder['uuid'],
     status: FileStatus,
   ): Promise<File[]>;
+  getFilesByFolderUuids(
+    folderUuids: Folder['uuid'][],
+    updatedAfter: Date,
+    limit: number,
+  ): Promise<File[]>;
+  getFilesByFolderUuidsPaginated(
+    folderUuids: Folder['uuid'][],
+    updatedAfter: Date,
+    pageSize: number,
+    cursor?: FileCursor,
+  ): Promise<{ files: File[]; hasMore: boolean }>;
   getFilesWithUserByUuuid(
     fileUuids: string[],
     order?: [keyof FileModel, 'ASC' | 'DESC'][],
@@ -874,6 +886,63 @@ export class SequelizeFileRepository implements FileRepository {
     });
 
     return files.map(this.toDomain.bind(this));
+  }
+
+  async getFilesByFolderUuids(
+    folderUuids: Folder['uuid'][],
+    updatedAfter: Date,
+    limit: number,
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
+      where: {
+        folderUuid: { [Op.in]: folderUuids },
+        status: FileStatus.EXISTS,
+        updatedAt: { [Op.gt]: updatedAfter },
+      },
+      order: [['updatedAt', 'ASC']],
+      limit,
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  async getFilesByFolderUuidsPaginated(
+    folderUuids: Folder['uuid'][],
+    updatedAfter: Date,
+    pageSize: number,
+    cursor?: FileCursor,
+  ): Promise<{ files: File[]; hasMore: boolean }> {
+    const where: WhereOptions<FileAttributes> = {
+      folderUuid: { [Op.in]: folderUuids },
+      status: FileStatus.EXISTS,
+      updatedAt: { [Op.gt]: updatedAfter },
+    };
+
+    if (cursor) {
+      const cursorUpdatedAt = new Date(cursor.updatedAt);
+
+      where[Op.or] = [
+        { updatedAt: { [Op.gt]: cursorUpdatedAt } },
+        {
+          updatedAt: cursorUpdatedAt,
+          uuid: { [Op.gt]: cursor.uuid },
+        },
+      ];
+    }
+
+    const rows = await this.fileModel.findAll({
+      where,
+      order: [
+        ['updatedAt', 'ASC'],
+        ['uuid', 'ASC'],
+      ],
+      limit: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+
+    return { files: page.map(this.toDomain.bind(this)), hasMore };
   }
 
   async findAllByUserIdExceptFolderIds(

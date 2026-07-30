@@ -106,4 +106,59 @@ describe('PhotosController', () => {
       expect(result).toEqual(updated);
     });
   });
+
+  describe('getFilesInFolderTree', () => {
+    it('When updatedAt is provided, then it should use it as the filter date', async () => {
+      const page = { files: [{ uuid: v4() }], nextCursor: null } as any;
+      jest
+        .spyOn(backupUseCase, 'getFilesInFolderTree')
+        .mockResolvedValue(page);
+      const updatedAt = '2024-01-01T00:00:00.000Z';
+
+      const result = await controller.getFilesInFolderTree(user, uuid, {
+        updatedAt,
+      });
+
+      expect(backupUseCase.getFilesInFolderTree).toHaveBeenCalledWith(
+        user,
+        uuid,
+        new Date(updatedAt),
+        undefined,
+      );
+      expect(result).toEqual(page);
+    });
+
+    it('When updatedAt is not provided, then it should default to epoch', async () => {
+      const page = { files: [], nextCursor: null } as any;
+      jest
+        .spyOn(backupUseCase, 'getFilesInFolderTree')
+        .mockResolvedValue(page);
+
+      await controller.getFilesInFolderTree(user, uuid, {});
+
+      expect(backupUseCase.getFilesInFolderTree).toHaveBeenCalledWith(
+        user,
+        uuid,
+        new Date(0),
+        undefined,
+      );
+    });
+
+    it('When cursor is provided, then it should forward it to the usecase', async () => {
+      const page = { files: [], nextCursor: null } as any;
+      jest
+        .spyOn(backupUseCase, 'getFilesInFolderTree')
+        .mockResolvedValue(page);
+      const cursor = 'some-cursor-token';
+
+      await controller.getFilesInFolderTree(user, uuid, { cursor });
+
+      expect(backupUseCase.getFilesInFolderTree).toHaveBeenCalledWith(
+        user,
+        uuid,
+        new Date(0),
+        cursor,
+      );
+    });
+  });
 });
