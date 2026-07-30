@@ -179,7 +179,7 @@ export class SequelizeBackupRepository {
 
   async sumExistentBackupSizes(userId: number) {
     const result = await this.backupModel.findAll({
-      attributes: [[Sequelize.fn(`SUM`, Sequelize.col('size')), 'total']],
+      attributes: [[Sequelize.fn('SUM', Sequelize.col('size')), 'total']],
       where: { userId },
       raw: true,
     });

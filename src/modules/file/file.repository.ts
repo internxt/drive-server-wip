@@ -36,7 +36,6 @@ import { FavoriteItemType, type FavoriteAttributes } from '../favorite/favorite.
 
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
-  deleteByFileId(fileId: any): Promise<any>;
   deleteFilesByUser(user: User, files: File[]): Promise<void>;
   destroyFile(where: Partial<FileModel>): Promise<void>;
   findAll(): Promise<Array<File> | []>;
@@ -133,18 +132,10 @@ export interface FileRepository {
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
   ): Promise<number>;
-  updateFilesStatusToTrashed(
-    user: User,
-    fileIds: File['fileId'][],
-  ): Promise<void>;
   updateFilesStatusToTrashedByUuid(
     user: User,
     fileUuids: File['uuid'][],
   ): Promise<void>;
-  findByFileIds(
-    userId: User['id'],
-    fileIds: FileAttributes['fileId'][],
-  ): Promise<File[]>;
   getFilesByFolderUuid(
     folderUuid: Folder['uuid'],
     status: FileStatus,
@@ -211,10 +202,6 @@ export class SequelizeFileRepository implements FileRepository {
     private readonly thumbnailModel: typeof ThumbnailModel,
   ) {}
 
-  async deleteByFileId(fileId: any): Promise<unknown> {
-    throw new Error('Method not implemented.');
-  }
-
   async findAll(): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll();
     return files.map((file) => {
@@ -228,21 +215,6 @@ export class SequelizeFileRepository implements FileRepository {
     return raw ? this.toDomain(raw) : null;
   }
 
-  async findByFileIds(
-    userId: User['id'],
-    fileIds: FileAttributes['fileId'][],
-  ): Promise<File[]> {
-    const files = await this.fileModel.findAll({
-      where: {
-        userId: userId,
-        fileId: {
-          [Op.in]: fileIds,
-        },
-      },
-    });
-
-    return files.map(this.toDomain.bind(this));
-  }
 
   async findById(
     fileUuid: string,
@@ -1003,33 +975,6 @@ export class SequelizeFileRepository implements FileRepository {
     });
 
     return count;
-  }
-
-  async updateFilesStatusToTrashed(
-    user: User,
-    fileIds: File['fileId'][],
-  ): Promise<void> {
-    await this.fileModel.update(
-      {
-        // Remove this after status is the main field
-        deleted: true,
-        deletedAt: new Date(),
-        //
-        status: FileStatus.TRASHED,
-        updatedAt: new Date(),
-      },
-      {
-        where: {
-          userId: user.id,
-          fileId: {
-            [Op.in]: fileIds,
-          },
-          status: {
-            [Op.eq]: FileStatus.EXISTS,
-          },
-        },
-      },
-    );
   }
 
   async updateFilesStatusToTrashedByUuid(

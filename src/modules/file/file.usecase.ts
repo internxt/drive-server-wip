@@ -231,6 +231,7 @@ export class FileUseCases {
   ): Promise<{ fileExistedInDb: boolean; id?: number; uuid?: string }> {
     const file = await this.fileRepository.findOneBy({
       fileId,
+      userId: user.id,
     });
 
     if (file) {
@@ -864,15 +865,14 @@ export class FileUseCases {
 
   async moveFilesToTrash(
     user: User,
-    fileIds: FileAttributes['fileId'][],
+    ids: FileAttributes['id'][],
     fileUuids: FileAttributes['uuid'][] = [],
   ): Promise<void> {
-    const files = await this.fileRepository.findByFileIds(user.id, fileIds);
+    const files = await this.fileRepository.findByIds(user.id, ids);
 
     const allFileUuids = [...fileUuids, ...files.map((file) => file.uuid)];
 
     await Promise.all([
-      this.fileRepository.updateFilesStatusToTrashed(user, fileIds),
       this.fileRepository.updateFilesStatusToTrashedByUuid(user, fileUuids),
       this.sharingUsecases.bulkRemoveSharings(
         user,

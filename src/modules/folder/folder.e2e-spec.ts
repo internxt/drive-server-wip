@@ -56,7 +56,7 @@ describe('Folder module', () => {
       createFolderDto.plainName = folderName;
       createFolderDto.parentFolderUuid = folderUuid;
 
-      const response = await makeRequest('post', `/folders/`)
+      const response = await makeRequest('post', '/folders/')
         .send(createFolderDto)
         .expect(HttpStatus.CREATED);
       expect(response.body).toMatchObject({
@@ -73,7 +73,7 @@ describe('Folder module', () => {
       createFolderDto.plainName = folderName;
       createFolderDto.parentFolderUuid = anotherTestUser.rootFolder.uuid;
 
-      await makeRequest('post', `/folders/`)
+      await makeRequest('post', '/folders/')
         .send(createFolderDto)
         .expect(HttpStatus.NOT_FOUND);
     });

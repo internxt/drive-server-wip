@@ -226,7 +226,7 @@ export class SequelizeUserReferralsRepository implements UserReferralsRepository
     }
 
     this.logger.log(
-      `(usersReferralsService.redeemUserReferral) ` +
+      '(usersReferralsService.redeemUserReferral) ' +
         `The user '${uuid}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
     );
   }

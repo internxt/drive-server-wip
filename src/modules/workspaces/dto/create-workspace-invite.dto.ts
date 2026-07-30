@@ -23,7 +23,7 @@ export class CreateWorkspaceInviteDto {
   @ApiProperty({
     example: 'encrypted encryption key',
     description:
-      "Owner's encryption key encrypted with the invited user's public key.",
+      'Owner\'s encryption key encrypted with the invited user\'s public key.',
   })
   @IsNotEmpty()
   encryptionKey: WorkspaceInvite['encryptionKey'];

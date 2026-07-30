@@ -845,7 +845,7 @@ export class FolderUseCases {
       Logger.error(
         `User with id: ${user.id} tried to delete a folder that does not own.`,
       );
-      throw new ForbiddenException(`You are not owner of this share`);
+      throw new ForbiddenException('You are not owner of this share');
     }
 
     await this.folderRepository.deleteById(folder.id);

@@ -276,7 +276,7 @@ describe('SequelizeBackupRepository', () => {
       const result = await repository.sumExistentBackupSizes(userMocked.id);
 
       expect(backupModel.findAll).toHaveBeenCalledWith({
-        attributes: [[Sequelize.fn(`SUM`, Sequelize.col('size')), 'total']],
+        attributes: [[Sequelize.fn('SUM', Sequelize.col('size')), 'total']],
         where: { userId: userMocked.id },
         raw: true,
       });

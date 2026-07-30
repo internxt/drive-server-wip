@@ -620,7 +620,7 @@ describe('SharingRepository', () => {
             [
               {
                 val: expect.stringContaining(
-                  `CASE WHEN "role->role"."name" = :priorityRole THEN 1 ELSE 2 END`,
+                  'CASE WHEN "role->role"."name" = :priorityRole THEN 1 ELSE 2 END',
                 ),
               },
               'ASC',

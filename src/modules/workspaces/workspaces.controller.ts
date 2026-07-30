@@ -891,7 +891,7 @@ export class WorkspacesController {
   @ApiBearerAuth()
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
-    description: "user's trashed items in workspace",
+    description: 'user\'s trashed items in workspace',
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
@@ -924,7 +924,7 @@ export class WorkspacesController {
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
     description:
-      "Member's trashed items in workspace have been successfully removed",
+      'Member\'s trashed items in workspace have been successfully removed',
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)

@@ -68,7 +68,7 @@ export class RecoverAccountDto {
       ecc: 'encrypted private key',
       kyber: 'encrypted kyber private key',
     },
-    description: "User's private keys encrypted with the user's plain password",
+    description: 'User\'s private keys encrypted with the user\'s plain password',
   })
   @IsOptional()
   @ValidateNested()
@@ -105,7 +105,7 @@ export class DeprecatedRecoverAccountDto {
 
   @ApiProperty({
     example: 'encrypted private key',
-    description: "User's private key encrypted with the user's plain password",
+    description: 'User\'s private key encrypted with the user\'s plain password',
   })
   @IsOptional()
   privateKey?: string;

@@ -37,7 +37,7 @@ export class FeatureLimit implements CanActivate {
       new Logger().error(
         `[FEATURE_LIMIT]: Missing metadata for feature limit guard! url: ${request.url} handler: ${handler.name}`,
       );
-      throw new BadRequestException(`Missing Metadata`);
+      throw new BadRequestException('Missing Metadata');
     }
 
     const { limitLabels, dataSources } = metadata;

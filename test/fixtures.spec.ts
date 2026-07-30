@@ -20,7 +20,7 @@ import {
 } from '../src/common/audit-logs/audit-logs.attributes';
 
 describe('Testing fixtures tests', () => {
-  describe("User's fixture", () => {
+  describe('User\'s fixture', () => {
     it('When it generates a user, then the identifier should be random', () => {
       const user = fixtures.newUser();
       const otherUser = fixtures.newUser();
@@ -51,7 +51,7 @@ describe('Testing fixtures tests', () => {
     });
   });
 
-  describe("Folder's fixture", () => {
+  describe('Folder\'s fixture', () => {
     it('When it generates a folder, then the identifier should be random', () => {
       const folder = fixtures.newFolder();
       const otherFolder = fixtures.newFolder();
@@ -134,7 +134,7 @@ describe('Testing fixtures tests', () => {
     });
   });
 
-  describe("Files's fixture", () => {
+  describe('Files\'s fixture', () => {
     it('When it generates a file, then the identifier should be random', () => {
       const file = fixtures.newFile();
       const otherFile = fixtures.newFile();
@@ -310,7 +310,7 @@ describe('Testing fixtures tests', () => {
     });
   });
 
-  describe("Workspace's fixture", () => {
+  describe('Workspace\'s fixture', () => {
     it('When it generates a workspace, then the identifier should be random', () => {
       const workspace = fixtures.newWorkspace();
       const otherWorkspace = fixtures.newWorkspace();
@@ -349,7 +349,7 @@ describe('Testing fixtures tests', () => {
     });
   });
 
-  describe("WorkspaceTeam's fixture", () => {
+  describe('WorkspaceTeam\'s fixture', () => {
     it('When it generates a workspace team, then the identifier should be random', () => {
       const team = fixtures.newWorkspaceTeam();
       const otherTeam = fixtures.newWorkspaceTeam();
@@ -389,7 +389,7 @@ describe('Testing fixtures tests', () => {
     });
   });
 
-  describe("WorkspaceUser's fixture", () => {
+  describe('WorkspaceUser\'s fixture', () => {
     it('When it generates a workspace user, then the identifier should be random', () => {
       const user = fixtures.newWorkspaceUser();
       const otherUser = fixtures.newWorkspaceUser();
@@ -428,7 +428,7 @@ describe('Testing fixtures tests', () => {
     });
   });
 
-  describe("WorkspaceInvite's fixture", () => {
+  describe('WorkspaceInvite\'s fixture', () => {
     it('When it generates a workspace invite, then the identifier should be random', () => {
       const invite = fixtures.newWorkspaceInvite();
       const otherInvite = fixtures.newWorkspaceInvite();
@@ -465,7 +465,7 @@ describe('Testing fixtures tests', () => {
     });
   });
 
-  describe("newWorkspaceTeamUser's fixture", () => {
+  describe('newWorkspaceTeamUser\'s fixture', () => {
     it('When it generates a team user, then the identifier should be random', () => {
       const teamUser = fixtures.newWorkspaceTeamUser();
       const otherTeamUser = fixtures.newWorkspaceTeamUser();
@@ -500,7 +500,7 @@ describe('Testing fixtures tests', () => {
     });
   });
 
-  describe("WorkspaceItemUser's fixture", () => {
+  describe('WorkspaceItemUser\'s fixture', () => {
     it('When it generates a workspace item user, then the identifier should be random', () => {
       const itemUser = fixtures.newWorkspaceItemUser();
       const otherItemUser = fixtures.newWorkspaceItemUser();
@@ -574,7 +574,7 @@ describe('Testing fixtures tests', () => {
     });
   });
 
-  describe("Role's fixture", () => {
+  describe('Role\'s fixture', () => {
     it('When it generates a role, then the default name should be EDITOR', () => {
       const role = fixtures.newRole();
 

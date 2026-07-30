@@ -134,7 +134,7 @@ describe('TrashController', () => {
 
       expect(fileUseCases.moveFilesToTrash).toHaveBeenCalledWith(
         user,
-        [fileItems[1].id],
+        [parseInt(fileItems[1].id, 10)],
         [fileItems[0].uuid],
       );
       expect(folderUseCases.moveFoldersToTrash).toHaveBeenCalledWith(

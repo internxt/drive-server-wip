@@ -205,7 +205,7 @@ export class TrashController {
     }
 
     try {
-      const fileIds: string[] = [];
+      const fileIds: number[] = [];
       const fileUuids: string[] = [];
       const folderIds: number[] = [];
       const folderUuids: string[] = [];
@@ -214,7 +214,7 @@ export class TrashController {
         switch (item.type) {
           case ItemToTrashType.FILE:
             if (item.id) {
-              fileIds.push(item.id);
+              fileIds.push(parseInt(item.id, 10));
             } else {
               fileUuids.push(item.uuid);
             }
@@ -232,6 +232,7 @@ export class TrashController {
       }
       if (fileIds.length !== 0) {
         this.logger.warn(
+          { fileIds },
           `FILE_ID_USAGE: client ${clientId}, version ${version} is using fileId instead of fileUuid. Endpoint: /trash/add`,
         );
       }
@@ -291,7 +292,7 @@ export class TrashController {
 
   @Delete('/all')
   @ApiOperation({
-    summary: "Deletes all items from user's trash",
+    summary: 'Deletes all items from user\'s trash',
   })
   @AuditLog({
     action: AuditAction.EmptyTrashRequested,
@@ -332,7 +333,7 @@ export class TrashController {
   @Delete('/')
   @HttpCode(202)
   @ApiOperation({
-    summary: "Deletes items from user's trash",
+    summary: 'Deletes items from user\'s trash',
   })
   @GetDataFromRequest([{ sourceKey: 'body', fieldName: 'items' }])
   @WorkspacesInBehalfGuard(WorkspaceResourcesAction.DeleteItemsFromTrash)
@@ -399,7 +400,7 @@ export class TrashController {
   @Delete('/file/:fileId')
   @HttpCode(204)
   @ApiOperation({
-    summary: "Deletes a single file from user's trash",
+    summary: 'Deletes a single file from user\'s trash',
   })
   async deleteFile(
     @Param('fileId') fileId: string,
@@ -417,7 +418,7 @@ export class TrashController {
   @Delete('/folder/:folderId')
   @HttpCode(204)
   @ApiOperation({
-    summary: "Deletes a single file form user's trash",
+    summary: 'Deletes a single file form user\'s trash',
   })
   async deleteFolder(
     @Param('folderId') folderId: number,

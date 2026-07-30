@@ -33,7 +33,7 @@ describe('ValidateUUIDPipe', () => {
       BadRequestException,
     );
     expect(() => pipe.transform(invalidUUID, metadata)).toThrow(
-      `Value of 'testUUID' is not a valid UUID.`,
+      'Value of \'testUUID\' is not a valid UUID.',
     );
   });
 
@@ -48,7 +48,7 @@ describe('ValidateUUIDPipe', () => {
       BadRequestException,
     );
     expect(() => pipe.transform(nullUUID, metadata)).toThrow(
-      `Value of 'testUUID' is not a valid UUID.`,
+      'Value of \'testUUID\' is not a valid UUID.',
     );
   });
 
@@ -63,7 +63,7 @@ describe('ValidateUUIDPipe', () => {
       BadRequestException,
     );
     expect(() => pipe.transform(undefinedUUID, metadata)).toThrow(
-      `Value of 'testUUID' is not a valid UUID.`,
+      'Value of \'testUUID\' is not a valid UUID.',
     );
   });
 });

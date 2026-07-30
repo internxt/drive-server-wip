@@ -20,7 +20,7 @@ export class ShareItemWithTeamDto {
 
   @ApiProperty({
     example: '84f47d08-dc7c-43dc-b27c-bec4edaa9598',
-    description: "Workspace's team id you want to share this file with",
+    description: 'Workspace\'s team id you want to share this file with',
   })
   @IsNotEmpty()
   sharedWith: WorkspaceTeam['id'];

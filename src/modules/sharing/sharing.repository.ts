@@ -452,10 +452,10 @@ export class SequelizeSharingRepository implements SharingRepository {
       },
       attributes: [
         [
-          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
+          sequelize.literal('MAX("SharingModel"."encryption_key")'),
           'encryptionKey',
         ],
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+        [sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
       ],
       group: ['folder.id', 'folder->user.id', 'SharingModel.item_id'],
       include: [
@@ -501,10 +501,10 @@ export class SequelizeSharingRepository implements SharingRepository {
       attributes: [
         'itemId',
         [
-          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
+          sequelize.literal('MAX("SharingModel"."encryption_key")'),
           'encryptionKey',
         ],
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+        [sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
       ],
       where: {
         [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
@@ -546,10 +546,10 @@ export class SequelizeSharingRepository implements SharingRepository {
       },
       attributes: [
         [
-          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
+          sequelize.literal('MAX("SharingModel"."encryption_key")'),
           'encryptionKey',
         ],
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+        [sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
       ],
       group: ['file.id', 'file->user.id', 'SharingModel.item_id'],
       include: [
@@ -601,7 +601,7 @@ export class SequelizeSharingRepository implements SharingRepository {
     if (options?.givePriorityToRole) {
       queryOrder.push([
         sequelize.literal(
-          `CASE WHEN "role->role"."name" = :priorityRole THEN 1 ELSE 2 END`,
+          'CASE WHEN "role->role"."name" = :priorityRole THEN 1 ELSE 2 END',
         ),
         'ASC',
       ]);
@@ -640,10 +640,10 @@ export class SequelizeSharingRepository implements SharingRepository {
       attributes: [
         'itemId',
         [
-          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
+          sequelize.literal('MAX("SharingModel"."encryption_key")'),
           'encryptionKey',
         ],
-        [sequelize.literal(`MIN("SharingModel"."created_at")`), 'createdAt'],
+        [sequelize.literal('MIN("SharingModel"."created_at")'), 'createdAt'],
       ],
       where: {
         [Op.or]: [
@@ -710,7 +710,7 @@ export class SequelizeSharingRepository implements SharingRepository {
         ],
       },
       attributes: [
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+        [sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
       ],
       group: [
         'SharingModel.item_id',
@@ -782,7 +782,7 @@ export class SequelizeSharingRepository implements SharingRepository {
         ],
       },
       attributes: [
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+        [sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
       ],
       group: [
         'SharingModel.item_id',

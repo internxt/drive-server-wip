@@ -346,7 +346,7 @@ export class UserUseCases {
     }
 
     console.info(
-      `(usersReferralsService.redeemUserReferral) ` +
+      '(usersReferralsService.redeemUserReferral) ' +
         `The user '${uuid}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
     );
   }
@@ -1229,7 +1229,7 @@ export class UserUseCases {
 
       if (typeof decoded === 'string') {
         Logger.error(
-          `[RECOVER-ACCOUNT/VERIFY-AND-DECODE-TOKEN]: Token is a string`,
+          '[RECOVER-ACCOUNT/VERIFY-AND-DECODE-TOKEN]: Token is a string',
         );
         throw new ForbiddenException('Invalid token');
       }

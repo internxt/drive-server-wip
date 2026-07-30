@@ -123,7 +123,7 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
                   .trim();
                 logger.debug(oneLineQuery);
               } catch (error) {
-                logger.debug(`Failed to format sql`, sql);
+                logger.debug('Failed to format sql', sql);
               }
             },
       }),

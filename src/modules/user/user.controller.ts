@@ -1163,7 +1163,7 @@ export class UserController {
     } catch (err) {
       this.logger.error(
         { err, token },
-        `[DEACTIVATION] Error confirming deactivation`,
+        '[DEACTIVATION] Error confirming deactivation',
       );
       throw err;
     }
