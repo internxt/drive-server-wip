@@ -205,7 +205,7 @@ export class TrashController {
     }
 
     try {
-      const fileIds: string[] = [];
+      const fileIds: number[] = [];
       const fileUuids: string[] = [];
       const folderIds: number[] = [];
       const folderUuids: string[] = [];
@@ -214,7 +214,7 @@ export class TrashController {
         switch (item.type) {
           case ItemToTrashType.FILE:
             if (item.id) {
-              fileIds.push(item.id);
+              fileIds.push(parseInt(item.id, 10));
             } else {
               fileUuids.push(item.uuid);
             }
@@ -232,6 +232,7 @@ export class TrashController {
       }
       if (fileIds.length !== 0) {
         this.logger.warn(
+          { fileIds },
           `FILE_ID_USAGE: client ${clientId}, version ${version} is using fileId instead of fileUuid. Endpoint: /trash/add`,
         );
       }
