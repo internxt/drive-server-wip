@@ -13,7 +13,6 @@ import { CryptoService } from './../../externals/crypto/crypto.service';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { Folder, type FolderAttributes } from '../folder/folder.domain';
 import { SequelizeUserRepository } from '../user/user.repository';
-import { Time } from '../../lib/time';
 import { type BackupModel } from './models/backup.model';
 import { type DeviceAttributes } from './models/device.attributes';
 import { type CreateDeviceAndFolderDto } from './dto/create-device-and-folder.dto';
@@ -47,8 +46,8 @@ export class BackupUseCase {
     user: User,
     folderUuids: string[],
     updatedAfter: Date,
+    pageSize: number,
     cursorToken?: string,
-    pageSize = 20,
   ): Promise<{ files: File[]; nextCursor: string | null }> {
     if (!folderUuids.length) {
       return { files: [], nextCursor: null };
@@ -58,14 +57,10 @@ export class BackupUseCase {
       ? decodeCursor<FileUpdatedAtIdCursorDto>(cursorToken)
       : undefined;
 
-    const updatedAfterFilter = cursor
-      ? Time.now(cursor.updatedAfter)
-      : updatedAfter;
-
     const { files, hasMore } =
       await this.fileRepository.getFilesByFolderUuidsWithCursor({
         folderUuids,
-        updatedAfter: updatedAfterFilter,
+        updatedAfter,
         pageSize,
         userId: user.id,
         cursor,
@@ -75,7 +70,6 @@ export class BackupUseCase {
     const nextCursor =
       hasMore && lastFile
         ? encodeCursor({
-            updatedAfter: updatedAfterFilter.toISOString(),
             updatedAt: lastFile.updatedAt.toISOString(),
             id: lastFile.id,
           })

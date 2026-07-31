@@ -5,9 +5,6 @@ import { IsInt, IsISO8601 } from 'class-validator';
 
 export class FileUpdatedAtIdCursorDto {
   @IsISO8601()
-  updatedAfter: string;
-
-  @IsISO8601()
   updatedAt: string;
 
   @IsInt()

@@ -210,6 +210,7 @@ describe('BackupUseCase', () => {
         userMocked,
         [rootFolder.uuid, childUuid],
         updatedAfter,
+        1000,
       );
 
       expect(
@@ -237,6 +238,7 @@ describe('BackupUseCase', () => {
         userMocked,
         [rootFolder.uuid],
         updatedAfter,
+        1000,
       );
 
       expect(result.files).toHaveLength(1000);
@@ -247,22 +249,21 @@ describe('BackupUseCase', () => {
       );
       const lastFile = files[999];
       expect(decoded).toEqual({
-        updatedAfter: updatedAfter.toISOString(),
         updatedAt: lastFile.updatedAt.toISOString(),
         id: lastFile.id,
       });
     });
 
-    it('When a cursor token is provided, then it is decoded and the cursor updatedAfter is forwarded to the repository', async () => {
+    it('When a cursor token is provided, then it is decoded and forwarded to the repository along with the original updatedAfter', async () => {
       const rootFolder = newFolder();
       const cursorPayload = {
-        updatedAfter: '2023-06-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
         id: 42,
       };
       const cursorToken = Buffer.from(JSON.stringify(cursorPayload)).toString(
         'base64',
       );
+      const updatedAfter = new Date(0);
 
       jest
         .spyOn(fileRepository, 'getFilesByFolderUuidsWithCursor')
@@ -271,7 +272,8 @@ describe('BackupUseCase', () => {
       await backupUseCase.getFilesInFolders(
         userMocked,
         [rootFolder.uuid],
-        new Date(0),
+        updatedAfter,
+        1000,
         cursorToken,
       );
 
@@ -279,10 +281,10 @@ describe('BackupUseCase', () => {
         fileRepository.getFilesByFolderUuidsWithCursor,
       ).toHaveBeenCalledWith({
         folderUuids: [rootFolder.uuid],
-        updatedAfter: new Date(cursorPayload.updatedAfter),
+        updatedAfter,
         pageSize: 1000,
         userId: userMocked.id,
-        cursor: cursorPayload,
+        cursor: expect.objectContaining(cursorPayload),
       });
     });
 
@@ -296,6 +298,7 @@ describe('BackupUseCase', () => {
         userMocked,
         [],
         new Date(),
+        1000,
       );
 
       expect(result).toEqual({ files: [], nextCursor: null });

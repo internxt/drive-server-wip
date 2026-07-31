@@ -113,8 +113,8 @@ export class PhotosController {
       user,
       body.folderUuids,
       updatedAfter,
-      body.cursor,
       pageSize,
+      body.cursor,
     );
   }
 }

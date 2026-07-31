@@ -123,6 +123,7 @@ describe('PhotosController', () => {
         user,
         folderUuids,
         new Date(updatedAt),
+        1000,
         undefined,
       );
       expect(result).toEqual(page);
@@ -139,6 +140,7 @@ describe('PhotosController', () => {
         user,
         folderUuids,
         new Date(0),
+        1000,
         undefined,
       );
     });
@@ -155,6 +157,7 @@ describe('PhotosController', () => {
         user,
         folderUuids,
         new Date(0),
+        1000,
         cursor,
       );
     });

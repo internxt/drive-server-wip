@@ -13,7 +13,7 @@ import {
   type FileRepository,
   SequelizeFileRepository,
 } from './file.repository';
-import { Op, QueryTypes } from 'sequelize';
+import { Op, QueryTypes, Sequelize } from 'sequelize';
 import { v4 } from 'uuid';
 import { UserModel } from '../user/user.model';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
@@ -179,7 +179,7 @@ describe('FileRepository', () => {
       expect(result.files).toHaveLength(1);
     });
 
-    it('When a cursor is provided, then it filters by the cursor tuple', async () => {
+    it('When a cursor is provided, then it filters by the cursor tuple and ignores updatedAfter', async () => {
       const folderUuids = [v4()];
       const updatedAfter = new Date();
       const cursorUpdatedAt = new Date('2024-01-01T00:00:00.000Z');
@@ -193,7 +193,6 @@ describe('FileRepository', () => {
         pageSize: 1000,
         userId: user.id,
         cursor: {
-          updatedAfter: updatedAfter.toISOString(),
           updatedAt: cursorUpdatedAt.toISOString(),
           id: cursorId,
         },
@@ -203,13 +202,14 @@ describe('FileRepository', () => {
         where: {
           folderUuid: { [Op.in]: folderUuids },
           status: FileStatus.EXISTS,
-          updatedAt: { [Op.gt]: updatedAfter },
           userId: user.id,
-          [Op.or]: [
-            { updatedAt: { [Op.gt]: cursorUpdatedAt } },
-            { updatedAt: cursorUpdatedAt, id: { [Op.gt]: cursorId } },
+          [Op.and]: [
+            Sequelize.literal(
+              '("updated_at", "id") > (:cursorUpdatedAt, :cursorId)',
+            ),
           ],
         },
+        replacements: { cursorUpdatedAt, cursorId },
         include: [
           expect.objectContaining({ as: 'thumbnails', required: false }),
         ],
