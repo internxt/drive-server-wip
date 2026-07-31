@@ -1,6 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { type Sharing } from '../sharing.domain';
-import { IsBase64, IsNotEmpty, IsOptional } from 'class-validator';
+import {
+  IsBase64,
+  IsBoolean,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateSharingDto {
   @ApiProperty({
@@ -35,6 +41,8 @@ export class CreateSharingDto {
     example: 'encrypted_code',
     description: 'Encrypted code',
   })
+  @IsOptional()
+  @IsString()
   encryptedCode: Sharing['encryptedCode'];
 
   @ApiProperty({
@@ -49,5 +57,7 @@ export class CreateSharingDto {
     example: false,
     description: 'Maintain previous sharings',
   })
+  @IsOptional()
+  @IsBoolean()
   persistPreviousSharing: boolean;
 }

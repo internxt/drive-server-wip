@@ -1,5 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsPositive } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsPositive,
+  IsString,
+} from 'class-validator';
 import { type User } from '../../user/user.domain';
 import { type WorkspaceInvite } from '../domains/workspace-invite.domain';
 
@@ -32,6 +37,8 @@ export class CreateWorkspaceInviteDto {
     example: 'Hello, join to my workspace',
     description: 'Message to include in the invitation.',
   })
+  @IsOptional()
+  @IsString()
   message?: string;
 
   @ApiProperty({

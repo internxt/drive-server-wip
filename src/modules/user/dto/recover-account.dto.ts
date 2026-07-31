@@ -16,9 +16,11 @@ import {
 
 class PrivateKeysDto {
   @ApiProperty()
+  @IsString()
   ecc: string;
 
   @ApiProperty()
+  @IsString()
   kyber: string;
 }
 

@@ -23,6 +23,7 @@ import {
   HttpException,
   UseInterceptors,
   ConflictException,
+  ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -1066,12 +1067,13 @@ export class UserController {
     @UserDecorator() user: User,
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
-    if (!updateProfileDto.name && updateProfileDto.lastname == undefined) {
+    const { name, lastname } = updateProfileDto;
+    if (!name && lastname == undefined) {
       throw new BadRequestException(
         'At least one of name or lastname must be provided.',
       );
     }
-    return this.userUseCases.updateProfile(user, updateProfileDto);
+    return this.userUseCases.updateProfile(user, { name, lastname });
   }
 
   @Put('/avatar')
