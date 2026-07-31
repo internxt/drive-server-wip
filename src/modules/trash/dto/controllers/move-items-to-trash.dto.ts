@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsNotEmpty,
   IsOptional,
+  IsString,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
@@ -30,6 +31,8 @@ export class ItemToTrashDto {
     description: 'Uuid of file or folder',
     required: true,
   })
+  @IsOptional()
+  @IsString()
   uuid?: string;
 
   @ValidateIf((item) => (!item.id && !item.uuid) || (item.id && item.uuid))

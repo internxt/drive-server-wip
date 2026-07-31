@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class GetItemsInSharedFolderQueryDto {
   @ApiProperty({
@@ -7,6 +9,10 @@ export class GetItemsInSharedFolderQueryDto {
     required: false,
     type: Number,
   })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0)
   page: number = 0;
 
   @ApiProperty({
@@ -15,6 +21,10 @@ export class GetItemsInSharedFolderQueryDto {
     required: false,
     type: Number,
   })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
   perPage: number = 50;
 
   @ApiProperty({
@@ -23,6 +33,9 @@ export class GetItemsInSharedFolderQueryDto {
     required: false,
     type: String,
   })
+  // TODO: restrict to allowed values
+  @IsOptional()
+  @IsString()
   orderBy?: string;
 
   @ApiProperty({
@@ -30,5 +43,6 @@ export class GetItemsInSharedFolderQueryDto {
     description: 'Token that authorizes the access to the shared content',
     type: String,
   })
+  @IsString()
   token: string;
 }

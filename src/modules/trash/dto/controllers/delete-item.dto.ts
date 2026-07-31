@@ -4,6 +4,8 @@ import {
   IsDefined,
   IsEnum,
   IsNotEmpty,
+  IsOptional,
+  IsString,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
@@ -21,6 +23,8 @@ export class DeleteItemDto {
     deprecated: true,
     nullable: true,
   })
+  @IsOptional()
+  @IsString()
   id?: string;
 
   @ApiProperty({
@@ -28,6 +32,8 @@ export class DeleteItemDto {
     description: 'Uuid of file or folder',
     required: true,
   })
+  @IsOptional()
+  @IsString()
   uuid?: string;
 
   @ValidateIf((item) => (!item.id && !item.uuid) || (item.id && item.uuid))

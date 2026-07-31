@@ -23,6 +23,7 @@ import {
   HttpException,
   UseInterceptors,
   ConflictException,
+  ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -1064,7 +1065,8 @@ export class UserController {
   })
   async updateProfile(
     @UserDecorator() user: User,
-    @Body() updateProfileDto: UpdateProfileDto,
+    @Body(new ValidationPipe({ whitelist: true, transform: true }))
+    updateProfileDto: UpdateProfileDto,
   ) {
     if (!updateProfileDto.name && updateProfileDto.lastname == undefined) {
       throw new BadRequestException(

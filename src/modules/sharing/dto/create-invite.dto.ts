@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { type SharingInvite } from '../sharing.domain';
 import { type User } from '../../user/user.domain';
 
@@ -30,6 +30,8 @@ export class CreateInviteDto {
     description:
       'Owner\'s encryption key encrypted with the invited user\'s public key. This field should not be empty if the invitation type is "OWNER"',
   })
+  @IsOptional()
+  @IsString()
   encryptionKey: SharingInvite['encryptionKey'];
 
   @ApiProperty({
@@ -37,6 +39,8 @@ export class CreateInviteDto {
     description:
       'Encryption algorithm used to encrypt the encryption key. This field should not be empty if the invitation type is "OWNER"',
   })
+  @IsOptional()
+  @IsString()
   encryptionAlgorithm: SharingInvite['encryptionAlgorithm'];
 
   @ApiProperty({
@@ -58,17 +62,23 @@ export class CreateInviteDto {
     example: 'true | false',
     description: 'Request to send a notification to the invited user',
   })
+  @IsOptional()
+  @IsBoolean()
   notifyUser: boolean;
 
   @ApiProperty({
     example: 'I want to share this file with you',
     description: 'Message to send into the notification for the invited user',
   })
+  @IsOptional()
+  @IsString()
   notificationMessage?: string;
 
   @ApiProperty({
     example: false,
     description: 'Maintain previous sharings',
   })
+  @IsOptional()
+  @IsBoolean()
   persistPreviousSharing: boolean;
 }

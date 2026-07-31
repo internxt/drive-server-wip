@@ -5,6 +5,7 @@ import {
   IsInt,
   IsNotEmpty,
   IsOptional,
+  IsString,
   Max,
   Min,
   ValidateNested,
@@ -17,12 +18,16 @@ export enum ItemType {
 }
 
 export class SendLinkItemDto {
+  @IsNotEmpty()
+  @IsString()
   @ApiProperty({
     example: 'b4aef6a2-daca-47f1-8bee-34ab5a47c9f',
     description: 'id of item (uuidv4 format)',
   })
   id: string;
 
+  @IsNotEmpty()
+  @IsString()
   @ApiProperty({
     example: 'Item 1',
     description: 'Name of file',
@@ -45,18 +50,21 @@ export class SendLinkItemDto {
   })
   size: number;
 
+  @IsString()
   @ApiProperty({
     example: 'networkID',
     description: 'networkId of item',
   })
   networkId: string;
 
+  @IsString()
   @ApiProperty({
     example: 'key encrypted',
     description: 'encryptionKey of item',
   })
   encryptionKey: string;
 
+  @IsString()
   @ApiProperty({
     example: 'b4aef6a2-daca-47f1-8bee-34ab5a47c9f',
     description: 'parent folder id of item (uuidv4 format)',
