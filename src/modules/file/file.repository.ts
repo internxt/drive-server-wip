@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
+import { Time } from '../../lib/time';
+import { type FileUpdatedAtIdCursorDto } from './utils/file-cursor.util';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   File,
@@ -16,7 +18,6 @@ import {
   type WhereOptions,
 } from 'sequelize';
 import { type Literal } from 'sequelize/types/utils';
-import { type FileCursor } from '../../common/cursor.util';
 
 import { User } from '../user/user.domain';
 import { UserModel } from './../user/user.model';
@@ -33,7 +34,10 @@ import {
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { FavoriteModel } from '../favorite/favorite.model';
-import { FavoriteItemType, type FavoriteAttributes } from '../favorite/favorite.domain';
+import {
+  FavoriteItemType,
+  type FavoriteAttributes,
+} from '../favorite/favorite.domain';
 
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
@@ -146,12 +150,13 @@ export interface FileRepository {
     updatedAfter: Date,
     limit: number,
   ): Promise<File[]>;
-  getFilesByFolderUuidsPaginated(
-    folderUuids: Folder['uuid'][],
-    updatedAfter: Date,
-    pageSize: number,
-    cursor?: FileCursor,
-  ): Promise<{ files: File[]; hasMore: boolean }>;
+  getFilesByFolderUuidsPaginated(params: {
+    folderUuids: Folder['uuid'][];
+    updatedAfter: Date;
+    pageSize: number;
+    userId: User['id'];
+    cursor?: FileUpdatedAtIdCursorDto;
+  }): Promise<{ files: File[]; hasMore: boolean }>;
   getFilesWithUserByUuuid(
     fileUuids: string[],
     order?: [keyof FileModel, 'ASC' | 'DESC'][],
@@ -906,35 +911,46 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
-  async getFilesByFolderUuidsPaginated(
-    folderUuids: Folder['uuid'][],
-    updatedAfter: Date,
-    pageSize: number,
-    cursor?: FileCursor,
-  ): Promise<{ files: File[]; hasMore: boolean }> {
+  async getFilesByFolderUuidsPaginated({
+    folderUuids,
+    updatedAfter,
+    pageSize,
+    userId,
+    cursor,
+  }: {
+    folderUuids: Folder['uuid'][];
+    updatedAfter: Date;
+    pageSize: number;
+    userId: User['id'];
+    cursor?: FileUpdatedAtIdCursorDto;
+  }): Promise<{ files: File[]; hasMore: boolean }> {
+    const cursorUpdatedAt = cursor ? Time.now(cursor.updatedAt) : null;
+
     const where: WhereOptions<FileAttributes> = {
       folderUuid: { [Op.in]: folderUuids },
       status: FileStatus.EXISTS,
       updatedAt: { [Op.gt]: updatedAfter },
+      userId,
+      ...(cursor && {
+        [Op.or]: [
+          { updatedAt: { [Op.gt]: cursorUpdatedAt } },
+          { updatedAt: cursorUpdatedAt, id: { [Op.gt]: cursor.id } },
+        ],
+      }),
     };
-
-    if (cursor) {
-      const cursorUpdatedAt = new Date(cursor.updatedAt);
-
-      where[Op.or] = [
-        { updatedAt: { [Op.gt]: cursorUpdatedAt } },
-        {
-          updatedAt: cursorUpdatedAt,
-          uuid: { [Op.gt]: cursor.uuid },
-        },
-      ];
-    }
 
     const rows = await this.fileModel.findAll({
       where,
+      include: [
+        {
+          model: this.thumbnailModel,
+          as: 'thumbnails',
+          required: false,
+        },
+      ],
       order: [
         ['updatedAt', 'ASC'],
-        ['uuid', 'ASC'],
+        ['id', 'ASC'],
       ],
       limit: pageSize + 1,
     });

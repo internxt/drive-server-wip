@@ -13,6 +13,7 @@ import { CryptoService } from './../../externals/crypto/crypto.service';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { Folder, type FolderAttributes } from '../folder/folder.domain';
 import { SequelizeUserRepository } from '../user/user.repository';
+import { Time } from '../../lib/time';
 import { type BackupModel } from './models/backup.model';
 import { type DeviceAttributes } from './models/device.attributes';
 import { type CreateDeviceAndFolderDto } from './dto/create-device-and-folder.dto';
@@ -26,8 +27,8 @@ import { type File } from '../file/file.domain';
 import {
   decodeCursor,
   encodeCursor,
-  type FileCursor,
-} from '../../common/cursor.util';
+  type FileUpdatedAtIdCursorDto,
+} from '../file/utils/file-cursor.util';
 
 @Injectable()
 export class BackupUseCase {
@@ -42,43 +43,42 @@ export class BackupUseCase {
     private readonly fileRepository: SequelizeFileRepository,
   ) {}
 
-  async getFilesInFolderTree(
+  async getFilesInFolders(
     user: User,
-    folderUuid: string,
+    folderUuids: string[],
     updatedAfter: Date,
     cursorToken?: string,
   ): Promise<{ files: File[]; nextCursor: string | null }> {
-    const MAX_DEPTH = 2;
     const PAGE_SIZE = 1000;
-
-    const folderUuids = await this.folderRepository.getDescendantFolderUuids(
-      user.id,
-      folderUuid,
-      MAX_DEPTH,
-    );
 
     if (!folderUuids.length) {
       return { files: [], nextCursor: null };
     }
 
-    const cursor: FileCursor | undefined = cursorToken
-      ? decodeCursor(cursorToken)
+    const cursor: FileUpdatedAtIdCursorDto | undefined = cursorToken
+      ? decodeCursor<FileUpdatedAtIdCursorDto>(cursorToken)
       : undefined;
 
+    const updatedAfterFilter = cursor
+      ? Time.now(cursor.updatedAfter)
+      : updatedAfter;
+
     const { files, hasMore } =
-      await this.fileRepository.getFilesByFolderUuidsPaginated(
+      await this.fileRepository.getFilesByFolderUuidsPaginated({
         folderUuids,
-        updatedAfter,
-        PAGE_SIZE,
+        updatedAfter: updatedAfterFilter,
+        pageSize: PAGE_SIZE,
+        userId: user.id,
         cursor,
-      );
+      });
 
     const lastFile = files[files.length - 1];
     const nextCursor =
       hasMore && lastFile
         ? encodeCursor({
+            updatedAfter: effectiveUpdatedAfter.toISOString(),
             updatedAt: lastFile.updatedAt.toISOString(),
-            uuid: lastFile.uuid,
+            id: lastFile.id,
           })
         : null;
 

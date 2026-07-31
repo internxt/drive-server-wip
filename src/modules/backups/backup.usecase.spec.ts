@@ -195,57 +195,48 @@ describe('BackupUseCase', () => {
     });
   });
 
-  describe('getFilesInFolderTree', () => {
-    it('When descendant folders exist and there is no next page, then it fetches files with a null nextCursor', async () => {
+  describe('getFilesInFolders', () => {
+    it('When folders are given and there is no next page, then it fetches files with a null nextCursor', async () => {
       const rootFolder = newFolder();
       const childUuid = v4();
       const updatedAfter = new Date();
       const file = newFile();
 
       jest
-        .spyOn(folderRepository, 'getDescendantFolderUuids')
-        .mockResolvedValue([rootFolder.uuid, childUuid]);
-      jest
         .spyOn(fileRepository, 'getFilesByFolderUuidsPaginated')
         .mockResolvedValue({ files: [file], hasMore: false });
 
-      const result = await backupUseCase.getFilesInFolderTree(
+      const result = await backupUseCase.getFilesInFolders(
         userMocked,
-        rootFolder.uuid,
+        [rootFolder.uuid, childUuid],
         updatedAfter,
       );
 
-      expect(folderRepository.getDescendantFolderUuids).toHaveBeenCalledWith(
-        userMocked.id,
-        rootFolder.uuid,
-        2,
-      );
       expect(
         fileRepository.getFilesByFolderUuidsPaginated,
-      ).toHaveBeenCalledWith(
-        [rootFolder.uuid, childUuid],
+      ).toHaveBeenCalledWith({
+        folderUuids: [rootFolder.uuid, childUuid],
         updatedAfter,
-        1000,
-        undefined,
-      );
+        pageSize: 1000,
+        userId: userMocked.id,
+        cursor: undefined,
+      });
       expect(result).toEqual({ files: [file], nextCursor: null });
     });
 
     it('When there are more results than the page size, then it returns an encoded nextCursor', async () => {
       const rootFolder = newFolder();
       const files = Array.from({ length: 1000 }, () => newFile());
+      const updatedAfter = new Date();
 
-      jest
-        .spyOn(folderRepository, 'getDescendantFolderUuids')
-        .mockResolvedValue([rootFolder.uuid]);
       jest
         .spyOn(fileRepository, 'getFilesByFolderUuidsPaginated')
         .mockResolvedValue({ files, hasMore: true });
 
-      const result = await backupUseCase.getFilesInFolderTree(
+      const result = await backupUseCase.getFilesInFolders(
         userMocked,
-        rootFolder.uuid,
-        new Date(),
+        [rootFolder.uuid],
+        updatedAfter,
       );
 
       expect(result.files).toHaveLength(1000);
@@ -256,54 +247,54 @@ describe('BackupUseCase', () => {
       );
       const lastFile = files[999];
       expect(decoded).toEqual({
+        updatedAfter: updatedAfter.toISOString(),
         updatedAt: lastFile.updatedAt.toISOString(),
-        uuid: lastFile.uuid,
+        id: lastFile.id,
       });
     });
 
-    it('When a cursor token is provided, then it is decoded and forwarded to the repository', async () => {
+    it('When a cursor token is provided, then it is decoded and the cursor updatedAfter is forwarded to the repository', async () => {
       const rootFolder = newFolder();
       const cursorPayload = {
+        updatedAfter: '2023-06-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
-        uuid: v4(),
+        id: 42,
       };
       const cursorToken = Buffer.from(JSON.stringify(cursorPayload)).toString(
         'base64',
       );
 
       jest
-        .spyOn(folderRepository, 'getDescendantFolderUuids')
-        .mockResolvedValue([rootFolder.uuid]);
-      jest
         .spyOn(fileRepository, 'getFilesByFolderUuidsPaginated')
         .mockResolvedValue({ files: [], hasMore: false });
 
-      await backupUseCase.getFilesInFolderTree(
+      await backupUseCase.getFilesInFolders(
         userMocked,
-        rootFolder.uuid,
+        [rootFolder.uuid],
         new Date(0),
         cursorToken,
       );
 
       expect(
         fileRepository.getFilesByFolderUuidsPaginated,
-      ).toHaveBeenCalledWith([rootFolder.uuid], new Date(0), 1000, cursorPayload);
+      ).toHaveBeenCalledWith({
+        folderUuids: [rootFolder.uuid],
+        updatedAfter: new Date(cursorPayload.updatedAfter),
+        pageSize: 1000,
+        userId: userMocked.id,
+        cursor: cursorPayload,
+      });
     });
 
-    it('When no descendant folders exist, then it returns an empty page without querying files', async () => {
-      const rootFolder = newFolder();
-
-      jest
-        .spyOn(folderRepository, 'getDescendantFolderUuids')
-        .mockResolvedValue([]);
+    it('When no folder uuids are given, then it returns an empty page without querying files', async () => {
       const getFilesByFolderUuidsSpy = jest.spyOn(
         fileRepository,
         'getFilesByFolderUuidsPaginated',
       );
 
-      const result = await backupUseCase.getFilesInFolderTree(
+      const result = await backupUseCase.getFilesInFolders(
         userMocked,
-        rootFolder.uuid,
+        [],
         new Date(),
       );
 

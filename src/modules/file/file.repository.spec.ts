@@ -134,21 +134,26 @@ describe('FileRepository', () => {
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
 
-      const result = await repository.getFilesByFolderUuidsPaginated(
+      const result = await repository.getFilesByFolderUuidsPaginated({
         folderUuids,
         updatedAfter,
-        1000,
-      );
+        pageSize: 1000,
+        userId: user.id,
+      });
 
       expect(fileModel.findAll).toHaveBeenCalledWith({
         where: {
           folderUuid: { [Op.in]: folderUuids },
           status: FileStatus.EXISTS,
           updatedAt: { [Op.gt]: updatedAfter },
+          userId: user.id,
         },
+        include: [
+          expect.objectContaining({ as: 'thumbnails', required: false }),
+        ],
         order: [
           ['updatedAt', 'ASC'],
-          ['uuid', 'ASC'],
+          ['id', 'ASC'],
         ],
         limit: 1001,
       });
@@ -163,11 +168,12 @@ describe('FileRepository', () => {
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(files as any);
 
-      const result = await repository.getFilesByFolderUuidsPaginated(
+      const result = await repository.getFilesByFolderUuidsPaginated({
         folderUuids,
         updatedAfter,
-        1,
-      );
+        pageSize: 1,
+        userId: user.id,
+      });
 
       expect(result.hasMore).toBe(true);
       expect(result.files).toHaveLength(1);
@@ -177,33 +183,39 @@ describe('FileRepository', () => {
       const folderUuids = [v4()];
       const updatedAfter = new Date();
       const cursorUpdatedAt = new Date('2024-01-01T00:00:00.000Z');
-      const cursorUuid = v4();
+      const cursorId = 42;
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
 
-      await repository.getFilesByFolderUuidsPaginated(
+      await repository.getFilesByFolderUuidsPaginated({
         folderUuids,
         updatedAfter,
-        1000,
-        {
+        pageSize: 1000,
+        userId: user.id,
+        cursor: {
+          updatedAfter: updatedAfter.toISOString(),
           updatedAt: cursorUpdatedAt.toISOString(),
-          uuid: cursorUuid,
+          id: cursorId,
         },
-      );
+      });
 
       expect(fileModel.findAll).toHaveBeenCalledWith({
         where: {
           folderUuid: { [Op.in]: folderUuids },
           status: FileStatus.EXISTS,
           updatedAt: { [Op.gt]: updatedAfter },
+          userId: user.id,
           [Op.or]: [
             { updatedAt: { [Op.gt]: cursorUpdatedAt } },
-            { updatedAt: cursorUpdatedAt, uuid: { [Op.gt]: cursorUuid } },
+            { updatedAt: cursorUpdatedAt, id: { [Op.gt]: cursorId } },
           ],
         },
+        include: [
+          expect.objectContaining({ as: 'thumbnails', required: false }),
+        ],
         order: [
           ['updatedAt', 'ASC'],
-          ['uuid', 'ASC'],
+          ['id', 'ASC'],
         ],
         limit: 1001,
       });

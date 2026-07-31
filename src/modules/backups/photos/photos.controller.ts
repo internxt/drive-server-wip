@@ -6,7 +6,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -24,7 +23,7 @@ import { DeviceAsFolder } from '../dto/responses/device-as-folder.dto';
 import { FeatureLimit } from '../../feature-limit/feature-limits.guard';
 import { ApplyLimit } from '../../feature-limit/decorators/apply-limit.decorator';
 import { LimitLabels } from '../../feature-limit/limits.enum';
-import { GetFilesInFolderTreeDto } from './dto/get-files-in-folder-tree.dto';
+import { GetFilesInFoldersDto } from './dto/get-files-in-folders.dto';
 import { FileDto } from '../../file/dto/responses/file.dto';
 
 @ApiTags('Photos')
@@ -92,26 +91,25 @@ export class PhotosController {
     );
   }
 
-  @Get('/devices/folders/:uuid/files')
+  @Post('/devices/folders/files')
   @ApiOperation({
-    summary: 'Get all files inside a folder',
+    summary: 'Get delta of files inside given folders',
   })
   @ApiOkResponse({ type: FileDto, isArray: true })
   @ApiBearerAuth()
-  async getFilesInFolderTree(
+  async getFilesInFolders(
     @UserDecorator() user: User,
-    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
-    @Query() query: GetFilesInFolderTreeDto,
+    @Body() body: GetFilesInFoldersDto,
   ) {
-    const updatedAfter = query.updatedAt
-      ? new Date(query.updatedAt)
+    const updatedAfter = body.updatedAt
+      ? new Date(body.updatedAt)
       : new Date(0);
 
-    return this.backupUseCases.getFilesInFolderTree(
+    return this.backupUseCases.getFilesInFolders(
       user,
-      folderUuid,
+      body.folderUuids,
       updatedAfter,
-      query.cursor,
+      body.cursor,
     );
   }
 }

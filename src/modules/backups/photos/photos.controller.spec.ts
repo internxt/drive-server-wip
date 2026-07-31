@@ -107,21 +107,21 @@ describe('PhotosController', () => {
     });
   });
 
-  describe('getFilesInFolderTree', () => {
+  describe('getFilesInFolders', () => {
     it('When updatedAt is provided, then it should use it as the filter date', async () => {
       const page = { files: [{ uuid: v4() }], nextCursor: null } as any;
-      jest
-        .spyOn(backupUseCase, 'getFilesInFolderTree')
-        .mockResolvedValue(page);
+      jest.spyOn(backupUseCase, 'getFilesInFolders').mockResolvedValue(page);
       const updatedAt = '2024-01-01T00:00:00.000Z';
+      const folderUuids = [uuid];
 
-      const result = await controller.getFilesInFolderTree(user, uuid, {
+      const result = await controller.getFilesInFolders(user, {
+        folderUuids,
         updatedAt,
       });
 
-      expect(backupUseCase.getFilesInFolderTree).toHaveBeenCalledWith(
+      expect(backupUseCase.getFilesInFolders).toHaveBeenCalledWith(
         user,
-        uuid,
+        folderUuids,
         new Date(updatedAt),
         undefined,
       );
@@ -130,15 +130,14 @@ describe('PhotosController', () => {
 
     it('When updatedAt is not provided, then it should default to epoch', async () => {
       const page = { files: [], nextCursor: null } as any;
-      jest
-        .spyOn(backupUseCase, 'getFilesInFolderTree')
-        .mockResolvedValue(page);
+      jest.spyOn(backupUseCase, 'getFilesInFolders').mockResolvedValue(page);
+      const folderUuids = [uuid];
 
-      await controller.getFilesInFolderTree(user, uuid, {});
+      await controller.getFilesInFolders(user, { folderUuids });
 
-      expect(backupUseCase.getFilesInFolderTree).toHaveBeenCalledWith(
+      expect(backupUseCase.getFilesInFolders).toHaveBeenCalledWith(
         user,
-        uuid,
+        folderUuids,
         new Date(0),
         undefined,
       );
@@ -146,16 +145,15 @@ describe('PhotosController', () => {
 
     it('When cursor is provided, then it should forward it to the usecase', async () => {
       const page = { files: [], nextCursor: null } as any;
-      jest
-        .spyOn(backupUseCase, 'getFilesInFolderTree')
-        .mockResolvedValue(page);
+      jest.spyOn(backupUseCase, 'getFilesInFolders').mockResolvedValue(page);
       const cursor = 'some-cursor-token';
+      const folderUuids = [uuid];
 
-      await controller.getFilesInFolderTree(user, uuid, { cursor });
+      await controller.getFilesInFolders(user, { folderUuids, cursor });
 
-      expect(backupUseCase.getFilesInFolderTree).toHaveBeenCalledWith(
+      expect(backupUseCase.getFilesInFolders).toHaveBeenCalledWith(
         user,
-        uuid,
+        folderUuids,
         new Date(0),
         cursor,
       );
