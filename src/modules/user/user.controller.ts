@@ -1065,9 +1065,9 @@ export class UserController {
   })
   async updateProfile(
     @UserDecorator() user: User,
-    @Body()
-    { name, lastname }: UpdateProfileDto,
+    @Body() updateProfileDto: UpdateProfileDto,
   ) {
+    const { name, lastname } = updateProfileDto;
     if (!name && lastname == undefined) {
       throw new BadRequestException(
         'At least one of name or lastname must be provided.',
