@@ -1,6 +1,5 @@
 import { createMock } from '@golevelup/ts-jest';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
-import { GetDescendantFolderUuidsTimeoutException } from './exception/get-descendant-folder-uuids-timeout.exception';
 import { SequelizeFolderRepository } from './folder.repository';
 import { FolderModel } from './folder.model';
 import { Folder } from './folder.domain';
@@ -119,49 +118,6 @@ describe('SequelizeFolderRepository', () => {
       await expect(repository.calculateFolderSize(folder.uuid)).rejects.toThrow(
         CalculateFolderSizeTimeoutException,
       );
-    });
-  });
-
-  describe('getDescendantFolderUuids', () => {
-    it('When descendant folders exist, then it returns their uuids', async () => {
-      const childUuid = v4();
-      jest
-        .spyOn(FolderModel.sequelize, 'query')
-        .mockResolvedValue([
-          { uuid: folder.uuid },
-          { uuid: childUuid },
-        ] as any);
-
-      const uuids = await repository.getDescendantFolderUuids(
-        folder.userId,
-        folder.uuid,
-        2,
-      );
-
-      expect(uuids).toEqual([folder.uuid, childUuid]);
-      expect(FolderModel.sequelize.query).toHaveBeenCalledWith(
-        expect.any(String),
-        {
-          replacements: {
-            folderUuid: folder.uuid,
-            userId: folder.userId,
-            maxDepth: 2,
-          },
-          type: QueryTypes.SELECT,
-        },
-      );
-    });
-
-    it('When the query times out, then throw an exception', async () => {
-      jest.spyOn(FolderModel.sequelize, 'query').mockRejectedValue({
-        original: {
-          code: TIMEOUT_ERROR_CODE,
-        },
-      });
-
-      await expect(
-        repository.getDescendantFolderUuids(folder.userId, folder.uuid, 2),
-      ).rejects.toThrow(GetDescendantFolderUuidsTimeoutException);
     });
   });
 

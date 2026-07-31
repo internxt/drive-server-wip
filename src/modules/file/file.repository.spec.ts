@@ -99,33 +99,6 @@ describe('FileRepository', () => {
     });
   });
 
-  describe('getFilesByFolderUuids', () => {
-    it('When called, then it fetches existent files updated after the given date, limited and ordered', async () => {
-      const folderUuids = [v4(), v4()];
-      const updatedAfter = new Date();
-      const file = newFile();
-
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
-
-      const result = await repository.getFilesByFolderUuids(
-        folderUuids,
-        updatedAfter,
-        1000,
-      );
-
-      expect(fileModel.findAll).toHaveBeenCalledWith({
-        where: {
-          folderUuid: { [Op.in]: folderUuids },
-          status: FileStatus.EXISTS,
-          updatedAt: { [Op.gt]: updatedAfter },
-        },
-        order: [['updatedAt', 'ASC']],
-        limit: 1000,
-      });
-      expect(result).toHaveLength(1);
-    });
-  });
-
   describe('getFilesByFolderUuidsWithCursor', () => {
     it('When called and there are fewer results than the page size, then hasMore is false', async () => {
       const folderUuids = [v4(), v4()];

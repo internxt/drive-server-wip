@@ -145,11 +145,6 @@ export interface FileRepository {
     folderUuid: Folder['uuid'],
     status: FileStatus,
   ): Promise<File[]>;
-  getFilesByFolderUuids(
-    folderUuids: Folder['uuid'][],
-    updatedAfter: Date,
-    limit: number,
-  ): Promise<File[]>;
   getFilesByFolderUuidsWithCursor(params: {
     folderUuids: Folder['uuid'][];
     updatedAfter: Date;
@@ -887,24 +882,6 @@ export class SequelizeFileRepository implements FileRepository {
           required: false,
         },
       ],
-    });
-
-    return files.map(this.toDomain.bind(this));
-  }
-
-  async getFilesByFolderUuids(
-    folderUuids: Folder['uuid'][],
-    updatedAfter: Date,
-    limit: number,
-  ): Promise<File[]> {
-    const files = await this.fileModel.findAll({
-      where: {
-        folderUuid: { [Op.in]: folderUuids },
-        status: FileStatus.EXISTS,
-        updatedAt: { [Op.gt]: updatedAfter },
-      },
-      order: [['updatedAt', 'ASC']],
-      limit,
     });
 
     return files.map(this.toDomain.bind(this));

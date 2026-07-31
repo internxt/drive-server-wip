@@ -15,7 +15,6 @@ import { type FolderAttributes } from './folder.attributes';
 import { FolderModel } from './folder.model';
 import { SharingModel } from '../sharing/models';
 import { CalculateFolderSizeTimeoutException } from './exception/calculate-folder-size-timeout.exception';
-import { GetDescendantFolderUuidsTimeoutException } from './exception/get-descendant-folder-uuids-timeout.exception';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import {
   WorkspaceItemType,
@@ -138,11 +137,6 @@ interface FolderRepository {
     totalSize: number;
     isTotalSizeExact: boolean;
   }>;
-  getDescendantFolderUuids(
-    userId: User['id'],
-    folderUuid: Folder['uuid'],
-    maxDepth: number,
-  ): Promise<Folder['uuid'][]>;
   findUserFoldersByUuid(
     user: User,
     uuids: FolderAttributes['uuid'][],
@@ -1122,52 +1116,6 @@ export class SequelizeFolderRepository implements FolderRepository {
       isFileCountExact: isExact,
       isTotalSizeExact: isExact,
     };
-  }
-
-  async getDescendantFolderUuids(
-    userId: User['id'],
-    folderUuid: Folder['uuid'],
-    maxDepth: number,
-  ): Promise<Folder['uuid'][]> {
-    const query = `
-      WITH RECURSIVE folder_recursive AS (
-        SELECT fl1.uuid, fl1.parent_uuid, 1 AS depth, fl1.user_id AS owner_id
-        FROM folders fl1
-        WHERE fl1.uuid = :folderUuid
-          AND fl1.user_id = :userId
-          AND fl1.removed = FALSE
-          AND fl1.deleted = FALSE
-
-        UNION ALL
-
-        SELECT fl2.uuid, fl2.parent_uuid, fr.depth + 1, fr.owner_id
-        FROM folders fl2
-        INNER JOIN folder_recursive fr ON fr.uuid = fl2.parent_uuid
-        WHERE fr.depth < :maxDepth
-          AND fl2.user_id = fr.owner_id
-          AND fl2.removed = FALSE
-          AND fl2.deleted = FALSE
-      )
-      SELECT uuid FROM folder_recursive;
-    `;
-
-    try {
-      const rows: Array<{ uuid: string }> = await FolderModel.sequelize.query(
-        query,
-        {
-          replacements: { folderUuid, userId, maxDepth },
-          type: QueryTypes.SELECT,
-        },
-      );
-
-      return rows.map((row) => row.uuid);
-    } catch (error) {
-      if (error.original?.code === '57014') {
-        throw new GetDescendantFolderUuidsTimeoutException();
-      }
-
-      throw error;
-    }
   }
 
   async getDeletedFoldersWithNotDeletedChildren(options: {
