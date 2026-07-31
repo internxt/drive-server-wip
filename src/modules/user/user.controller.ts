@@ -1065,15 +1065,15 @@ export class UserController {
   })
   async updateProfile(
     @UserDecorator() user: User,
-    @Body(new ValidationPipe({ whitelist: true, transform: true }))
-    updateProfileDto: UpdateProfileDto,
+    @Body()
+    { name, lastname }: UpdateProfileDto,
   ) {
-    if (!updateProfileDto.name && updateProfileDto.lastname == undefined) {
+    if (!name && lastname == undefined) {
       throw new BadRequestException(
         'At least one of name or lastname must be provided.',
       );
     }
-    return this.userUseCases.updateProfile(user, updateProfileDto);
+    return this.userUseCases.updateProfile(user, { name, lastname });
   }
 
   @Put('/avatar')
