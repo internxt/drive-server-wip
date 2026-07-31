@@ -150,7 +150,7 @@ export interface FileRepository {
     updatedAfter: Date,
     limit: number,
   ): Promise<File[]>;
-  getFilesByFolderUuidsPaginated(params: {
+  getFilesByFolderUuidsWithCursor(params: {
     folderUuids: Folder['uuid'][];
     updatedAfter: Date;
     pageSize: number;
@@ -231,7 +231,6 @@ export class SequelizeFileRepository implements FileRepository {
 
     return raw ? this.toDomain(raw) : null;
   }
-
 
   async findById(
     fileUuid: string,
@@ -911,7 +910,7 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
-  async getFilesByFolderUuidsPaginated({
+  async getFilesByFolderUuidsWithCursor({
     folderUuids,
     updatedAfter,
     pageSize,
@@ -929,18 +928,23 @@ export class SequelizeFileRepository implements FileRepository {
     const where: WhereOptions<FileAttributes> = {
       folderUuid: { [Op.in]: folderUuids },
       status: FileStatus.EXISTS,
-      updatedAt: { [Op.gt]: updatedAfter },
       userId,
-      ...(cursor && {
-        [Op.or]: [
-          { updatedAt: { [Op.gt]: cursorUpdatedAt } },
-          { updatedAt: cursorUpdatedAt, id: { [Op.gt]: cursor.id } },
-        ],
-      }),
+      ...(cursor
+        ? {
+            [Op.and]: [
+              Sequelize.literal(
+                '("updated_at", "id") > (:cursorUpdatedAt, :cursorId)',
+              ),
+            ],
+          }
+        : { updatedAt: { [Op.gt]: updatedAfter } }),
     };
 
     const rows = await this.fileModel.findAll({
       where,
+      replacements: cursor
+        ? { cursorUpdatedAt, cursorId: cursor.id }
+        : undefined,
       include: [
         {
           model: this.thumbnailModel,

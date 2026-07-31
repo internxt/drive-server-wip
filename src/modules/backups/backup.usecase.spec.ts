@@ -203,7 +203,7 @@ describe('BackupUseCase', () => {
       const file = newFile();
 
       jest
-        .spyOn(fileRepository, 'getFilesByFolderUuidsPaginated')
+        .spyOn(fileRepository, 'getFilesByFolderUuidsWithCursor')
         .mockResolvedValue({ files: [file], hasMore: false });
 
       const result = await backupUseCase.getFilesInFolders(
@@ -213,7 +213,7 @@ describe('BackupUseCase', () => {
       );
 
       expect(
-        fileRepository.getFilesByFolderUuidsPaginated,
+        fileRepository.getFilesByFolderUuidsWithCursor,
       ).toHaveBeenCalledWith({
         folderUuids: [rootFolder.uuid, childUuid],
         updatedAfter,
@@ -230,7 +230,7 @@ describe('BackupUseCase', () => {
       const updatedAfter = new Date();
 
       jest
-        .spyOn(fileRepository, 'getFilesByFolderUuidsPaginated')
+        .spyOn(fileRepository, 'getFilesByFolderUuidsWithCursor')
         .mockResolvedValue({ files, hasMore: true });
 
       const result = await backupUseCase.getFilesInFolders(
@@ -265,7 +265,7 @@ describe('BackupUseCase', () => {
       );
 
       jest
-        .spyOn(fileRepository, 'getFilesByFolderUuidsPaginated')
+        .spyOn(fileRepository, 'getFilesByFolderUuidsWithCursor')
         .mockResolvedValue({ files: [], hasMore: false });
 
       await backupUseCase.getFilesInFolders(
@@ -276,7 +276,7 @@ describe('BackupUseCase', () => {
       );
 
       expect(
-        fileRepository.getFilesByFolderUuidsPaginated,
+        fileRepository.getFilesByFolderUuidsWithCursor,
       ).toHaveBeenCalledWith({
         folderUuids: [rootFolder.uuid],
         updatedAfter: new Date(cursorPayload.updatedAfter),
@@ -289,7 +289,7 @@ describe('BackupUseCase', () => {
     it('When no folder uuids are given, then it returns an empty page without querying files', async () => {
       const getFilesByFolderUuidsSpy = jest.spyOn(
         fileRepository,
-        'getFilesByFolderUuidsPaginated',
+        'getFilesByFolderUuidsWithCursor',
       );
 
       const result = await backupUseCase.getFilesInFolders(

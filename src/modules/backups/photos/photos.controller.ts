@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -25,6 +26,7 @@ import { ApplyLimit } from '../../feature-limit/decorators/apply-limit.decorator
 import { LimitLabels } from '../../feature-limit/limits.enum';
 import { GetFilesInFoldersDto } from './dto/get-files-in-folders.dto';
 import { FileDto } from '../../file/dto/responses/file.dto';
+import { Time } from '../../../lib/time';
 
 @ApiTags('Photos')
 @Controller('photos')
@@ -91,7 +93,8 @@ export class PhotosController {
     );
   }
 
-  @Post('/devices/folders/files')
+  @Post('/folders/files-delta')
+  @HttpCode(200)
   @ApiOperation({
     summary: 'Get delta of files inside given folders',
   })
@@ -102,14 +105,16 @@ export class PhotosController {
     @Body() body: GetFilesInFoldersDto,
   ) {
     const updatedAfter = body.updatedAt
-      ? new Date(body.updatedAt)
-      : new Date(0);
+      ? Time.now(body.updatedAt)
+      : Time.now(0);
+    const pageSize = body.limit ?? 1000;
 
     return this.backupUseCases.getFilesInFolders(
       user,
       body.folderUuids,
       updatedAfter,
       body.cursor,
+      pageSize,
     );
   }
 }

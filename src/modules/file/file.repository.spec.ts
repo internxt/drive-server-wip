@@ -126,7 +126,7 @@ describe('FileRepository', () => {
     });
   });
 
-  describe('getFilesByFolderUuidsPaginated', () => {
+  describe('getFilesByFolderUuidsWithCursor', () => {
     it('When called and there are fewer results than the page size, then hasMore is false', async () => {
       const folderUuids = [v4(), v4()];
       const updatedAfter = new Date();
@@ -134,7 +134,7 @@ describe('FileRepository', () => {
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
 
-      const result = await repository.getFilesByFolderUuidsPaginated({
+      const result = await repository.getFilesByFolderUuidsWithCursor({
         folderUuids,
         updatedAfter,
         pageSize: 1000,
@@ -168,7 +168,7 @@ describe('FileRepository', () => {
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(files as any);
 
-      const result = await repository.getFilesByFolderUuidsPaginated({
+      const result = await repository.getFilesByFolderUuidsWithCursor({
         folderUuids,
         updatedAfter,
         pageSize: 1,
@@ -187,7 +187,7 @@ describe('FileRepository', () => {
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
 
-      await repository.getFilesByFolderUuidsPaginated({
+      await repository.getFilesByFolderUuidsWithCursor({
         folderUuids,
         updatedAfter,
         pageSize: 1000,

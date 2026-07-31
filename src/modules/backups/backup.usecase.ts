@@ -48,9 +48,8 @@ export class BackupUseCase {
     folderUuids: string[],
     updatedAfter: Date,
     cursorToken?: string,
+    pageSize = 20,
   ): Promise<{ files: File[]; nextCursor: string | null }> {
-    const PAGE_SIZE = 1000;
-
     if (!folderUuids.length) {
       return { files: [], nextCursor: null };
     }
@@ -64,10 +63,10 @@ export class BackupUseCase {
       : updatedAfter;
 
     const { files, hasMore } =
-      await this.fileRepository.getFilesByFolderUuidsPaginated({
+      await this.fileRepository.getFilesByFolderUuidsWithCursor({
         folderUuids,
         updatedAfter: updatedAfterFilter,
-        pageSize: PAGE_SIZE,
+        pageSize,
         userId: user.id,
         cursor,
       });
@@ -76,7 +75,7 @@ export class BackupUseCase {
     const nextCursor =
       hasMore && lastFile
         ? encodeCursor({
-            updatedAfter: effectiveUpdatedAfter.toISOString(),
+            updatedAfter: updatedAfterFilter.toISOString(),
             updatedAt: lastFile.updatedAt.toISOString(),
             id: lastFile.id,
           })
