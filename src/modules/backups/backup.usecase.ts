@@ -22,6 +22,12 @@ import { type UpdateDeviceAndFolderDto } from './dto/update-device-and-folder.dt
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { FileStatus } from '../file/file.domain';
+import { type File } from '../file/file.domain';
+import {
+  decodeCursor,
+  encodeCursor,
+  type FileUpdatedAtIdCursorDto,
+} from '../file/utils/file-cursor.util';
 
 @Injectable()
 export class BackupUseCase {
@@ -35,6 +41,42 @@ export class BackupUseCase {
     private readonly folderRepository: SequelizeFolderRepository,
     private readonly fileRepository: SequelizeFileRepository,
   ) {}
+
+  async getFilesInFolders(
+    user: User,
+    folderUuids: string[],
+    updatedAfter: Date,
+    pageSize: number,
+    cursorToken?: string,
+  ): Promise<{ files: File[]; nextCursor: string | null }> {
+    if (!folderUuids.length) {
+      return { files: [], nextCursor: null };
+    }
+
+    const cursor: FileUpdatedAtIdCursorDto | undefined = cursorToken
+      ? decodeCursor<FileUpdatedAtIdCursorDto>(cursorToken)
+      : undefined;
+
+    const { files, hasMore } =
+      await this.fileRepository.getFilesByFolderUuidsWithCursor({
+        folderUuids,
+        updatedAfter,
+        pageSize,
+        userId: user.id,
+        cursor,
+      });
+
+    const lastFile = files.at(-1);
+    const nextCursor =
+      hasMore && lastFile
+        ? encodeCursor({
+            updatedAt: lastFile.updatedAt.toISOString(),
+            uuid: lastFile.uuid,
+          })
+        : null;
+
+    return { files, nextCursor };
+  }
 
   async deleteUserBackups(userId: number) {
     const [deletedBackups, deletedDevices] = await Promise.all([

@@ -1,4 +1,9 @@
-import { newDevice, newFolder, newUser } from './../../../test/fixtures';
+import {
+  newDevice,
+  newFile,
+  newFolder,
+  newUser,
+} from './../../../test/fixtures';
 import { v4 } from 'uuid';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
@@ -187,6 +192,117 @@ describe('BackupUseCase', () => {
 
       const result = await backupUseCase.deleteUserBackups(userMocked.id);
       expect(result).toEqual({ deletedBackups: 5, deletedDevices: 3 });
+    });
+  });
+
+  describe('getFilesInFolders', () => {
+    it('When folders are given and there is no next page, then it fetches files with a null nextCursor', async () => {
+      const rootFolder = newFolder();
+      const childUuid = v4();
+      const updatedAfter = new Date();
+      const file = newFile();
+
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuidsWithCursor')
+        .mockResolvedValue({ files: [file], hasMore: false });
+
+      const result = await backupUseCase.getFilesInFolders(
+        userMocked,
+        [rootFolder.uuid, childUuid],
+        updatedAfter,
+        1000,
+      );
+
+      expect(
+        fileRepository.getFilesByFolderUuidsWithCursor,
+      ).toHaveBeenCalledWith({
+        folderUuids: [rootFolder.uuid, childUuid],
+        updatedAfter,
+        pageSize: 1000,
+        userId: userMocked.id,
+        cursor: undefined,
+      });
+      expect(result).toEqual({ files: [file], nextCursor: null });
+    });
+
+    it('When there are more results than the page size, then it returns an encoded nextCursor', async () => {
+      const rootFolder = newFolder();
+      const files = Array.from({ length: 1000 }, () => newFile());
+      const updatedAfter = new Date();
+
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuidsWithCursor')
+        .mockResolvedValue({ files, hasMore: true });
+
+      const result = await backupUseCase.getFilesInFolders(
+        userMocked,
+        [rootFolder.uuid],
+        updatedAfter,
+        1000,
+      );
+
+      expect(result.files).toHaveLength(1000);
+      expect(result.nextCursor).not.toBeNull();
+
+      const decoded = JSON.parse(
+        Buffer.from(result.nextCursor as string, 'base64').toString('utf-8'),
+      );
+      const lastFile = files[999];
+      expect(decoded).toEqual({
+        updatedAt: lastFile.updatedAt.toISOString(),
+        uuid: lastFile.uuid,
+      });
+    });
+
+    it('When a cursor token is provided, then it is decoded and forwarded to the repository along with the original updatedAfter', async () => {
+      const rootFolder = newFolder();
+      const cursorPayload = {
+        updatedAt: '2024-01-01T00:00:00.000Z',
+        uuid: v4(),
+      };
+      const cursorToken = Buffer.from(JSON.stringify(cursorPayload)).toString(
+        'base64',
+      );
+      const updatedAfter = new Date(0);
+
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuidsWithCursor')
+        .mockResolvedValue({ files: [], hasMore: false });
+
+      await backupUseCase.getFilesInFolders(
+        userMocked,
+        [rootFolder.uuid],
+        updatedAfter,
+        1000,
+        cursorToken,
+      );
+
+      expect(
+        fileRepository.getFilesByFolderUuidsWithCursor,
+      ).toHaveBeenCalledWith({
+        folderUuids: [rootFolder.uuid],
+        updatedAfter,
+        pageSize: 1000,
+        userId: userMocked.id,
+        cursor: expect.objectContaining(cursorPayload),
+      });
+    });
+
+    it('When no folder uuids are given, then it returns an empty page without querying files', async () => {
+      const getFilesByFolderUuidsSpy = jest.spyOn(
+        fileRepository,
+        'getFilesByFolderUuidsWithCursor',
+      );
+
+      const result = await backupUseCase.getFilesInFolders(
+        userMocked,
+        [],
+        new Date(),
+        1000,
+      );
+
+      expect(result).toEqual({ files: [], nextCursor: null });
+      expect(getFilesByFolderUuidsSpy).not.toHaveBeenCalled();
     });
   });
 

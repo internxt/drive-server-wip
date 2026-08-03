@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { FileStatus } from '../../file.domain';
+import { ThumbnailDto } from '../../../thumbnail/dto/thumbnail.dto';
 
 export class FileDto {
   @ApiProperty()
@@ -43,6 +44,8 @@ export class FileDto {
   status: FileStatus;
   @ApiProperty({ required: false })
   isFavorite?: boolean;
+  @ApiProperty({ type: ThumbnailDto, isArray: true, required: false })
+  thumbnails?: ThumbnailDto[];
 }
 
 export class FilesDto {

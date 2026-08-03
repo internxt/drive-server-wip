@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -23,6 +24,10 @@ import { DeviceAsFolder } from '../dto/responses/device-as-folder.dto';
 import { FeatureLimit } from '../../feature-limit/feature-limits.guard';
 import { ApplyLimit } from '../../feature-limit/decorators/apply-limit.decorator';
 import { LimitLabels } from '../../feature-limit/limits.enum';
+import { GetFilesInFoldersDto } from './dto/get-files-in-folders.dto';
+import { GetFilesInFoldersResponseDto } from '../dto/responses/get-files-in-folders.dto';
+import { type File } from '../../file/file.domain';
+import { Time } from '../../../lib/time';
 
 @ApiTags('Photos')
 @Controller('photos')
@@ -86,6 +91,31 @@ export class PhotosController {
       user,
       uuid,
       body.deviceName,
+    );
+  }
+
+  @Post('/folders/files/delta/search')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get delta of files inside given folders',
+  })
+  @ApiOkResponse({ type: GetFilesInFoldersResponseDto })
+  @ApiBearerAuth()
+  async getFilesInFolders(
+    @UserDecorator() user: User,
+    @Body() body: GetFilesInFoldersDto,
+  ): Promise<{ files: File[]; nextCursor: string | null }> {
+    const updatedAfter = body.updatedAt
+      ? Time.now(body.updatedAt)
+      : Time.now(0);
+    const pageSize = body.limit ?? 1000;
+
+    return this.backupUseCases.getFilesInFolders(
+      user,
+      body.folderUuids,
+      updatedAfter,
+      pageSize,
+      body.cursor,
     );
   }
 }

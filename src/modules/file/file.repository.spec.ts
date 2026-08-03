@@ -13,7 +13,7 @@ import {
   type FileRepository,
   SequelizeFileRepository,
 } from './file.repository';
-import { Op, QueryTypes } from 'sequelize';
+import { Op, QueryTypes, Sequelize } from 'sequelize';
 import { v4 } from 'uuid';
 import { UserModel } from '../user/user.model';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
@@ -96,6 +96,100 @@ describe('FileRepository', () => {
         }),
       );
       expect(result).toEqual(totalUsage);
+    });
+  });
+
+  describe('getFilesByFolderUuidsWithCursor', () => {
+    it('When called and there are fewer results than the page size, then hasMore is false', async () => {
+      const folderUuids = [v4(), v4()];
+      const updatedAfter = new Date();
+      const file = newFile();
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
+
+      const result = await repository.getFilesByFolderUuidsWithCursor({
+        folderUuids,
+        updatedAfter,
+        pageSize: 1000,
+        userId: user.id,
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: {
+          folderUuid: { [Op.in]: folderUuids },
+          updatedAt: { [Op.gt]: updatedAfter },
+          userId: user.id,
+        },
+        include: [
+          expect.objectContaining({ as: 'thumbnails', required: false }),
+        ],
+        order: [
+          ['updatedAt', 'ASC'],
+          ['uuid', 'ASC'],
+        ],
+        limit: 1001,
+      });
+      expect(result).toEqual({ files: expect.any(Array), hasMore: false });
+      expect(result.files).toHaveLength(1);
+    });
+
+    it('When there is one more row than the page size, then hasMore is true and the extra row is dropped', async () => {
+      const folderUuids = [v4()];
+      const updatedAfter = new Date();
+      const files = [newFile(), newFile()];
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(files as any);
+
+      const result = await repository.getFilesByFolderUuidsWithCursor({
+        folderUuids,
+        updatedAfter,
+        pageSize: 1,
+        userId: user.id,
+      });
+
+      expect(result.hasMore).toBe(true);
+      expect(result.files).toHaveLength(1);
+    });
+
+    it('When a cursor is provided, then it filters by the cursor tuple and ignores updatedAfter', async () => {
+      const folderUuids = [v4()];
+      const updatedAfter = new Date();
+      const cursorUpdatedAt = new Date('2024-01-01T00:00:00.000Z');
+      const cursorId = v4();
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.getFilesByFolderUuidsWithCursor({
+        folderUuids,
+        updatedAfter,
+        pageSize: 1000,
+        userId: user.id,
+        cursor: {
+          updatedAt: cursorUpdatedAt.toISOString(),
+          uuid: cursorId,
+        },
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: {
+          folderUuid: { [Op.in]: folderUuids },
+          userId: user.id,
+          [Op.and]: [
+            Sequelize.literal(
+              '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
+            ),
+          ],
+        },
+        replacements: { cursorUpdatedAt, cursorId },
+        include: [
+          expect.objectContaining({ as: 'thumbnails', required: false }),
+        ],
+        order: [
+          ['updatedAt', 'ASC'],
+          ['uuid', 'ASC'],
+        ],
+        limit: 1001,
+      });
     });
   });
 

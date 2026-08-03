@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
+import { Time } from '../../lib/time';
+import { type FileUpdatedAtIdCursorDto } from './utils/file-cursor.util';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   File,
@@ -32,7 +34,10 @@ import {
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
 import { FavoriteModel } from '../favorite/favorite.model';
-import { FavoriteItemType, type FavoriteAttributes } from '../favorite/favorite.domain';
+import {
+  FavoriteItemType,
+  type FavoriteAttributes,
+} from '../favorite/favorite.domain';
 
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
@@ -140,6 +145,13 @@ export interface FileRepository {
     folderUuid: Folder['uuid'],
     status: FileStatus,
   ): Promise<File[]>;
+  getFilesByFolderUuidsWithCursor(params: {
+    folderUuids: Folder['uuid'][];
+    updatedAfter: Date;
+    pageSize: number;
+    userId: User['id'];
+    cursor?: FileUpdatedAtIdCursorDto;
+  }): Promise<{ files: File[]; hasMore: boolean }>;
   getFilesWithUserByUuuid(
     fileUuids: string[],
     order?: [keyof FileModel, 'ASC' | 'DESC'][],
@@ -214,7 +226,6 @@ export class SequelizeFileRepository implements FileRepository {
 
     return raw ? this.toDomain(raw) : null;
   }
-
 
   async findById(
     fileUuid: string,
@@ -874,6 +885,60 @@ export class SequelizeFileRepository implements FileRepository {
     });
 
     return files.map(this.toDomain.bind(this));
+  }
+
+  async getFilesByFolderUuidsWithCursor({
+    folderUuids,
+    updatedAfter,
+    pageSize,
+    userId,
+    cursor,
+  }: {
+    folderUuids: Folder['uuid'][];
+    updatedAfter: Date;
+    pageSize: number;
+    userId: User['id'];
+    cursor?: FileUpdatedAtIdCursorDto;
+  }): Promise<{ files: File[]; hasMore: boolean }> {
+    const cursorUpdatedAt = cursor ? Time.now(cursor.updatedAt) : null;
+
+    const where: WhereOptions<FileAttributes> = {
+      folderUuid: { [Op.in]: folderUuids },
+      userId,
+      ...(cursor
+        ? {
+            [Op.and]: [
+              Sequelize.literal(
+                '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
+              ),
+            ],
+          }
+        : { updatedAt: { [Op.gt]: updatedAfter } }),
+    };
+
+    const rows = await this.fileModel.findAll({
+      where,
+      replacements: cursor
+        ? { cursorUpdatedAt, cursorId: cursor.uuid }
+        : undefined,
+      include: [
+        {
+          model: this.thumbnailModel,
+          as: 'thumbnails',
+          required: false,
+        },
+      ],
+      order: [
+        ['updatedAt', 'ASC'],
+        ['uuid', 'ASC'],
+      ],
+      limit: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+
+    return { files: page.map(this.toDomain.bind(this)), hasMore };
   }
 
   async findAllByUserIdExceptFolderIds(
