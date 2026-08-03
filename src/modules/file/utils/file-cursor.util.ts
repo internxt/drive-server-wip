@@ -1,7 +1,5 @@
 import { plainToInstance } from 'class-transformer';
-import { validateSync } from 'class-validator';
-
-import { IsISO8601, IsUUID } from 'class-validator';
+import { validateSync, IsISO8601, IsUUID } from 'class-validator';
 
 export class FileUpdatedAtIdCursorDto {
   @IsISO8601()
@@ -22,7 +20,9 @@ function validateCursor(decoded: unknown): FileUpdatedAtIdCursorDto | null {
   return errors.length === 0 ? instance : null;
 }
 
-export function decodeCursor<T extends FileUpdatedAtIdCursorDto>(token: string): T | null {
+export function decodeCursor<T extends FileUpdatedAtIdCursorDto>(
+  token: string,
+): T | null {
   try {
     const decoded = JSON.parse(Buffer.from(token, 'base64').toString('utf-8'));
 

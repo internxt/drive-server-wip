@@ -66,7 +66,7 @@ export class BackupUseCase {
         cursor,
       });
 
-    const lastFile = files[files.length - 1];
+    const lastFile = files.at(-1);
     const nextCursor =
       hasMore && lastFile
         ? encodeCursor({
