@@ -56,7 +56,7 @@ export class FuzzySearchQueryDto {
 
   @ApiProperty({
     description:
-      'File extensions to filter by, or the reserved value "folder" to include folders (single value or repeated param)',
+      'File extensions to filter by, or the reserved value "folder" to include folders (a single string is also accepted)',
     type: String,
     isArray: true,
     required: false,

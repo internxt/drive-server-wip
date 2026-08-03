@@ -7,7 +7,6 @@ import { NestFactory } from '@nestjs/core';
 import { type NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
-import { parse } from 'qs';
 import {
   DocumentBuilder,
   type SwaggerCustomOptions,
@@ -16,7 +15,6 @@ import {
 import { AppModule } from './app.module';
 import configuration from './config/configuration';
 import { TransformInterceptor } from './lib/transform.interceptor';
-import { MAX_TYPE_FILTERS } from './modules/fuzzy-search/dto/fuzzy-search-query.dto';
 import { RequestLoggerInterceptor } from './middlewares/requests-logger.interceptor';
 import { NewRelicInterceptor } from './lib/newrelic.interceptor';
 
@@ -53,9 +51,7 @@ async function bootstrap() {
 
   app.set('trust proxy', enableTrustProxy);
   // Express v5 changed this to 'simple' by default, we need the same behavior as v4
-  app.set('query parser', (query: string) =>
-    parse(query, { arrayLimit: MAX_TYPE_FILTERS }),
-  );
+  app.set('query parser', 'extended');
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalInterceptors(new NewRelicInterceptor());
