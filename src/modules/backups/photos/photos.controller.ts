@@ -30,6 +30,8 @@ import { Time } from '../../../lib/time';
 
 @ApiTags('Photos')
 @Controller('photos')
+@ApplyLimit({ limitLabels: [LimitLabels.PhotosAccess] })
+@UseGuards(FeatureLimit)
 export class PhotosController {
   constructor(private readonly backupUseCases: BackupUseCase) {}
 
