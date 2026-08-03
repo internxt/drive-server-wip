@@ -9,6 +9,7 @@ import {
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
   ValidateIf,
 } from 'class-validator';
@@ -43,6 +44,7 @@ export class GetFilesInFoldersDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(256)
   cursor?: string;
 
   @ApiProperty({
