@@ -30,8 +30,6 @@ import { Time } from '../../../lib/time';
 
 @ApiTags('Photos')
 @Controller('photos')
-@ApplyLimit({ limitLabels: [LimitLabels.PhotosAccess] })
-@UseGuards(FeatureLimit)
 export class PhotosController {
   constructor(private readonly backupUseCases: BackupUseCase) {}
 
@@ -93,7 +91,7 @@ export class PhotosController {
     );
   }
 
-  @Post('/folders/files-delta')
+  @Post('/folders/files/delta/search')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Get delta of files inside given folders',
