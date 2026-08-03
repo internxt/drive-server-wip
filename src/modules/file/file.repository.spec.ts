@@ -126,7 +126,7 @@ describe('FileRepository', () => {
         ],
         order: [
           ['updatedAt', 'ASC'],
-          ['id', 'ASC'],
+          ['uuid', 'ASC'],
         ],
         limit: 1001,
       });
@@ -156,7 +156,7 @@ describe('FileRepository', () => {
       const folderUuids = [v4()];
       const updatedAfter = new Date();
       const cursorUpdatedAt = new Date('2024-01-01T00:00:00.000Z');
-      const cursorId = 42;
+      const cursorId = v4();
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
 
@@ -167,7 +167,7 @@ describe('FileRepository', () => {
         userId: user.id,
         cursor: {
           updatedAt: cursorUpdatedAt.toISOString(),
-          id: cursorId,
+          uuid: cursorId,
         },
       });
 
@@ -178,7 +178,7 @@ describe('FileRepository', () => {
           userId: user.id,
           [Op.and]: [
             Sequelize.literal(
-              '("updated_at", "id") > (:cursorUpdatedAt, :cursorId)',
+              '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
             ),
           ],
         },
@@ -188,7 +188,7 @@ describe('FileRepository', () => {
         ],
         order: [
           ['updatedAt', 'ASC'],
-          ['id', 'ASC'],
+          ['uuid', 'ASC'],
         ],
         limit: 1001,
       });

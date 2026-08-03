@@ -910,7 +910,7 @@ export class SequelizeFileRepository implements FileRepository {
         ? {
             [Op.and]: [
               Sequelize.literal(
-                '("updated_at", "id") > (:cursorUpdatedAt, :cursorId)',
+                '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
               ),
             ],
           }
@@ -920,7 +920,7 @@ export class SequelizeFileRepository implements FileRepository {
     const rows = await this.fileModel.findAll({
       where,
       replacements: cursor
-        ? { cursorUpdatedAt, cursorId: cursor.id }
+        ? { cursorUpdatedAt, cursorId: cursor.uuid }
         : undefined,
       include: [
         {
@@ -931,7 +931,7 @@ export class SequelizeFileRepository implements FileRepository {
       ],
       order: [
         ['updatedAt', 'ASC'],
-        ['id', 'ASC'],
+        ['uuid', 'ASC'],
       ],
       limit: pageSize + 1,
     });

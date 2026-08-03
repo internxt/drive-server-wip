@@ -1,14 +1,14 @@
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 
-import { IsInt, IsISO8601 } from 'class-validator';
+import { IsISO8601, IsUUID } from 'class-validator';
 
 export class FileUpdatedAtIdCursorDto {
   @IsISO8601()
   updatedAt: string;
 
-  @IsInt()
-  id: number;
+  @IsUUID()
+  uuid: string;
 }
 
 export function encodeCursor<T>(cursor: T): string {

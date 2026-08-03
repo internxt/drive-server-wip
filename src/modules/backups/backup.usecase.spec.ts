@@ -250,7 +250,7 @@ describe('BackupUseCase', () => {
       const lastFile = files[999];
       expect(decoded).toEqual({
         updatedAt: lastFile.updatedAt.toISOString(),
-        id: lastFile.id,
+        uuid: lastFile.uuid,
       });
     });
 
@@ -258,7 +258,7 @@ describe('BackupUseCase', () => {
       const rootFolder = newFolder();
       const cursorPayload = {
         updatedAt: '2024-01-01T00:00:00.000Z',
-        id: 42,
+        uuid: v4(),
       };
       const cursorToken = Buffer.from(JSON.stringify(cursorPayload)).toString(
         'base64',

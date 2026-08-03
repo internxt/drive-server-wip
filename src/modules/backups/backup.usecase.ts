@@ -71,7 +71,7 @@ export class BackupUseCase {
       hasMore && lastFile
         ? encodeCursor({
             updatedAt: lastFile.updatedAt.toISOString(),
-            id: lastFile.id,
+            uuid: lastFile.uuid,
           })
         : null;
 
