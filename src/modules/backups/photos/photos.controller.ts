@@ -25,7 +25,8 @@ import { FeatureLimit } from '../../feature-limit/feature-limits.guard';
 import { ApplyLimit } from '../../feature-limit/decorators/apply-limit.decorator';
 import { LimitLabels } from '../../feature-limit/limits.enum';
 import { GetFilesInFoldersDto } from './dto/get-files-in-folders.dto';
-import { FileDto } from '../../file/dto/responses/file.dto';
+import { GetFilesInFoldersResponseDto } from '../dto/responses/get-files-in-folders.dto';
+import { type File } from '../../file/file.domain';
 import { Time } from '../../../lib/time';
 
 @ApiTags('Photos')
@@ -98,12 +99,12 @@ export class PhotosController {
   @ApiOperation({
     summary: 'Get delta of files inside given folders',
   })
-  @ApiOkResponse({ type: FileDto, isArray: true })
+  @ApiOkResponse({ type: GetFilesInFoldersResponseDto })
   @ApiBearerAuth()
   async getFilesInFolders(
     @UserDecorator() user: User,
     @Body() body: GetFilesInFoldersDto,
-  ) {
+  ): Promise<{ files: File[]; nextCursor: string | null }> {
     const updatedAfter = body.updatedAt
       ? Time.now(body.updatedAt)
       : Time.now(0);
