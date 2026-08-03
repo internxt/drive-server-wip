@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -1207,13 +1208,14 @@ export class WorkspacesController {
     });
   }
 
-  @Get(':workspaceId/fuzzy/:search')
+  @Post(':workspaceId/fuzzy/:search')
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Search by name inside workspace',
   })
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiParam({ name: 'search', type: String, required: true })
+  @HttpCode(200)
   @ApiOkResponse({
     description: 'Search results',
   })
@@ -1224,7 +1226,7 @@ export class WorkspacesController {
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
     @Param('search') search: string,
-    @Query() query: FuzzySearchQueryDto,
+    @Body() query: FuzzySearchQueryDto,
   ) {
     return this.workspaceUseCases.searchWorkspaceContent(
       user,

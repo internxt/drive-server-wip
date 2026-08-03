@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, Param, Query } from '@nestjs/common';
+import { Body, Controller, HttpCode, Param, Post } from '@nestjs/common';
 import { FuzzySearchUseCases } from './fuzzy-search.usecase';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { User } from '../user/user.domain';
@@ -11,7 +11,7 @@ import { FuzzySearchQueryDto } from './dto/fuzzy-search-query.dto';
 export class FuzzySearchController {
   constructor(private readonly usecases: FuzzySearchUseCases) {}
 
-  @Get('/:search')
+  @Post('/:search')
   @ApiOperation({
     summary: 'Search for items from a part of the name',
   })
@@ -23,7 +23,7 @@ export class FuzzySearchController {
   async fuzzySearch(
     @UserDecorator() user: User,
     @Param('search') search: string,
-    @Query() query: FuzzySearchQueryDto,
+    @Body() query: FuzzySearchQueryDto,
   ): Promise<FuzzySearchResults> {
     const data = await this.usecases.fuzzySearch(user.uuid, search, query);
 
