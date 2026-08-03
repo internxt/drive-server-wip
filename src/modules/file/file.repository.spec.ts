@@ -117,7 +117,6 @@ describe('FileRepository', () => {
       expect(fileModel.findAll).toHaveBeenCalledWith({
         where: {
           folderUuid: { [Op.in]: folderUuids },
-          status: FileStatus.EXISTS,
           updatedAt: { [Op.gt]: updatedAfter },
           userId: user.id,
         },
@@ -174,7 +173,6 @@ describe('FileRepository', () => {
       expect(fileModel.findAll).toHaveBeenCalledWith({
         where: {
           folderUuid: { [Op.in]: folderUuids },
-          status: FileStatus.EXISTS,
           userId: user.id,
           [Op.and]: [
             Sequelize.literal(
