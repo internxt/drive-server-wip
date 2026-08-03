@@ -904,7 +904,6 @@ export class SequelizeFileRepository implements FileRepository {
 
     const where: WhereOptions<FileAttributes> = {
       folderUuid: { [Op.in]: folderUuids },
-      status: FileStatus.EXISTS,
       userId,
       ...(cursor
         ? {
