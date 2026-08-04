@@ -30,6 +30,12 @@ import {
   HARD_DELETE_OLD_FILES_QUEUE,
 } from './tasks/hard-delete-old-files/hard-delete-old-files.scheduler';
 import { HardDeleteOldFilesProcessor } from './tasks/hard-delete-old-files/hard-delete-old-files.processor';
+import {
+  CleanupDeletedFilesTableScheduler,
+  CLEANUP_DELETED_FILES_TABLE_QUEUE,
+} from './tasks/cleanup-deleted-files-table/cleanup-deleted-files-table.scheduler';
+import { CleanupDeletedFilesTableProcessor } from './tasks/cleanup-deleted-files-table/cleanup-deleted-files-table.processor';
+import { SequelizeDeletedFilesRepository } from './repositories/deleted-files.repository';
 @Module({
   imports: [
     SequelizeModule.forFeature([JobExecutionModel]),
@@ -55,6 +61,9 @@ import { HardDeleteOldFilesProcessor } from './tasks/hard-delete-old-files/hard-
     }),
     BullModule.registerQueue({ name: TRASH_CLEANUP_QUEUE }),
     BullModule.registerQueue({ name: HARD_DELETE_OLD_FILES_QUEUE }),
+    BullModule.registerQueue({
+      name: CLEANUP_DELETED_FILES_TABLE_QUEUE,
+    }),
     BullModule.registerQueue({ name: DELETED_ITEMS_CLEANUP_QUEUE }),
     FileModule,
     FolderModule,
@@ -75,6 +84,9 @@ import { HardDeleteOldFilesProcessor } from './tasks/hard-delete-old-files/hard-
     TrashCleanupProcessor,
     HardDeleteOldFilesScheduler,
     HardDeleteOldFilesProcessor,
+    CleanupDeletedFilesTableScheduler,
+    CleanupDeletedFilesTableProcessor,
+    SequelizeDeletedFilesRepository,
   ],
 })
 export class JobsModule {}
