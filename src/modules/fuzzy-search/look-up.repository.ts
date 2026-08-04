@@ -50,11 +50,13 @@ interface FilterClauses {
 }
 
 function buildFilterClauses(filters: FuzzySearchFilters): FilterClauses {
+  const hasMinSize = filters.minSize !== undefined && filters.minSize > 0;
+  const hasSizeFilter = hasMinSize || filters.maxSize !== undefined;
+
   const includeFiles = !filters.itemTypes || filters.itemTypes.includes('file');
   const includeFolders =
     (!filters.itemTypes || filters.itemTypes.includes('folder')) &&
-    filters.minSize === undefined &&
-    filters.maxSize === undefined;
+    !hasSizeFilter;
 
   const fileClauses: string[] = [];
   const folderClauses: string[] = [];
@@ -64,7 +66,7 @@ function buildFilterClauses(filters: FuzzySearchFilters): FilterClauses {
     fileClauses.push('AND LOWER(f."type") IN (:extensions)');
     replacements.extensions = filters.extensions;
   }
-  if (filters.minSize !== undefined) {
+  if (hasMinSize) {
     fileClauses.push('AND f."size" >= :minSize');
     replacements.minSize = filters.minSize;
   }

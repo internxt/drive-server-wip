@@ -72,6 +72,24 @@ describe('SequelizeLookUpRepository', () => {
       expect(options.replacements.minSize).toBe(1024);
     });
 
+    test('When the min size is zero, then it should not filter files nor exclude folders', async () => {
+      await repository.search(userUuid, partialName, { minSize: 0 });
+
+      const [sql, options] = sequelize.query.mock.calls[0];
+      expect(sql).toContain('FROM folders');
+      expect(sql).not.toContain(':minSize');
+      expect(options.replacements.minSize).toBeUndefined();
+    });
+
+    test('When the max size is zero, then it should filter files and exclude folders', async () => {
+      await repository.search(userUuid, partialName, { maxSize: 0 });
+
+      const [sql, options] = sequelize.query.mock.calls[0];
+      expect(sql).toContain('f."size" <= :maxSize');
+      expect(sql).not.toContain('FROM folders');
+      expect(options.replacements.maxSize).toBe(0);
+    });
+
     test('When a size filter is combined with folders only, then it should return empty without querying', async () => {
       const result = await repository.search(userUuid, partialName, {
         itemTypes: ['folder'],
