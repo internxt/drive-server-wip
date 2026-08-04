@@ -8,13 +8,12 @@ const SLEEP_TIME_MS = 5000;
 // Fixed cutoff: 6 months before this migration.
 const CUTOFF_DATE = '2026-02-03';
 
-const indexName = 'deleted_files_recent_processed_enqueued_updated_at_idx';
+const indexName = 'deleted_files_recent_updated_at_idx';
 
 const selectBatchQuery = `
     SELECT file_id, network_file_id, processed, created_at, updated_at, processed_at, enqueued, enqueued_at
     FROM deleted_files
-    WHERE processed = true AND enqueued = true
-      AND updated_at >= '${CUTOFF_DATE}'
+    WHERE updated_at >= '${CUTOFF_DATE}'
       AND (updated_at, file_id) > (:cursorUpdatedAt, :cursorFileId)
     ORDER BY updated_at, file_id
     LIMIT ${BATCH_SIZE};
@@ -27,7 +26,7 @@ module.exports = {
     await queryInterface.sequelize.query(`
         CREATE INDEX CONCURRENTLY IF NOT EXISTS ${indexName}
         ON deleted_files (updated_at, file_id)
-        WHERE processed = true AND enqueued = true AND updated_at >= '${CUTOFF_DATE}';
+        WHERE updated_at >= '${CUTOFF_DATE}';
     `);
 
     let cursorUpdatedAt = CUTOFF_DATE;
