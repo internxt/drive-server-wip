@@ -31,14 +31,14 @@ import { FavoriteModel } from '../favorite/favorite.model';
   tableName: 'files',
 })
 export class FileModel extends Model implements FileAttributes {
+  @Unique
   @PrimaryKey
+  @Column(DataType.UUIDV4)
+  uuid: string;
+
   @AutoIncrement
   @Column
   id: number;
-
-  @Unique
-  @Column(DataType.UUIDV4)
-  uuid: string;
 
   @AllowNull
   @Column(DataType.STRING(24))
