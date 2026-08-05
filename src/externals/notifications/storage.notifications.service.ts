@@ -48,7 +48,10 @@ export class StorageNotificationService {
     );
 
     this.notificationService.add(event);
-    this.getTokensAndSendApnNotification(user.uuid);
+
+    if (!user.ownsBackupsBucket(payload.bucket)) {
+      this.getTokensAndSendApnNotification(user.uuid);
+    }
   }
 
   fileUpdated({ payload, user, clientId }: EventArguments<FileDto>) {
@@ -62,7 +65,10 @@ export class StorageNotificationService {
     );
 
     this.notificationService.add(event);
-    this.getTokensAndSendApnNotification(user.uuid);
+
+    if (!user.ownsBackupsBucket(payload.bucket)) {
+      this.getTokensAndSendApnNotification(user.uuid);
+    }
   }
 
   fileDeleted({
