@@ -1,7 +1,13 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { createMock, type DeepMocked } from '@golevelup/ts-jest';
 import { type Logger } from '@nestjs/common';
-import { StorageNotificationService } from './storage.notifications.service';
+import { getQueueToken } from '@nestjs/bullmq';
+import { type Queue } from 'bullmq';
+import {
+  APN_REFRESH_DEBOUNCE_MS,
+  APN_REFRESH_QUEUE,
+  StorageNotificationService,
+} from './storage.notifications.service';
 import { NotificationService } from './notification.service';
 import { ApnService } from '../apn/apn.service';
 import { SequelizeUserRepository } from '../../modules/user/user.repository';
@@ -22,13 +28,20 @@ describe('StorageNotificationService', () => {
   let notificationService: NotificationService;
   let apnService: ApnService;
   let userRepository: SequelizeUserRepository;
+  let apnRefreshQueue: DeepMocked<Queue>;
   let loggerMock: DeepMocked<Logger>;
 
   beforeEach(async () => {
     loggerMock = createMock<Logger>();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [StorageNotificationService],
+      providers: [
+        StorageNotificationService,
+        {
+          provide: getQueueToken(APN_REFRESH_QUEUE),
+          useValue: createMock<Queue>(),
+        },
+      ],
     })
       .setLogger(loggerMock)
       .useMocker(createMock)
@@ -45,6 +58,7 @@ describe('StorageNotificationService', () => {
     userRepository = module.get<SequelizeUserRepository>(
       SequelizeUserRepository,
     );
+    apnRefreshQueue = module.get(getQueueToken(APN_REFRESH_QUEUE));
   });
 
   it('should be defined', () => {
@@ -60,11 +74,11 @@ describe('StorageNotificationService', () => {
     const payload = {
       fileId: '123',
       fileName: 'test.pdf',
+      bucket: 'drive-bucket',
     } as unknown as FileDto;
     const clientId = 'test-client';
 
-    it('When called, then it should add a notification event and send APN notification', () => {
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
+    it('When called, then it should add a notification event and enqueue an APN refresh', () => {
       const notification = new NotificationEvent(
         'notification.itemCreated',
         payload,
@@ -79,16 +93,16 @@ describe('StorageNotificationService', () => {
       expect(notificationService.add).toHaveBeenCalledWith(
         expect.objectContaining(notification),
       );
-      expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
-        user.uuid,
+      expect(apnRefreshQueue.add).toHaveBeenCalledWith(
+        'refresh',
+        { userUuid: user.uuid },
+        expect.anything(),
       );
     });
 
-    it('When the file is uploaded to the user backups bucket, then it should add the notification event but not send an APN notification', () => {
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
-      const backupUser = newUser({
-        attributes: { backupsBucket: 'backup-bucket' },
-      });
+    it('When the file belongs to the user backups bucket, then it should add the notification event but not enqueue an APN refresh', () => {
+      const backupUser = newUser();
+      backupUser.backupsBucket = 'backups-bucket';
       const backupPayload = {
         ...payload,
         bucket: backupUser.backupsBucket,
@@ -101,11 +115,28 @@ describe('StorageNotificationService', () => {
       });
 
       expect(notificationService.add).toHaveBeenCalled();
-      expect(service.getTokensAndSendApnNotification).not.toHaveBeenCalled();
+      expect(apnRefreshQueue.add).not.toHaveBeenCalled();
     });
 
-    it('When the file is uploaded to a bucket other than the backups one, then it should send an APN notification', () => {
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
+    it('When the file has no bucket and the user has no backups bucket, then it should still enqueue an APN refresh', () => {
+      const userWithoutBackups = newUser();
+      userWithoutBackups.backupsBucket = null;
+      const payloadWithoutBucket = { fileId: '123' } as unknown as FileDto;
+
+      service.fileCreated({
+        payload: payloadWithoutBucket,
+        user: userWithoutBackups,
+        clientId,
+      });
+
+      expect(apnRefreshQueue.add).toHaveBeenCalledWith(
+        'refresh',
+        { userUuid: userWithoutBackups.uuid },
+        expect.anything(),
+      );
+    });
+
+    it('When the file is uploaded to a bucket other than the backups one, then it should enqueue an APN refresh', () => {
       const backupUser = newUser({
         attributes: { backupsBucket: 'backups-bucket' },
       });
@@ -120,8 +151,10 @@ describe('StorageNotificationService', () => {
         clientId,
       });
 
-      expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
-        backupUser.uuid,
+      expect(apnRefreshQueue.add).toHaveBeenCalledWith(
+        'refresh',
+        { userUuid: backupUser.uuid },
+        expect.anything(),
       );
     });
   });
@@ -131,11 +164,11 @@ describe('StorageNotificationService', () => {
     const payload = {
       fileId: '123',
       fileName: 'test.pdf',
+      bucket: 'drive-bucket',
     } as unknown as FileDto;
     const clientId = 'test-client';
 
-    it('When called, then it should add a notification event and send APN notification', () => {
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
+    it('When called, then it should add a notification event and enqueue an APN refresh', () => {
       const notification = new NotificationEvent(
         'notification.itemUpdated',
         payload,
@@ -149,8 +182,84 @@ describe('StorageNotificationService', () => {
       expect(notificationService.add).toHaveBeenCalledWith(
         expect.objectContaining(notification),
       );
-      expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
+      expect(apnRefreshQueue.add).toHaveBeenCalledWith(
+        'refresh',
+        { userUuid: user.uuid },
+        expect.anything(),
+      );
+    });
+
+    it('When the file belongs to the user backups bucket, then it should add the notification event but not enqueue an APN refresh', () => {
+      const backupUser = newUser();
+      backupUser.backupsBucket = 'backups-bucket';
+      const backupPayload = {
+        ...payload,
+        bucket: backupUser.backupsBucket,
+      } as unknown as FileDto;
+
+      service.fileUpdated({
+        payload: backupPayload,
+        user: backupUser,
+        clientId,
+      });
+
+      expect(notificationService.add).toHaveBeenCalled();
+      expect(apnRefreshQueue.add).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('fileDeleted', () => {
+    const user = newUser();
+    const payload = { id: 123, uuid: v4() };
+    const clientId = 'test-client';
+
+    it('When called, then it should add a notification event and enqueue an APN refresh', () => {
+      const notification = new NotificationEvent(
+        'notification.itemDeleted',
+        payload,
+        user.email,
+        clientId,
         user.uuid,
+        'FILE_DELETED',
+      );
+
+      service.fileDeleted({ payload, user, clientId });
+
+      expect(notificationService.add).toHaveBeenCalledWith(
+        expect.objectContaining(notification),
+      );
+      expect(apnRefreshQueue.add).toHaveBeenCalledWith(
+        'refresh',
+        { userUuid: user.uuid },
+        expect.anything(),
+      );
+    });
+  });
+
+  describe('folderDeleted', () => {
+    const user = newUser();
+    const payload = { id: 123, uuid: v4(), userId: user.id };
+    const clientId = 'test-client';
+
+    it('When called, then it should add a notification event and enqueue an APN refresh', () => {
+      const notification = new NotificationEvent(
+        'notification.itemDeleted',
+        payload,
+        user.email,
+        clientId,
+        user.uuid,
+        'FOLDER_DELETED',
+      );
+
+      service.folderDeleted({ payload, user, clientId });
+
+      expect(notificationService.add).toHaveBeenCalledWith(
+        expect.objectContaining(notification),
+      );
+      expect(apnRefreshQueue.add).toHaveBeenCalledWith(
+        'refresh',
+        { userUuid: user.uuid },
+        expect.anything(),
       );
     });
   });
@@ -163,8 +272,7 @@ describe('StorageNotificationService', () => {
     } as unknown as FolderDto;
     const clientId = 'test-client';
 
-    it('When called, then it should add a notification event and send APN notification', () => {
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
+    it('When called, then it should add a notification event and enqueue an APN refresh', () => {
       const notification = new NotificationEvent(
         'notification.itemCreated',
         payload,
@@ -179,8 +287,10 @@ describe('StorageNotificationService', () => {
       expect(notificationService.add).toHaveBeenCalledWith(
         expect.objectContaining(notification),
       );
-      expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
-        user.uuid,
+      expect(apnRefreshQueue.add).toHaveBeenCalledWith(
+        'refresh',
+        { userUuid: user.uuid },
+        expect.anything(),
       );
     });
   });
@@ -193,8 +303,7 @@ describe('StorageNotificationService', () => {
     } as unknown as FolderDto;
     const clientId = 'test-client';
 
-    it('When called, then it should add a notification event and send APN notification', () => {
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
+    it('When called, then it should add a notification event and enqueue an APN refresh', () => {
       const notification = new NotificationEvent(
         'notification.itemUpdated',
         payload,
@@ -209,8 +318,10 @@ describe('StorageNotificationService', () => {
       expect(notificationService.add).toHaveBeenCalledWith(
         expect.objectContaining(notification),
       );
-      expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
-        user.uuid,
+      expect(apnRefreshQueue.add).toHaveBeenCalledWith(
+        'refresh',
+        { userUuid: user.uuid },
+        expect.anything(),
       );
     });
   });
@@ -222,8 +333,7 @@ describe('StorageNotificationService', () => {
     ];
     const clientId = 'test-client';
 
-    it('When called, then it should add a notification event and send APN notification', () => {
-      jest.spyOn(service, 'getTokensAndSendApnNotification');
+    it('When called, then it should add a notification event and enqueue an APN refresh', () => {
       const notification = new NotificationEvent(
         'notification.itemsToTrash',
         payload,
@@ -238,8 +348,10 @@ describe('StorageNotificationService', () => {
       expect(notificationService.add).toHaveBeenCalledWith(
         expect.objectContaining(notification),
       );
-      expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
-        user.uuid,
+      expect(apnRefreshQueue.add).toHaveBeenCalledWith(
+        'refresh',
+        { userUuid: user.uuid },
+        expect.anything(),
       );
     });
   });
@@ -272,6 +384,7 @@ describe('StorageNotificationService', () => {
           customKeys: { event: 'PLAN_UPDATED' },
         },
       );
+      expect(apnRefreshQueue.add).not.toHaveBeenCalled();
     });
   });
 
@@ -303,6 +416,7 @@ describe('StorageNotificationService', () => {
           customKeys: { event: 'WORKSPACE_JOINED' },
         },
       );
+      expect(apnRefreshQueue.add).not.toHaveBeenCalled();
     });
   });
 
@@ -334,6 +448,40 @@ describe('StorageNotificationService', () => {
           customKeys: { event: 'WORKSPACE_LEFT' },
         },
       );
+      expect(apnRefreshQueue.add).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('enqueueApnRefresh', () => {
+    const user = newUser();
+
+    it('When called, then it should enqueue a deduplicated delayed job for the user', () => {
+      service.enqueueApnRefresh(user.uuid);
+
+      expect(apnRefreshQueue.add).toHaveBeenCalledWith(
+        'refresh',
+        { userUuid: user.uuid },
+        expect.objectContaining({
+          delay: APN_REFRESH_DEBOUNCE_MS,
+          deduplication: { id: user.uuid },
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5_000 },
+          removeOnComplete: true,
+          removeOnFail: true,
+        }),
+      );
+    });
+
+    it('When the queue rejects, then it should log the error instead of throwing', async () => {
+      const error = new Error('Queue unavailable');
+      apnRefreshQueue.add.mockRejectedValueOnce(error);
+      const errorSpy = jest.spyOn(loggerMock, 'error');
+
+      expect(() => service.enqueueApnRefresh(user.uuid)).not.toThrow();
+
+      await Promise.resolve();
+
+      expect(errorSpy).toHaveBeenCalled();
     });
   });
 
