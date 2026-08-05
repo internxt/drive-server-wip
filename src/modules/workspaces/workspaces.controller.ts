@@ -15,6 +15,8 @@ import {
   InternalServerErrorException,
   ForbiddenException,
   NotFoundException,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -1208,14 +1210,14 @@ export class WorkspacesController {
     });
   }
 
-  @Post(':workspaceId/fuzzy/:search')
+  @Get(':workspaceId/fuzzy/:search')
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Search by name inside workspace',
+    deprecated: true,
   })
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiParam({ name: 'search', type: String, required: true })
-  @HttpCode(200)
   @ApiOkResponse({
     description: 'Search results',
   })
@@ -1226,9 +1228,37 @@ export class WorkspacesController {
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
     @Param('search') search: string,
-    @Body() query: FuzzySearchQueryDto,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
   ) {
     return this.workspaceUseCases.searchWorkspaceContent(
+      user,
+      workspaceId,
+      search,
+      offset,
+    );
+  }
+
+  @Post(':workspaceId/fuzzy/:search')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Search by name inside workspace applying filters',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'search', type: String, required: true })
+  @HttpCode(200)
+  @ApiOkResponse({
+    description: 'Search results',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async searchWorkspaceWithFilters(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Param('search') search: string,
+    @Body() query: FuzzySearchQueryDto,
+  ) {
+    return this.workspaceUseCases.searchWorkspaceContentWithFilters(
       user,
       workspaceId,
       search,
