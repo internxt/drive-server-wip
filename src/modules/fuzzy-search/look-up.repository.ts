@@ -106,6 +106,40 @@ function buildFilterClauses(filters: FuzzySearchFilters): FilterClauses {
   };
 }
 
+const FILE_COLUMNS = `
+          f."uuid"                                                              AS "id",
+          f."uuid"                                                              AS "itemId",
+          'file'                                                                AS "itemType",
+          :userUuid                                                             AS "userId",
+          f."plain_name"                                                        AS "name",
+          NULL                                                                  AS "rank",
+          similarity(f."plain_name", :partialName)                             AS "similarity",
+          CASE WHEN f."plain_name" = :partialName THEN 1 ELSE 0 END            AS "exactMatch",
+          f."type"        AS "file.type",
+          f."id"          AS "file.id",
+          f."size"        AS "file.size",
+          f."bucket"      AS "file.bucket",
+          f."file_id"     AS "file.fileId",
+          f."plain_name"  AS "file.plainName",
+          NULL            AS "folder.id"`;
+
+const FOLDER_COLUMNS = `
+          fo."uuid"                                                             AS "id",
+          fo."uuid"                                                             AS "itemId",
+          'folder'                                                              AS "itemType",
+          :userUuid                                                             AS "userId",
+          fo."plain_name"                                                       AS "name",
+          NULL                                                                  AS "rank",
+          similarity(fo."plain_name", :partialName)                            AS "similarity",
+          CASE WHEN fo."plain_name" = :partialName THEN 1 ELSE 0 END           AS "exactMatch",
+          NULL AS "file.type",
+          NULL AS "file.id",
+          NULL AS "file.size",
+          NULL AS "file.bucket",
+          NULL AS "file.fileId",
+          NULL AS "file.plainName",
+          fo."id" AS "folder.id"`;
+
 function toResult(rows: Record<string, unknown>[]): LookUpResult {
   return rows.map((row) => ({
     id: row.id as string,
@@ -288,22 +322,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
     const clauses = buildFilterClauses(filters);
 
     const filesSelect = `
-      SELECT
-          f."uuid"                                                              AS "id",
-          f."uuid"                                                              AS "itemId",
-          'file'                                                                AS "itemType",
-          :userUuid                                                             AS "userId",
-          f."plain_name"                                                        AS "name",
-          NULL                                                                  AS "rank",
-          similarity(f."plain_name", :partialName)                             AS "similarity",
-          CASE WHEN f."plain_name" = :partialName THEN 1 ELSE 0 END            AS "exactMatch",
-          f."type"        AS "file.type",
-          f."id"          AS "file.id",
-          f."size"        AS "file.size",
-          f."bucket"      AS "file.bucket",
-          f."file_id"     AS "file.fileId",
-          f."plain_name"  AS "file.plainName",
-          NULL            AS "folder.id"
+      SELECT ${FILE_COLUMNS}
       FROM files f
       WHERE f."user_id" = (SELECT id FROM users WHERE uuid = :userUuid)
         AND f."status" = 'EXISTS'
@@ -312,22 +331,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
       `;
 
     const foldersSelect = `
-      SELECT
-          fo."uuid"                                                             AS "id",
-          fo."uuid"                                                             AS "itemId",
-          'folder'                                                              AS "itemType",
-          :userUuid                                                             AS "userId",
-          fo."plain_name"                                                       AS "name",
-          NULL                                                                  AS "rank",
-          similarity(fo."plain_name", :partialName)                            AS "similarity",
-          CASE WHEN fo."plain_name" = :partialName THEN 1 ELSE 0 END           AS "exactMatch",
-          NULL AS "file.type",
-          NULL AS "file.id",
-          NULL AS "file.size",
-          NULL AS "file.bucket",
-          NULL AS "file.fileId",
-          NULL AS "file.plainName",
-          fo."id" AS "folder.id"
+      SELECT ${FOLDER_COLUMNS}
       FROM folders fo
       WHERE fo."user_id" = (SELECT id FROM users WHERE uuid = :userUuid)
         AND NOT fo."deleted"
@@ -354,22 +358,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
     const clauses = buildFilterClauses(filters);
 
     const filesSelect = `
-      SELECT
-          f."uuid"                                                              AS "id",
-          f."uuid"                                                              AS "itemId",
-          'file'                                                                AS "itemType",
-          :userUuid                                                             AS "userId",
-          f."plain_name"                                                        AS "name",
-          NULL                                                                  AS "rank",
-          similarity(f."plain_name", :partialName)                             AS "similarity",
-          CASE WHEN f."plain_name" = :partialName THEN 1 ELSE 0 END            AS "exactMatch",
-          f."type"        AS "file.type",
-          f."id"          AS "file.id",
-          f."size"        AS "file.size",
-          f."bucket"      AS "file.bucket",
-          f."file_id"     AS "file.fileId",
-          f."plain_name"  AS "file.plainName",
-          NULL            AS "folder.id"
+      SELECT ${FILE_COLUMNS}
       FROM files f
       INNER JOIN workspace_items_users wiu ON wiu.item_id = f.uuid
       WHERE f."user_id" = (SELECT id FROM users WHERE uuid = :workspaceUserUuid)
@@ -381,22 +370,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
       `;
 
     const foldersSelect = `
-      SELECT
-          fo."uuid"                                                             AS "id",
-          fo."uuid"                                                             AS "itemId",
-          'folder'                                                              AS "itemType",
-          :userUuid                                                             AS "userId",
-          fo."plain_name"                                                       AS "name",
-          NULL                                                                  AS "rank",
-          similarity(fo."plain_name", :partialName)                            AS "similarity",
-          CASE WHEN fo."plain_name" = :partialName THEN 1 ELSE 0 END           AS "exactMatch",
-          NULL AS "file.type",
-          NULL AS "file.id",
-          NULL AS "file.size",
-          NULL AS "file.bucket",
-          NULL AS "file.fileId",
-          NULL AS "file.plainName",
-          fo."id" AS "folder.id"
+      SELECT ${FOLDER_COLUMNS}
       FROM folders fo
       INNER JOIN workspace_items_users wiu ON wiu.item_id = fo.uuid
       WHERE fo."user_id" = (SELECT id FROM users WHERE uuid = :workspaceUserUuid)
