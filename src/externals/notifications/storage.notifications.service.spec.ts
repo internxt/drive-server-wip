@@ -83,6 +83,47 @@ describe('StorageNotificationService', () => {
         user.uuid,
       );
     });
+
+    it('When the file is uploaded to the user backups bucket, then it should add the notification event but not send an APN notification', () => {
+      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      const backupUser = newUser({
+        attributes: { backupsBucket: 'backup-bucket' },
+      });
+      const backupPayload = {
+        ...payload,
+        bucket: backupUser.backupsBucket,
+      } as unknown as FileDto;
+
+      service.fileCreated({
+        payload: backupPayload,
+        user: backupUser,
+        clientId,
+      });
+
+      expect(notificationService.add).toHaveBeenCalled();
+      expect(service.getTokensAndSendApnNotification).not.toHaveBeenCalled();
+    });
+
+    it('When the file is uploaded to a bucket other than the backups one, then it should send an APN notification', () => {
+      jest.spyOn(service, 'getTokensAndSendApnNotification');
+      const backupUser = newUser({
+        attributes: { backupsBucket: 'backups-bucket' },
+      });
+      const drivePayload = {
+        ...payload,
+        bucket: 'drive-bucket',
+      } as unknown as FileDto;
+
+      service.fileCreated({
+        payload: drivePayload,
+        user: backupUser,
+        clientId,
+      });
+
+      expect(service.getTokensAndSendApnNotification).toHaveBeenCalledWith(
+        backupUser.uuid,
+      );
+    });
   });
 
   describe('fileUpdated', () => {
