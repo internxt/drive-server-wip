@@ -7,6 +7,7 @@ module.exports = {
     await queryInterface.sequelize.query(`
       CREATE INDEX CONCURRENTLY IF NOT EXISTS ${indexName}
       ON deleted_files_new (updated_at)
+      WHERE (enqueued = true AND processed = true)
     `);
   },
 

@@ -20,6 +20,8 @@ export class SequelizeDeletedFilesRepository
     const rows = await this.sequelize.query<{ file_id: string }>(
       `SELECT file_id FROM deleted_files_new
        WHERE updated_at < :cutoffDate
+       AND enqueued = true
+       AND processed = true
        ORDER BY updated_at ASC
        LIMIT :limit`,
       {
