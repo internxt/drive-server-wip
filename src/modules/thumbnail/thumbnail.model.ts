@@ -23,7 +23,6 @@ export class ThumbnailModel extends Model implements ThumbnailAttributes {
   @Column
   id: number;
 
-  @ForeignKey(() => FileModel)
   @Column(DataType.INTEGER)
   fileId: number;
 
