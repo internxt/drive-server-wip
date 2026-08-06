@@ -12,7 +12,6 @@ import {
   Model,
   PrimaryKey,
   Table,
-  Unique,
 } from 'sequelize-typescript';
 import { FolderModel } from '../folder/folder.model';
 import { type FileAttributes, FileStatus } from './file.domain';
