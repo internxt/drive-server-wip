@@ -831,6 +831,26 @@ describe('Workspace Controller', () => {
     });
   });
 
+  describe('POST /:workspaceId/fuzzy/:search', () => {
+    it('When a fuzzy search with filters is requested, then it should call the service with the respective arguments', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const search = 'search';
+      const query = { offset: 0, type: ['pdf'] };
+
+      await workspacesController.searchWorkspaceWithFilters(
+        workspaceId,
+        user,
+        search,
+        query,
+      );
+
+      expect(
+        workspacesUsecases.searchWorkspaceContentWithFilters,
+      ).toHaveBeenCalledWith(user, workspaceId, search, query);
+    });
+  });
+
   describe('GET /:workspaceId/access/logs', () => {
     const workspaceId = v4();
     const user = newUser({ attributes: { email: 'test@example.com' } });

@@ -6160,6 +6160,61 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('searchWorkspaceContentWithFilters', () => {
+    it('when workspace is not found, then it should throw', async () => {
+      const user = newUser();
+      const workspaceId = v4();
+      const query = 'query';
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(null);
+
+      await expect(
+        service.searchWorkspaceContentWithFilters(user, workspaceId, query, {
+          offset: 0,
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When workspace is found, then it should search for content with the given filters', async () => {
+      const user = newUser();
+      const workspace = newWorkspace({ owner: user });
+      const query = 'query';
+      const files = [newFile()];
+      const filters = { offset: 0, type: ['pdf'] };
+
+      const searchResult: FuzzySearchResult[] = [
+        {
+          id: v4(),
+          itemId: files[0].uuid,
+          itemType: WorkspaceItemType.File,
+          name: files[0].name,
+          similarity: 0.8,
+          rank: 1,
+        },
+      ];
+
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValue(workspace);
+      jest
+        .spyOn(fuzzySearchUseCases, 'workspaceFuzzySearchWithFilters')
+        .mockResolvedValue(searchResult);
+
+      const result = await service.searchWorkspaceContentWithFilters(
+        user,
+        workspace.id,
+        query,
+        filters,
+      );
+
+      expect(
+        fuzzySearchUseCases.workspaceFuzzySearchWithFilters,
+      ).toHaveBeenCalledWith(user.uuid, workspace, query, filters);
+      expect(result[0]).toMatchObject({
+        name: files[0].name,
+        similarity: 0.8,
+      });
+    });
+  });
+
   describe('getPersonalWorkspaceFilesInWorkspaceUpdatedAfter', () => {
     const userUuid = v4();
     const workspaceId = v4();

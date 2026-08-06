@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -26,6 +27,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { WorkspacesUsecases } from './workspaces.usecase';
+import { FuzzySearchQueryDto } from '../fuzzy-search/dto/fuzzy-search-query.dto';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { type WorkspaceAttributes } from './attributes/workspace.attributes';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -1212,6 +1214,7 @@ export class WorkspacesController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Search by name inside workspace',
+    deprecated: true,
   })
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiParam({ name: 'search', type: String, required: true })
@@ -1232,6 +1235,34 @@ export class WorkspacesController {
       workspaceId,
       search,
       offset,
+    );
+  }
+
+  @Post(':workspaceId/fuzzy/:search')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Search by name inside workspace applying filters',
+  })
+  @ApiParam({ name: 'workspaceId', type: String, required: true })
+  @ApiParam({ name: 'search', type: String, required: true })
+  @HttpCode(200)
+  @ApiOkResponse({
+    description: 'Search results',
+  })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async searchWorkspaceWithFilters(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @UserDecorator() user: User,
+    @Param('search') search: string,
+    @Body() query: FuzzySearchQueryDto,
+  ) {
+    return this.workspaceUseCases.searchWorkspaceContentWithFilters(
+      user,
+      workspaceId,
+      search,
+      query,
     );
   }
 
