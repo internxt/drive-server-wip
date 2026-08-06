@@ -7,9 +7,7 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     // Schema updates / vacuums will be locked until the constraint is validated.
     await queryInterface.sequelize.query(`
-      SET lock_timeout = '10s';
       ALTER TABLE files VALIDATE CONSTRAINT uuid_not_null_chk;
-      RESET lock_timeout;
       `);
   },
 
