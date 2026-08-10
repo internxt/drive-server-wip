@@ -206,7 +206,7 @@ describe('FileUseCases', () => {
       );
     });
 
-    it('When you try to trash files, then their favorites are kept so they can be restored', async () => {
+    it('When you try to trash files, then it also removes them from favorites', async () => {
       const files = [newFile(), newFile()];
       const fileUuids = ['656a3abb-36ab-47ee-8303-6e4198f2a32a'];
       const ids = [mockFile.id];
@@ -217,7 +217,11 @@ describe('FileUseCases', () => {
 
       await service.moveFilesToTrash(userMocked, ids, fileUuids);
 
-      expect(favoriteUseCases.bulkRemoveFavorites).not.toHaveBeenCalled();
+      expect(favoriteUseCases.bulkRemoveFavorites).toHaveBeenCalledWith(
+        userMocked,
+        [...fileUuids, ...files.map((file) => file.uuid)],
+        FavoriteItemType.File,
+      );
     });
   });
 

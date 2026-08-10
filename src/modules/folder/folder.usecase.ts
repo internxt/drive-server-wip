@@ -542,7 +542,7 @@ export class FolderUseCases {
       ),
       this.favoriteUsecases.bulkRemoveFavorites(
         user,
-        backups.map((folder) => folder.uuid),
+        folders.map((folder) => folder.uuid),
         FavoriteItemType.Folder,
       ),
     ]);

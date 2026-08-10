@@ -879,6 +879,11 @@ export class FileUseCases {
         allFileUuids,
         SharingItemType.File,
       ),
+      this.favoriteUsecases.bulkRemoveFavorites(
+        user,
+        allFileUuids,
+        FavoriteItemType.File,
+      ),
     ]);
   }
 

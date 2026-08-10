@@ -460,32 +460,12 @@ export class SequelizeFolderRepository implements FolderRepository {
         parentUuid: {
           [Op.not]: null,
         },
-        [Op.and]: this.ancestorsNotTrashedNorRemovedCondition(),
       },
       subQuery: false,
       order: appliedOrder,
     });
 
     return folders.map(this.toDomain.bind(this));
-  }
-
-  private ancestorsNotTrashedNorRemovedCondition() {
-    return Sequelize.literal(`NOT EXISTS (
-      WITH RECURSIVE ancestors AS (
-        SELECT fl1.uuid, fl1.parent_uuid, fl1.deleted, fl1.removed, 1 AS depth
-        FROM folders fl1
-        WHERE fl1.uuid = "FolderModel"."parent_uuid"
-
-        UNION ALL
-
-        SELECT fl2.uuid, fl2.parent_uuid, fl2.deleted, fl2.removed, ancestors.depth + 1
-        FROM folders fl2
-        INNER JOIN ancestors ON fl2.uuid = ancestors.parent_uuid
-        WHERE ancestors.depth < 100000
-      )
-      SELECT 1 FROM ancestors
-      WHERE ancestors.deleted = TRUE OR ancestors.removed = TRUE
-    )`);
   }
 
   async findAllByParentUuid(

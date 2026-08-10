@@ -179,7 +179,7 @@ describe('FolderUseCases', () => {
       );
       expect(favoriteUseCases.bulkRemoveFavorites).toHaveBeenCalledWith(
         user,
-        [mockBackupFolder.uuid],
+        [mockBackupFolder.uuid, mockFolder.uuid],
         FavoriteItemType.Folder,
       );
     });

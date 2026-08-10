@@ -401,7 +401,6 @@ describe('SequelizeFolderRepository', () => {
         where: {
           ...whereClause,
           parentUuid: { [Op.not]: null },
-          [Op.and]: expect.anything(),
         },
         subQuery: false,
         order,
