@@ -12,7 +12,6 @@ import {
   Model,
   PrimaryKey,
   Table,
-  Unique,
 } from 'sequelize-typescript';
 import { FolderModel } from '../folder/folder.model';
 import { type FileAttributes, FileStatus } from './file.domain';
@@ -32,13 +31,12 @@ import { FavoriteModel } from '../favorite/favorite.model';
 })
 export class FileModel extends Model implements FileAttributes {
   @PrimaryKey
+  @Column(DataType.UUIDV4)
+  uuid: string;
+
   @AutoIncrement
   @Column
   id: number;
-
-  @Unique
-  @Column(DataType.UUIDV4)
-  uuid: string;
 
   @AllowNull
   @Column(DataType.STRING(24))
