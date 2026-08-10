@@ -8,8 +8,6 @@ module.exports = {
     await queryInterface.sequelize.query(`
         ALTER TABLE files DROP CONSTRAINT files_pkey CASCADE;
         ALTER TABLE files ADD CONSTRAINT files_pkey PRIMARY KEY USING INDEX ux_files_uuid_pk;
-        ALTER TABLE thumbnails ADD CONSTRAINT thumbnails_file_id_fkey
-          FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE ON UPDATE CASCADE NOT VALID;
         ALTER TABLE files ADD CONSTRAINT ux_files_id UNIQUE USING INDEX ux_files_id_idx;
       `);
   },
