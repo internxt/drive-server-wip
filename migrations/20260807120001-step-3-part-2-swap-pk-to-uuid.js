@@ -6,7 +6,6 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.sequelize.query(`
-        SET LOCAL lock_timeout = '2s';
         ALTER TABLE files DROP CONSTRAINT files_pkey CASCADE;
         ALTER TABLE files ADD CONSTRAINT files_pkey PRIMARY KEY USING INDEX ux_files_uuid_pk;
         ALTER TABLE files ADD CONSTRAINT ux_files_id UNIQUE USING INDEX ux_files_id_idx;
