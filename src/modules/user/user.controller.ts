@@ -231,15 +231,10 @@ export class UserController {
     type: String,
   })
   async getUserByEmail(
-    @Param('email') email: User['email'],
+    @UserDecorator() user: User,
     @Res({ passthrough: true }) res: Response,
   ) {
     try {
-      const user = await this.userUseCases.getUserByUsername(email);
-      if (!user) {
-        throw new NotFoundException();
-      }
-
       const userHasSubscriptions =
         await this.userUseCases.hasUserBeenSubscribedAnyTime(
           user.email,
