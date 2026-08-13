@@ -2969,7 +2969,7 @@ export class WorkspacesUsecases {
     user: User,
     workspaceId: Workspace['id'],
     search: string,
-    offset: number,
+    query: FuzzySearchQueryDto,
   ) {
     const workspace = await this.workspaceRepository.findById(workspaceId);
 
@@ -2981,31 +2981,8 @@ export class WorkspacesUsecases {
       user.uuid,
       workspace,
       search,
-      offset,
+      query,
     );
-
-    return searchResults;
-  }
-
-  async searchWorkspaceContentWithFilters(
-    user: User,
-    workspaceId: Workspace['id'],
-    search: string,
-    query: FuzzySearchQueryDto,
-  ) {
-    const workspace = await this.workspaceRepository.findById(workspaceId);
-
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    const searchResults =
-      await this.fuzzySearchUseCases.workspaceFuzzySearchWithFilters(
-        user.uuid,
-        workspace,
-        search,
-        query,
-      );
 
     return searchResults;
   }
