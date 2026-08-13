@@ -25,6 +25,7 @@ import {
   FileStatus,
   type SortableFileAttributes,
 } from './file.domain';
+import { FileQueryStatus } from './file-query-status.enum';
 import { type User } from '../user/user.domain';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -2296,7 +2297,7 @@ describe('FileUseCases', () => {
 
       await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
-        FileStatus.EXISTS,
+        FileQueryStatus.EXISTS,
         updatedAfter,
         1000,
         undefined,
@@ -2319,7 +2320,7 @@ describe('FileUseCases', () => {
 
       await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
-        'ALL',
+        FileQueryStatus.ALL,
         updatedAfter,
         1000,
         undefined,
@@ -2339,7 +2340,7 @@ describe('FileUseCases', () => {
       const cursorData = {
         updatedAt: updatedAfter.toISOString(),
         uuid: v4(),
-        status: 'ALL',
+        status: FileQueryStatus.ALL,
       };
       const cursorToken = Buffer.from(JSON.stringify(cursorData)).toString(
         'base64',
@@ -2351,7 +2352,7 @@ describe('FileUseCases', () => {
 
       await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
-        'ALL',
+        FileQueryStatus.ALL,
         updatedAfter,
         1000,
         cursorToken,
@@ -2368,7 +2369,7 @@ describe('FileUseCases', () => {
       const cursorData = {
         updatedAt: updatedAfter.toISOString(),
         uuid: v4(),
-        status: FileStatus.EXISTS,
+        status: FileQueryStatus.EXISTS,
       };
       const cursorToken = Buffer.from(JSON.stringify(cursorData)).toString(
         'base64',
@@ -2379,7 +2380,7 @@ describe('FileUseCases', () => {
       await expect(
         service.getFilesUpdatedAfterWithCursor(
           userIdForSync,
-          FileStatus.TRASHED,
+          FileQueryStatus.TRASHED,
           updatedAfter,
           1000,
           cursorToken,
@@ -2396,7 +2397,7 @@ describe('FileUseCases', () => {
       await expect(
         service.getFilesUpdatedAfterWithCursor(
           userIdForSync,
-          'ALL',
+          FileQueryStatus.ALL,
           updatedAfter,
           1000,
           'not-a-valid-cursor',
@@ -2415,7 +2416,7 @@ describe('FileUseCases', () => {
 
       const result = await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
-        'ALL',
+        FileQueryStatus.ALL,
         updatedAfter,
         1000,
         undefined,
@@ -2439,7 +2440,7 @@ describe('FileUseCases', () => {
 
       const result = await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
-        'ALL',
+        FileQueryStatus.ALL,
         updatedAfter,
         1000,
         undefined,
@@ -2455,7 +2456,7 @@ describe('FileUseCases', () => {
 
       const result = await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
-        'ALL',
+        FileQueryStatus.ALL,
         updatedAfter,
         1000,
         undefined,
@@ -2471,7 +2472,7 @@ describe('FileUseCases', () => {
 
       const result = await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
-        'ALL',
+        FileQueryStatus.ALL,
         updatedAfter,
         1000,
         undefined,
