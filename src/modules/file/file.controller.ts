@@ -41,6 +41,8 @@ import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { WorkspacesInBehalfValidationFile } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
 import { CreateFileDto } from './dto/create-file.dto';
 import { GetFilesDto } from './dto/get-files.dto';
+import { GetFilesSyncDto } from './dto/get-files-sync.dto';
+import { GetFilesSyncResponseDto } from './dto/responses/get-files-sync.dto';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
@@ -400,6 +402,42 @@ export class FileController {
 
       return f;
     });
+  }
+
+  @Get('/sync')
+  @ApiOperation({
+    summary: 'Get delta of files since a date',
+  })
+  @ApiOkResponse({ type: GetFilesSyncResponseDto })
+  async getFilesSync(
+    @UserDecorator() user: User,
+    @Query() queryParams: GetFilesSyncDto,
+  ): Promise<GetFilesSyncResponseDto> {
+    const { status, updatedAt, cursor, limit } = queryParams;
+
+    const { files, nextCursor } =
+      await this.fileUseCases.getFilesUpdatedAfterWithCursor(
+        user.id,
+        status,
+        new Date(updatedAt || 1),
+        limit ?? 1000,
+        cursor,
+      );
+
+    const cleaned = files.map((f) => {
+      delete f.deleted;
+      delete f.deletedAt;
+      delete f.removed;
+      delete f.removedAt;
+
+      if (!f.plainName) {
+        f.plainName = this.fileUseCases.decrypFileName(f).plainName;
+      }
+
+      return f;
+    });
+
+    return { files: cleaned, nextCursor };
   }
 
   @Patch('/:uuid')

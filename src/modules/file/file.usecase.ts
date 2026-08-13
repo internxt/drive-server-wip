@@ -41,6 +41,11 @@ import { type FileModel } from './file.model';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
+import {
+  decodeCursor,
+  encodeCursor,
+  FileSyncCursorDto,
+} from './utils/file-cursor.util';
 import { type MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
@@ -597,6 +602,56 @@ export class FileUseCases {
       pagination.lastId,
     );
     return files.map((file) => file.toJSON());
+  }
+
+  async getFilesUpdatedAfterWithCursor(
+    userId: UserAttributes['id'],
+    status: FileStatus | undefined,
+    updatedAfter: Date,
+    pageSize: number,
+    cursorToken: string | undefined,
+  ): Promise<{ files: File[]; hasMore: boolean; nextCursor: string | null }> {
+    const cursor = cursorToken
+      ? decodeCursor(FileSyncCursorDto, cursorToken)
+      : undefined;
+
+    if (cursorToken && !cursor) {
+      throw new BadRequestException('Invalid cursor');
+    }
+
+    if (cursor && cursor.status !== status) {
+      throw new BadRequestException('Cursor does not match status filter');
+    }
+
+    const filter: Partial<FileAttributes> = { userId };
+
+    if (status) {
+      filter.status = status;
+    }
+
+    const { files, hasMore } =
+      await this.fileRepository.findFilesWithCursorWhereUpdatedAfter({
+        where: filter,
+        updatedAfter,
+        pageSize,
+        cursor,
+      });
+
+    const lastFile = files.at(-1);
+    const nextCursor =
+      hasMore && lastFile
+        ? encodeCursor({
+            updatedAt: lastFile.updatedAt.toISOString(),
+            uuid: lastFile.uuid,
+            status,
+          })
+        : null;
+
+    return {
+      files: files.map((file) => file.toJSON()) as File[],
+      hasMore,
+      nextCursor,
+    };
   }
 
   async getWorkspaceFilesUpdatedAfter(

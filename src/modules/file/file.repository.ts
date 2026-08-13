@@ -152,6 +152,12 @@ export interface FileRepository {
     userId: User['id'];
     cursor?: FileUpdatedAtIdCursorDto;
   }): Promise<{ files: File[]; hasMore: boolean }>;
+  findFilesWithCursorWhereUpdatedAfter(params: {
+    where: Partial<FileAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FileUpdatedAtIdCursorDto;
+  }): Promise<{ files: File[]; hasMore: boolean }>;
   getFilesWithUserByUuuid(
     fileUuids: string[],
     order?: [keyof FileModel, 'ASC' | 'DESC'][],
@@ -384,6 +390,50 @@ export class SequelizeFileRepository implements FileRepository {
     );
 
     return files.map(this.toDomain.bind(this));
+  }
+
+  async findFilesWithCursorWhereUpdatedAfter({
+    where,
+    updatedAfter,
+    pageSize,
+    cursor,
+  }: {
+    where: Partial<FileAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FileUpdatedAtIdCursorDto;
+  }): Promise<{ files: File[]; hasMore: boolean }> {
+    const cursorUpdatedAt = cursor ? Time.now(cursor.updatedAt) : null;
+
+    const whereCondition: WhereOptions<FileAttributes> = {
+      ...where,
+      ...(cursor
+        ? {
+            [Op.and]: [
+              Sequelize.literal(
+                '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
+              ),
+            ],
+          }
+        : { updatedAt: { [Op.gt]: updatedAfter } }),
+    };
+
+    const rows = await this.fileModel.findAll({
+      where: whereCondition,
+      replacements: cursor
+        ? { cursorUpdatedAt, cursorId: cursor.uuid }
+        : undefined,
+      order: [
+        ['updatedAt', 'ASC'],
+        ['uuid', 'ASC'],
+      ],
+      limit: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+
+    return { files: page.map(this.toDomain.bind(this)), hasMore };
   }
 
   async findAllNotDeleted(

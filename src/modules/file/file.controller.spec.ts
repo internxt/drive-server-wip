@@ -790,4 +790,170 @@ describe('FileController', () => {
       );
     });
   });
+
+  describe('getFilesSync', () => {
+    const buildQuery = (overrides = {}) => ({
+      status: FileStatus.EXISTS,
+      updatedAt: new Date('2024-01-01T00:00:00.000Z').toISOString(),
+      cursor: undefined,
+      limit: undefined,
+      ...overrides,
+    });
+
+    it('When called, then it should call the usecase with parsed params', async () => {
+      const query = buildQuery();
+      jest
+        .spyOn(fileUseCases, 'getFilesUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          files: [],
+          hasMore: false,
+          nextCursor: null,
+        });
+
+      await fileController.getFilesSync(userMocked, query as any);
+
+      expect(
+        fileUseCases.getFilesUpdatedAfterWithCursor,
+      ).toHaveBeenCalledWith(
+        userMocked.id,
+        query.status,
+        new Date(query.updatedAt),
+        1000,
+        undefined,
+      );
+    });
+
+    it('When updatedAt is not provided, then it should default to the epoch', async () => {
+      const query = buildQuery({ updatedAt: undefined, cursor: 'abc' });
+      jest
+        .spyOn(fileUseCases, 'getFilesUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          files: [],
+          hasMore: false,
+          nextCursor: null,
+        });
+
+      await fileController.getFilesSync(userMocked, query as any);
+
+      expect(
+        fileUseCases.getFilesUpdatedAfterWithCursor,
+      ).toHaveBeenCalledWith(
+        userMocked.id,
+        query.status,
+        new Date(1),
+        1000,
+        'abc',
+      );
+    });
+
+    it('When a limit is provided, then it should forward it instead of the default', async () => {
+      const query = buildQuery({ limit: 50 });
+      jest
+        .spyOn(fileUseCases, 'getFilesUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          files: [],
+          hasMore: false,
+          nextCursor: null,
+        });
+
+      await fileController.getFilesSync(userMocked, query as any);
+
+      expect(
+        fileUseCases.getFilesUpdatedAfterWithCursor,
+      ).toHaveBeenCalledWith(
+        userMocked.id,
+        query.status,
+        expect.any(Date),
+        50,
+        undefined,
+      );
+    });
+
+    it('When files are returned, then it should strip deleted/removed fields', async () => {
+      const rawFile = {
+        ...newFile(),
+        plainName: 'already-set',
+        deleted: true,
+        deletedAt: new Date(),
+        removed: true,
+        removedAt: new Date(),
+      };
+      jest
+        .spyOn(fileUseCases, 'getFilesUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          files: [rawFile as any],
+          hasMore: false,
+          nextCursor: null,
+        });
+
+      const result = await fileController.getFilesSync(
+        userMocked,
+        buildQuery() as any,
+      );
+
+      expect(result.files[0]).not.toHaveProperty('deleted');
+      expect(result.files[0]).not.toHaveProperty('deletedAt');
+      expect(result.files[0]).not.toHaveProperty('removed');
+      expect(result.files[0]).not.toHaveProperty('removedAt');
+    });
+
+    it('When a file has no plainName, then it should decrypt it via decrypFileName', async () => {
+      const rawFile = { ...newFile(), plainName: undefined };
+      jest
+        .spyOn(fileUseCases, 'getFilesUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          files: [rawFile as any],
+          hasMore: false,
+          nextCursor: null,
+        });
+      jest
+        .spyOn(fileUseCases, 'decrypFileName')
+        .mockReturnValue({ plainName: 'decrypted-name' } as any);
+
+      const result = await fileController.getFilesSync(
+        userMocked,
+        buildQuery() as any,
+      );
+
+      expect(fileUseCases.decrypFileName).toHaveBeenCalledWith(rawFile);
+      expect(result.files[0].plainName).toBe('decrypted-name');
+    });
+
+    it('When a file already has a plainName, then it should not call decrypFileName', async () => {
+      const rawFile = { ...newFile(), plainName: 'already-set' };
+      jest
+        .spyOn(fileUseCases, 'getFilesUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          files: [rawFile as any],
+          hasMore: false,
+          nextCursor: null,
+        });
+      jest.spyOn(fileUseCases, 'decrypFileName');
+
+      const result = await fileController.getFilesSync(
+        userMocked,
+        buildQuery() as any,
+      );
+
+      expect(fileUseCases.decrypFileName).not.toHaveBeenCalled();
+      expect(result.files[0].plainName).toBe('already-set');
+    });
+
+    it('When the usecase returns a nextCursor, then it should be returned as-is', async () => {
+      jest
+        .spyOn(fileUseCases, 'getFilesUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          files: [],
+          hasMore: true,
+          nextCursor: 'encoded-cursor-token',
+        });
+
+      const result = await fileController.getFilesSync(
+        userMocked,
+        buildQuery() as any,
+      );
+
+      expect(result.nextCursor).toBe('encoded-cursor-token');
+    });
+  });
 });
