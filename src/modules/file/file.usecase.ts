@@ -44,7 +44,7 @@ import { Time } from '../../lib/time';
 import {
   decodeCursor,
   encodeCursor,
-  type FileUpdatedAtIdCursorDto,
+  FileSyncCursorDto,
 } from './utils/file-cursor.util';
 import { type MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
@@ -612,11 +612,15 @@ export class FileUseCases {
     cursorToken: string | undefined,
   ): Promise<{ files: File[]; hasMore: boolean; nextCursor: string | null }> {
     const cursor = cursorToken
-      ? decodeCursor<FileUpdatedAtIdCursorDto>(cursorToken)
+      ? decodeCursor(FileSyncCursorDto, cursorToken)
       : undefined;
 
     if (cursorToken && !cursor) {
       throw new BadRequestException('Invalid cursor');
+    }
+
+    if (cursor && cursor.status !== status) {
+      throw new BadRequestException('Cursor does not match status filter');
     }
 
     const filter: Partial<FileAttributes> = { userId };
@@ -639,6 +643,7 @@ export class FileUseCases {
         ? encodeCursor({
             updatedAt: lastFile.updatedAt.toISOString(),
             uuid: lastFile.uuid,
+            status,
           })
         : null;
 

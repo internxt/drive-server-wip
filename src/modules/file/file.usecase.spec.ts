@@ -2336,7 +2336,11 @@ describe('FileUseCases', () => {
     });
 
     it('When a valid cursorToken is provided, then it should decode it and pass it to the repository', async () => {
-      const cursorData = { updatedAt: updatedAfter.toISOString(), uuid: v4() };
+      const cursorData = {
+        updatedAt: updatedAfter.toISOString(),
+        uuid: v4(),
+        status: 'ALL',
+      };
       const cursorToken = Buffer.from(JSON.stringify(cursorData)).toString(
         'base64',
       );
@@ -2358,6 +2362,32 @@ describe('FileUseCases', () => {
       ).toHaveBeenCalledWith(
         expect.objectContaining({ cursor: cursorData }),
       );
+    });
+
+    it('When the cursor status does not match the requested status, then it should throw BadRequestException and not call the repository', async () => {
+      const cursorData = {
+        updatedAt: updatedAfter.toISOString(),
+        uuid: v4(),
+        status: FileStatus.EXISTS,
+      };
+      const cursorToken = Buffer.from(JSON.stringify(cursorData)).toString(
+        'base64',
+      );
+
+      jest.spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter');
+
+      await expect(
+        service.getFilesUpdatedAfterWithCursor(
+          userIdForSync,
+          FileStatus.TRASHED,
+          updatedAfter,
+          1000,
+          cursorToken,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(
+        fileRepository.findFilesWithCursorWhereUpdatedAfter,
+      ).not.toHaveBeenCalled();
     });
 
     it('When an invalid cursorToken is provided, then it should throw BadRequestException and not call the repository', async () => {
@@ -2398,6 +2428,7 @@ describe('FileUseCases', () => {
       expect(decoded).toEqual({
         updatedAt: lastFile.updatedAt.toISOString(),
         uuid: lastFile.uuid,
+        status: 'ALL',
       });
     });
 

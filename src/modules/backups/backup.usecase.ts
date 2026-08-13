@@ -26,7 +26,7 @@ import { type File } from '../file/file.domain';
 import {
   decodeCursor,
   encodeCursor,
-  type FileUpdatedAtIdCursorDto,
+  FileUpdatedAtIdCursorDto,
 } from '../file/utils/file-cursor.util';
 
 @Injectable()
@@ -54,7 +54,7 @@ export class BackupUseCase {
     }
 
     const cursor: FileUpdatedAtIdCursorDto | undefined = cursorToken
-      ? decodeCursor<FileUpdatedAtIdCursorDto>(cursorToken)
+      ? decodeCursor(FileUpdatedAtIdCursorDto, cursorToken)
       : undefined;
 
     const { files, hasMore } =

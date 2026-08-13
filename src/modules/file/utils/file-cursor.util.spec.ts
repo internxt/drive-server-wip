@@ -2,7 +2,8 @@ import { v4 } from 'uuid';
 import {
   decodeCursor,
   encodeCursor,
-  type FileUpdatedAtIdCursorDto,
+  FileUpdatedAtIdCursorDto,
+  FileSyncCursorDto,
 } from './file-cursor.util';
 
 describe('file-cursor.util', () => {
@@ -14,13 +15,29 @@ describe('file-cursor.util', () => {
       };
 
       const token = encodeCursor(cursor);
-      const decoded = decodeCursor<FileUpdatedAtIdCursorDto>(token);
+      const decoded = decodeCursor(FileUpdatedAtIdCursorDto, token);
+
+      expect(decoded).toEqual(cursor);
+    });
+
+    it('When a valid sync cursor (with status) is encoded and decoded, then it should return the original data', () => {
+      const cursor: FileSyncCursorDto = {
+        updatedAt: new Date().toISOString(),
+        uuid: v4(),
+        status: 'EXISTS',
+      };
+
+      const token = encodeCursor(cursor);
+      const decoded = decodeCursor(FileSyncCursorDto, token);
 
       expect(decoded).toEqual(cursor);
     });
 
     it('When the token is not valid base64/JSON, then it should return null', () => {
-      const decoded = decodeCursor('not-a-valid-token!!!');
+      const decoded = decodeCursor(
+        FileUpdatedAtIdCursorDto,
+        'not-a-valid-token!!!',
+      );
 
       expect(decoded).toBeNull();
     });
@@ -30,7 +47,7 @@ describe('file-cursor.util', () => {
         JSON.stringify({ updatedAt: new Date().toISOString(), uuid: 'nope' }),
       ).toString('base64');
 
-      expect(decodeCursor(token)).toBeNull();
+      expect(decodeCursor(FileUpdatedAtIdCursorDto, token)).toBeNull();
     });
 
     it('When the decoded JSON has an invalid updatedAt, then it should return null', () => {
@@ -38,7 +55,7 @@ describe('file-cursor.util', () => {
         JSON.stringify({ updatedAt: 'not-a-date', uuid: v4() }),
       ).toString('base64');
 
-      expect(decodeCursor(token)).toBeNull();
+      expect(decodeCursor(FileUpdatedAtIdCursorDto, token)).toBeNull();
     });
 
     it('When the decoded JSON is missing fields, then it should return null', () => {
@@ -46,7 +63,7 @@ describe('file-cursor.util', () => {
         'base64',
       );
 
-      expect(decodeCursor(token)).toBeNull();
+      expect(decodeCursor(FileUpdatedAtIdCursorDto, token)).toBeNull();
     });
   });
 });
