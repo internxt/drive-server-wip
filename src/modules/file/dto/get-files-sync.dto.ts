@@ -11,16 +11,17 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
-import { FileQueryStatus } from '../file-query-status.enum';
+import { FileStatus } from '../file.domain';
 
 export class GetFilesSyncDto {
   @ApiProperty({
     description: 'File status filter',
-    enum: FileQueryStatus,
-    required: true,
+    enum: FileStatus,
+    required: false,
   })
-  @IsEnum(FileQueryStatus)
-  status: FileQueryStatus;
+  @IsOptional()
+  @IsEnum(FileStatus)
+  status?: FileStatus;
 
   @ApiProperty({
     description:

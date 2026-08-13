@@ -25,7 +25,6 @@ import {
   FileStatus,
   type SortableFileAttributes,
 } from './file.domain';
-import { FileQueryStatus } from './file-query-status.enum';
 import { type User } from '../user/user.domain';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { CryptoService } from '../../externals/crypto/crypto.service';
@@ -2290,14 +2289,14 @@ describe('FileUseCases', () => {
     const updatedAfter = new Date();
     const mockFiles = [newFile(), newFile()];
 
-    it('When status is not ALL, then it should filter the repository query by status', async () => {
+    it('When status is provided, then it should filter the repository query by status', async () => {
       jest
         .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
         .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
 
       await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
-        FileQueryStatus.EXISTS,
+        FileStatus.EXISTS,
         updatedAfter,
         1000,
         undefined,
@@ -2313,14 +2312,14 @@ describe('FileUseCases', () => {
       });
     });
 
-    it('When status is ALL, then it should not filter the repository query by status', async () => {
+    it('When status is not provided, then it should not filter the repository query by status', async () => {
       jest
         .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
         .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
 
       await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
-        FileQueryStatus.ALL,
+        undefined,
         updatedAfter,
         1000,
         undefined,
@@ -2340,7 +2339,6 @@ describe('FileUseCases', () => {
       const cursorData = {
         updatedAt: updatedAfter.toISOString(),
         uuid: v4(),
-        status: FileQueryStatus.ALL,
       };
       const cursorToken = Buffer.from(JSON.stringify(cursorData)).toString(
         'base64',
@@ -2352,7 +2350,7 @@ describe('FileUseCases', () => {
 
       await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
-        FileQueryStatus.ALL,
+        undefined,
         updatedAfter,
         1000,
         cursorToken,
@@ -2365,11 +2363,11 @@ describe('FileUseCases', () => {
       );
     });
 
-    it('When the cursor status does not match the requested status, then it should throw BadRequestException and not call the repository', async () => {
+    it('When the cursor status does not match the requested status, then it should throw', async () => {
       const cursorData = {
         updatedAt: updatedAfter.toISOString(),
         uuid: v4(),
-        status: FileQueryStatus.EXISTS,
+        status: FileStatus.EXISTS,
       };
       const cursorToken = Buffer.from(JSON.stringify(cursorData)).toString(
         'base64',
@@ -2380,7 +2378,7 @@ describe('FileUseCases', () => {
       await expect(
         service.getFilesUpdatedAfterWithCursor(
           userIdForSync,
-          FileQueryStatus.TRASHED,
+          FileStatus.TRASHED,
           updatedAfter,
           1000,
           cursorToken,
@@ -2391,13 +2389,13 @@ describe('FileUseCases', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('When an invalid cursorToken is provided, then it should throw BadRequestException and not call the repository', async () => {
+    it('When an invalid cursorToken is provided, then it should throw', async () => {
       jest.spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter');
 
       await expect(
         service.getFilesUpdatedAfterWithCursor(
           userIdForSync,
-          FileQueryStatus.ALL,
+          undefined,
           updatedAfter,
           1000,
           'not-a-valid-cursor',
@@ -2416,7 +2414,7 @@ describe('FileUseCases', () => {
 
       const result = await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
-        FileQueryStatus.ALL,
+        undefined,
         updatedAfter,
         1000,
         undefined,
@@ -2429,7 +2427,6 @@ describe('FileUseCases', () => {
       expect(decoded).toEqual({
         updatedAt: lastFile.updatedAt.toISOString(),
         uuid: lastFile.uuid,
-        status: 'ALL',
       });
     });
 
@@ -2440,7 +2437,7 @@ describe('FileUseCases', () => {
 
       const result = await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
-        FileQueryStatus.ALL,
+        undefined,
         updatedAfter,
         1000,
         undefined,
@@ -2456,7 +2453,7 @@ describe('FileUseCases', () => {
 
       const result = await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
-        FileQueryStatus.ALL,
+        undefined,
         updatedAfter,
         1000,
         undefined,
@@ -2472,7 +2469,7 @@ describe('FileUseCases', () => {
 
       const result = await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
-        FileQueryStatus.ALL,
+        undefined,
         updatedAfter,
         1000,
         undefined,

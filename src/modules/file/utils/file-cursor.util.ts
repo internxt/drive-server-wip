@@ -1,6 +1,12 @@
 import { plainToInstance } from 'class-transformer';
-import { validateSync, IsISO8601, IsUUID, IsIn } from 'class-validator';
-import { FileQueryStatus } from '../file-query-status.enum';
+import {
+  validateSync,
+  IsISO8601,
+  IsUUID,
+  IsIn,
+  IsOptional,
+} from 'class-validator';
+import { FileStatus } from '../file.domain';
 
 export class FileUpdatedAtIdCursorDto {
   @IsISO8601()
@@ -11,8 +17,9 @@ export class FileUpdatedAtIdCursorDto {
 }
 
 export class FileSyncCursorDto extends FileUpdatedAtIdCursorDto {
-  @IsIn(Object.values(FileQueryStatus))
-  status: FileQueryStatus;
+  @IsOptional()
+  @IsIn(Object.values(FileStatus))
+  status?: FileStatus;
 }
 
 export function encodeCursor<T>(cursor: T): string {

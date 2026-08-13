@@ -5,7 +5,7 @@ import {
   FileUpdatedAtIdCursorDto,
   FileSyncCursorDto,
 } from './file-cursor.util';
-import { FileQueryStatus } from '../file-query-status.enum';
+import { FileStatus } from '../file.domain';
 
 describe('file-cursor.util', () => {
   describe('encodeCursor/decodeCursor', () => {
@@ -25,7 +25,7 @@ describe('file-cursor.util', () => {
       const cursor: FileSyncCursorDto = {
         updatedAt: new Date().toISOString(),
         uuid: v4(),
-        status: FileQueryStatus.EXISTS,
+        status: FileStatus.EXISTS,
       };
 
       const token = encodeCursor(cursor);

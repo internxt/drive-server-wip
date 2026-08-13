@@ -24,7 +24,6 @@ import {
   FileStatus,
   type SortableFileAttributes,
 } from './file.domain';
-import { FileQueryStatus } from './file-query-status.enum';
 import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { type ReplaceFileDto } from './dto/replace-file.dto';
@@ -607,7 +606,7 @@ export class FileUseCases {
 
   async getFilesUpdatedAfterWithCursor(
     userId: UserAttributes['id'],
-    status: FileQueryStatus,
+    status: FileStatus | undefined,
     updatedAfter: Date,
     pageSize: number,
     cursorToken: string | undefined,
@@ -626,8 +625,8 @@ export class FileUseCases {
 
     const filter: Partial<FileAttributes> = { userId };
 
-    if (status !== FileQueryStatus.ALL) {
-      filter.status = FileStatus[status];
+    if (status) {
+      filter.status = status;
     }
 
     const { files, hasMore } =
