@@ -2284,6 +2284,172 @@ describe('FileUseCases', () => {
     });
   });
 
+  describe('getFilesUpdatedAfterWithCursor', () => {
+    const userIdForSync = 1;
+    const updatedAfter = new Date();
+    const mockFiles = [newFile(), newFile()];
+
+    it('When status is not ALL, then it should filter the repository query by status', async () => {
+      jest
+        .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
+
+      await service.getFilesUpdatedAfterWithCursor(
+        userIdForSync,
+        FileStatus.EXISTS,
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(
+        fileRepository.findFilesWithCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith({
+        where: { userId: userIdForSync, status: FileStatus.EXISTS },
+        updatedAfter,
+        pageSize: 1000,
+        cursor: undefined,
+      });
+    });
+
+    it('When status is ALL, then it should not filter the repository query by status', async () => {
+      jest
+        .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
+
+      await service.getFilesUpdatedAfterWithCursor(
+        userIdForSync,
+        'ALL',
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(
+        fileRepository.findFilesWithCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith({
+        where: { userId: userIdForSync },
+        updatedAfter,
+        pageSize: 1000,
+        cursor: undefined,
+      });
+    });
+
+    it('When a valid cursorToken is provided, then it should decode it and pass it to the repository', async () => {
+      const cursorData = { updatedAt: updatedAfter.toISOString(), uuid: v4() };
+      const cursorToken = Buffer.from(JSON.stringify(cursorData)).toString(
+        'base64',
+      );
+
+      jest
+        .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
+
+      await service.getFilesUpdatedAfterWithCursor(
+        userIdForSync,
+        'ALL',
+        updatedAfter,
+        1000,
+        cursorToken,
+      );
+
+      expect(
+        fileRepository.findFilesWithCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ cursor: cursorData }),
+      );
+    });
+
+    it('When an invalid cursorToken is provided, then it should throw BadRequestException and not call the repository', async () => {
+      jest.spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter');
+
+      await expect(
+        service.getFilesUpdatedAfterWithCursor(
+          userIdForSync,
+          'ALL',
+          updatedAfter,
+          1000,
+          'not-a-valid-cursor',
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(
+        fileRepository.findFilesWithCursorWhereUpdatedAfter,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When hasMore is true, then it should return an encoded nextCursor built from the last file', async () => {
+      const lastFile = mockFiles[mockFiles.length - 1];
+      jest
+        .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({ files: mockFiles, hasMore: true });
+
+      const result = await service.getFilesUpdatedAfterWithCursor(
+        userIdForSync,
+        'ALL',
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(result.nextCursor).not.toBeNull();
+      const decoded = JSON.parse(
+        Buffer.from(result.nextCursor, 'base64').toString('utf-8'),
+      );
+      expect(decoded).toEqual({
+        updatedAt: lastFile.updatedAt.toISOString(),
+        uuid: lastFile.uuid,
+      });
+    });
+
+    it('When hasMore is false, then nextCursor should be null', async () => {
+      jest
+        .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
+
+      const result = await service.getFilesUpdatedAfterWithCursor(
+        userIdForSync,
+        'ALL',
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('When hasMore is true but there are no files, then nextCursor should be null', async () => {
+      jest
+        .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({ files: [], hasMore: true });
+
+      const result = await service.getFilesUpdatedAfterWithCursor(
+        userIdForSync,
+        'ALL',
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('When files are returned, then it should map them through toJSON', async () => {
+      jest
+        .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
+
+      const result = await service.getFilesUpdatedAfterWithCursor(
+        userIdForSync,
+        'ALL',
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(result.files).toEqual(mockFiles.map((file) => file.toJSON()));
+    });
+  });
+
   describe('getUserUsedStorage', () => {
     it('When called, it should return the sum of files and versions usage', async () => {
       const filesUsage = 1000;

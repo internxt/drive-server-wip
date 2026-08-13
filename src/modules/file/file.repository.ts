@@ -152,6 +152,12 @@ export interface FileRepository {
     userId: User['id'];
     cursor?: FileUpdatedAtIdCursorDto;
   }): Promise<{ files: File[]; hasMore: boolean }>;
+  findFilesWithCursorWhereUpdatedAfter(params: {
+    where: Partial<FileAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FileUpdatedAtIdCursorDto;
+  }): Promise<{ files: File[]; hasMore: boolean }>;
   getFilesWithUserByUuuid(
     fileUuids: string[],
     order?: [keyof FileModel, 'ASC' | 'DESC'][],
