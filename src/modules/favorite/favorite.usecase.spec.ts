@@ -7,7 +7,12 @@ import { SequelizeFavoriteRepository } from './favorite.repository';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { FavoriteItemType } from './favorite.domain';
-import { newFavorite, newFile, newFolder, newUser } from '../../../test/fixtures';
+import {
+  newFavorite,
+  newFile,
+  newFolder,
+  newUser,
+} from '../../../test/fixtures';
 
 describe('FavoriteUseCases', () => {
   let service: FavoriteUseCases;
@@ -57,7 +62,11 @@ describe('FavoriteUseCases', () => {
           .mockResolvedValueOnce(someoneElsesFile);
 
         await expect(
-          service.markAsFavorite(user, someoneElsesFile.uuid, FavoriteItemType.File),
+          service.markAsFavorite(
+            user,
+            someoneElsesFile.uuid,
+            FavoriteItemType.File,
+          ),
         ).rejects.toThrow(ForbiddenException);
       });
 
@@ -205,6 +214,34 @@ describe('FavoriteUseCases', () => {
       expect(favoriteRepository.deleteOrphanedByUser).toHaveBeenCalledWith(
         user.uuid,
       );
+    });
+  });
+
+  describe('removeFavoritesInsideFolders', () => {
+    it('When called with folder uuids, then it deletes the favorites inside those folders', async () => {
+      const folderUuids = [v4(), v4()];
+      jest
+        .spyOn(favoriteRepository, 'deleteInsideFoldersByUser')
+        .mockResolvedValueOnce();
+
+      await service.removeFavoritesInsideFolders(user, folderUuids);
+
+      expect(favoriteRepository.deleteInsideFoldersByUser).toHaveBeenCalledWith(
+        user.uuid,
+        folderUuids,
+      );
+    });
+
+    it('When called with no folder uuids, then it does not hit the repository', async () => {
+      jest
+        .spyOn(favoriteRepository, 'deleteInsideFoldersByUser')
+        .mockResolvedValueOnce();
+
+      await service.removeFavoritesInsideFolders(user, []);
+
+      expect(
+        favoriteRepository.deleteInsideFoldersByUser,
+      ).not.toHaveBeenCalled();
     });
   });
 });

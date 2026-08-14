@@ -135,4 +135,23 @@ describe('SequelizeFavoriteRepository', () => {
       );
     });
   });
+
+  describe('deleteInsideFoldersByUser', () => {
+    it('When called, then it deletes the favorites of the user under the given folders', async () => {
+      const folderUuids = [v4(), v4()];
+      const querySpy = jest
+        .spyOn(favoriteModel.sequelize, 'query')
+        .mockResolvedValueOnce(undefined);
+
+      await repository.deleteInsideFoldersByUser(userId, folderUuids);
+
+      expect(querySpy).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM favorites'),
+        {
+          replacements: { userId, folderUuids },
+          type: QueryTypes.DELETE,
+        },
+      );
+    });
+  });
 });

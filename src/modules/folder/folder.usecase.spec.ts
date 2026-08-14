@@ -182,6 +182,10 @@ describe('FolderUseCases', () => {
         [mockBackupFolder.uuid, mockFolder.uuid],
         FavoriteItemType.Folder,
       );
+      expect(favoriteUseCases.removeFavoritesInsideFolders).toHaveBeenCalledWith(
+        user,
+        [mockBackupFolder.uuid, mockFolder.uuid],
+      );
     });
 
     it('When only ids are passed, then only folders by id should be searched', async () => {

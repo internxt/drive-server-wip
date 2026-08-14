@@ -545,6 +545,10 @@ export class FolderUseCases {
         folders.map((folder) => folder.uuid),
         FavoriteItemType.Folder,
       ),
+      this.favoriteUsecases.removeFavoritesInsideFolders(
+        user,
+        folders.map((folder) => folder.uuid),
+      ),
     ]);
   }
 

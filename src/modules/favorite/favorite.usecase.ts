@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { SequelizeFavoriteRepository } from './favorite.repository';
 import { Favorite, FavoriteItemType } from './favorite.domain';
 import { type User } from '../user/user.domain';
@@ -56,5 +60,19 @@ export class FavoriteUseCases {
 
   async removeOrphanedFavorites(user: User): Promise<void> {
     await this.favoriteRepository.deleteOrphanedByUser(user.uuid);
+  }
+
+  async removeFavoritesInsideFolders(
+    user: User,
+    folderUuids: string[],
+  ): Promise<void> {
+    if (folderUuids.length === 0) {
+      return;
+    }
+
+    await this.favoriteRepository.deleteInsideFoldersByUser(
+      user.uuid,
+      folderUuids,
+    );
   }
 }
