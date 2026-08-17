@@ -415,7 +415,7 @@ export class SequelizeFileRepository implements FileRepository {
               ),
             ],
           }
-        : { updatedAt: { [Op.gt]: updatedAfter } }),
+        : { updatedAt: { [Op.gte]: updatedAfter } }),
     };
 
     const rows = await this.fileModel.findAll({

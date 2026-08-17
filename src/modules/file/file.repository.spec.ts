@@ -210,7 +210,7 @@ describe('FileRepository', () => {
       expect(fileModel.findAll).toHaveBeenCalledWith({
         where: {
           ...where,
-          updatedAt: { [Op.gt]: updatedAfter },
+          updatedAt: { [Op.gte]: updatedAfter },
         },
         replacements: undefined,
         order: [
