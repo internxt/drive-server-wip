@@ -814,40 +814,26 @@ describe('Workspace Controller', () => {
     });
   });
 
-  describe('GET /:workspaceId/fuzzy/:search', () => {
-    it('When a fuzzy search is requested, then it should call the service with the respective arguments', async () => {
-      const user = newUser();
-      const workspaceId = v4();
-      const search = 'search';
-
-      await workspacesController.searchWorkspace(workspaceId, user, search, 0);
-
-      expect(workspacesUsecases.searchWorkspaceContent).toHaveBeenCalledWith(
-        user,
-        workspaceId,
-        search,
-        0,
-      );
-    });
-  });
-
   describe('POST /:workspaceId/fuzzy/:search', () => {
-    it('When a fuzzy search with filters is requested, then it should call the service with the respective arguments', async () => {
+    it('When a fuzzy search is requested, then it should call the service with the respective arguments', async () => {
       const user = newUser();
       const workspaceId = v4();
       const search = 'search';
       const query = { offset: 0, type: ['pdf'] };
 
-      await workspacesController.searchWorkspaceWithFilters(
+      await workspacesController.searchWorkspace(
         workspaceId,
         user,
         search,
         query,
       );
 
-      expect(
-        workspacesUsecases.searchWorkspaceContentWithFilters,
-      ).toHaveBeenCalledWith(user, workspaceId, search, query);
+      expect(workspacesUsecases.searchWorkspaceContent).toHaveBeenCalledWith(
+        user,
+        workspaceId,
+        search,
+        query,
+      );
     });
   });
 

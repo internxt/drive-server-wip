@@ -23,47 +23,8 @@ describe('SequelizeLookUpRepository', () => {
   });
 
   describe('search', () => {
-    test('When a search is requested, then it should query files and folders with the given offset', async () => {
-      await repository.search(userUuid, partialName, 10);
-
-      const [sql, options] = sequelize.query.mock.calls[0];
-      expect(sql).toContain('FROM files');
-      expect(sql).toContain('FROM folders');
-      expect(sql).toContain('UNION ALL');
-      expect(options.replacements).toEqual({
-        userUuid,
-        partialName,
-        offset: 10,
-      });
-    });
-  });
-
-  describe('workspaceSearch', () => {
-    test('When a search is requested, then it should query both branches with workspace replacements', async () => {
-      await repository.workspaceSearch(
-        userUuid,
-        workspaceUserUuid,
-        workspaceId,
-        partialName,
-      );
-
-      const [sql, options] = sequelize.query.mock.calls[0];
-      expect(sql).toContain('FROM files');
-      expect(sql).toContain('FROM folders');
-      expect(sql).toContain('wiu.workspace_id = :workspaceId');
-      expect(options.replacements).toEqual({
-        userUuid,
-        workspaceUserUuid,
-        workspaceId,
-        partialName,
-        offset: 0,
-      });
-    });
-  });
-
-  describe('searchWithFilters', () => {
     test('When no filters are passed, then it should query files and folders without filter clauses', async () => {
-      await repository.searchWithFilters(userUuid, partialName);
+      await repository.search(userUuid, partialName);
 
       const [sql, options] = sequelize.query.mock.calls[0];
       expect(sql).toContain('FROM files');
@@ -80,7 +41,7 @@ describe('SequelizeLookUpRepository', () => {
     });
 
     test('When extensions are passed, then it should filter files by type', async () => {
-      await repository.searchWithFilters(userUuid, partialName, {
+      await repository.search(userUuid, partialName, {
         itemTypes: ['file'],
         extensions: ['pdf'],
       });
@@ -92,7 +53,7 @@ describe('SequelizeLookUpRepository', () => {
     });
 
     test('When only folders are requested, then it should not query files', async () => {
-      await repository.searchWithFilters(userUuid, partialName, {
+      await repository.search(userUuid, partialName, {
         itemTypes: ['folder'],
       });
 
@@ -103,7 +64,7 @@ describe('SequelizeLookUpRepository', () => {
     });
 
     test('When a size filter is passed, then it should exclude folders', async () => {
-      await repository.searchWithFilters(userUuid, partialName, {
+      await repository.search(userUuid, partialName, {
         minSize: 1024,
       });
 
@@ -114,7 +75,7 @@ describe('SequelizeLookUpRepository', () => {
     });
 
     test('When the min size is zero, then it should not filter files nor exclude folders', async () => {
-      await repository.searchWithFilters(userUuid, partialName, { minSize: 0 });
+      await repository.search(userUuid, partialName, { minSize: 0 });
 
       const [sql, options] = sequelize.query.mock.calls[0];
       expect(sql).toContain('FROM folders');
@@ -123,7 +84,7 @@ describe('SequelizeLookUpRepository', () => {
     });
 
     test('When the max size is zero, then it should filter files and exclude folders', async () => {
-      await repository.searchWithFilters(userUuid, partialName, { maxSize: 0 });
+      await repository.search(userUuid, partialName, { maxSize: 0 });
 
       const [sql, options] = sequelize.query.mock.calls[0];
       expect(sql).toContain('f."size" <= :maxSize');
@@ -132,7 +93,7 @@ describe('SequelizeLookUpRepository', () => {
     });
 
     test('When a size filter is combined with folders only, then it should return empty without querying', async () => {
-      const result = await repository.searchWithFilters(userUuid, partialName, {
+      const result = await repository.search(userUuid, partialName, {
         itemTypes: ['folder'],
         minSize: 1024,
       });
@@ -142,7 +103,7 @@ describe('SequelizeLookUpRepository', () => {
     });
 
     test('When date filters are passed, then they should apply to files and folders', async () => {
-      await repository.searchWithFilters(userUuid, partialName, {
+      await repository.search(userUuid, partialName, {
         modifiedAfter: '2026-01-01T00:00:00.000Z',
         modifiedBefore: '2026-06-30T23:59:59.999Z',
       });
@@ -161,7 +122,7 @@ describe('SequelizeLookUpRepository', () => {
     });
 
     test('When combined filters are passed, then all clauses should apply together', async () => {
-      await repository.searchWithFilters(userUuid, partialName, {
+      await repository.search(userUuid, partialName, {
         offset: 10,
         itemTypes: ['file'],
         extensions: ['jpg', 'png'],
@@ -204,7 +165,7 @@ describe('SequelizeLookUpRepository', () => {
         },
       ]);
 
-      const result = await repository.searchWithFilters(userUuid, partialName);
+      const result = await repository.search(userUuid, partialName);
 
       expect(result).toEqual([
         {
@@ -228,9 +189,9 @@ describe('SequelizeLookUpRepository', () => {
     });
   });
 
-  describe('workspaceSearchWithFilters', () => {
+  describe('workspaceSearch', () => {
     test('When no filters are passed, then it should query both branches with workspace replacements', async () => {
-      await repository.workspaceSearchWithFilters(
+      await repository.workspaceSearch(
         userUuid,
         workspaceUserUuid,
         workspaceId,
@@ -251,7 +212,7 @@ describe('SequelizeLookUpRepository', () => {
     });
 
     test('When filters are passed, then the same clauses should apply as in the personal search', async () => {
-      await repository.workspaceSearchWithFilters(
+      await repository.workspaceSearch(
         userUuid,
         workspaceUserUuid,
         workspaceId,

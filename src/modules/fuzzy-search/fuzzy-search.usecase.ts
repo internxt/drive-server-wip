@@ -21,45 +21,18 @@ export class FuzzySearchUseCases {
   fuzzySearch(
     userUuid: UserAttributes['uuid'],
     text: string,
-    offset = 0,
+    query: FuzzySearchQueryDto = {},
   ): Promise<Array<FuzzySearchResult>> {
-    return this.repository.search(userUuid, text, offset);
+    return this.repository.search(userUuid, text, this.toFilters(query));
   }
 
   workspaceFuzzySearch(
     userUuid: string,
     workspace: Workspace,
     text: string,
-    offset = 0,
+    query: FuzzySearchQueryDto = {},
   ): Promise<Array<FuzzySearchResult>> {
     return this.repository.workspaceSearch(
-      userUuid,
-      workspace.workspaceUserId,
-      workspace.id,
-      text,
-      offset,
-    );
-  }
-
-  fuzzySearchWithFilters(
-    userUuid: UserAttributes['uuid'],
-    text: string,
-    query: FuzzySearchQueryDto = {},
-  ): Promise<Array<FuzzySearchResult>> {
-    return this.repository.searchWithFilters(
-      userUuid,
-      text,
-      this.toFilters(query),
-    );
-  }
-
-  workspaceFuzzySearchWithFilters(
-    userUuid: string,
-    workspace: Workspace,
-    text: string,
-    query: FuzzySearchQueryDto = {},
-  ): Promise<Array<FuzzySearchResult>> {
-    return this.repository.workspaceSearchWithFilters(
       userUuid,
       workspace.workspaceUserId,
       workspace.id,
