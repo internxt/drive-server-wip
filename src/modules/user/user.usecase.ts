@@ -82,6 +82,7 @@ import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { MailService } from '../../externals/mail/mail.service';
 import { type SharingInvite } from '../sharing/sharing.domain';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
@@ -167,6 +168,7 @@ export class UserUseCases {
     private readonly backupUseCases: BackupUseCase,
     private readonly cacheManager: CacheManagerService,
     private readonly asymmetricEncryptionService: AsymmetricEncryptionService,
+    private readonly mailService: MailService,
   ) {}
 
   async getCachedAvatar(user: User): Promise<string | null> {
@@ -1897,28 +1899,61 @@ export class UserUseCases {
     );
   }
 
-  async getUserUsage(
-    user: User,
-  ): Promise<{ drive: number; backup: number; total: number }> {
-    let totalDriveUsage = 0;
-    const cachedUsage = await this.cacheManager.getUserUsage(user.uuid);
+  private async calculateAndCacheDriveUsage(user: User): Promise<number> {
+    const driveUsage = await this.fileUseCases.getUserUsedStorage(user);
+    await this.cacheManager.setUserUsage(user.uuid, driveUsage);
 
-    if (cachedUsage) {
-      totalDriveUsage = cachedUsage.usage;
-    } else {
-      const driveUsage = await this.fileUseCases.getUserUsedStorage(user);
-      await this.cacheManager.setUserUsage(user.uuid, driveUsage);
-      totalDriveUsage = driveUsage;
+    return driveUsage;
+  }
+
+  private async getMailUsage(user: User): Promise<number | null> {
+    const cachedMailUsage = await this.cacheManager.getUserMailUsage(user.uuid);
+
+    if (cachedMailUsage?.isFresh) {
+      return cachedMailUsage.usage;
     }
 
-    const backupUsage = await this.backupUseCases.sumExistentBackupSizes(
-      user.id,
-    );
+    try {
+      const mailUsage = await this.mailService.getUserMailUsage(user.uuid);
+      await this.cacheManager.setUserMailUsage(user.uuid, mailUsage);
+
+      return mailUsage;
+    } catch (error) {
+      const lastKnownUsage = cachedMailUsage?.usage ?? null;
+
+      Logger.error(
+        `[USER/MAIL_USAGE] Failed to get mail usage for user ${user.uuid}: ${error.message}. ` +
+          (lastKnownUsage !== null
+            ? 'Serving the last known value.'
+            : 'No cached value available, reporting mail usage as unknown.'),
+      );
+
+      return lastKnownUsage;
+    }
+  }
+
+  async getUserUsage(user: User): Promise<{
+    drive: number;
+    backup: number;
+    mail: number | null;
+    total: number | null;
+  }> {
+    const [cachedUsage, backupUsage, mailUsage] = await Promise.all([
+      this.cacheManager.getUserUsage(user.uuid),
+      this.backupUseCases.sumExistentBackupSizes(user.id),
+      this.getMailUsage(user),
+    ]);
+
+    const totalDriveUsage = cachedUsage
+      ? cachedUsage.usage
+      : await this.calculateAndCacheDriveUsage(user);
 
     return {
       drive: totalDriveUsage,
       backup: backupUsage,
-      total: totalDriveUsage + backupUsage,
+      mail: mailUsage,
+      total:
+        mailUsage === null ? null : totalDriveUsage + backupUsage + mailUsage,
     };
   }
 
@@ -2050,11 +2085,15 @@ export class UserUseCases {
 
   async checkAndNotifyStorageThreshold(
     user: User,
-    usage: { drive: number; backup: number; total: number },
+    usage: { drive: number; backup: number; total: number | null },
   ): Promise<void> {
     const NOTIFY_THRESHOLD = 80;
     const COOLDOWN_DAYS = 14;
     const MAX_EMAILS_PER_MONTH = 2;
+
+    if (usage.total === null) {
+      return;
+    }
 
     try {
       const limit = await this.getSpaceLimit(user);

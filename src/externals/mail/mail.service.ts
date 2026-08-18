@@ -3,6 +3,8 @@ import { signWithExpiry } from '../../middlewares/passport';
 import { ConfigService } from '@nestjs/config';
 import { HttpClient } from '../http/http.service';
 
+const MAIL_USAGE_REQUEST_TIMEOUT_MS = 3000;
+
 function signToken(duration: string, secret: string, isDevelopment?: boolean) {
   return signWithExpiry({}, Buffer.from(secret, 'base64').toString('utf8'), {
     algorithm: 'RS256',
@@ -51,5 +53,24 @@ export class MailService {
       }
       throw error;
     }
+  }
+  async getUserMailUsage(userUuid: string): Promise<number> {
+    const baseUrl = this.configService.get('apis.mail.url');
+    const headers = this.getAuthHeaders();
+
+    const res = await this.httpClient.get(
+      `${baseUrl}/gateway/accounts/${encodeURIComponent(userUuid)}/usage`,
+      { headers, timeout: MAIL_USAGE_REQUEST_TIMEOUT_MS },
+    );
+
+    const usage = res.data?.usage;
+
+    if (typeof usage !== 'number' || !Number.isFinite(usage)) {
+      throw new Error(
+        `Mail gateway returned a malformed usage payload for user ${userUuid}`,
+      );
+    }
+
+    return usage;
   }
 }

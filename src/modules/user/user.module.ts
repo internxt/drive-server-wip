@@ -46,6 +46,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { UserNotificationTokensModel } from './user-notification-tokens.model';
 import { BackupModule } from '../backups/backup.module';
+import { MailServiceModule } from '../../externals/mail/mail.module';
 import { CacheManagerModule } from '../cache-manager/cache-manager.module';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
 import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
@@ -83,6 +84,7 @@ import { CaptchaService } from '../../externals/captcha/captcha.service';
     AsymmetricEncryptionModule,
     AuditLogsModule,
     KlaviyoModule,
+    MailServiceModule,
   ],
   controllers: [UserController],
   providers: [

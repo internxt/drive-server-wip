@@ -50,6 +50,77 @@ describe('CacheManagerService', () => {
     });
   });
 
+  describe('mail usage', () => {
+    const TTL_1_HOUR = 60 * 60 * 1000;
+
+    it('When the cached entry is within the freshness window, then it is reported as fresh', async () => {
+      const userUuid = v4();
+
+      jest
+        .spyOn(cacheManager, 'get')
+        .mockResolvedValue({ usage: 1024, cachedAt: Date.now() });
+
+      const result = await cacheManagerService.getUserMailUsage(userUuid);
+
+      expect(cacheManager.get).toHaveBeenCalledWith(`mail-usage:${userUuid}`);
+      expect(result).toEqual({ usage: 1024, isFresh: true });
+    });
+
+    it('When the cached entry is older than the freshness window, then it is reported as stale but still returned', async () => {
+      const userUuid = v4();
+      const elevenMinutesAgo = Date.now() - 11 * 60 * 1000;
+
+      jest
+        .spyOn(cacheManager, 'get')
+        .mockResolvedValue({ usage: 1024, cachedAt: elevenMinutesAgo });
+
+      const result = await cacheManagerService.getUserMailUsage(userUuid);
+
+      expect(result).toEqual({ usage: 1024, isFresh: false });
+    });
+
+    it('When there is no cached entry, then it returns null', async () => {
+      jest.spyOn(cacheManager, 'get').mockResolvedValue(null);
+
+      const result = await cacheManagerService.getUserMailUsage(v4());
+
+      expect(result).toBeNull();
+    });
+
+    it('When setting mail usage, then it stores a timestamped entry retained for an hour', async () => {
+      const userUuid = v4();
+      const usage = 2048;
+
+      await cacheManagerService.setUserMailUsage(userUuid, usage);
+
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        `mail-usage:${userUuid}`,
+        expect.objectContaining({ usage, cachedAt: expect.any(Number) }),
+        TTL_1_HOUR,
+      );
+    });
+
+    it('When setting mail usage, then it does not overload the drive usage key', async () => {
+      const userUuid = v4();
+
+      await cacheManagerService.setUserMailUsage(userUuid, 1);
+
+      expect(cacheManager.set).not.toHaveBeenCalledWith(
+        `usage:${userUuid}`,
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('When expiring mail usage, then it deletes the mail entry', async () => {
+      const userUuid = v4();
+
+      await cacheManagerService.expireUserMailUsage(userUuid);
+
+      expect(cacheManager.del).toHaveBeenCalledWith(`mail-usage:${userUuid}`);
+    });
+  });
+
   describe('setUserUsage', () => {
     it('When setting user usage, then it should store the usage with correct key and expiration', async () => {
       const userUuid = v4();

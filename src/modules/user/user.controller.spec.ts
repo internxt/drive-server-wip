@@ -1201,10 +1201,12 @@ describe('User Controller', () => {
     it('When storage usage is requested, then it should return the user usage data', async () => {
       const driveUsage = 1024000;
       const backupUsage = 2048000;
-      const totalUsage = driveUsage + backupUsage;
+      const mailUsage = 512000;
+      const totalUsage = driveUsage + backupUsage + mailUsage;
       const mockUsage = {
         drive: driveUsage,
         backup: backupUsage,
+        mail: mailUsage,
         total: totalUsage,
       };
 
