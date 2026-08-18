@@ -76,6 +76,7 @@ import { AppSumoUseCase } from '../app-sumo/app-sumo.usecase';
 import { BackupUseCase } from '../backups/backup.usecase';
 import { convertSizeToBytes } from '../../lib/convert-size-to-bytes';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
+import { MailService } from '../../externals/mail/mail.service';
 import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
 import { KyberProvider } from '../../externals/asymmetric-encryption/providers/kyber.provider';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
@@ -132,6 +133,7 @@ describe('User use cases', () => {
   let appSumoUseCases: AppSumoUseCase;
   let backupUseCases: BackupUseCase;
   let cacheManagerService: CacheManagerService;
+  let mailService: MailService;
   let loggerMock: DeepMocked<Logger>;
   let sharingRepository: SequelizeSharingRepository;
   let preCreatedUsersRepository: SequelizePreCreatedUsersRepository;
@@ -224,6 +226,7 @@ describe('User use cases', () => {
     backupUseCases = moduleRef.get<BackupUseCase>(BackupUseCase);
     cacheManagerService =
       moduleRef.get<CacheManagerService>(CacheManagerService);
+    mailService = moduleRef.get<MailService>(MailService);
     sharingRepository = moduleRef.get<SequelizeSharingRepository>(
       SequelizeSharingRepository,
     );
@@ -2272,10 +2275,30 @@ describe('User use cases', () => {
   });
 
   describe('getUserUsage', () => {
+    const mailUsage = 512;
+    const defaultDriveUsage = 1024;
+    const defaultBackupUsage = 1024;
+
+    beforeEach(() => {
+      jest
+        .spyOn(cacheManagerService, 'getUserMailUsage')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(cacheManagerService, 'setUserMailUsage')
+        .mockResolvedValue(undefined);
+      jest.spyOn(mailService, 'getUserMailUsage').mockResolvedValue(mailUsage);
+      jest
+        .spyOn(cacheManagerService, 'getUserUsage')
+        .mockResolvedValue({ usage: defaultDriveUsage });
+      jest
+        .spyOn(backupUseCases, 'sumExistentBackupSizes')
+        .mockResolvedValue(defaultBackupUsage);
+    });
+
     it('When cache has user usage data, then it should return the cached data', async () => {
       const cachedUsage = { usage: 1024 };
       const backupUsage = 1024;
-      const totalUsage = cachedUsage.usage + backupUsage;
+      const totalUsage = cachedUsage.usage + backupUsage + mailUsage;
 
       jest
         .spyOn(cacheManagerService, 'getUserUsage')
@@ -2294,6 +2317,7 @@ describe('User use cases', () => {
       expect(result).toEqual({
         drive: cachedUsage.usage,
         backup: backupUsage,
+        mail: mailUsage,
         total: totalUsage,
       });
     });
@@ -2301,7 +2325,7 @@ describe('User use cases', () => {
     it('When cache does not have user usage data, then it should get data from database and cache it', async () => {
       const driveUsage = 2048;
       const backupUsage = 1024;
-      const totalUsage = driveUsage + backupUsage;
+      const totalUsage = driveUsage + backupUsage + mailUsage;
       jest.spyOn(cacheManagerService, 'getUserUsage').mockResolvedValue(null);
       jest
         .spyOn(fileUseCases, 'getUserUsedStorage')
@@ -2324,8 +2348,82 @@ describe('User use cases', () => {
       expect(result).toEqual({
         drive: driveUsage,
         backup: backupUsage,
+        mail: mailUsage,
         total: totalUsage,
       });
+    });
+
+    it('When mail usage is not cached, then it is fetched and cached', async () => {
+      const result = await userUseCases.getUserUsage(user);
+
+      expect(mailService.getUserMailUsage).toHaveBeenCalledWith(user.uuid);
+      expect(cacheManagerService.setUserMailUsage).toHaveBeenCalledWith(
+        user.uuid,
+        mailUsage,
+      );
+      expect(result.mail).toBe(mailUsage);
+    });
+
+    it('When cached mail usage is still fresh, then the mail service is not called again', async () => {
+      const cachedMailUsage = 999;
+      jest
+        .spyOn(cacheManagerService, 'getUserMailUsage')
+        .mockResolvedValue({ usage: cachedMailUsage, isFresh: true });
+      const result = await userUseCases.getUserUsage(user);
+
+      expect(mailService.getUserMailUsage).not.toHaveBeenCalled();
+      expect(cacheManagerService.setUserMailUsage).not.toHaveBeenCalled();
+      expect(result.mail).toBe(cachedMailUsage);
+      expect(result.total).toBe(1024 + 1024 + cachedMailUsage);
+    });
+
+    it('When the mail service fails and a stale value exists, then it serves that value', async () => {
+      const lastKnownMailUsage = 777;
+      jest
+        .spyOn(mailService, 'getUserMailUsage')
+        .mockRejectedValue(new Error('mail gateway down'));
+      jest
+        .spyOn(cacheManagerService, 'getUserMailUsage')
+        .mockResolvedValue({ usage: lastKnownMailUsage, isFresh: false });
+      const result = await userUseCases.getUserUsage(user);
+
+      expect(result.mail).toBe(lastKnownMailUsage);
+      expect(result.total).toBe(1024 + 1024 + lastKnownMailUsage);
+    });
+
+    it('When the mail service fails and there is no cached value, then it does not throw and does not report zero mail usage', async () => {
+      jest
+        .spyOn(mailService, 'getUserMailUsage')
+        .mockRejectedValue(new Error('mail gateway down'));
+      jest
+        .spyOn(cacheManagerService, 'getUserMailUsage')
+        .mockResolvedValue(null);
+      const result = await userUseCases.getUserUsage(user);
+
+      expect(result.mail).toBeNull();
+      expect(result.mail).not.toBe(0);
+      expect(result.total).toBeNull();
+      expect(result.drive).toBe(1024);
+      expect(result.backup).toBe(1024);
+    });
+
+    it('When cached mail usage is stale, then it refreshes it from the mail service', async () => {
+      jest
+        .spyOn(cacheManagerService, 'getUserMailUsage')
+        .mockResolvedValue({ usage: 111, isFresh: false });
+      const result = await userUseCases.getUserUsage(user);
+
+      expect(mailService.getUserMailUsage).toHaveBeenCalledWith(user.uuid);
+      expect(result.mail).toBe(mailUsage);
+    });
+
+    it('When usage is requested, then mail usage is resolved alongside the backup query', async () => {
+      await userUseCases.getUserUsage(user);
+
+      expect(backupUseCases.sumExistentBackupSizes).toHaveBeenCalledWith(
+        user.id,
+      );
+      expect(mailService.getUserMailUsage).toHaveBeenCalledWith(user.uuid);
     });
   });
 

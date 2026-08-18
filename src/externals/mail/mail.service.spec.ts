@@ -101,4 +101,69 @@ describe('MailService', () => {
       );
     });
   });
+
+  describe('getUserMailUsage', () => {
+    const baseUrl = 'https://mail.test';
+    const userUuid = 'drive-user-uuid';
+
+    beforeEach(() => {
+      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+        if (key === 'apis.mail.url') return baseUrl;
+        if (key === 'isDevelopment') return false;
+        if (key === 'secrets.gateway') return 'ZHVtbXk=';
+        return undefined;
+      });
+    });
+
+    it('When the gateway returns a usage, then it returns that usage in bytes', async () => {
+      jest
+        .spyOn(httpClient, 'get')
+        .mockResolvedValueOnce(
+          emptyAxiosResponse({ userId: userUuid, usage: 12345 }),
+        );
+
+      const result = await service.getUserMailUsage(userUuid);
+
+      expect(result).toBe(12345);
+      expect(httpClient.get).toHaveBeenCalledWith(
+        `${baseUrl}/gateway/accounts/${encodeURIComponent(userUuid)}/usage`,
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer mock-gateway-jwt',
+            'Content-Type': 'application/json',
+          }),
+          timeout: expect.any(Number),
+        }),
+      );
+    });
+
+    it('When the user has no mail account, then the reported zero usage is returned as is', async () => {
+      jest
+        .spyOn(httpClient, 'get')
+        .mockResolvedValueOnce(
+          emptyAxiosResponse({ userId: userUuid, usage: 0 }),
+        );
+
+      const result = await service.getUserMailUsage(userUuid);
+
+      expect(result).toBe(0);
+    });
+
+    it('When the gateway returns a malformed payload, then it throws instead of reporting zero', async () => {
+      jest
+        .spyOn(httpClient, 'get')
+        .mockResolvedValueOnce(emptyAxiosResponse({ userId: userUuid }));
+
+      await expect(service.getUserMailUsage(userUuid)).rejects.toThrow(
+        /malformed usage payload/,
+      );
+    });
+
+    it('When the gateway fails, then it propagates the error', async () => {
+      const err = new Error('upstream');
+      jest.spyOn(httpClient, 'get').mockRejectedValueOnce(err);
+
+      await expect(service.getUserMailUsage(userUuid)).rejects.toThrow(err);
+    });
+  });
 });

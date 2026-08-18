@@ -5,11 +5,14 @@ import { type Cache } from 'cache-manager';
 @Injectable()
 export class CacheManagerService {
   private readonly USAGE_KEY_PREFIX = 'usage:';
+  private readonly MAIL_USAGE_KEY_PREFIX = 'mail-usage:';
   private readonly LIMIT_KEY_PREFIX = 'limit:';
   private readonly JWT_KEY_PREFIX = 'jwt:';
   private readonly AVATAR_KEY_PREFIX = 'avatar:';
   private readonly TTL_10_MINUTES = 10 * 60 * 1000;
   private readonly TTL_24_HOURS = 24 * 60 * 60 * 1000;
+  private readonly TTL_1_HOUR = 60 * 60 * 1000;
+  private readonly MAIL_USAGE_FRESH_MS = 10 * 60 * 1000;
 
   constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
 
@@ -39,6 +42,34 @@ export class CacheManagerService {
 
   async expireUserUsage(userUuid: string): Promise<void> {
     await this.cacheManager.del(`${this.USAGE_KEY_PREFIX}${userUuid}`);
+  }
+
+  async getUserMailUsage(userUuid: string) {
+    const cachedUsage = await this.cacheManager.get<{
+      usage: number;
+      cachedAt: number;
+    }>(`${this.MAIL_USAGE_KEY_PREFIX}${userUuid}`);
+
+    if (!cachedUsage) {
+      return null;
+    }
+
+    return {
+      usage: cachedUsage.usage,
+      isFresh: Date.now() - cachedUsage.cachedAt < this.MAIL_USAGE_FRESH_MS,
+    };
+  }
+
+  async setUserMailUsage(userUuid: string, usage: number) {
+    return this.cacheManager.set(
+      `${this.MAIL_USAGE_KEY_PREFIX}${userUuid}`,
+      { usage, cachedAt: Date.now() },
+      this.TTL_1_HOUR,
+    );
+  }
+
+  async expireUserMailUsage(userUuid: string): Promise<void> {
+    await this.cacheManager.del(`${this.MAIL_USAGE_KEY_PREFIX}${userUuid}`);
   }
 
   async expireLimit(userUuid: string): Promise<void> {
