@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { KyberBuilder, KyberProvider } from './providers/kyber.provider';
+import { KyberProvider } from './providers/kyber.provider';
+import { type KyberBuilder } from './providers/kyber.provider';
 import { extendSecret, XORhex } from './utils';
 import {
   decryptMessageWithPrivateKey,

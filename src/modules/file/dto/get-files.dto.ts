@@ -3,7 +3,7 @@ import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
 import {
   type FileAttributes,
   FileStatus,
-  SortableFileAttributes,
+  type SortableFileAttributes,
 } from '../file.domain';
 import { SortOrder } from '../../../common/order.type';
 import { RequiredLargePaginationDto } from '../../../common/dto/basic-pagination.dto';

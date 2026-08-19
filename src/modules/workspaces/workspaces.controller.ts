@@ -53,15 +53,15 @@ import {
   type Folder,
   type FolderAttributes,
   FolderStatus,
-  SortableFolderAttributes,
+  type SortableFolderAttributes,
 } from '../folder/folder.domain';
 import { CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
-import { SortableFileAttributes } from '../file/file.domain';
+import { type SortableFileAttributes } from '../file/file.domain';
 import { avatarStorageS3Config } from '../../externals/multer';
 import { WorkspaceInvitationsPagination } from './dto/workspace-invitations-pagination.dto';
 import { ShareItemWithTeamDto } from './dto/share-item-with-team.dto';
-import { OrderBy } from '../../common/order.type';
+import { type OrderBy } from '../../common/order.type';
 import { GetDataFromRequest } from './../../common/extract-data-from-request';
 import { SharingPermissionsGuard } from '../sharing/guards/sharing-permissions.guard';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
@@ -891,7 +891,7 @@ export class WorkspacesController {
   @ApiBearerAuth()
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
-    description: "user's trashed items in workspace",
+    description: 'user\'s trashed items in workspace',
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
@@ -924,7 +924,7 @@ export class WorkspacesController {
   @ApiParam({ name: 'workspaceId', type: String, required: true })
   @ApiOkResponse({
     description:
-      "Member's trashed items in workspace have been successfully removed",
+      'Member\'s trashed items in workspace have been successfully removed',
   })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)

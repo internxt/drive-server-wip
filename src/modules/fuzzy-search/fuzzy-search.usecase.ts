@@ -1,6 +1,6 @@
 import {
   type FuzzySearchFilters,
-  LookUpRepository,
+  type LookUpRepository,
   SequelizeLookUpRepository,
 } from './look-up.repository';
 import { Inject } from '@nestjs/common';

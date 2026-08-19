@@ -5,7 +5,10 @@ import {
   IsDateString,
   type ValidationArguments,
 } from 'class-validator';
-import { FileStatus, SortableFileAttributes } from '../../file/file.domain';
+import {
+  FileStatus,
+  type SortableFileAttributes,
+} from '../../file/file.domain';
 import { LargePaginationDto } from '../../../common/dto/basic-pagination.dto';
 import { ApiProperty } from '@nestjs/swagger';
 import { SortOrder } from '../../../common/order.type';

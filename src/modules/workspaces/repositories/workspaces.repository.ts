@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { type FindOrCreateOptions, type Transaction } from 'sequelize/types';
+import { type FindOrCreateOptions, type Transaction } from 'sequelize';
 import { type WorkspaceAttributes } from '../attributes/workspace.attributes';
 import { Workspace } from '../domains/workspaces.domain';
 import { WorkspaceModel } from '../models/workspace.model';

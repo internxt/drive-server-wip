@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsOptional, ValidateIf } from 'class-validator';
 import { SortOrder } from '../../../common/order.type';
-import { SortableFolderAttributes } from '../folder.domain';
+import { type SortableFolderAttributes } from '../folder.domain';
 import { RequiredPaginationDto } from '../../../common/dto/basic-pagination.dto';
 
 export class GetFoldersInFoldersDto extends RequiredPaginationDto {

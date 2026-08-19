@@ -9,8 +9,8 @@ import {
 import { SortOrder } from '../../../common/order.type';
 import {
   FOLDER_STATUS_QUERY_VALUES,
-  FolderStatusQuery,
-  SortableFolderAttributes,
+  type FolderStatusQuery,
+  type SortableFolderAttributes,
 } from '../folder.domain';
 import { RequiredLargePaginationDto } from '../../../common/dto/basic-pagination.dto';
 
