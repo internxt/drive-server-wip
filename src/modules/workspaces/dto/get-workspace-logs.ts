@@ -10,7 +10,7 @@ import {
   Min,
   Max,
 } from 'class-validator';
-import { OrderBy } from './../../../common/order.type';
+import { type OrderBy } from './../../../common/order.type';
 import { WorkspaceLogType } from '../attributes/workspace-logs.attributes';
 import { Transform, Type } from 'class-transformer';
 

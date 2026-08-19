@@ -38,7 +38,7 @@ import {
 } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
-import { Response, Request } from 'express';
+import { type Response, type Request } from 'express';
 import { SignUpSuccessEvent } from '../../externals/notifications/events/sign-up-success.event';
 import { NotificationService } from '../../externals/notifications/notification.service';
 import { AccountTokenAction, User } from './user.domain';
@@ -1160,7 +1160,7 @@ export class UserController {
     } catch (err) {
       this.logger.error(
         { err, token },
-        `[DEACTIVATION] Error confirming deactivation`,
+        '[DEACTIVATION] Error confirming deactivation',
       );
       throw err;
     }

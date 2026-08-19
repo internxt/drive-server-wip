@@ -1,7 +1,7 @@
 import { IsOptional, IsString, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { OrderBy } from '../../../common/order.type';
+import { type OrderBy } from '../../../common/order.type';
 
 export class GetSharedItemsDto {
   @ApiPropertyOptional({

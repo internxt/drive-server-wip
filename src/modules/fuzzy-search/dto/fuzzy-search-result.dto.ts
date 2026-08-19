@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ItemType, itemTypes } from '../look-up.domain';
+import { type ItemType, itemTypes } from '../look-up.domain';
 
 export class FuzzySearchResult {
   @ApiProperty()

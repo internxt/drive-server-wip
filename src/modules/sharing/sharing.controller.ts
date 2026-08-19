@@ -46,7 +46,7 @@ import {
   type GetFilesResponse,
   type GetItemsReponse,
 } from './dto/get-items-and-shared-folders.dto';
-import { OrderBy } from '../../common/order.type';
+import { type OrderBy } from '../../common/order.type';
 import { Pagination } from '../../lib/pagination';
 import API_LIMITS from '../../lib/http/limits';
 import { BadRequestParamOutOfRangeException } from '../../lib/http/errors';

@@ -9,7 +9,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { LargePaginationDto } from '../../../common/dto/basic-pagination.dto';
 import {
   FolderStatus,
-  SortableFolderAttributes,
+  type SortableFolderAttributes,
 } from '../../folder/folder.domain';
 
 const allowedStatuses = [...Object.values(FolderStatus), 'ALL'];
