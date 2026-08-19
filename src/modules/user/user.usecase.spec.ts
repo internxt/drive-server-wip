@@ -2391,7 +2391,7 @@ describe('User use cases', () => {
       expect(result.total).toBe(1024 + 1024 + lastKnownMailUsage);
     });
 
-    it('When the mail service fails and there is no cached value, then it does not throw and does not report zero mail usage', async () => {
+    it('When the mail service fails and there is no cached value, then it does not throw and defaults mail usage to 0', async () => {
       jest
         .spyOn(mailService, 'getUserMailUsage')
         .mockRejectedValue(new Error('mail gateway down'));
@@ -2400,11 +2400,37 @@ describe('User use cases', () => {
         .mockResolvedValue(null);
       const result = await userUseCases.getUserUsage(user);
 
-      expect(result.mail).toBeNull();
-      expect(result.mail).not.toBe(0);
-      expect(result.total).toBeNull();
+      expect(result.mail).toBe(0);
+      expect(result.total).toBe(1024 + 1024 + 0);
+      expect(cacheManagerService.setUserMailUsage).toHaveBeenCalledWith(
+        user.uuid,
+        0,
+      );
       expect(result.drive).toBe(1024);
       expect(result.backup).toBe(1024);
+    });
+
+    it('When the mail usage cache read fails, then it does not throw and falls back to fetching live', async () => {
+      jest
+        .spyOn(cacheManagerService, 'getUserMailUsage')
+        .mockRejectedValue(new Error('redis unreachable'));
+
+      const result = await userUseCases.getUserUsage(user);
+
+      expect(mailService.getUserMailUsage).toHaveBeenCalledWith(user.uuid);
+      expect(result.mail).toBe(mailUsage);
+      expect(result.total).toBe(1024 + 1024 + mailUsage);
+    });
+
+    it('When caching a freshly fetched mail usage fails, then it still returns the fetched value', async () => {
+      jest
+        .spyOn(cacheManagerService, 'setUserMailUsage')
+        .mockRejectedValue(new Error('redis unreachable'));
+
+      const result = await userUseCases.getUserUsage(user);
+
+      expect(result.mail).toBe(mailUsage);
+      expect(result.total).toBe(1024 + 1024 + mailUsage);
     });
 
     it('When cached mail usage is stale, then it refreshes it from the mail service', async () => {
