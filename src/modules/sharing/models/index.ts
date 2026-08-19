@@ -69,7 +69,7 @@ export class PermissionModel extends Model implements PermissionAttributes {
   })
   role: RoleModel;
 
-  @Column
+  @Column({ type: DataType.STRING })
   name: SharingActionName;
 
   @Column
