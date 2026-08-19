@@ -1906,37 +1906,52 @@ export class UserUseCases {
     return driveUsage;
   }
 
-  private async getMailUsage(user: User): Promise<number | null> {
-    const cachedMailUsage = await this.cacheManager.getUserMailUsage(user.uuid);
+  private async getMailUsage(user: User): Promise<number> {
+    let cachedMailUsage: { usage: number; isFresh: boolean } | null = null;
+
+    try {
+      cachedMailUsage = await this.cacheManager.getUserMailUsage(user.uuid);
+    } catch (error: any) {
+      Logger.error(
+        `[USER/MAIL_USAGE] Failed to read mail usage cache for user ${user.uuid}: ${error.message}`,
+      );
+    }
 
     if (cachedMailUsage?.isFresh) {
       return cachedMailUsage.usage;
     }
 
-    try {
-      const mailUsage = await this.mailService.getUserMailUsage(user.uuid);
-      await this.cacheManager.setUserMailUsage(user.uuid, mailUsage);
+    let mailUsage: number;
 
-      return mailUsage;
-    } catch (error) {
-      const lastKnownUsage = cachedMailUsage?.usage ?? null;
+    try {
+      mailUsage = await this.mailService.getUserMailUsage(user.uuid);
+    } catch (error: any) {
+      mailUsage = cachedMailUsage?.usage ?? 0;
 
       Logger.error(
         `[USER/MAIL_USAGE] Failed to get mail usage for user ${user.uuid}: ${error.message}. ` +
-          (lastKnownUsage !== null
+          (cachedMailUsage
             ? 'Serving the last known value.'
-            : 'No cached value available, reporting mail usage as unknown.'),
+            : 'No cached value available, defaulting mail usage to 0.'),
       );
-
-      return lastKnownUsage;
     }
+
+    try {
+      await this.cacheManager.setUserMailUsage(user.uuid, mailUsage);
+    } catch (error: any) {
+      Logger.error(
+        `[USER/MAIL_USAGE] Failed to cache mail usage for user ${user.uuid}: ${error.message}`,
+      );
+    }
+
+    return mailUsage;
   }
 
   async getUserUsage(user: User): Promise<{
     drive: number;
     backup: number;
-    mail: number | null;
-    total: number | null;
+    mail: number;
+    total: number;
   }> {
     const [cachedUsage, backupUsage, mailUsage] = await Promise.all([
       this.cacheManager.getUserUsage(user.uuid),
@@ -1952,8 +1967,7 @@ export class UserUseCases {
       drive: totalDriveUsage,
       backup: backupUsage,
       mail: mailUsage,
-      total:
-        mailUsage === null ? null : totalDriveUsage + backupUsage + mailUsage,
+      total: totalDriveUsage + backupUsage + mailUsage,
     };
   }
 
