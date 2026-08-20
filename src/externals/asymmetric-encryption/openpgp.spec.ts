@@ -72,6 +72,7 @@ describe('PGP Utils', () => {
       });
       expect(openpgp.decrypt).toHaveBeenCalledWith({
         message: mockEncryptedMessage,
+        format: 'utf8',
         decryptionKeys: mockPrivateKey,
       });
       expect(result).toBe(mockDecryptedMessage);
