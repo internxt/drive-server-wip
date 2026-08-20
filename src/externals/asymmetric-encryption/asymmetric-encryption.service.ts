@@ -144,8 +144,8 @@ export class AsymmetricEncryptionService {
 
     if (isHybridMode) {
       if (!privateKyberKeyInBase64) {
-        return Promise.reject(
-          new Error('Attempted to decrypt hybrid ciphertex without Kyber key'),
+        throw new Error(
+          'Attempted to decrypt hybrid ciphertex without Kyber key',
         );
       }
 
@@ -239,8 +239,8 @@ export class AsymmetricEncryptionService {
 
     if (isHybridMode) {
       if (!privateKyberKeyInBase64) {
-        return Promise.reject(
-          new Error('Attempted to decrypt hybrid ciphertex without Kyber key'),
+        throw new Error(
+          'Attempted to decrypt hybrid ciphertex without Kyber key',
         );
       }
 
