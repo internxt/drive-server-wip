@@ -348,7 +348,7 @@ export class UserUseCases {
     }
 
     console.info(
-      `(usersReferralsService.redeemUserReferral) ` +
+      '(usersReferralsService.redeemUserReferral) ' +
         `The user '${uuid}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
     );
   }
@@ -571,23 +571,16 @@ export class UserUseCases {
         continue;
       }
 
-      const decryptedEncryptionKey =
-        await this.asymmetricEncryptionService.hybridDecryptMessageWithPrivateKey(
-          {
-            encryptedMessageInBase64: encryptionKey,
-            privateKeyInBase64: privateKey,
-            privateKyberKeyInBase64: invite.isHybrid() ? privateKyberKey : null,
-          },
-        );
-
       const newEncryptedEncryptionKey =
-        await this.asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
-          {
-            message: decryptedEncryptionKey.toString(),
-            publicKeyInBase64: newPublicKey,
-            publicKyberKeyBase64: invite.isHybrid() ? newPublicKyberKey : null,
-          },
-        );
+        await this.asymmetricEncryptionService.reEncryptHybridCiphertext({
+          ciphertextInBase64: encryptionKey,
+          privateKeyInBase64: privateKey,
+          privateKyberKeyInBase64: invite.isHybrid() ? privateKyberKey : null,
+          newPublicKeyInBase64: newPublicKey,
+          newPublicKyberKeyInBase64: invite.isHybrid()
+            ? newPublicKyberKey
+            : null,
+        });
 
       invite.encryptionKey = newEncryptedEncryptionKey;
       invite.sharedWith = newUserUuid;
@@ -1231,7 +1224,7 @@ export class UserUseCases {
 
       if (typeof decoded === 'string') {
         Logger.error(
-          `[RECOVER-ACCOUNT/VERIFY-AND-DECODE-TOKEN]: Token is a string`,
+          '[RECOVER-ACCOUNT/VERIFY-AND-DECODE-TOKEN]: Token is a string',
         );
         throw new ForbiddenException('Invalid token');
       }
