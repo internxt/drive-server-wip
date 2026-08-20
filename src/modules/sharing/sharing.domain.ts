@@ -4,7 +4,7 @@ import type { User } from '../user/user.domain';
 import type { WorkspaceTeam } from '../workspaces/domains/workspace-team.domain';
 
 export const HYBRID_ALGORITHM = 'hybrid';
-export const HYBRID_ALGORITHM_WITH_BUCKET_KEY = 'hybrid';
+export const HYBRID_ALGORITHM_WITH_BUCKET_KEY = 'hybrid-v2';
 
 
 export type Item = File | Folder;
