@@ -50,10 +50,6 @@ import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { type PreCreateUserDto } from './dto/pre-create-user.dto';
-import {
-  decryptMessageWithPrivateKey,
-  encryptMessageWithPublicKey,
-} from '../../externals/asymmetric-encryption/openpgp';
 import { aes } from '@internxt/lib';
 import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { type PreCreatedUser } from './pre-created-user.domain';
@@ -348,7 +344,7 @@ export class UserUseCases {
     }
 
     console.info(
-      `(usersReferralsService.redeemUserReferral) ` +
+      '(usersReferralsService.redeemUserReferral) ' +
         `The user '${uuid}' (id: ${userId}) has redeemed a referral: ${type} - ${credit}`,
     );
   }
@@ -571,23 +567,16 @@ export class UserUseCases {
         continue;
       }
 
-      const decryptedEncryptionKey =
-        await this.asymmetricEncryptionService.hybridDecryptMessageWithPrivateKey(
-          {
-            encryptedMessageInBase64: encryptionKey,
-            privateKeyInBase64: privateKey,
-            privateKyberKeyInBase64: invite.isHybrid() ? privateKyberKey : null,
-          },
-        );
-
       const newEncryptedEncryptionKey =
-        await this.asymmetricEncryptionService.hybridEncryptMessageWithPublicKey(
-          {
-            message: decryptedEncryptionKey.toString(),
-            publicKeyInBase64: newPublicKey,
-            publicKyberKeyBase64: invite.isHybrid() ? newPublicKyberKey : null,
-          },
-        );
+        await this.asymmetricEncryptionService.reEncryptHybridCiphertext({
+          ciphertextInBase64: encryptionKey,
+          privateKeyInBase64: privateKey,
+          privateKyberKeyInBase64: invite.isHybrid() ? privateKyberKey : null,
+          newPublicKeyInBase64: newPublicKey,
+          newPublicKyberKeyInBase64: invite.isHybrid()
+            ? newPublicKyberKey
+            : null,
+        });
 
       invite.encryptionKey = newEncryptedEncryptionKey;
       invite.sharedWith = newUserUuid;
@@ -624,23 +613,14 @@ export class UserUseCases {
     const invitationsUpdated = [...invitations];
 
     for (const invitation of invitationsUpdated) {
-      const decryptedEncryptionKey = await decryptMessageWithPrivateKey({
-        encryptedMessage: Buffer.from(
-          invitation.encryptionKey,
-          'base64',
-        ).toString('binary'),
-        privateKeyInBase64,
-      });
+      const newEncryptedEncryptionKey =
+        await this.asymmetricEncryptionService.reEncryptHybridCiphertext({
+          ciphertextInBase64: invitation.encryptionKey,
+          privateKeyInBase64,
+          newPublicKeyInBase64: newPublicKey,
+        });
 
-      const newEncryptedEncryptionKey = await encryptMessageWithPublicKey({
-        message: decryptedEncryptionKey.toString(),
-        publicKeyInBase64: newPublicKey,
-      });
-
-      invitation.encryptionKey = Buffer.from(
-        newEncryptedEncryptionKey.toString(),
-        'binary',
-      ).toString('base64');
+      invitation.encryptionKey = newEncryptedEncryptionKey;
 
       invitation.invitedUser = newUserUuid;
     }
@@ -1231,7 +1211,7 @@ export class UserUseCases {
 
       if (typeof decoded === 'string') {
         Logger.error(
-          `[RECOVER-ACCOUNT/VERIFY-AND-DECODE-TOKEN]: Token is a string`,
+          '[RECOVER-ACCOUNT/VERIFY-AND-DECODE-TOKEN]: Token is a string',
         );
         throw new ForbiddenException('Invalid token');
       }

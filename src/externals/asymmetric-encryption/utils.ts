@@ -17,18 +17,27 @@ export function extendSecret(
  * XORs two strings of the identical length
  * @param {string} a - The first string
  * @param {string} b - The second string
- * @returns {string} The result of XOR of strings a and b.
+ * @returns {Uint8Array} The result of XOR of strings a and b.
  */
-export function XORhex(a: string, b: string): string {
-  let res = '',
-    i = a.length,
-    j = b.length;
-  if (i != j) {
-    throw new Error('Can XOR only strings with identical length');
+export function XORhex(a: string, b: string): Uint8Array {
+  const aBytes = Buffer.from(a, 'hex');
+  const bBytes = Buffer.from(b, 'hex');
+  return xorUint8Arrays(new Uint8Array(aBytes), new Uint8Array(bBytes));
+}
+
+/**
+ * XORs two arrays of the identical length
+ * @param {Uint8Array} a - The first array
+ * @param {Uint8Array} b - The second array
+ * @returns {Uint8Array} The result of XOR of arrays a and b.
+ */
+export function xorUint8Arrays(a: Uint8Array, b: Uint8Array): Uint8Array {
+  if (a.length !== b.length) {
+    throw new Error('Can XOR only identical lengths');
   }
-  while (i-- > 0 && j-- > 0)
-    res =
-      (parseInt(a.charAt(i), 16) ^ parseInt(b.charAt(j), 16)).toString(16) +
-      res;
-  return res;
+  const result = new Uint8Array(a.length);
+  for (let i = 0; i < a.length; i++) {
+    result[i] = a[i] ^ b[i];
+  }
+  return result;
 }
