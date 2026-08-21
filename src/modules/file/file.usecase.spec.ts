@@ -3530,6 +3530,22 @@ describe('FileUseCases', () => {
         files,
       );
     });
+
+    it('When files are deleted, then their favorites rows are cleaned up', async () => {
+      const files = [newFile(), newFile()];
+      jest.spyOn(fileRepository, 'deleteFilesByUser').mockResolvedValue();
+      jest
+        .spyOn(favoriteUseCases, 'bulkRemoveFavorites')
+        .mockResolvedValue(undefined);
+
+      await service.deleteByUser(userMocked, files);
+
+      expect(favoriteUseCases.bulkRemoveFavorites).toHaveBeenCalledWith(
+        userMocked,
+        files.map((file) => file.uuid),
+        FavoriteItemType.File,
+      );
+    });
   });
 
   describe('searchFilesInFolder', () => {

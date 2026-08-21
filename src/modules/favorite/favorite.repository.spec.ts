@@ -1,7 +1,7 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/sequelize';
 import { createMock } from '@golevelup/ts-jest';
-import { Op } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import { v4 } from 'uuid';
 import { SequelizeFavoriteRepository } from './favorite.repository';
 import { FavoriteModel } from './favorite.model';
@@ -115,6 +115,43 @@ describe('SequelizeFavoriteRepository', () => {
       const result = await repository.existsForUser(userId, itemId, itemType);
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('deleteOrphanedByUser', () => {
+    it('When called, then it deletes the favorites pointing to removed items of the user', async () => {
+      const querySpy = jest
+        .spyOn(favoriteModel.sequelize, 'query')
+        .mockResolvedValueOnce(undefined);
+
+      await repository.deleteOrphanedByUser(userId);
+
+      expect(querySpy).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM favorites'),
+        {
+          replacements: { userId },
+          type: QueryTypes.DELETE,
+        },
+      );
+    });
+  });
+
+  describe('deleteInsideFoldersByUser', () => {
+    it('When called, then it deletes the favorites of the user under the given folders', async () => {
+      const folderUuids = [v4(), v4()];
+      const querySpy = jest
+        .spyOn(favoriteModel.sequelize, 'query')
+        .mockResolvedValueOnce(undefined);
+
+      await repository.deleteInsideFoldersByUser(userId, folderUuids);
+
+      expect(querySpy).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM favorites'),
+        {
+          replacements: { userId, folderUuids },
+          type: QueryTypes.DELETE,
+        },
+      );
     });
   });
 });
