@@ -107,7 +107,7 @@ export class AsymmetricEncryptionService {
     });
 
     const eccCiphertextStr = Buffer.from(
-      encryptedMessage.toString(),
+      encryptedMessage as string,
       'binary',
     ).toString('base64');
 

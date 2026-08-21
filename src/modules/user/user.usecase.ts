@@ -50,10 +50,6 @@ import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { type PreCreateUserDto } from './dto/pre-create-user.dto';
-import {
-  decryptMessageWithPrivateKey,
-  encryptMessageWithPublicKey,
-} from '../../externals/asymmetric-encryption/openpgp';
 import { aes } from '@internxt/lib';
 import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { type PreCreatedUser } from './pre-created-user.domain';
@@ -617,23 +613,14 @@ export class UserUseCases {
     const invitationsUpdated = [...invitations];
 
     for (const invitation of invitationsUpdated) {
-      const decryptedEncryptionKey = await decryptMessageWithPrivateKey({
-        encryptedMessage: Buffer.from(
-          invitation.encryptionKey,
-          'base64',
-        ).toString('binary'),
-        privateKeyInBase64,
-      });
+      const newEncryptedEncryptionKey =
+        await this.asymmetricEncryptionService.reEncryptHybridCiphertext({
+          ciphertextInBase64: invitation.encryptionKey,
+          privateKeyInBase64,
+          newPublicKeyInBase64: newPublicKey,
+        });
 
-      const newEncryptedEncryptionKey = await encryptMessageWithPublicKey({
-        message: decryptedEncryptionKey.toString(),
-        publicKeyInBase64: newPublicKey,
-      });
-
-      invitation.encryptionKey = Buffer.from(
-        newEncryptedEncryptionKey.toString(),
-        'binary',
-      ).toString('base64');
+      invitation.encryptionKey = newEncryptedEncryptionKey;
 
       invitation.invitedUser = newUserUuid;
     }
