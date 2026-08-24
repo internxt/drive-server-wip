@@ -153,5 +153,23 @@ describe('SequelizeFavoriteRepository', () => {
         },
       );
     });
+
+    it('When called, then it resolves the deleted folders subtree once instead of per favorite', async () => {
+      const folderUuids = [v4()];
+      const querySpy = jest
+        .spyOn(favoriteModel.sequelize, 'query')
+        .mockResolvedValueOnce(undefined);
+
+      await repository.deleteInsideFoldersByUser(userId, folderUuids);
+
+      const [query] = querySpy.mock.calls[0];
+
+      expect(query).toEqual(
+        expect.stringContaining('INNER JOIN subtree ON fl2.parent_uuid'),
+      );
+      expect(query).not.toEqual(
+        expect.stringContaining('INNER JOIN ancestors'),
+      );
+    });
   });
 });

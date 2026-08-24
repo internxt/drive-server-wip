@@ -116,32 +116,31 @@ export class SequelizeFavoriteRepository implements FavoriteRepository {
   ): Promise<void> {
     await this.favoriteModel.sequelize.query(
       `
+      WITH RECURSIVE subtree AS (
+        SELECT fl1.uuid
+        FROM folders fl1
+        WHERE fl1.uuid IN (:folderUuids)
+
+        UNION
+
+        SELECT fl2.uuid
+        FROM folders fl2
+        INNER JOIN subtree ON fl2.parent_uuid = subtree.uuid
+      )
       DELETE FROM favorites
       WHERE user_id = :userId
-        AND EXISTS (
-          WITH RECURSIVE ancestors AS (
-            SELECT fl1.uuid, fl1.parent_uuid, 1 AS depth
-            FROM folders fl1
-            WHERE fl1.uuid = CASE
-              WHEN favorites.item_type = 'file' THEN (
-                SELECT files.folder_uuid FROM files
-                WHERE files.uuid = favorites.item_id
-              )
-              ELSE (
-                SELECT folders.parent_uuid FROM folders
-                WHERE folders.uuid = favorites.item_id
-              )
-            END
-
-            UNION ALL
-
-            SELECT fl2.uuid, fl2.parent_uuid, ancestors.depth + 1
-            FROM folders fl2
-            INNER JOIN ancestors ON fl2.uuid = ancestors.parent_uuid
-            WHERE ancestors.depth < 100000
-          )
-          SELECT 1 FROM ancestors
-          WHERE ancestors.uuid IN (:folderUuids)
+        AND (
+          (favorites.item_type = 'folder' AND EXISTS (
+            SELECT 1 FROM folders
+            WHERE folders.uuid = favorites.item_id
+              AND folders.parent_uuid IN (SELECT uuid FROM subtree)
+          ))
+          OR
+          (favorites.item_type = 'file' AND EXISTS (
+            SELECT 1 FROM files
+            WHERE files.uuid = favorites.item_id
+              AND files.folder_uuid IN (SELECT uuid FROM subtree)
+          ))
         )
       `,
       {
