@@ -31,13 +31,15 @@ export async function generateNewKeys(date?: Date): Promise<{
   };
 }
 
-export const decryptMessageWithPrivateKey = async ({
+export async function decryptMessageWithPrivateKey({
   encryptedMessage,
   privateKeyInBase64,
+  format = 'utf8',
 }: {
   encryptedMessage: WebStream<string>;
   privateKeyInBase64: string;
-}): Promise<MaybeStream<Data> & WebStream<Uint8Array>> => {
+  format?: 'utf8' | 'binary';
+}): Promise<MaybeStream<Data> & WebStream<Uint8Array>> {
   const privateKey = await readPrivateKey({
     armoredKey: privateKeyInBase64,
   });
@@ -49,25 +51,31 @@ export const decryptMessageWithPrivateKey = async ({
   const { data: decryptedMessage } = await decrypt({
     message,
     decryptionKeys: privateKey,
+    format,
   });
 
   return decryptedMessage;
-};
+}
 
-export const encryptMessageWithPublicKey = async ({
+export async function encryptMessageWithPublicKey({
   message,
   publicKeyInBase64,
 }: {
-  message: string;
+  message: Data;
   publicKeyInBase64: string;
-}): Promise<WebStream<string>> => {
+}): Promise<WebStream<string>> {
   const publicKeyArmored = Buffer.from(publicKeyInBase64, 'base64').toString();
   const publicKey = await readKey({ armoredKey: publicKeyArmored });
 
+  const messageToEncrypt =
+    typeof message === 'string'
+      ? await createMessage({ text: message })
+      : await createMessage({ binary: message });
+
   const encryptedMessage = await encrypt({
-    message: await createMessage({ text: message }),
+    message: messageToEncrypt,
     encryptionKeys: publicKey,
   });
 
   return encryptedMessage;
-};
+}

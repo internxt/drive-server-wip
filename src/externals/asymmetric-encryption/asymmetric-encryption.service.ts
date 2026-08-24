@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { KyberProvider } from './providers/kyber.provider';
 import { type KyberBuilder } from './providers/kyber.provider';
-import { extendSecret, XORhex } from './utils';
+import { extendSecret, XORhex, xorUint8Arrays } from './utils';
 import {
   decryptMessageWithPrivateKey,
   encryptMessageWithPublicKey,
@@ -9,6 +9,7 @@ import {
 } from './openpgp';
 
 const WORDS_HYBRID_MODE_IN_BASE64 = 'SHlicmlkTW9kZQ=='; // 'HybridMode' in BASE64 format
+const WORDS_HYBRID_BUCKET_KEY_IN_BASE64 = 'SHlicmlkQnVja2V0S2V5'; // 'HybridBucketKey' in BASE64 format
 
 @Injectable()
 export class AsymmetricEncryptionService {
@@ -95,7 +96,8 @@ export class AsymmetricEncryptionService {
       const secretHex = await extendSecret(secret, bits);
       const messageHex = Buffer.from(message).toString('hex');
 
-      plaintext = XORhex(messageHex, secretHex);
+      const xored = XORhex(messageHex, secretHex);
+      plaintext = Buffer.from(xored).toString('hex');
       result = WORDS_HYBRID_MODE_IN_BASE64.concat('$', kyberCiphertextStr, '$');
     }
 
@@ -105,7 +107,7 @@ export class AsymmetricEncryptionService {
     });
 
     const eccCiphertextStr = Buffer.from(
-      encryptedMessage.toString(),
+      encryptedMessage as string,
       'binary',
     ).toString('base64');
 
@@ -142,8 +144,8 @@ export class AsymmetricEncryptionService {
 
     if (isHybridMode) {
       if (!privateKyberKeyInBase64) {
-        return Promise.reject(
-          new Error('Attempted to decrypt hybrid ciphertex without Kyber key'),
+        throw new Error(
+          'Attempted to decrypt hybrid ciphertex without Kyber key',
         );
       }
 
@@ -170,9 +172,149 @@ export class AsymmetricEncryptionService {
       const bits = result.length * 4;
       const secretHex = await extendSecret(kyberSecret, bits);
       const xored = XORhex(result, secretHex);
-      result = Buffer.from(xored, 'hex').toString('utf8');
+      result = Buffer.from(xored).toString('utf8');
     }
 
     return result;
+  }
+
+  async encryptBucketKeyHybrid({
+    bucketKey,
+    publicKeyInBase64,
+    publicKyberKeyBase64,
+  }: {
+    bucketKey: Uint8Array;
+    publicKeyInBase64: string;
+    publicKyberKeyBase64?: string;
+  }): Promise<string> {
+    let result = '';
+    if (bucketKey.length < 32) {
+      throw new Error('bucketKey must be at least 32 bytes');
+    }
+    let plaintext: Uint8Array = bucketKey.subarray(0, 32);
+    if (publicKyberKeyBase64) {
+      const publicKyberKey = Buffer.from(publicKyberKeyBase64, 'base64');
+      const { ciphertext, sharedSecret: secret } =
+        await this.encapsulateKyberSharedSecret(new Uint8Array(publicKyberKey));
+      const kyberCiphertextStr = Buffer.from(ciphertext).toString('base64');
+
+      plaintext = xorUint8Arrays(plaintext, secret);
+      result = WORDS_HYBRID_BUCKET_KEY_IN_BASE64.concat(
+        '$',
+        kyberCiphertextStr,
+        '$',
+      );
+    }
+
+    const encryptedMessage = await encryptMessageWithPublicKey({
+      message: plaintext,
+      publicKeyInBase64,
+    });
+
+    const eccCiphertextStr = Buffer.from(
+      encryptedMessage.toString(),
+      'binary',
+    ).toString('base64');
+
+    result = result.concat(eccCiphertextStr);
+
+    return result;
+  }
+
+  async decryptBucketKeyHybrid({
+    encryptedMessageInBase64,
+    privateKeyInBase64,
+    privateKyberKeyInBase64,
+  }: {
+    encryptedMessageInBase64: string;
+    privateKeyInBase64: string;
+    privateKyberKeyInBase64?: string;
+  }): Promise<Uint8Array> {
+    let eccCiphertextStr = encryptedMessageInBase64;
+    let kyberSecret: Uint8Array | undefined;
+
+    const ciphertexts = encryptedMessageInBase64.split('$');
+    const prefix = ciphertexts[0];
+    const isHybridMode = prefix === WORDS_HYBRID_BUCKET_KEY_IN_BASE64;
+
+    if (isHybridMode) {
+      if (!privateKyberKeyInBase64) {
+        throw new Error(
+          'Attempted to decrypt hybrid ciphertex without Kyber key',
+        );
+      }
+
+      const kyberCiphertextBase64 = ciphertexts[1];
+      eccCiphertextStr = ciphertexts[2];
+
+      const privateKyberKey = Buffer.from(privateKyberKeyInBase64, 'base64');
+      const kyberCiphertext = Buffer.from(kyberCiphertextBase64, 'base64');
+      kyberSecret = await this.decapsulateKyberSharedSecret(
+        new Uint8Array(kyberCiphertext),
+        new Uint8Array(privateKyberKey),
+      );
+    }
+
+    const decryptedMessage = await decryptMessageWithPrivateKey({
+      encryptedMessage: Buffer.from(eccCiphertextStr, 'base64').toString(
+        'binary',
+      ),
+      privateKeyInBase64,
+      format: 'binary',
+    });
+
+    let result = decryptedMessage as Uint8Array;
+    if (isHybridMode && kyberSecret) {
+      result = xorUint8Arrays(result, kyberSecret);
+    }
+
+    return result;
+  }
+
+  isBucketKeyCiphertext(encryptedMessageInBase64: string): boolean {
+    return (
+      encryptedMessageInBase64.split('$')[0] ===
+      WORDS_HYBRID_BUCKET_KEY_IN_BASE64
+    );
+  }
+
+  async reEncryptHybridCiphertext({
+    ciphertextInBase64,
+    privateKeyInBase64,
+    privateKyberKeyInBase64,
+    newPublicKeyInBase64,
+    newPublicKyberKeyInBase64,
+  }: {
+    ciphertextInBase64: string;
+    privateKeyInBase64: string;
+    privateKyberKeyInBase64?: string;
+    newPublicKeyInBase64: string;
+    newPublicKyberKeyInBase64?: string;
+  }): Promise<string> {
+    if (this.isBucketKeyCiphertext(ciphertextInBase64)) {
+      const bucketKey = await this.decryptBucketKeyHybrid({
+        encryptedMessageInBase64: ciphertextInBase64,
+        privateKeyInBase64,
+        privateKyberKeyInBase64,
+      });
+
+      return this.encryptBucketKeyHybrid({
+        bucketKey,
+        publicKeyInBase64: newPublicKeyInBase64,
+        publicKyberKeyBase64: newPublicKyberKeyInBase64,
+      });
+    }
+
+    const decryptedMessage = await this.hybridDecryptMessageWithPrivateKey({
+      encryptedMessageInBase64: ciphertextInBase64,
+      privateKeyInBase64,
+      privateKyberKeyInBase64,
+    });
+
+    return this.hybridEncryptMessageWithPublicKey({
+      message: decryptedMessage.toString(),
+      publicKeyInBase64: newPublicKeyInBase64,
+      publicKyberKeyBase64: newPublicKyberKeyInBase64,
+    });
   }
 }
