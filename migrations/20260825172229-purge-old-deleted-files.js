@@ -22,7 +22,7 @@ module.exports = {
     let batchCount = BATCH_SIZE;
 
     while (batchCount === BATCH_SIZE) {
-      const [rows] = await queryInterface.sequelize.query(
+      const [, metadata] = await queryInterface.sequelize.query(
         `
         DELETE FROM ${TABLE_NAME} t
         USING (
@@ -32,7 +32,6 @@ module.exports = {
           LIMIT :batchSize
         ) sub
         WHERE t.file_id = sub.file_id
-        RETURNING sub.file_id
         `,
         {
           replacements: {
@@ -42,7 +41,7 @@ module.exports = {
         },
       );
 
-      batchCount = rows.length;
+      batchCount = metadata.rowCount;
       totalDeleted += batchCount;
 
       console.log(
