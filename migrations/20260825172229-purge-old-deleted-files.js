@@ -2,12 +2,16 @@
 
 const TABLE_NAME = 'deleted_files';
 const INDEX_NAME = 'deleted_files_files_to_delete_idx';
-const CUTOFF_DATE = '2026-02-11'; // 6 months from the current date.
-const BATCH_SIZE = 5000;
+const OLD_NOT_REQUIRED_INDEX = 'deleted_files_recent_updated_at_idx';
+
+const CUTOFF_DATE = '2026-02-25'; // 6 months from the current date.
+const BATCH_SIZE = 2000;
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface) {
+    await queryInterface.sequelize.query(`DROP INDEX CONCURRENTLY IF EXISTS ${OLD_NOT_REQUIRED_INDEX}`);
+
     await queryInterface.sequelize.query(`
       CREATE INDEX CONCURRENTLY IF NOT EXISTS ${INDEX_NAME}
         ON ${TABLE_NAME} (updated_at) INCLUDE (file_id)
