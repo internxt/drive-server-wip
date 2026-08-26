@@ -7,7 +7,7 @@ const OLD_INDEX_NAME = 'deleted_files_files_to_delete_idx';
 const NEW_INDEX_NAME = 'deleted_files_updated_at_id_idx';
 const CUTOFF_DATE = '2026-02-26 00:00:00';
 const ZERO_UUID = '00000000-0000-0000-0000-000000000000';
-const BATCH_SIZE = 5000;
+const BATCH_SIZE = 10000;
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
