@@ -1906,14 +1906,14 @@ export class UserUseCases {
     try {
       mailUsage = await this.mailService.getUserMailUsage(user.uuid);
     } catch (error: any) {
-      mailUsage = cachedMailUsage?.usage ?? 0;
-
       Logger.error(
         `[USER/MAIL_USAGE] Failed to get mail usage for user ${user.uuid}: ${error.message}. ` +
           (cachedMailUsage
             ? 'Serving the last known value.'
             : 'No cached value available, defaulting mail usage to 0.'),
       );
+
+      return cachedMailUsage?.usage ?? 0;
     }
 
     try {

@@ -2391,6 +2391,19 @@ describe('User use cases', () => {
       expect(result.total).toBe(1024 + 1024 + lastKnownMailUsage);
     });
 
+    it('When the mail service fails and a stale value exists, then the stale value is not re-cached', async () => {
+      jest
+        .spyOn(mailService, 'getUserMailUsage')
+        .mockRejectedValue(new Error('mail gateway down'));
+      jest
+        .spyOn(cacheManagerService, 'getUserMailUsage')
+        .mockResolvedValue({ usage: 777, isFresh: false });
+
+      await userUseCases.getUserUsage(user);
+
+      expect(cacheManagerService.setUserMailUsage).not.toHaveBeenCalled();
+    });
+
     it('When the mail service fails and there is no cached value, then it does not throw and defaults mail usage to 0', async () => {
       jest
         .spyOn(mailService, 'getUserMailUsage')
@@ -2402,12 +2415,26 @@ describe('User use cases', () => {
 
       expect(result.mail).toBe(0);
       expect(result.total).toBe(1024 + 1024 + 0);
-      expect(cacheManagerService.setUserMailUsage).toHaveBeenCalledWith(
-        user.uuid,
-        0,
-      );
+      expect(cacheManagerService.setUserMailUsage).not.toHaveBeenCalled();
       expect(result.drive).toBe(1024);
       expect(result.backup).toBe(1024);
+    });
+
+    it('When the mail service fails, then the next call retries instead of serving a freshly stamped fallback', async () => {
+      const fetch = jest
+        .spyOn(mailService, 'getUserMailUsage')
+        .mockRejectedValueOnce(new Error('mail gateway down'))
+        .mockResolvedValueOnce(mailUsage);
+      jest
+        .spyOn(cacheManagerService, 'getUserMailUsage')
+        .mockResolvedValue({ usage: 777, isFresh: false });
+
+      const first = await userUseCases.getUserUsage(user);
+      const second = await userUseCases.getUserUsage(user);
+
+      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(first.mail).toBe(777);
+      expect(second.mail).toBe(mailUsage);
     });
 
     it('When the mail usage cache read fails, then it does not throw and falls back to fetching live', async () => {
