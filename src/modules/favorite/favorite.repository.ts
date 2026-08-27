@@ -114,18 +114,22 @@ export class SequelizeFavoriteRepository implements FavoriteRepository {
     userId: Favorite['userId'],
     folderUuids: string[],
   ): Promise<void> {
+    const MAX_DEPTH = 10000;
+
     await this.favoriteModel.sequelize.query(
       `
       WITH RECURSIVE subtree AS (
-        SELECT fl1.uuid
+        SELECT fl1.uuid, 1 AS depth, ARRAY[fl1.uuid] AS path
         FROM folders fl1
         WHERE fl1.uuid IN (:folderUuids)
 
-        UNION
+        UNION ALL
 
-        SELECT fl2.uuid
+        SELECT fl2.uuid, subtree.depth + 1, subtree.path || fl2.uuid
         FROM folders fl2
         INNER JOIN subtree ON fl2.parent_uuid = subtree.uuid
+        WHERE subtree.depth < :maxDepth
+          AND NOT fl2.uuid = ANY(subtree.path)
       )
       DELETE FROM favorites
       WHERE user_id = :userId
@@ -144,7 +148,7 @@ export class SequelizeFavoriteRepository implements FavoriteRepository {
         )
       `,
       {
-        replacements: { userId, folderUuids },
+        replacements: { userId, folderUuids, maxDepth: MAX_DEPTH },
         type: QueryTypes.DELETE,
       },
     );

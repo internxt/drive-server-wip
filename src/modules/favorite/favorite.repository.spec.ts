@@ -148,7 +148,7 @@ describe('SequelizeFavoriteRepository', () => {
       expect(querySpy).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM favorites'),
         {
-          replacements: { userId, folderUuids },
+          replacements: { userId, folderUuids, maxDepth: 10000 },
           type: QueryTypes.DELETE,
         },
       );
@@ -169,6 +169,24 @@ describe('SequelizeFavoriteRepository', () => {
       );
       expect(query).not.toEqual(
         expect.stringContaining('INNER JOIN ancestors'),
+      );
+    });
+
+    it('When called, then it caps the recursion depth and guards against cycles', async () => {
+      const folderUuids = [v4()];
+      const querySpy = jest
+        .spyOn(favoriteModel.sequelize, 'query')
+        .mockResolvedValueOnce(undefined);
+
+      await repository.deleteInsideFoldersByUser(userId, folderUuids);
+
+      const [query] = querySpy.mock.calls[0];
+
+      expect(query).toEqual(
+        expect.stringContaining('subtree.depth < :maxDepth'),
+      );
+      expect(query).toEqual(
+        expect.stringContaining('NOT fl2.uuid = ANY(subtree.path)'),
       );
     });
   });
