@@ -647,6 +647,17 @@ export class SequelizeFileRepository implements FileRepository {
           as: 'favorites',
           required: true,
         },
+        {
+          separate: true,
+          model: this.thumbnailModel,
+          required: false,
+        },
+        {
+          separate: true,
+          model: SharingModel,
+          attributes: ['type', 'id'],
+          required: false,
+        },
       ],
       subQuery: false,
       order: appliedOrder,

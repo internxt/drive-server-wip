@@ -16,6 +16,7 @@ import {
 import { Op, QueryTypes, Sequelize } from 'sequelize';
 import { v4 } from 'uuid';
 import { UserModel } from '../user/user.model';
+import { SharingModel } from '../sharing/models';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Time } from '../../lib/time';
 
@@ -688,6 +689,16 @@ describe('FileRepository', () => {
             as: 'favorites',
             required: true,
           }),
+          expect.objectContaining({
+            separate: true,
+            required: false,
+          }),
+          expect.objectContaining({
+            separate: true,
+            model: SharingModel,
+            attributes: ['type', 'id'],
+            required: false,
+          }),
         ],
         subQuery: false,
         order: expect.any(Array),
@@ -740,7 +751,12 @@ describe('FileRepository', () => {
       } as any;
       jest.spyOn(fileModel, 'findAll').mockResolvedValue([model]);
 
-      const result = await repository.findAllCursor(where, limit, offset, order);
+      const result = await repository.findAllCursor(
+        where,
+        limit,
+        offset,
+        order,
+      );
 
       expect(fileModel.findAll).toHaveBeenCalledWith(
         expect.objectContaining({ include: [] }),

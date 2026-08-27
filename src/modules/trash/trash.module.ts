@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { FileModule } from '../file/file.module';
 import { FolderModule } from '../folder/folder.module';
+import { FavoriteModule } from '../favorite/favorite.module';
 import { NotificationModule } from '../../externals/notifications/notifications.module';
 import { UserModule } from '../user/user.module';
 import { TrashController } from './trash.controller';
@@ -20,6 +21,7 @@ import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
     SequelizeModule.forFeature([FileModel]),
     forwardRef(() => FileModule),
     forwardRef(() => FolderModule),
+    forwardRef(() => FavoriteModule),
     forwardRef(() => WorkspacesModule),
     forwardRef(() => SharingModule),
     NotificationModule,

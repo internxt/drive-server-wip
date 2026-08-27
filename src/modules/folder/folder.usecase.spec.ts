@@ -182,6 +182,10 @@ describe('FolderUseCases', () => {
         [mockBackupFolder.uuid, mockFolder.uuid],
         FavoriteItemType.Folder,
       );
+      expect(favoriteUseCases.removeFavoritesInsideFolders).toHaveBeenCalledWith(
+        user,
+        [mockBackupFolder.uuid, mockFolder.uuid],
+      );
     });
 
     it('When only ids are passed, then only folders by id should be searched', async () => {
@@ -1905,6 +1909,29 @@ describe('FolderUseCases', () => {
       const result = await service.getUserRootFolder(mockUser);
 
       expect(result).toBe(mockFolder);
+    });
+  });
+
+  describe('deleteByUser', () => {
+    it('When folders are deleted, then their favorites rows are cleaned up', async () => {
+      const userMocked = newUser();
+      const folders = [newFolder(), newFolder()];
+      jest.spyOn(folderRepository, 'deleteByUser').mockResolvedValue(undefined);
+      jest
+        .spyOn(favoriteUseCases, 'bulkRemoveFavorites')
+        .mockResolvedValue(undefined);
+
+      await service.deleteByUser(userMocked, folders);
+
+      expect(folderRepository.deleteByUser).toHaveBeenCalledWith(
+        userMocked,
+        folders,
+      );
+      expect(favoriteUseCases.bulkRemoveFavorites).toHaveBeenCalledWith(
+        userMocked,
+        folders.map((folder) => folder.uuid),
+        FavoriteItemType.Folder,
+      );
     });
   });
 
