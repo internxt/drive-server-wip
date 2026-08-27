@@ -14,6 +14,6 @@ export class CreateWorkspaceFolderDto {
     description: 'Uuid of the parent folder',
   })
   @IsNotEmpty()
-  @IsUUID('4')
+  @IsUUID()
   parentFolderUuid: string;
 }
