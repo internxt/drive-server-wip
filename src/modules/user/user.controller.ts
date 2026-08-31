@@ -1295,12 +1295,12 @@ export class UserController {
       const { encryptedMnemonic, newSalt, newPasswordHash } = updatePasswordDto;
 
       await this.userUseCases.updatePasswordV2(user, {
-        currentPassword: updatePasswordDto.currentPasswordHash,
-        newPassword: newPasswordHash,
+        currentPasswordHash: updatePasswordDto.currentPasswordHash,
+        newPasswordHash: newPasswordHash,
         newSalt,
-        mnemonic: encryptedMnemonic,
-        privateKey: updatePasswordDto.encryptedPrivateKey,
-        privateKyberKey: updatePasswordDto.encryptedPrivateKyberKey,
+        encryptedMnemonic: encryptedMnemonic,
+        encryptedPrivateKey: updatePasswordDto.encryptedPrivateKey,
+        encryptedPrivateKyberKey: updatePasswordDto.encryptedPrivateKyberKey,
       });
 
       const { newToken } = await this.userUseCases.getAuthTokens(
