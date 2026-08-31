@@ -1292,15 +1292,15 @@ export class UserController {
         throw new UnauthorizedException();
       }
 
-      const { mnemonic, newSalt, newPasswordHash } = updatePasswordDto;
+      const { encryptedMnemonic, newSalt, newPasswordHash } = updatePasswordDto;
 
       await this.userUseCases.updatePasswordV2(user, {
         currentPassword: updatePasswordDto.currentPasswordHash,
         newPassword: newPasswordHash,
         newSalt,
-        mnemonic,
-        privateKey: updatePasswordDto.privateKey,
-        privateKyberKey: updatePasswordDto?.privateKyberKey,
+        mnemonic: encryptedMnemonic,
+        privateKey: updatePasswordDto.encryptedPrivateKey,
+        privateKyberKey: updatePasswordDto.encryptedPrivateKyberKey,
       });
 
       const { newToken } = await this.userUseCases.getAuthTokens(

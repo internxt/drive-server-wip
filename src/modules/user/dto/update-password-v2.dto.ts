@@ -34,7 +34,7 @@ export class UpdatePasswordV2Dto {
   })
   @IsNotEmpty()
   @IsEncryptedMnemonic()
-  mnemonic: string;
+  encryptedMnemonic: string;
 
   @IsString()
   @MaxLength(3200)
@@ -43,9 +43,8 @@ export class UpdatePasswordV2Dto {
     example: 'encryptedPrivateKey',
     description: 'Ecc private key encrypted with new password',
   })
-  privateKey: string;
+  encryptedPrivateKey: string;
 
-  @IsOptional()
   @IsString()
   @MaxLength(3200)
   @IsEncryptedKeyOfSize(KYBER512_PRIVATE_KEY_BASE64_BYTES)
@@ -53,5 +52,5 @@ export class UpdatePasswordV2Dto {
     example: 'encryptedPrivateKey',
     description: 'Kyber private key encrypted with new password',
   })
-  privateKyberKey?: string;
+  encryptedPrivateKyberKey: string;
 }
