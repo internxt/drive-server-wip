@@ -51,6 +51,9 @@ import { Client } from '../../common/decorators/client.decorator';
 import { type ClientEnum } from '../../common/enums/platform.enum';
 import { MailService } from '../../externals/mail/mail.service';
 import { isManagedMailDomain } from './managed-mail-domains';
+import { LoginAccessV2Dto } from './dto/login-access-v2.dto';
+import { LoginAccessResponseV2Dto } from './dto/responses/login-access-response-v2.dto';
+
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -74,6 +77,39 @@ export class AuthController {
 
     const user = await this.userUseCases.findByUuid(userId);
     return user?.email ?? email;
+  }
+
+  @Post('/v2/login/access')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Access user account with argon2 credentials',
+  })
+  @ApiOkResponse({
+    description: 'User successfully accessed their account',
+    type: LoginAccessResponseV2Dto,
+  })
+  @Public()
+  @WorkspaceLogAction(WorkspaceLogType.Login)
+  async loginAccessV2(
+    @Body() body: LoginAccessV2Dto,
+  ): Promise<LoginAccessResponseV2Dto> {
+    Logger.log(`[AUTH/LOGIN-ACCESS-V2] Attempting login for email: ${body.email}`);
+    try {
+      const email = await this.resolveLoginEmail(body.email.toLowerCase());
+
+      const result = await this.userUseCases.loginAccessV2({ ...body, email });
+
+      Logger.log(
+        `[AUTH/LOGIN-ACCESS-V2] Successful login for email: ${body.email}`,
+      );
+      return result;
+    } catch (error) {
+      Logger.error(
+        `[AUTH/LOGIN-ACCESS-V2] Failed login attempt for email: ${body.email}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 
   @Post('/login')
