@@ -143,6 +143,7 @@ export class AuthController {
         tfa: required2FA,
         hasKyberKeys: !!keys.kyber,
         hasEccKeys: !!keys.ecc,
+        saltArgon2: user.argonSalt ?? null,
       };
     } catch (err) {
       if (!(err instanceof HttpException)) {

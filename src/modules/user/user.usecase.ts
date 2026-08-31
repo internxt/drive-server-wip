@@ -2250,6 +2250,12 @@ export class UserUseCases {
       throw new UnauthorizedException('Wrong login credentials');
     }
 
+    if (!userData.passwordHash) {
+      throw new UnauthorizedException(
+        'This account does not support argon2 login yet',
+      );
+    }
+
     const loginAttemptsLimitReached =
       userData.errorLoginCount >= MAX_LOGIN_FAIL_ATTEMPTS;
 
@@ -2261,7 +2267,7 @@ export class UserUseCases {
 
     const receivedHash = loginAccessDto.passwordHash;
 
-    if (receivedHash !== userData.password.toString()) {
+   if (loginAccessDto.passwordHash !== userData.passwordHash) {
       await this.userRepository.loginFailed(userData, true);
       throw new UnauthorizedException('Wrong login credentials');
     }
