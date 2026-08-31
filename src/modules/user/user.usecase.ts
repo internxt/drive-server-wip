@@ -1372,6 +1372,44 @@ export class UserUseCases {
     }
   }
 
+    async updatePasswordV2(
+    user: User,
+    updatePasswordDto: UpdatePasswordDto,
+  ): Promise<void> {
+    const { newPassword, newSalt, mnemonic, privateKey, privateKyberKey } =
+      updatePasswordDto;
+
+    const keysToUpdate: Partial<Record<UserKeysEncryptVersions, string>> = {
+      ecc: privateKey,
+      kyber: privateKyberKey,
+    };
+
+    const userKeys = await this.keyServerUseCases.findUserKeys(user.id);
+
+    if (userKeys.kyber?.privateKey && !keysToUpdate.kyber) {
+      throw new BadRequestException(
+        'User has kyber keys, you need to send kyber keys to update user password',
+      );
+    }
+
+    await this.userRepository.updateById(user.id, {
+      passwordHash: newPassword,
+      argonSalt: newSalt,
+      mnemonic,
+      lastPasswordChangedAt: new Date(),
+    });
+
+    for (const [version, key] of Object.entries(keysToUpdate)) {
+      if (key) {
+        await this.keyServerUseCases.updateByUserAndEncryptVersion(
+          user.id,
+          version as UserKeysEncryptVersions,
+          { privateKey: key },
+        );
+      }
+    }
+  }
+
   async getAvatarUrl(avatarKey: string) {
     if (!avatarKey) return null;
 
@@ -2218,8 +2256,8 @@ export class UserUseCases {
       );
     }
 
-    const receivedHash = Buffer.from(loginAccessDto.passwordHash, 'hex');
-    const storedHash = Buffer.from(userData.password.toString(), 'hex');
+    const receivedHash = loginAccessDto.passwordHash;
+    const storedHash = userData.password;
 
     const passwordMatches =
       receivedHash.length === storedHash.length &&

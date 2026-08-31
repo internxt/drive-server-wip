@@ -66,6 +66,31 @@ export function IsEncryptedSalt(validationOptions?: ValidationOptions) {
   };
 }
 
+export const SALT_HEX_LENGTH = 32;
+
+export function IsSalt(validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isSalt',
+      target: object.constructor,
+      propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: unknown) {
+          return (
+            typeof value === 'string' &&
+            value.length === SALT_HEX_LENGTH &&
+            isHexadecimal(value)
+          );
+        },
+        defaultMessage() {
+          return `${propertyName} must be a valid salt`;
+        },
+      },
+    });
+  };
+}
+
 export const ARGON2_HASH_HEX_LENGTH = 64;
 
 export function IsArgon2Hash(validationOptions?: ValidationOptions) {
