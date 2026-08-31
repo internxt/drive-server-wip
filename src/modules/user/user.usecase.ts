@@ -88,6 +88,7 @@ import { type GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-pub
 import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import { type UserResponseDto } from './dto/responses/user-credentials.dto';
 import { type LoginAccessV2Dto } from '../auth/dto/login-access-v2.dto';
+import { UpdatePasswordV2Dto } from './dto/update-password-v2.dto';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -1374,14 +1375,14 @@ export class UserUseCases {
 
     async updatePasswordV2(
     user: User,
-    updatePasswordDto: UpdatePasswordDto,
+    updatePasswordDto: UpdatePasswordV2Dto,
   ): Promise<void> {
-    const { newPassword, newSalt, mnemonic, privateKey, privateKyberKey } =
+    const { newPasswordHash, newSalt, encryptedMnemonic, encryptedPrivateKey, encryptedPrivateKyberKey } =
       updatePasswordDto;
 
     const keysToUpdate: Partial<Record<UserKeysEncryptVersions, string>> = {
-      ecc: privateKey,
-      kyber: privateKyberKey,
+      ecc: encryptedPrivateKey,
+      kyber: encryptedPrivateKyberKey,
     };
 
     const userKeys = await this.keyServerUseCases.findUserKeys(user.id);
@@ -1393,9 +1394,9 @@ export class UserUseCases {
     }
 
     await this.userRepository.updateById(user.id, {
-      passwordHash: newPassword,
+      passwordHash: newPasswordHash,
       argonSalt: newSalt,
-      mnemonic,
+      mnemonic: encryptedMnemonic,
       lastPasswordChangedAt: new Date(),
     });
 
