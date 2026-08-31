@@ -2257,13 +2257,8 @@ export class UserUseCases {
     }
 
     const receivedHash = loginAccessDto.passwordHash;
-    const storedHash = userData.password;
 
-    const passwordMatches =
-      receivedHash.length === storedHash.length &&
-      crypto.timingSafeEqual(receivedHash, storedHash);
-
-    if (!passwordMatches) {
+    if (receivedHash !== userData.password.toString()) {
       await this.userRepository.loginFailed(userData, true);
       throw new UnauthorizedException('Wrong login credentials');
     }
