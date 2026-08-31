@@ -1396,6 +1396,8 @@ export class UserUseCases {
     await this.userRepository.updateById(user.id, {
       passwordHash: newPasswordHash,
       argonSalt: newSalt,
+      password: null,
+      hKey: null,
       mnemonic: encryptedMnemonic,
       lastPasswordChangedAt: new Date(),
     });
