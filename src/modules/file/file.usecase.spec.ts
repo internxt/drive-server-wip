@@ -2945,6 +2945,38 @@ describe('FileUseCases', () => {
       });
     });
 
+    it('When the new file id matches the current one, then it should not delete the content from the network', async () => {
+      const mockFile = newFile({
+        attributes: {
+          fileId: 'unchanged-file-id',
+          bucket: 'test-bucket',
+          type: 'bin',
+        },
+      });
+      const replaceData = {
+        fileId: 'unchanged-file-id',
+        size: mockFile.size,
+        modificationTime: new Date(),
+      };
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest.spyOn(fileRepository, 'updateByUuidAndUserId').mockResolvedValue();
+      jest.spyOn(bridgeService, 'deleteFile').mockResolvedValue();
+
+      await service.replaceFile(userMocked, mockFile.uuid, replaceData);
+
+      expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        {
+          fileId: replaceData.fileId,
+          size: replaceData.size,
+          modificationTime: replaceData.modificationTime,
+        },
+      );
+      expect(bridgeService.deleteFile).not.toHaveBeenCalled();
+    });
+
     it('When file exists and modificationTime was passed, then it should replace file data with modificationTime', async () => {
       const mockFile = newFile({
         attributes: { fileId: 'old-file-id-string', bucket: 'test-bucket' },

@@ -1077,7 +1077,11 @@ export class FileUseCases {
       });
     });
 
-    if (oldFileId) {
+    // Only drop the previous content when it has actually been superseded. A
+    // client may call replace to update metadata (a modification time, say)
+    // while re-declaring the file id it already has; deleting here would
+    // destroy the content the row still points at.
+    if (oldFileId && oldFileId !== newFileId) {
       try {
         await this.network.deleteFile(user, bucket, oldFileId);
       } catch (error) {
