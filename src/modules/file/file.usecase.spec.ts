@@ -3201,6 +3201,14 @@ describe('FileUseCases', () => {
         expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
           userMocked.id,
         );
+        // Truncating to empty still supersedes the old content, so it must be
+        // freed. This is the legitimate cleanup nearest to the same-id guard
+        // above, and the one most easily broken by widening it.
+        expect(bridgeService.deleteFile).toHaveBeenCalledWith(
+          userMocked,
+          mockFile.bucket,
+          'old-file-id',
+        );
       });
 
       it('When replacing with empty file and limit is reached, then it should throw', async () => {
