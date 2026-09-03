@@ -38,6 +38,7 @@ import {
   FavoriteItemType,
   type FavoriteAttributes,
 } from '../favorite/favorite.domain';
+import { applyCollateAndTiebreakerToSort } from '../../lib/sort';
 
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
@@ -460,35 +461,7 @@ export class SequelizeFileRepository implements FileRepository {
   private applyCollateToPlainNameSort(
     order: Array<[keyof FileModel, string]>,
   ): Array<[keyof FileModel, string] | Literal> {
-    if (order.length === 0) {
-      return order;
-    }
-
-    const newOrder: Array<[keyof FileModel, string] | Literal> =
-      structuredClone(order);
-
-    const plainNameIndex = order.findIndex(
-      ([field, _]) => field === 'plainName',
-    );
-    const isPlainNameSort = plainNameIndex !== -1;
-
-    if (isPlainNameSort) {
-      const [, orderDirection] = order[plainNameIndex];
-      newOrder[plainNameIndex] = Sequelize.literal(
-        `"FileModel"."plain_name" COLLATE "custom_numeric" ${
-          orderDirection === 'ASC' ? 'ASC' : 'DESC'
-        }`,
-      );
-    }
-
-    const hasUniqueSortField = order.some(
-      ([field, _]) => field === 'uuid' || field === 'id',
-    );
-    if (!hasUniqueSortField) {
-      newOrder.push(['uuid', 'ASC']);
-    }
-
-    return newOrder;
+    return applyCollateAndTiebreakerToSort(FileModel, order);
   }
 
   async findAllCursor(

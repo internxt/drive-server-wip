@@ -31,6 +31,7 @@ import {
   FavoriteItemType,
   type FavoriteAttributes,
 } from '../favorite/favorite.domain';
+import { applyCollateAndTiebreakerToSort } from '../../lib/sort';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -188,35 +189,7 @@ export class SequelizeFolderRepository implements FolderRepository {
   private applyCollateToPlainNameSort(
     order: Array<[keyof FolderModel, string]>,
   ): Array<[keyof FolderModel, string] | Literal> {
-    if (order.length === 0) {
-      return order;
-    }
-
-    const newOrder: Array<[keyof FolderModel, string] | Literal> =
-      structuredClone(order);
-
-    const plainNameIndex = order.findIndex(
-      ([field, _]) => field === 'plainName',
-    );
-    const isPlainNameSort = plainNameIndex !== -1;
-
-    if (isPlainNameSort) {
-      const [, orderDirection] = order[plainNameIndex];
-      newOrder[plainNameIndex] = Sequelize.literal(
-        `"FolderModel"."plain_name" COLLATE "custom_numeric" ${
-          orderDirection === 'ASC' ? 'ASC' : 'DESC'
-        }`,
-      );
-    }
-
-    const hasUniqueSortField = order.some(
-      ([field, _]) => field === 'uuid' || field === 'id',
-    );
-    if (!hasUniqueSortField) {
-      newOrder.push(['uuid', 'ASC']);
-    }
-
-    return newOrder;
+    return applyCollateAndTiebreakerToSort(FolderModel, order);
   }
 
   async findByParentUuid(
