@@ -332,7 +332,7 @@ describe('SequelizeFolderRepository', () => {
         offset,
         where: whereClause,
         subQuery: false,
-        order,
+        order: [...order, ['uuid', 'ASC']],
       });
     });
 
@@ -403,7 +403,7 @@ describe('SequelizeFolderRepository', () => {
           parentUuid: { [Op.not]: null },
         },
         subQuery: false,
-        order,
+        order: [...order, ['uuid', 'ASC']],
       });
     });
 
@@ -761,6 +761,50 @@ describe('SequelizeFolderRepository', () => {
     });
   });
 
+  describe('findAllCursor sort tiebreaker', () => {
+    const whereClause = { deleted: false, removed: false };
+    const limit = 10;
+    const offset = 0;
+
+    it('When sorting by a non-unique field, then a uuid tiebreaker is appended to keep pagination stable', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(whereClause, limit, offset, [
+        ['updatedAt', 'ASC'],
+      ]);
+
+      const { order } = (folderModel.findAll as jest.Mock).mock.calls[0][0];
+      expect(order).toEqual([
+        ['updatedAt', 'ASC'],
+        ['uuid', 'ASC'],
+      ]);
+    });
+
+    it('When sorting by plainName, then the collated sort is followed by the uuid tiebreaker', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(whereClause, limit, offset, [
+        ['plainName', 'DESC'],
+      ]);
+
+      const { order } = (folderModel.findAll as jest.Mock).mock.calls[0][0];
+      expect(order).toHaveLength(2);
+      expect(order[0].val).toContain('COLLATE "custom_numeric" DESC');
+      expect(order[1]).toEqual(['uuid', 'ASC']);
+    });
+
+    it('When the sort already includes a unique field, then no tiebreaker is appended', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(whereClause, limit, offset, [
+        ['uuid', 'DESC'],
+      ]);
+
+      const { order } = (folderModel.findAll as jest.Mock).mock.calls[0][0];
+      expect(order).toEqual([['uuid', 'DESC']]);
+    });
+  });
+
   describe('findAllCursor', () => {
     const whereClause = { deleted: false, removed: false };
     const limit = 10;
@@ -783,7 +827,7 @@ describe('SequelizeFolderRepository', () => {
         offset,
         where: whereClause,
         subQuery: false,
-        order,
+        order: [...order, ['uuid', 'ASC']],
         include: [
           {
             separate: true,
