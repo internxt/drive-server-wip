@@ -460,23 +460,33 @@ export class SequelizeFileRepository implements FileRepository {
   private applyCollateToPlainNameSort(
     order: Array<[keyof FileModel, string]>,
   ): Array<[keyof FileModel, string] | Literal> {
-    const plainNameIndex = order.findIndex(
-      ([field, _]) => field === 'plainName',
-    );
-    const isPlainNameSort = plainNameIndex !== -1;
-
-    if (!isPlainNameSort) {
+    if (order.length === 0) {
       return order;
     }
 
     const newOrder: Array<[keyof FileModel, string] | Literal> =
       structuredClone(order);
-    const [, orderDirection] = order[plainNameIndex];
-    newOrder[plainNameIndex] = Sequelize.literal(
-      `"FileModel"."plain_name" COLLATE "custom_numeric" ${
-        orderDirection === 'ASC' ? 'ASC' : 'DESC'
-      }`,
+
+    const plainNameIndex = order.findIndex(
+      ([field, _]) => field === 'plainName',
     );
+    const isPlainNameSort = plainNameIndex !== -1;
+
+    if (isPlainNameSort) {
+      const [, orderDirection] = order[plainNameIndex];
+      newOrder[plainNameIndex] = Sequelize.literal(
+        `"FileModel"."plain_name" COLLATE "custom_numeric" ${
+          orderDirection === 'ASC' ? 'ASC' : 'DESC'
+        }`,
+      );
+    }
+
+    const hasUniqueSortField = order.some(
+      ([field, _]) => field === 'uuid' || field === 'id',
+    );
+    if (!hasUniqueSortField) {
+      newOrder.push(['uuid', 'ASC']);
+    }
 
     return newOrder;
   }

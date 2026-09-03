@@ -27,7 +27,10 @@ import { UserModel } from '../user/user.model';
 import { User } from '../user/user.domain';
 import { type UserAttributes } from '../user/user.attributes';
 import { FavoriteModel } from '../favorite/favorite.model';
-import { FavoriteItemType, type FavoriteAttributes } from '../favorite/favorite.domain';
+import {
+  FavoriteItemType,
+  type FavoriteAttributes,
+} from '../favorite/favorite.domain';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -185,23 +188,33 @@ export class SequelizeFolderRepository implements FolderRepository {
   private applyCollateToPlainNameSort(
     order: Array<[keyof FolderModel, string]>,
   ): Array<[keyof FolderModel, string] | Literal> {
-    const plainNameIndex = order.findIndex(
-      ([field, _]) => field === 'plainName',
-    );
-    const isPlainNameSort = plainNameIndex !== -1;
-
-    if (!isPlainNameSort) {
+    if (order.length === 0) {
       return order;
     }
 
     const newOrder: Array<[keyof FolderModel, string] | Literal> =
       structuredClone(order);
-    const [, orderDirection] = order[plainNameIndex];
-    newOrder[plainNameIndex] = Sequelize.literal(
-      `"FolderModel"."plain_name" COLLATE "custom_numeric" ${
-        orderDirection === 'ASC' ? 'ASC' : 'DESC'
-      }`,
+
+    const plainNameIndex = order.findIndex(
+      ([field, _]) => field === 'plainName',
     );
+    const isPlainNameSort = plainNameIndex !== -1;
+
+    if (isPlainNameSort) {
+      const [, orderDirection] = order[plainNameIndex];
+      newOrder[plainNameIndex] = Sequelize.literal(
+        `"FolderModel"."plain_name" COLLATE "custom_numeric" ${
+          orderDirection === 'ASC' ? 'ASC' : 'DESC'
+        }`,
+      );
+    }
+
+    const hasUniqueSortField = order.some(
+      ([field, _]) => field === 'uuid' || field === 'id',
+    );
+    if (!hasUniqueSortField) {
+      newOrder.push(['uuid', 'ASC']);
+    }
 
     return newOrder;
   }
