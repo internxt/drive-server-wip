@@ -723,6 +723,48 @@ describe('FileRepository', () => {
     });
   });
 
+  describe('findAllCursor sort tiebreaker', () => {
+    const where = { status: FileStatus.EXISTS };
+    const limit = 10;
+    const offset = 0;
+
+    it('When sorting by a non-unique field, then a uuid tiebreaker is appended to keep pagination stable', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findAllCursor(where, limit, offset, [
+        ['updatedAt', 'ASC'],
+      ]);
+
+      const { order } = (fileModel.findAll as jest.Mock).mock.calls[0][0];
+      expect(order).toEqual([
+        ['updatedAt', 'ASC'],
+        ['uuid', 'ASC'],
+      ]);
+    });
+
+    it('When sorting by plainName, then the collated sort is followed by the uuid tiebreaker', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findAllCursor(where, limit, offset, [
+        ['plainName', 'DESC'],
+      ]);
+
+      const { order } = (fileModel.findAll as jest.Mock).mock.calls[0][0];
+      expect(order).toHaveLength(2);
+      expect(order[0].val).toContain('COLLATE "custom_numeric" DESC');
+      expect(order[1]).toEqual(['uuid', 'ASC']);
+    });
+
+    it('When the sort already includes a unique field, then no tiebreaker is appended', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findAllCursor(where, limit, offset, [['uuid', 'DESC']]);
+
+      const { order } = (fileModel.findAll as jest.Mock).mock.calls[0][0];
+      expect(order).toEqual([['uuid', 'DESC']]);
+    });
+  });
+
   describe('findAllCursor isFavorite enrichment', () => {
     const userUuid = v4();
     const where = { status: FileStatus.EXISTS };
