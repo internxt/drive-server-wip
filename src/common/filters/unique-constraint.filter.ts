@@ -13,7 +13,7 @@ interface DatabaseErrorWithConstraint extends Error {
 @Catch(UniqueConstraintError)
 export class UniqueConstraintFilter implements ExceptionFilter {
   private readonly constraintMessages: Record<string, string> = {
-    files_plainname_type_folderid_exists_unique:
+    idx_files_folder_user_name_type_unique_numeric:
       'A file with this name already exists in this location',
     folders_plainname_parentid_key:
       'A folder with this name already exists in this location',

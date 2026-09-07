@@ -26,7 +26,7 @@ describe('UniqueConstraintFilter', () => {
   });
 
   it('When a file unique constraint is violated, it should throw 409 with the file message', () => {
-    const error = makeError('files_plainname_type_folderid_exists_unique');
+    const error = makeError('idx_files_folder_user_name_type_unique_numeric');
 
     expect(() => filter.catch(error, mockHost)).toThrow(
       new ConflictException(
