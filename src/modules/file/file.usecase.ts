@@ -1027,6 +1027,14 @@ export class FileUseCases {
 
     const newFileId = isFileEmpty ? null : newFileData.fileId;
 
+    const { fileId: oldFileId, bucket } = file;
+
+    if (newFileId && newFileId === oldFileId) {
+      throw new BadRequestException(
+        'New file ID is the same as the old file ID',
+      );
+    }
+
     const { versionable: shouldVersion } = await this.isFileVersionable(
       user.uuid,
       file.type as VersionableFileExtension,
@@ -1051,7 +1059,6 @@ export class FileUseCases {
       };
     }
 
-    const { fileId: oldFileId, bucket } = file;
     const { size, modificationTime } = newFileData;
 
     await this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {

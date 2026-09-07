@@ -2945,6 +2945,58 @@ describe('FileUseCases', () => {
       });
     });
 
+    it('When the new file id matches the current one, then it should throw and leave the file untouched', async () => {
+      const mockFile = newFile({
+        attributes: {
+          fileId: 'unchanged-file-id',
+          bucket: 'test-bucket',
+          type: 'bin',
+        },
+      });
+      const replaceData = {
+        fileId: 'unchanged-file-id',
+        size: mockFile.size,
+        modificationTime: new Date(),
+      };
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+
+      await expect(
+        service.replaceFile(userMocked, mockFile.uuid, replaceData),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(fileRepository.updateByUuidAndUserId).not.toHaveBeenCalled();
+      expect(bridgeService.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it('When the new file id matches the current one and the file is versionable, then it should throw without creating a version', async () => {
+      const mockFile = newFile({
+        attributes: {
+          fileId: 'unchanged-file-id',
+          bucket: 'test-bucket',
+          type: 'pdf',
+        },
+      });
+      const replaceData = {
+        fileId: 'unchanged-file-id',
+        size: mockFile.size,
+      };
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest
+        .spyOn(service, 'isFileVersionable')
+        .mockResolvedValue({ versionable: true, limits: null });
+      const createVersionSpy = jest.spyOn(createFileVersionAction, 'execute');
+
+      await expect(
+        service.replaceFile(userMocked, mockFile.uuid, replaceData),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(createVersionSpy).not.toHaveBeenCalled();
+      expect(fileRepository.updateByUuidAndUserId).not.toHaveBeenCalled();
+      expect(bridgeService.deleteFile).not.toHaveBeenCalled();
+    });
+
     it('When file exists and modificationTime was passed, then it should replace file data with modificationTime', async () => {
       const mockFile = newFile({
         attributes: { fileId: 'old-file-id-string', bucket: 'test-bucket' },
@@ -3169,6 +3221,49 @@ describe('FileUseCases', () => {
         expect(fileRepository.getZeroSizeFilesCountByUser).toHaveBeenCalledWith(
           userMocked.id,
         );
+      });
+
+      it('When replacing an already empty file with another empty file, then it should not be rejected as a same id replacement', async () => {
+        const mockFile = newFile({
+          attributes: {
+            fileId: null,
+            bucket: 'test-bucket',
+            size: BigInt(0),
+          },
+        });
+        const replaceData = {
+          size: BigInt(0),
+          modificationTime: new Date(),
+        };
+
+        const mockLimit = newFeatureLimit({
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+          value: '1000',
+        });
+
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+          .mockResolvedValue(5);
+        jest
+          .spyOn(service, 'isFileVersionable')
+          .mockResolvedValue({ versionable: false, limits: null });
+        const updateSpy = jest
+          .spyOn(fileRepository, 'updateByUuidAndUserId')
+          .mockResolvedValue();
+
+        await service.replaceFile(userMocked, mockFile.uuid, replaceData);
+
+        expect(updateSpy).toHaveBeenCalledWith(
+          mockFile.uuid,
+          userMocked.id,
+          expect.objectContaining({ fileId: null, size: BigInt(0) }),
+        );
+        expect(bridgeService.deleteFile).not.toHaveBeenCalled();
       });
 
       it('When replacing with empty file and limit is reached, then it should throw', async () => {
