@@ -1,5 +1,6 @@
 'use strict';
 
+// NOTE: if this collation changes, update matching queries in file.repository.ts
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface) {

@@ -294,14 +294,18 @@ describe('FileRepository', () => {
           folderUuid,
           status: FileStatus.EXISTS,
           [Op.or]: [
-            {
-              plainName: 'Report',
+            expect.objectContaining({
+              [Op.and]: expect.objectContaining({
+                val: expect.stringContaining('COLLATE "custom_numeric"'),
+              }),
               type: 'pdf',
-            },
-            {
-              plainName: 'Summary',
+            }),
+            expect.objectContaining({
+              [Op.and]: expect.objectContaining({
+                val: expect.stringContaining('COLLATE "custom_numeric"'),
+              }),
               type: 'doc',
-            },
+            }),
           ],
         }),
       });
@@ -317,9 +321,11 @@ describe('FileRepository', () => {
           folderUuid,
           status: FileStatus.EXISTS,
           [Op.or]: [
-            {
-              plainName: 'Report',
-            },
+            expect.objectContaining({
+              [Op.and]: expect.objectContaining({
+                val: expect.stringContaining('COLLATE "custom_numeric"'),
+              }),
+            }),
           ],
         }),
       });
@@ -350,11 +356,14 @@ describe('FileRepository', () => {
       expect(fileModel.findOne).toHaveBeenCalledWith({
         where: expect.objectContaining({
           userId: { [Op.eq]: mockFile.userId },
-          plainName: { [Op.eq]: mockFile.plainName },
+          [Op.and]: expect.objectContaining({
+            val: expect.stringContaining('COLLATE "custom_numeric"'),
+          }),
           type: { [Op.or]: [{ [Op.is]: null }, { [Op.eq]: '' }] },
           folderUuid: { [Op.eq]: mockFile.folderUuid },
           status: { [Op.eq]: mockFile.status },
         }),
+        replacements: { plainName: mockFile.plainName },
       });
     });
 
@@ -381,11 +390,14 @@ describe('FileRepository', () => {
       expect(fileModel.findOne).toHaveBeenCalledWith({
         where: expect.objectContaining({
           userId: { [Op.eq]: mockFile.userId },
-          plainName: { [Op.eq]: mockFile.plainName },
+          [Op.and]: expect.objectContaining({
+            val: expect.stringContaining('COLLATE "custom_numeric"'),
+          }),
           type: { [Op.or]: [{ [Op.is]: null }, { [Op.eq]: '' }] },
           folderUuid: { [Op.eq]: mockFile.folderUuid },
           status: { [Op.eq]: mockFile.status },
         }),
+        replacements: { plainName: mockFile.plainName },
       });
     });
 
@@ -412,11 +424,14 @@ describe('FileRepository', () => {
       expect(fileModel.findOne).toHaveBeenCalledWith({
         where: expect.objectContaining({
           userId: { [Op.eq]: mockFile.userId },
-          plainName: { [Op.eq]: mockFile.plainName },
+          [Op.and]: expect.objectContaining({
+            val: expect.stringContaining('COLLATE "custom_numeric"'),
+          }),
           type: { [Op.eq]: mockFile.type },
           folderUuid: { [Op.eq]: mockFile.folderUuid },
           status: { [Op.eq]: mockFile.status },
         }),
+        replacements: { plainName: mockFile.plainName },
       });
     });
   });
