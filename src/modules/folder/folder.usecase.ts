@@ -25,7 +25,7 @@ import { SequelizeFolderRepository } from './folder.repository';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
 import { type WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
-import { v4 } from 'uuid';
+import { v7 } from 'uuid';
 import { type UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { type FolderStatsDto } from './dto/responses/folder-stats.dto';
 import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
@@ -393,7 +393,7 @@ export class FolderUseCases {
     );
 
     const folder = await this.folderRepository.createWithAttributes({
-      uuid: v4(),
+      uuid: v7(),
       userId: user.id,
       name: encryptedFolderName,
       plainName: newFolderDto.plainName,
@@ -460,7 +460,7 @@ export class FolderUseCases {
 
     const now = new Date();
     const foldersToCreate = folders.map((item) => ({
-      uuid: v4(),
+      uuid: v7(),
       userId: user.id,
       name: this.cryptoService.encryptName(item.plainName, parentFolder.id),
       plainName: item.plainName,
@@ -849,7 +849,7 @@ export class FolderUseCases {
       Logger.error(
         `User with id: ${user.id} tried to delete a folder that does not own.`,
       );
-      throw new ForbiddenException(`You are not owner of this share`);
+      throw new ForbiddenException('You are not owner of this share');
     }
 
     await this.folderRepository.deleteById(folder.id);
