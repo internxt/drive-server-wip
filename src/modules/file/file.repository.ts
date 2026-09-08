@@ -343,11 +343,15 @@ export class SequelizeFileRepository implements FileRepository {
     const file = await this.fileModel.findOne({
       where: {
         userId: { [Op.eq]: userId },
-        plainName: { [Op.eq]: plainName },
+        // NOTE: collate needed to use the plain_name numeric-collation index
+        [Op.and]: Sequelize.literal(
+          '"FileModel"."plain_name" COLLATE "custom_numeric" = :plainName COLLATE "custom_numeric"',
+        ),
         type: typeCondition,
         folderUuid: { [Op.eq]: folderUuid },
         status: { [Op.eq]: status },
       },
+      replacements: { plainName },
     });
     return file ? this.toDomain(file) : null;
   }
@@ -460,6 +464,7 @@ export class SequelizeFileRepository implements FileRepository {
     const newOrder: Array<[keyof FileModel, string] | Literal> =
       structuredClone(order);
     const [, orderDirection] = order[plainNameIndex];
+    // NOTE: collate needed to use the plain_name numeric-collation index
     newOrder[plainNameIndex] = Sequelize.literal(
       `"FileModel"."plain_name" COLLATE "custom_numeric" ${
         orderDirection === 'ASC' ? 'ASC' : 'DESC'
@@ -980,7 +985,12 @@ export class SequelizeFileRepository implements FileRepository {
 
     if (searchFilter.length) {
       where[Op.or] = searchFilter.map((criteria) => ({
-        plainName: criteria.plainName,
+        // NOTE: collate needed to use the plain_name numeric-collation index
+        [Op.and]: Sequelize.literal(
+          `"FileModel"."plain_name" COLLATE "custom_numeric" = ${this.fileModel.sequelize.escape(
+            criteria.plainName,
+          )} COLLATE "custom_numeric"`,
+        ),
         ...(criteria.type ? { type: criteria.type } : {}),
       }));
     }
