@@ -343,7 +343,7 @@ describe('FileRepository', () => {
         mockFile.userId,
         mockFile.plainName,
         mockFile.type,
-        mockFile.folderId,
+        mockFile.folderUuid,
         mockFile.status,
       );
 
@@ -352,7 +352,7 @@ describe('FileRepository', () => {
           userId: { [Op.eq]: mockFile.userId },
           plainName: { [Op.eq]: mockFile.plainName },
           type: { [Op.or]: [{ [Op.is]: null }, { [Op.eq]: '' }] },
-          folderId: { [Op.eq]: mockFile.folderId },
+          folderUuid: { [Op.eq]: mockFile.folderUuid },
           status: { [Op.eq]: mockFile.status },
         }),
       });
@@ -374,7 +374,7 @@ describe('FileRepository', () => {
         mockFile.userId,
         mockFile.plainName,
         mockFile.type,
-        mockFile.folderId,
+        mockFile.folderUuid,
         mockFile.status,
       );
 
@@ -383,7 +383,7 @@ describe('FileRepository', () => {
           userId: { [Op.eq]: mockFile.userId },
           plainName: { [Op.eq]: mockFile.plainName },
           type: { [Op.or]: [{ [Op.is]: null }, { [Op.eq]: '' }] },
-          folderId: { [Op.eq]: mockFile.folderId },
+          folderUuid: { [Op.eq]: mockFile.folderUuid },
           status: { [Op.eq]: mockFile.status },
         }),
       });
@@ -405,7 +405,7 @@ describe('FileRepository', () => {
         mockFile.userId,
         mockFile.plainName,
         mockFile.type,
-        mockFile.folderId,
+        mockFile.folderUuid,
         mockFile.status,
       );
 
@@ -414,7 +414,7 @@ describe('FileRepository', () => {
           userId: { [Op.eq]: mockFile.userId },
           plainName: { [Op.eq]: mockFile.plainName },
           type: { [Op.eq]: mockFile.type },
-          folderId: { [Op.eq]: mockFile.folderId },
+          folderUuid: { [Op.eq]: mockFile.folderUuid },
           status: { [Op.eq]: mockFile.status },
         }),
       });
@@ -1550,89 +1550,6 @@ describe('FileRepository', () => {
         },
       });
       expect(result).toBe(count);
-    });
-  });
-
-  describe('deleteFilesByUuid', () => {
-    it('When file UUIDs are provided, then it should mark them as removed and deleted', async () => {
-      const fileUuids = [v4(), v4(), v4()];
-      const updatedCount = 3;
-
-      jest
-        .spyOn(fileModel, 'update')
-        .mockResolvedValueOnce([updatedCount] as any);
-
-      const result = await repository.deleteFilesByUuid(fileUuids);
-
-      expect(fileModel.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          removed: true,
-          status: FileStatus.DELETED,
-        }),
-        expect.objectContaining({
-          where: {
-            uuid: { [Op.in]: fileUuids },
-            status: { [Op.not]: FileStatus.DELETED },
-          },
-        }),
-      );
-      expect(result).toBe(updatedCount);
-    });
-
-    it('When single file UUID is provided, then it should process it', async () => {
-      const fileUuid = v4();
-      const updatedCount = 1;
-
-      jest
-        .spyOn(fileModel, 'update')
-        .mockResolvedValueOnce([updatedCount] as any);
-
-      const result = await repository.deleteFilesByUuid([fileUuid]);
-
-      expect(fileModel.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          removed: true,
-          status: FileStatus.DELETED,
-        }),
-        expect.objectContaining({
-          where: {
-            uuid: { [Op.in]: [fileUuid] },
-            status: { [Op.not]: FileStatus.DELETED },
-          },
-        }),
-      );
-      expect(result).toBe(1);
-    });
-
-    it('When no files match the UUIDs, then it should return zero', async () => {
-      const fileUuids = [v4(), v4()];
-      const updatedCount = 0;
-
-      jest
-        .spyOn(fileModel, 'update')
-        .mockResolvedValueOnce([updatedCount] as any);
-
-      const result = await repository.deleteFilesByUuid(fileUuids);
-
-      expect(result).toBe(0);
-    });
-
-    it('When files already deleted, then it should not update them', async () => {
-      const fileUuids = [v4(), v4()];
-
-      jest.spyOn(fileModel, 'update').mockResolvedValueOnce([0] as any);
-
-      const result = await repository.deleteFilesByUuid(fileUuids);
-
-      expect(fileModel.update).toHaveBeenCalledWith(
-        expect.any(Object),
-        expect.objectContaining({
-          where: expect.objectContaining({
-            status: { [Op.not]: FileStatus.DELETED },
-          }),
-        }),
-      );
-      expect(result).toBe(0);
     });
   });
 

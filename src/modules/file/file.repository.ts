@@ -45,7 +45,7 @@ export interface FileRepository {
   destroyFile(where: Partial<FileModel>): Promise<void>;
   findAll(): Promise<Array<File> | []>;
   findAllByFolderIdAndUserId(
-    folderId: FileAttributes['folderId'],
+    folderUuid: FileAttributes['folderUuid'],
     userId: FileAttributes['userId'],
     options: FileOptions,
   ): Promise<Array<File> | []>;
@@ -117,7 +117,7 @@ export interface FileRepository {
     userId: File['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderId: FileAttributes['folderId'],
+    folderUuid: FileAttributes['folderUuid'],
     status: FileAttributes['status'],
   ): Promise<File | null>;
   getSumSizeOfFilesInWorkspaceByStatuses(
@@ -167,7 +167,6 @@ export interface FileRepository {
     order?: [keyof FileModel, 'ASC' | 'DESC'][],
   ): Promise<File[]>;
   deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
-  deleteFilesByUuid(fileUuids: string[]): Promise<number>;
   deleteExpiredTrashFilesByTier(
     tierId: string,
     cutoffDate: Date,
@@ -344,7 +343,7 @@ export class SequelizeFileRepository implements FileRepository {
     userId: FileAttributes['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderId: FileAttributes['folderId'],
+    folderUuid: FileAttributes['folderUuid'],
     status: FileAttributes['status'],
   ): Promise<File | null> {
     const typeCondition =
@@ -357,7 +356,7 @@ export class SequelizeFileRepository implements FileRepository {
         userId: { [Op.eq]: userId },
         plainName: { [Op.eq]: plainName },
         type: typeCondition,
-        folderId: { [Op.eq]: folderId },
+        folderUuid: { [Op.eq]: folderUuid },
         status: { [Op.eq]: status },
       },
     });
@@ -888,14 +887,6 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
-  async findByUuidNotDeleted(uuid: FileAttributes['uuid']): Promise<File> {
-    const file = await this.fileModel.findOne({
-      where: { uuid, deleted: false },
-    });
-
-    return file ? this.toDomain(file) : null;
-  }
-
   async findByIds(
     userId: FileAttributes['userId'],
     ids: FileAttributes['id'][],
@@ -908,13 +899,13 @@ export class SequelizeFileRepository implements FileRepository {
   }
 
   async findAllByFolderIdAndUserId(
-    folderId: FileAttributes['folderId'],
+    folderUuid: FileAttributes['folderUuid'],
     userId: FileAttributes['userId'],
     { deleted, page, perPage }: FileOptions,
   ): Promise<Array<File> | []> {
     const { offset, limit } = Pagination.calculatePagination(page, perPage);
     const query: FindOptions = {
-      where: { folderId, userId, deleted },
+      where: { folderUuid, userId, deleted },
       order: [['id', 'ASC']],
     };
     if (page && perPage) {
@@ -1000,26 +991,6 @@ export class SequelizeFileRepository implements FileRepository {
     const page = hasMore ? rows.slice(0, pageSize) : rows;
 
     return { files: page.map(this.toDomain.bind(this)), hasMore };
-  }
-
-  async findAllByUserIdExceptFolderIds(
-    userId: FileAttributes['userId'],
-    exceptFolderIds: FileAttributes['folderId'][],
-    { deleted, page, perPage }: FileOptions,
-  ): Promise<Array<File> | []> {
-    const { offset, limit } = Pagination.calculatePagination(page, perPage);
-    const query: FindOptions = {
-      where: { userId, deleted, folderId: { [Op.notIn]: exceptFolderIds } },
-      order: [['id', 'ASC']],
-    };
-    if (page && perPage) {
-      query.offset = offset;
-      query.limit = limit;
-    }
-    const files = await this.fileModel.findAll(query);
-    return files.map((file) => {
-      return this.toDomain(file);
-    });
   }
 
   async findOneBy(where: Partial<FileAttributes>): Promise<File | null> {
@@ -1199,26 +1170,6 @@ export class SequelizeFileRepository implements FileRepository {
     );
 
     return { updatedCount };
-  }
-
-  async deleteFilesByUuid(fileUuids: string[]): Promise<number> {
-    const deletedDate = new Date();
-    const [updatedCount] = await this.fileModel.update(
-      {
-        removed: true,
-        removedAt: deletedDate,
-        status: FileStatus.DELETED,
-        updatedAt: deletedDate,
-      },
-      {
-        where: {
-          uuid: { [Op.in]: fileUuids },
-          status: { [Op.not]: FileStatus.DELETED },
-        },
-      },
-    );
-
-    return updatedCount;
   }
 
   async deleteExpiredTrashFilesByTier(

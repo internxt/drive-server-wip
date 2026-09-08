@@ -1761,7 +1761,7 @@ describe('FileUseCases', () => {
         mockFile.userId,
         newFileMeta.plainName,
         mockFile.type,
-        mockFile.folderId,
+        mockFile.folderUuid,
         FileStatus.EXISTS,
       );
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
@@ -1822,7 +1822,7 @@ describe('FileUseCases', () => {
         mockFile.userId,
         mockFile.plainName,
         newTypeFileMeta.type,
-        mockFile.folderId,
+        mockFile.folderUuid,
         FileStatus.EXISTS,
       );
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
@@ -2358,9 +2358,7 @@ describe('FileUseCases', () => {
 
       expect(
         fileRepository.findFilesWithCursorWhereUpdatedAfter,
-      ).toHaveBeenCalledWith(
-        expect.objectContaining({ cursor: cursorData }),
-      );
+      ).toHaveBeenCalledWith(expect.objectContaining({ cursor: cursorData }));
     });
 
     it('When the cursor status does not match the requested status, then it should throw', async () => {

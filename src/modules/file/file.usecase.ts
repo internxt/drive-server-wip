@@ -329,7 +329,7 @@ export class FileUseCases {
       user.id,
       newFileDto.plainName,
       newFileDto.type,
-      folder.id,
+      folder.uuid,
       FileStatus.EXISTS,
     );
     if (exists) {
@@ -486,7 +486,7 @@ export class FileUseCases {
       updatedFile.userId,
       updatedFile.plainName,
       updatedFile.type,
-      updatedFile.folderId,
+      updatedFile.folderUuid,
     );
     if (fileWithSameNameExists) {
       throw new ConflictException(
@@ -905,12 +905,12 @@ export class FileUseCases {
   }
 
   async getByFolderAndUser(
-    folderId: FolderAttributes['id'],
+    folderUuid: FolderAttributes['uuid'],
     userId: FolderAttributes['userId'],
     options: FileOptions,
   ) {
     const files = await this.fileRepository.findAllByFolderIdAndUserId(
-      folderId,
+      folderUuid,
       userId,
       options,
     );
@@ -1178,7 +1178,7 @@ export class FileUseCases {
       file.userId,
       file.plainName,
       file.type,
-      destinationFolder.id,
+      destinationFolder.uuid,
       FileStatus.EXISTS,
     );
 
@@ -1276,13 +1276,13 @@ export class FileUseCases {
     userId: FileAttributes['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderId: FileAttributes['folderId'],
+    folderUuid: FileAttributes['folderUuid'],
   ): Promise<File | null> {
     return this.fileRepository.findByPlainNameAndFolderId(
       userId,
       plainName,
       type,
-      folderId,
+      folderUuid,
       FileStatus.EXISTS,
     );
   }
@@ -1305,7 +1305,7 @@ export class FileUseCases {
       user.id,
       path.fileName,
       path.fileType,
-      folder.id,
+      folder.uuid,
     );
     return file;
   }
