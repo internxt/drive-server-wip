@@ -47,6 +47,11 @@ import { type UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
+import {
+  FolderFilesSortBy,
+  type GetFolderContentFilesCursorDto,
+} from '../folder/dto/get-folder-content-files-cursor.dto';
+import { SortOrder } from '../../common/order.type';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { type Tier } from '../feature-limit/domain/tier.domain';
@@ -2407,6 +2412,214 @@ describe('FileUseCases', () => {
       );
 
       expect(result.files).toEqual(mockFiles.map((file) => file.toJSON()));
+    });
+  });
+
+  describe('getFolderFilesWithCursor', () => {
+    const userIdForFolder = 1;
+    const folderUuid = newFolder().uuid;
+    const mockFiles = [
+      { ...newFile(), thumbnails: [] },
+      { ...newFile(), thumbnails: [] },
+    ] as unknown as File[];
+
+    const buildQuery = (
+      overrides: Partial<GetFolderContentFilesCursorDto> = {},
+    ): GetFolderContentFilesCursorDto => ({ ...overrides });
+
+    it('When no sortBy/order/limit are provided, then it should default to plainName/ASC/50', async () => {
+      jest
+        .spyOn(fileRepository, 'findFolderFilesWithCursor')
+        .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
+
+      await service.getFolderFilesWithCursor(
+        userIdForFolder,
+        folderUuid,
+        buildQuery(),
+      );
+
+      expect(fileRepository.findFolderFilesWithCursor).toHaveBeenCalledWith({
+        folderUuid,
+        userId: userIdForFolder,
+        sortBy: FolderFilesSortBy.PLAIN_NAME,
+        order: SortOrder.ASC,
+        pageSize: 50,
+        cursor: undefined,
+      });
+    });
+
+    it('When sortBy/order/limit are provided, then it should pass them through', async () => {
+      jest
+        .spyOn(fileRepository, 'findFolderFilesWithCursor')
+        .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
+
+      await service.getFolderFilesWithCursor(
+        userIdForFolder,
+        folderUuid,
+        buildQuery({
+          sortBy: FolderFilesSortBy.MODIFICATION_TIME,
+          order: SortOrder.DESC,
+          limit: 200,
+        }),
+      );
+
+      expect(fileRepository.findFolderFilesWithCursor).toHaveBeenCalledWith({
+        folderUuid,
+        userId: userIdForFolder,
+        sortBy: FolderFilesSortBy.MODIFICATION_TIME,
+        order: SortOrder.DESC,
+        pageSize: 200,
+        cursor: undefined,
+      });
+    });
+
+    it('When a valid cursor matching sortBy/order is provided, then it should decode and pass it to the repository', async () => {
+      const cursorData = {
+        lastUuid: v4(),
+        sortBy: FolderFilesSortBy.PLAIN_NAME,
+        order: SortOrder.ASC,
+        lastValue: 'file-a',
+      };
+      const cursorToken = Buffer.from(JSON.stringify(cursorData)).toString(
+        'base64',
+      );
+
+      jest
+        .spyOn(fileRepository, 'findFolderFilesWithCursor')
+        .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
+
+      await service.getFolderFilesWithCursor(
+        userIdForFolder,
+        folderUuid,
+        buildQuery({ cursor: cursorToken }),
+      );
+
+      expect(fileRepository.findFolderFilesWithCursor).toHaveBeenCalledWith(
+        expect.objectContaining({ cursor: cursorData }),
+      );
+    });
+
+    it('When an invalid cursor token is provided, then it should throw', async () => {
+      jest.spyOn(fileRepository, 'findFolderFilesWithCursor');
+
+      await expect(
+        service.getFolderFilesWithCursor(
+          userIdForFolder,
+          folderUuid,
+          buildQuery({ cursor: 'not-a-valid-cursor' }),
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(fileRepository.findFolderFilesWithCursor).not.toHaveBeenCalled();
+    });
+
+    it('When the cursor sortBy does not match the requested sortBy, then it should throw', async () => {
+      const cursorData = {
+        lastUuid: v4(),
+        sortBy: FolderFilesSortBy.PLAIN_NAME,
+        order: SortOrder.ASC,
+        lastValue: 'file-a',
+      };
+      const cursorToken = Buffer.from(JSON.stringify(cursorData)).toString(
+        'base64',
+      );
+
+      jest.spyOn(fileRepository, 'findFolderFilesWithCursor');
+
+      await expect(
+        service.getFolderFilesWithCursor(
+          userIdForFolder,
+          folderUuid,
+          buildQuery({
+            cursor: cursorToken,
+            sortBy: FolderFilesSortBy.MODIFICATION_TIME,
+          }),
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(fileRepository.findFolderFilesWithCursor).not.toHaveBeenCalled();
+    });
+
+    it('When the cursor order does not match the requested order, then it should throw', async () => {
+      const cursorData = {
+        lastUuid: v4(),
+        sortBy: FolderFilesSortBy.PLAIN_NAME,
+        order: SortOrder.ASC,
+        lastValue: 'file-a',
+      };
+      const cursorToken = Buffer.from(JSON.stringify(cursorData)).toString(
+        'base64',
+      );
+
+      jest.spyOn(fileRepository, 'findFolderFilesWithCursor');
+
+      await expect(
+        service.getFolderFilesWithCursor(
+          userIdForFolder,
+          folderUuid,
+          buildQuery({ cursor: cursorToken, order: SortOrder.DESC }),
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(fileRepository.findFolderFilesWithCursor).not.toHaveBeenCalled();
+    });
+
+    it('When hasMore is true, then it should return an encoded nextCursor built from the last file', async () => {
+      const lastFile = mockFiles[mockFiles.length - 1];
+      jest
+        .spyOn(fileRepository, 'findFolderFilesWithCursor')
+        .mockResolvedValueOnce({ files: mockFiles, hasMore: true });
+
+      const result = await service.getFolderFilesWithCursor(
+        userIdForFolder,
+        folderUuid,
+        buildQuery(),
+      );
+
+      expect(result.nextCursor).not.toBeNull();
+      const decoded = JSON.parse(
+        Buffer.from(result.nextCursor, 'base64').toString('utf-8'),
+      );
+      expect(decoded).toEqual({
+        lastUuid: lastFile.uuid,
+        sortBy: FolderFilesSortBy.PLAIN_NAME,
+        order: SortOrder.ASC,
+        lastValue: lastFile.plainName,
+      });
+    });
+
+    it('When hasMore is false, then nextCursor should be null', async () => {
+      jest
+        .spyOn(fileRepository, 'findFolderFilesWithCursor')
+        .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
+
+      const result = await service.getFolderFilesWithCursor(
+        userIdForFolder,
+        folderUuid,
+        buildQuery(),
+      );
+
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('When sorting by modificationTime, then the nextCursor should carry modificationTime instead of plainName', async () => {
+      const lastFile = mockFiles[mockFiles.length - 1];
+      jest
+        .spyOn(fileRepository, 'findFolderFilesWithCursor')
+        .mockResolvedValueOnce({ files: mockFiles, hasMore: true });
+
+      const result = await service.getFolderFilesWithCursor(
+        userIdForFolder,
+        folderUuid,
+        buildQuery({ sortBy: FolderFilesSortBy.MODIFICATION_TIME }),
+      );
+
+      const decoded = JSON.parse(
+        Buffer.from(result.nextCursor, 'base64').toString('utf-8'),
+      );
+      expect(decoded).toEqual({
+        lastUuid: lastFile.uuid,
+        sortBy: FolderFilesSortBy.MODIFICATION_TIME,
+        order: SortOrder.ASC,
+        lastValue: lastFile.modificationTime.toISOString(),
+      });
     });
   });
 

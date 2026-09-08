@@ -19,6 +19,8 @@ import { UserModel } from '../user/user.model';
 import { SharingModel } from '../sharing/models';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Time } from '../../lib/time';
+import { FolderFilesSortBy } from '../folder/dto/get-folder-content-files-cursor.dto';
+import { SortOrder } from '../../common/order.type';
 
 jest.mock('../../lib/query-timeout', () => ({
   withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
@@ -272,6 +274,138 @@ describe('FileRepository', () => {
         order: [
           ['updatedAt', 'ASC'],
           ['uuid', 'ASC'],
+        ],
+        limit: 1001,
+      });
+    });
+  });
+
+  describe('findFolderFilesWithCursor', () => {
+    const folderUuid = newFolder().uuid;
+
+    it('When called without a cursor sorted by plainName ASC, then it filters by folder/user/status and orders with collation', async () => {
+      const file = newFile();
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
+
+      const result = await repository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        sortBy: FolderFilesSortBy.PLAIN_NAME,
+        order: SortOrder.ASC,
+        pageSize: 1000,
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: { folderUuid, userId: user.id, status: FileStatus.EXISTS },
+        replacements: undefined,
+        order: [
+          Sequelize.literal(
+            '"FileModel"."plain_name" COLLATE "custom_numeric" ASC',
+          ),
+          ['uuid', 'ASC'],
+        ],
+        limit: 1001,
+      });
+      expect(result).toEqual({ files: expect.any(Array), hasMore: false });
+    });
+
+    it('When there is one more row than the page size, then hasMore is true and the extra row is dropped', async () => {
+      const files = [newFile(), newFile()];
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(files as any);
+
+      const result = await repository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        sortBy: FolderFilesSortBy.PLAIN_NAME,
+        order: SortOrder.ASC,
+        pageSize: 1,
+      });
+
+      expect(result.hasMore).toBe(true);
+      expect(result.files).toHaveLength(1);
+    });
+
+    it('When a plainName cursor is provided, then it filters by the collated tuple comparator', async () => {
+      const cursorUuid = v4();
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        sortBy: FolderFilesSortBy.PLAIN_NAME,
+        order: SortOrder.ASC,
+        pageSize: 1000,
+        cursor: {
+          lastUuid: cursorUuid,
+          sortBy: FolderFilesSortBy.PLAIN_NAME,
+          order: SortOrder.ASC,
+          lastValue: 'file-b',
+        },
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: {
+          folderUuid,
+          userId: user.id,
+          status: FileStatus.EXISTS,
+          [Op.and]: [
+            Sequelize.literal(
+              '("FileModel"."plain_name" COLLATE "custom_numeric", "FileModel"."uuid") > (:cursorValue, :cursorUuid)',
+            ),
+          ],
+        },
+        replacements: { cursorValue: 'file-b', cursorUuid },
+        order: [
+          Sequelize.literal(
+            '"FileModel"."plain_name" COLLATE "custom_numeric" ASC',
+          ),
+          ['uuid', 'ASC'],
+        ],
+        limit: 1001,
+      });
+    });
+
+    it('When sorting by modificationTime DESC with a cursor, then it uses the lt comparator and parses the cursor date', async () => {
+      const cursorUuid = v4();
+      const cursorModificationTime = new Date('2024-01-01T00:00:00.000Z');
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        sortBy: FolderFilesSortBy.MODIFICATION_TIME,
+        order: SortOrder.DESC,
+        pageSize: 1000,
+        cursor: {
+          lastUuid: cursorUuid,
+          sortBy: FolderFilesSortBy.MODIFICATION_TIME,
+          order: SortOrder.DESC,
+          lastValue: cursorModificationTime.toISOString(),
+        },
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: {
+          folderUuid,
+          userId: user.id,
+          status: FileStatus.EXISTS,
+          [Op.and]: [
+            Sequelize.literal(
+              '("FileModel"."modification_time", "FileModel"."uuid") < (:cursorValue, :cursorUuid)',
+            ),
+          ],
+        },
+        replacements: {
+          cursorValue: Time.now(cursorModificationTime.toISOString()),
+          cursorUuid,
+        },
+        order: [
+          ['modificationTime', 'DESC'],
+          ['uuid', 'DESC'],
         ],
         limit: 1001,
       });

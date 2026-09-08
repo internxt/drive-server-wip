@@ -44,6 +44,12 @@ import {
   encodeCursor,
   FileSyncCursorDto,
 } from './utils/file-cursor.util';
+import {
+  FolderFilesCursorDto,
+  FolderFilesSortBy,
+  GetFolderContentFilesCursorDto,
+} from '../folder/dto/get-folder-content-files-cursor.dto';
+import { SortOrder } from '../../common/order.type';
 import { type MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
@@ -648,6 +654,65 @@ export class FileUseCases {
     return {
       files: files.map((file) => file.toJSON()) as File[],
       hasMore,
+      nextCursor,
+    };
+  }
+
+  async getFolderFilesWithCursor(
+    userId: UserAttributes['id'],
+    folderUuid: Folder['uuid'],
+    query: GetFolderContentFilesCursorDto,
+  ): Promise<{ files: File[]; nextCursor: string | null }> {
+    const sortBy = query.sortBy ?? FolderFilesSortBy.PLAIN_NAME;
+    const order = query.order ?? SortOrder.ASC;
+    const pageSize = query.limit ?? 50;
+
+    const cursor = query.cursor
+      ? decodeCursor(FolderFilesCursorDto, query.cursor)
+      : undefined;
+
+    if (query.cursor && !cursor) {
+      throw new BadRequestException('Invalid cursor');
+    }
+
+    if (cursor && (cursor.sortBy !== sortBy || cursor.order !== order)) {
+      throw new BadRequestException(
+        'Cursor does not match sortBy/order filters',
+      );
+    }
+
+    const { files, hasMore } =
+      await this.fileRepository.findFolderFilesWithCursor({
+        folderUuid,
+        userId,
+        sortBy,
+        order,
+        pageSize,
+        cursor,
+      });
+
+    const lastFile = files.at(-1);
+    const nextCursor =
+      hasMore && lastFile
+        ? encodeCursor({
+            lastUuid: lastFile.uuid,
+            sortBy,
+            order,
+            lastValue:
+              sortBy === FolderFilesSortBy.PLAIN_NAME
+                ? lastFile.plainName
+                : lastFile.modificationTime.toISOString(),
+          })
+        : null;
+
+    const filesWithOldAttributes = files.map((file) =>
+      this.addOldAttributes(file),
+    );
+
+    return {
+      files: filesWithOldAttributes.map((file) =>
+        file.plainName ? file : this.decrypFileName(file),
+      ),
       nextCursor,
     };
   }
