@@ -28,7 +28,7 @@ import { type ReplaceFileDto } from './dto/replace-file.dto';
 import { type FileDto } from './dto/file.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
-import { v4 } from 'uuid';
+import { v7 } from 'uuid';
 import { type CreateFileDto } from './dto/create-file.dto';
 import { type UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
@@ -355,7 +355,7 @@ export class FileUseCases {
     const newFileId = isFileEmpty ? null : newFileDto.fileId;
 
     const newFile = await this.fileRepository.create({
-      uuid: v4(),
+      uuid: v7(),
       name: cryptoFileName,
       plainName: newFileDto.plainName,
       type: newFileDto.type,

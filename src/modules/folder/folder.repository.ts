@@ -8,7 +8,7 @@ import {
   Sequelize,
   type WhereOptions,
 } from 'sequelize';
-import { v4 } from 'uuid';
+import { v7 } from 'uuid';
 
 import { Folder } from './folder.domain';
 import { type FolderAttributes } from './folder.attributes';
@@ -27,7 +27,10 @@ import { UserModel } from '../user/user.model';
 import { User } from '../user/user.domain';
 import { type UserAttributes } from '../user/user.attributes';
 import { FavoriteModel } from '../favorite/favorite.model';
-import { FavoriteItemType, type FavoriteAttributes } from '../favorite/favorite.domain';
+import {
+  FavoriteItemType,
+  type FavoriteAttributes,
+} from '../favorite/favorite.domain';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -679,7 +682,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       bucket,
       parentId,
       encryptVersion,
-      uuid: v4(),
+      uuid: v7(),
       parentUuid,
     });
 
