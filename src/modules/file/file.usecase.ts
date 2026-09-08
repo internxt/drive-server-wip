@@ -14,13 +14,11 @@ import {
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
-import { type FolderAttributes } from '../folder/folder.attributes';
 import { type User } from '../user/user.domain';
 import { type UserAttributes } from '../user/user.attributes';
 import {
   File,
   type FileAttributes,
-  type FileOptions,
   FileStatus,
   type SortableFileAttributes,
 } from './file.domain';
@@ -329,7 +327,7 @@ export class FileUseCases {
       user.id,
       newFileDto.plainName,
       newFileDto.type,
-      folder.id,
+      folder.uuid,
       FileStatus.EXISTS,
     );
     if (exists) {
@@ -486,7 +484,7 @@ export class FileUseCases {
       updatedFile.userId,
       updatedFile.plainName,
       updatedFile.type,
-      updatedFile.folderId,
+      updatedFile.folderUuid,
     );
     if (fileWithSameNameExists) {
       throw new ConflictException(
@@ -904,20 +902,6 @@ export class FileUseCases {
     return files.map((file) => file.toJSON());
   }
 
-  async getByFolderAndUser(
-    folderId: FolderAttributes['id'],
-    userId: FolderAttributes['userId'],
-    options: FileOptions,
-  ) {
-    const files = await this.fileRepository.findAllByFolderIdAndUserId(
-      folderId,
-      userId,
-      options,
-    );
-
-    return files.map((file) => file.toJSON());
-  }
-
   async moveFilesToTrash(
     user: User,
     ids: FileAttributes['id'][],
@@ -1178,7 +1162,7 @@ export class FileUseCases {
       file.userId,
       file.plainName,
       file.type,
-      destinationFolder.id,
+      destinationFolder.uuid,
       FileStatus.EXISTS,
     );
 
@@ -1276,13 +1260,13 @@ export class FileUseCases {
     userId: FileAttributes['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderId: FileAttributes['folderId'],
+    folderUuid: FileAttributes['folderUuid'],
   ): Promise<File | null> {
     return this.fileRepository.findByPlainNameAndFolderId(
       userId,
       plainName,
       type,
-      folderId,
+      folderUuid,
       FileStatus.EXISTS,
     );
   }
@@ -1305,7 +1289,7 @@ export class FileUseCases {
       user.id,
       path.fileName,
       path.fileType,
-      folder.id,
+      folder.uuid,
     );
     return file;
   }
