@@ -65,7 +65,6 @@ import { type FileInfo } from '@internxt/inxt-js/build/api';
 import { FavoriteUseCases } from '../favorite/favorite.usecase';
 import { FavoriteItemType } from '../favorite/favorite.domain';
 
-const userId = 1;
 const folderId = 4;
 
 describe('FileUseCases', () => {
@@ -221,72 +220,6 @@ describe('FileUseCases', () => {
         userMocked,
         [...fileUuids, ...files.map((file) => file.uuid)],
         FavoriteItemType.File,
-      );
-    });
-  });
-
-  describe('get folder by folderId and User Id', () => {
-    it('calls getByFolderAndUser and return empty files', async () => {
-      const mockFile = [];
-      jest
-        .spyOn(fileRepository, 'findAllByFolderIdAndUserId')
-        .mockResolvedValue([]);
-
-      const options = { deleted: false };
-      const result = await service.getByFolderAndUser(
-        folderId,
-        userId,
-        options,
-      );
-      expect(result).toEqual(mockFile);
-      expect(fileRepository.findAllByFolderIdAndUserId).toHaveBeenNthCalledWith(
-        1,
-        folderId,
-        userId,
-        options,
-      );
-    });
-
-    it('calls getByFolderAndUser and return files', async () => {
-      const mockFile = File.build({
-        id: 1,
-        fileId: '',
-        name: '',
-        type: 'jpg',
-        size: null,
-        bucket: '',
-        folderId: 4,
-        encryptVersion: '',
-        deleted: false,
-        deletedAt: new Date(),
-        userId: 1,
-        creationTime: new Date(),
-        modificationTime: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        uuid: '',
-        folderUuid: '',
-        removed: false,
-        removedAt: undefined,
-        plainName: 'test',
-        status: FileStatus.EXISTS,
-      });
-      jest
-        .spyOn(fileRepository, 'findAllByFolderIdAndUserId')
-        .mockResolvedValue([mockFile]);
-
-      const options = { deleted: false };
-      const result = await service.getByFolderAndUser(
-        folderId,
-        userId,
-        options,
-      );
-      expect(result).toEqual([mockFile]);
-      expect(fileRepository.findAllByFolderIdAndUserId).toHaveBeenNthCalledWith(
-        1,
-        folderId,
-        userId,
-        options,
       );
     });
   });

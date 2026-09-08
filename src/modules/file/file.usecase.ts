@@ -14,13 +14,11 @@ import {
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
-import { type FolderAttributes } from '../folder/folder.attributes';
 import { type User } from '../user/user.domain';
 import { type UserAttributes } from '../user/user.attributes';
 import {
   File,
   type FileAttributes,
-  type FileOptions,
   FileStatus,
   type SortableFileAttributes,
 } from './file.domain';
@@ -899,20 +897,6 @@ export class FileUseCases {
       pagination.limit,
       pagination.offset,
       order,
-    );
-
-    return files.map((file) => file.toJSON());
-  }
-
-  async getByFolderAndUser(
-    folderUuid: FolderAttributes['uuid'],
-    userId: FolderAttributes['userId'],
-    options: FileOptions,
-  ) {
-    const files = await this.fileRepository.findAllByFolderIdAndUserId(
-      folderUuid,
-      userId,
-      options,
     );
 
     return files.map((file) => file.toJSON());

@@ -3,12 +3,7 @@ import { withQueryTimeout } from '../../lib/query-timeout';
 import { Time } from '../../lib/time';
 import { type FileUpdatedAtIdCursorDto } from './utils/file-cursor.util';
 import { InjectModel } from '@nestjs/sequelize';
-import {
-  File,
-  type FileAttributes,
-  type FileOptions,
-  FileStatus,
-} from './file.domain';
+import { File, type FileAttributes, FileStatus } from './file.domain';
 import {
   type FindOptions,
   type Includeable,
@@ -23,7 +18,6 @@ import { User } from '../user/user.domain';
 import { UserModel } from './../user/user.model';
 import { Folder } from '../folder/folder.domain';
 import { FolderModel } from '../folder/folder.model';
-import { Pagination } from '../../lib/pagination';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
 import { SharingModel } from '../sharing/models';
@@ -44,11 +38,6 @@ export interface FileRepository {
   deleteFilesByUser(user: User, files: File[]): Promise<void>;
   destroyFile(where: Partial<FileModel>): Promise<void>;
   findAll(): Promise<Array<File> | []>;
-  findAllByFolderIdAndUserId(
-    folderUuid: FileAttributes['folderUuid'],
-    userId: FileAttributes['userId'],
-    options: FileOptions,
-  ): Promise<Array<File> | []>;
   findAllCursor(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -896,26 +885,6 @@ export class SequelizeFileRepository implements FileRepository {
     });
 
     return files.map(this.toDomain.bind(this));
-  }
-
-  async findAllByFolderIdAndUserId(
-    folderUuid: FileAttributes['folderUuid'],
-    userId: FileAttributes['userId'],
-    { deleted, page, perPage }: FileOptions,
-  ): Promise<Array<File> | []> {
-    const { offset, limit } = Pagination.calculatePagination(page, perPage);
-    const query: FindOptions = {
-      where: { folderUuid, userId, deleted },
-      order: [['id', 'ASC']],
-    };
-    if (page && perPage) {
-      query.offset = offset;
-      query.limit = limit;
-    }
-    const files = await this.fileModel.findAll(query);
-    return files.map((file) => {
-      return this.toDomain(file);
-    });
   }
 
   async getFilesByFolderUuid(
