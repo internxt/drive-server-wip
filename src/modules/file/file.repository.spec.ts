@@ -312,7 +312,7 @@ describe('FileRepository', () => {
       expect(result).toEqual({ files: expect.any(Array), hasMore: false });
     });
 
-    it('When options.withThumbnails is not set, then it does not include thumbnails', async () => {
+    it('When thumbnails are not requested, then it does not include them', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
 
       await repository.findFolderFilesWithCursor({
@@ -327,7 +327,7 @@ describe('FileRepository', () => {
       );
     });
 
-    it('When options.withThumbnails is true, then it includes thumbnails', async () => {
+    it('When thumbnails are requested, then it includes them', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
 
       await repository.findFolderFilesWithCursor({
@@ -345,7 +345,7 @@ describe('FileRepository', () => {
       );
     });
 
-    it('When options.withSharings is true, then it includes sharings', async () => {
+    it('When sharings are requested, then it includes them', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
 
       await repository.findFolderFilesWithCursor({
