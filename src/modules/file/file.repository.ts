@@ -466,7 +466,7 @@ export class SequelizeFileRepository implements FileRepository {
     };
   }): Promise<{ files: File[]; hasMore: boolean }> {
     const isPlainNameSort = sortBy === FolderFilesSortBy.PLAIN_NAME;
-    const seekColumn = isPlainNameSort
+    const sortColumn = isPlainNameSort
       ? '"FileModel"."plain_name" COLLATE "custom_numeric"'
       : '"FileModel"."modification_time"';
     const comparator = order === SortOrder.DESC ? '<' : '>';
@@ -479,7 +479,7 @@ export class SequelizeFileRepository implements FileRepository {
         ? {
             [Op.and]: [
               Sequelize.literal(
-                `(${seekColumn}, "FileModel"."uuid") ${comparator} (:cursorValue, :cursorUuid)`,
+                `(${sortColumn}, "FileModel"."uuid") ${comparator} (:cursorValue, :cursorUuid)`,
               ),
             ],
           }
