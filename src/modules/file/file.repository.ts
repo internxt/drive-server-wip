@@ -2,10 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
 import { Time } from '../../lib/time';
 import { type FileUpdatedAtIdCursorDto } from './utils/file-cursor.util';
-import {
-  FolderFilesSortBy,
-  type FolderFilesCursorDto,
-} from '../folder/dto/get-folder-content-files-cursor.dto';
+import { type FolderFilesCursorDto } from '../folder/dto/get-folder-content-files-cursor.dto';
 import { SortOrder } from '../../common/order.type';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, type FileAttributes, FileStatus } from './file.domain';
@@ -155,7 +152,6 @@ export interface FileRepository {
   findFolderFilesWithCursor(params: {
     folderUuid: Folder['uuid'];
     userId: User['id'];
-    sortBy: FolderFilesSortBy;
     order: SortOrder;
     pageSize: number;
     cursor?: FolderFilesCursorDto;
@@ -448,7 +444,6 @@ export class SequelizeFileRepository implements FileRepository {
   async findFolderFilesWithCursor({
     folderUuid,
     userId,
-    sortBy,
     order,
     pageSize,
     cursor,
@@ -456,7 +451,6 @@ export class SequelizeFileRepository implements FileRepository {
   }: {
     folderUuid: Folder['uuid'];
     userId: User['id'];
-    sortBy: FolderFilesSortBy;
     order: SortOrder;
     pageSize: number;
     cursor?: FolderFilesCursorDto;
@@ -465,10 +459,7 @@ export class SequelizeFileRepository implements FileRepository {
       withSharings?: boolean;
     };
   }): Promise<{ files: File[]; hasMore: boolean }> {
-    const isPlainNameSort = sortBy === FolderFilesSortBy.PLAIN_NAME;
-    const sortColumn = isPlainNameSort
-      ? '"FileModel"."plain_name" COLLATE "custom_numeric"'
-      : '"FileModel"."modification_time"';
+    const sortColumn = '"FileModel"."plain_name" COLLATE "custom_numeric"';
     const comparator = order === SortOrder.DESC ? '<' : '>';
 
     const whereCondition: WhereOptions<FileAttributes> = {
@@ -490,9 +481,7 @@ export class SequelizeFileRepository implements FileRepository {
       where: whereCondition,
       replacements: cursor
         ? {
-            cursorValue: isPlainNameSort
-              ? cursor.lastValue
-              : Time.now(cursor.lastValue),
+            cursorValue: cursor.lastValue,
             cursorUuid: cursor.lastUuid,
           }
         : undefined,
@@ -519,11 +508,9 @@ export class SequelizeFileRepository implements FileRepository {
       ],
       subQuery: false,
       order: [
-        isPlainNameSort
-          ? Sequelize.literal(
-              `"FileModel"."plain_name" COLLATE "custom_numeric" ${order}`,
-            )
-          : ['modificationTime', order],
+        Sequelize.literal(
+          `"FileModel"."plain_name" COLLATE "custom_numeric" ${order}`,
+        ),
         ['uuid', order],
       ],
       limit: pageSize + 1,

@@ -43,10 +43,8 @@ import { FileSyncCursorDto } from './utils/file-cursor.util';
 import { decodeCursor, encodeCursor } from '../../common/utils/cursor.util';
 import {
   FolderFilesCursorDto,
-  FolderFilesSortBy,
   GetFolderContentFilesCursorDto,
 } from '../folder/dto/get-folder-content-files-cursor.dto';
-import { SortOrder } from '../../common/order.type';
 import { type MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
@@ -662,7 +660,7 @@ export class FileUseCases {
     folderUuid: Folder['uuid'],
     query: GetFolderContentFilesCursorDto,
   ): Promise<{ files: File[]; nextCursor: string | null }> {
-    const { sortBy, order, limit: pageSize } = query;
+    const { order, limit: pageSize } = query;
 
     const cursor = query.cursor
       ? decodeCursor(FolderFilesCursorDto, query.cursor)
@@ -672,17 +670,14 @@ export class FileUseCases {
       throw new BadRequestException('Invalid cursor');
     }
 
-    if (cursor && (cursor.sortBy !== sortBy || cursor.order !== order)) {
-      throw new BadRequestException(
-        'Cursor does not match sortBy/order filters',
-      );
+    if (cursor && cursor.order !== order) {
+      throw new BadRequestException('Cursor does not match order filter');
     }
 
     const { files, hasMore } =
       await this.fileRepository.findFolderFilesWithCursor({
         folderUuid,
         userId: user.id,
-        sortBy,
         order,
         pageSize,
         cursor,
@@ -697,12 +692,8 @@ export class FileUseCases {
       hasMore && lastFile
         ? encodeCursor({
             lastUuid: lastFile.uuid,
-            sortBy,
             order,
-            lastValue:
-              sortBy === FolderFilesSortBy.PLAIN_NAME
-                ? lastFile.plainName
-                : lastFile.modificationTime.toISOString(),
+            lastValue: lastFile.plainName,
           })
         : null;
 

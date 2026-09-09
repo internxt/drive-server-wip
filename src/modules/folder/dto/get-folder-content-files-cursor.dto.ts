@@ -13,22 +13,7 @@ import {
 } from 'class-validator';
 import { SortOrder } from '../../../common/order.type';
 
-export enum FolderFilesSortBy {
-  PLAIN_NAME = 'plainName',
-  MODIFICATION_TIME = 'modificationTime',
-}
-
 export class GetFolderContentFilesCursorDto {
-  @ApiProperty({
-    description: 'Field to sort by',
-    enum: FolderFilesSortBy,
-    default: FolderFilesSortBy.PLAIN_NAME,
-    required: false,
-  })
-  @IsOptional()
-  @IsEnum(FolderFilesSortBy)
-  sortBy: FolderFilesSortBy = FolderFilesSortBy.PLAIN_NAME;
-
   @ApiProperty({
     description: 'Sort direction',
     enum: SortOrder,
@@ -94,9 +79,6 @@ export class GetFolderContentFilesCursorDto {
 export class FolderFilesCursorDto {
   @IsUUID()
   lastUuid: string;
-
-  @IsEnum(FolderFilesSortBy)
-  sortBy: FolderFilesSortBy;
 
   @IsEnum(SortOrder)
   order: SortOrder;
