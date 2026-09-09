@@ -2433,7 +2433,7 @@ describe('FileUseCases', () => {
       overrides: Partial<GetFolderContentFilesCursorDto> = {},
     ): GetFolderContentFilesCursorDto => ({ ...overrides });
 
-    it('When no sortBy/order/limit are provided, then it should default to plainName/ASC/50', async () => {
+    it('When no sortBy/order/limit are provided, then it should default to plainName/ASC/100', async () => {
       jest
         .spyOn(fileRepository, 'findFolderFilesWithCursor')
         .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
@@ -2449,7 +2449,7 @@ describe('FileUseCases', () => {
         userId: userForFolder.id,
         sortBy: FolderFilesSortBy.PLAIN_NAME,
         order: SortOrder.ASC,
-        pageSize: 50,
+        pageSize: 100,
         cursor: undefined,
         options: { withThumbnails: undefined, withSharings: undefined },
       });

@@ -50,7 +50,7 @@ export class GetFolderContentFilesCursorDto {
 
   @ApiProperty({
     description: 'Page size, max 1000',
-    default: 50,
+    default: 100,
     required: false,
   })
   @IsOptional()

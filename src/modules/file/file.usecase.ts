@@ -664,7 +664,7 @@ export class FileUseCases {
   ): Promise<{ files: File[]; nextCursor: string | null }> {
     const sortBy = query.sortBy ?? FolderFilesSortBy.PLAIN_NAME;
     const order = query.order ?? SortOrder.ASC;
-    const pageSize = query.limit ?? 50;
+    const pageSize = query.limit ?? 100;
 
     const cursor = query.cursor
       ? decodeCursor(FolderFilesCursorDto, query.cursor)
