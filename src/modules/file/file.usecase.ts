@@ -714,12 +714,8 @@ export class FileUseCases {
       );
     }
 
-    const filesWithOldAttributes = filesWithFavoriteMark.map((file) =>
-      this.addOldAttributes(file),
-    );
-
     return {
-      files: filesWithOldAttributes.map((file) =>
+      files: filesWithFavoriteMark.map((file) =>
         file.plainName ? file : this.decrypFileName(file),
       ),
       nextCursor,
