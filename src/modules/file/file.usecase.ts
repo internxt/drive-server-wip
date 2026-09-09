@@ -662,9 +662,7 @@ export class FileUseCases {
     folderUuid: Folder['uuid'],
     query: GetFolderContentFilesCursorDto,
   ): Promise<{ files: File[]; nextCursor: string | null }> {
-    const sortBy = query.sortBy ?? FolderFilesSortBy.PLAIN_NAME;
-    const order = query.order ?? SortOrder.ASC;
-    const pageSize = query.limit ?? 100;
+    const { sortBy, order, limit: pageSize } = query;
 
     const cursor = query.cursor
       ? decodeCursor(FolderFilesCursorDto, query.cursor)

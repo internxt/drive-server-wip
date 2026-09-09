@@ -2431,9 +2431,14 @@ describe('FileUseCases', () => {
 
     const buildQuery = (
       overrides: Partial<GetFolderContentFilesCursorDto> = {},
-    ): GetFolderContentFilesCursorDto => ({ ...overrides });
+    ): GetFolderContentFilesCursorDto => ({
+      sortBy: FolderFilesSortBy.PLAIN_NAME,
+      order: SortOrder.ASC,
+      limit: 100,
+      ...overrides,
+    });
 
-    it('When no sortBy/order/limit are provided, then it should default to plainName/ASC/100', async () => {
+    it('When DTO carries default sortBy/order/limit, then it should pass them through as-is', async () => {
       jest
         .spyOn(fileRepository, 'findFolderFilesWithCursor')
         .mockResolvedValueOnce({ files: mockFiles, hasMore: false });

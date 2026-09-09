@@ -27,7 +27,7 @@ export class GetFolderContentFilesCursorDto {
   })
   @IsOptional()
   @IsEnum(FolderFilesSortBy)
-  sortBy?: FolderFilesSortBy;
+  sortBy: FolderFilesSortBy = FolderFilesSortBy.PLAIN_NAME;
 
   @ApiProperty({
     description: 'Sort direction',
@@ -37,7 +37,7 @@ export class GetFolderContentFilesCursorDto {
   })
   @IsOptional()
   @IsEnum(SortOrder)
-  order?: SortOrder;
+  order: SortOrder = SortOrder.ASC;
 
   @ApiProperty({
     description: 'Cursor from a previous response to fetch the next page',
@@ -49,16 +49,16 @@ export class GetFolderContentFilesCursorDto {
   cursor?: string;
 
   @ApiProperty({
-    description: 'Page size, max 1000',
+    description: 'Page size',
     default: 100,
     required: false,
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(1)
+  @Min(50)
   @Max(1000)
-  limit?: number;
+  limit: number = 100;
 
   @ApiProperty({
     description: 'Whether to include each file favorite status',
