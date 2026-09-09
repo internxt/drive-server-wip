@@ -1,14 +1,13 @@
 import { v4 } from 'uuid';
+import { decodeCursor, encodeCursor } from '../../../common/utils/cursor.util';
 import {
-  decodeCursor,
-  encodeCursor,
   FileUpdatedAtIdCursorDto,
   FileSyncCursorDto,
 } from './file-cursor.util';
 import { FileStatus } from '../file.domain';
 
 describe('file-cursor.util', () => {
-  describe('encodeCursor/decodeCursor', () => {
+  describe('FileUpdatedAtIdCursorDto', () => {
     it('When a valid cursor is encoded and decoded, then it should return the original data', () => {
       const cursor: FileUpdatedAtIdCursorDto = {
         updatedAt: new Date().toISOString(),
@@ -19,28 +18,6 @@ describe('file-cursor.util', () => {
       const decoded = decodeCursor(FileUpdatedAtIdCursorDto, token);
 
       expect(decoded).toEqual(cursor);
-    });
-
-    it('When a valid sync cursor (with status) is encoded and decoded, then it should return the original data', () => {
-      const cursor: FileSyncCursorDto = {
-        updatedAt: new Date().toISOString(),
-        uuid: v4(),
-        status: FileStatus.EXISTS,
-      };
-
-      const token = encodeCursor(cursor);
-      const decoded = decodeCursor(FileSyncCursorDto, token);
-
-      expect(decoded).toEqual(cursor);
-    });
-
-    it('When the token is not valid base64/JSON, then it should return null', () => {
-      const decoded = decodeCursor(
-        FileUpdatedAtIdCursorDto,
-        'not-a-valid-token!!!',
-      );
-
-      expect(decoded).toBeNull();
     });
 
     it('When the decoded JSON has an invalid uuid, then it should return null', () => {
@@ -58,13 +35,40 @@ describe('file-cursor.util', () => {
 
       expect(decodeCursor(FileUpdatedAtIdCursorDto, token)).toBeNull();
     });
+  });
 
-    it('When the decoded JSON is missing fields, then it should return null', () => {
-      const token = Buffer.from(JSON.stringify({ uuid: v4() })).toString(
-        'base64',
-      );
+  describe('FileSyncCursorDto', () => {
+    it('When a valid sync cursor (with status) is encoded and decoded, then it should return the original data', () => {
+      const cursor: FileSyncCursorDto = {
+        updatedAt: new Date().toISOString(),
+        uuid: v4(),
+        status: FileStatus.EXISTS,
+      };
 
-      expect(decodeCursor(FileUpdatedAtIdCursorDto, token)).toBeNull();
+      const token = encodeCursor(cursor);
+      const decoded = decodeCursor(FileSyncCursorDto, token);
+
+      expect(decoded).toEqual(cursor);
+    });
+
+    it('When status is present but not a valid FileStatus, then it should return null', () => {
+      const token = Buffer.from(
+        JSON.stringify({
+          updatedAt: new Date().toISOString(),
+          uuid: v4(),
+          status: 'not-a-status',
+        }),
+      ).toString('base64');
+
+      expect(decodeCursor(FileSyncCursorDto, token)).toBeNull();
+    });
+
+    it('When status is omitted, then it should still decode successfully', () => {
+      const token = Buffer.from(
+        JSON.stringify({ updatedAt: new Date().toISOString(), uuid: v4() }),
+      ).toString('base64');
+
+      expect(decodeCursor(FileSyncCursorDto, token)).not.toBeNull();
     });
   });
 });

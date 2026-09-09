@@ -159,6 +159,10 @@ export interface FileRepository {
     order: SortOrder;
     pageSize: number;
     cursor?: FolderFilesCursorDto;
+    options?: {
+      withThumbnails?: boolean;
+      withSharings?: boolean;
+    };
   }): Promise<{ files: File[]; hasMore: boolean }>;
   getFilesWithUserByUuuid(
     fileUuids: string[],
@@ -448,6 +452,7 @@ export class SequelizeFileRepository implements FileRepository {
     order,
     pageSize,
     cursor,
+    options,
   }: {
     folderUuid: Folder['uuid'];
     userId: User['id'];
@@ -455,6 +460,10 @@ export class SequelizeFileRepository implements FileRepository {
     order: SortOrder;
     pageSize: number;
     cursor?: FolderFilesCursorDto;
+    options?: {
+      withThumbnails?: boolean;
+      withSharings?: boolean;
+    };
   }): Promise<{ files: File[]; hasMore: boolean }> {
     const isPlainNameSort = sortBy === FolderFilesSortBy.PLAIN_NAME;
     const seekColumn = isPlainNameSort
@@ -487,6 +496,28 @@ export class SequelizeFileRepository implements FileRepository {
             cursorUuid: cursor.lastUuid,
           }
         : undefined,
+      include: [
+        ...(options?.withThumbnails
+          ? [
+              {
+                separate: true,
+                model: this.thumbnailModel,
+                required: false,
+              },
+            ]
+          : []),
+        ...(options?.withSharings
+          ? [
+              {
+                separate: true,
+                model: SharingModel,
+                attributes: ['type', 'id'],
+                required: false,
+              },
+            ]
+          : []),
+      ],
+      subQuery: false,
       order: [
         isPlainNameSort
           ? Sequelize.literal(

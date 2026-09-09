@@ -165,7 +165,7 @@ describe('FolderController', () => {
 
       expect(result).toEqual({ files: expectedSubfiles, nextCursor });
       expect(fileUseCases.getFolderFilesWithCursor).toHaveBeenCalledWith(
-        userMocked.id,
+        userMocked,
         folder.uuid,
         query,
       );

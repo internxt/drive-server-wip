@@ -190,4 +190,41 @@ describe('SequelizeFavoriteRepository', () => {
       );
     });
   });
+
+  describe('findFavoritedItemIds', () => {
+    it('When called with item ids, then it returns the set of favorited ones', async () => {
+      const itemIds = [v4(), v4(), v4()];
+      jest
+        .spyOn(favoriteModel, 'findAll')
+        .mockResolvedValueOnce([
+          { itemId: itemIds[0] },
+          { itemId: itemIds[2] },
+        ] as any);
+
+      const result = await repository.findFavoritedItemIds(
+        userId,
+        itemIds,
+        itemType,
+      );
+
+      expect(favoriteModel.findAll).toHaveBeenCalledWith({
+        where: { userId, itemType, itemId: { [Op.in]: itemIds } },
+        attributes: ['itemId'],
+      });
+      expect(result).toEqual(new Set([itemIds[0], itemIds[2]]));
+    });
+
+    it('When called with an empty item id list, then it returns an empty set without querying', async () => {
+      jest.spyOn(favoriteModel, 'findAll');
+
+      const result = await repository.findFavoritedItemIds(
+        userId,
+        [],
+        itemType,
+      );
+
+      expect(favoriteModel.findAll).not.toHaveBeenCalled();
+      expect(result).toEqual(new Set());
+    });
+  });
 });

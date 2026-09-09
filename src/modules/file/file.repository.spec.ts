@@ -296,18 +296,81 @@ describe('FileRepository', () => {
         pageSize: 1000,
       });
 
-      expect(fileModel.findAll).toHaveBeenCalledWith({
-        where: { folderUuid, userId: user.id, status: FileStatus.EXISTS },
-        replacements: undefined,
-        order: [
-          Sequelize.literal(
-            '"FileModel"."plain_name" COLLATE "custom_numeric" ASC',
-          ),
-          ['uuid', 'ASC'],
-        ],
-        limit: 1001,
-      });
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { folderUuid, userId: user.id, status: FileStatus.EXISTS },
+          replacements: undefined,
+          include: [],
+          subQuery: false,
+          order: [
+            Sequelize.literal(
+              '"FileModel"."plain_name" COLLATE "custom_numeric" ASC',
+            ),
+            ['uuid', 'ASC'],
+          ],
+          limit: 1001,
+        }),
+      );
       expect(result).toEqual({ files: expect.any(Array), hasMore: false });
+    });
+
+    it('When options.withThumbnails is not set, then it does not include thumbnails', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        sortBy: FolderFilesSortBy.PLAIN_NAME,
+        order: SortOrder.ASC,
+        pageSize: 1000,
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ include: [] }),
+      );
+    });
+
+    it('When options.withThumbnails is true, then it includes thumbnails', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        sortBy: FolderFilesSortBy.PLAIN_NAME,
+        order: SortOrder.ASC,
+        pageSize: 1000,
+        options: { withThumbnails: true },
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: [expect.objectContaining({ separate: true })],
+        }),
+      );
+    });
+
+    it('When options.withSharings is true, then it includes sharings', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        sortBy: FolderFilesSortBy.PLAIN_NAME,
+        order: SortOrder.ASC,
+        pageSize: 1000,
+        options: { withThumbnails: false, withSharings: true },
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: [
+            expect.objectContaining({
+              model: SharingModel,
+              attributes: ['type', 'id'],
+            }),
+          ],
+        }),
+      );
     });
 
     it('When there is one more row than the page size, then hasMore is true and the extra row is dropped', async () => {
@@ -346,26 +409,28 @@ describe('FileRepository', () => {
         },
       });
 
-      expect(fileModel.findAll).toHaveBeenCalledWith({
-        where: {
-          folderUuid,
-          userId: user.id,
-          status: FileStatus.EXISTS,
-          [Op.and]: [
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            folderUuid,
+            userId: user.id,
+            status: FileStatus.EXISTS,
+            [Op.and]: [
+              Sequelize.literal(
+                '("FileModel"."plain_name" COLLATE "custom_numeric", "FileModel"."uuid") > (:cursorValue, :cursorUuid)',
+              ),
+            ],
+          },
+          replacements: { cursorValue: 'file-b', cursorUuid },
+          order: [
             Sequelize.literal(
-              '("FileModel"."plain_name" COLLATE "custom_numeric", "FileModel"."uuid") > (:cursorValue, :cursorUuid)',
+              '"FileModel"."plain_name" COLLATE "custom_numeric" ASC',
             ),
+            ['uuid', 'ASC'],
           ],
-        },
-        replacements: { cursorValue: 'file-b', cursorUuid },
-        order: [
-          Sequelize.literal(
-            '"FileModel"."plain_name" COLLATE "custom_numeric" ASC',
-          ),
-          ['uuid', 'ASC'],
-        ],
-        limit: 1001,
-      });
+          limit: 1001,
+        }),
+      );
     });
 
     it('When sorting by modificationTime DESC with a cursor, then it uses the lt comparator and parses the cursor date', async () => {
@@ -388,27 +453,29 @@ describe('FileRepository', () => {
         },
       });
 
-      expect(fileModel.findAll).toHaveBeenCalledWith({
-        where: {
-          folderUuid,
-          userId: user.id,
-          status: FileStatus.EXISTS,
-          [Op.and]: [
-            Sequelize.literal(
-              '("FileModel"."modification_time", "FileModel"."uuid") < (:cursorValue, :cursorUuid)',
-            ),
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            folderUuid,
+            userId: user.id,
+            status: FileStatus.EXISTS,
+            [Op.and]: [
+              Sequelize.literal(
+                '("FileModel"."modification_time", "FileModel"."uuid") < (:cursorValue, :cursorUuid)',
+              ),
+            ],
+          },
+          replacements: {
+            cursorValue: Time.now(cursorModificationTime.toISOString()),
+            cursorUuid,
+          },
+          order: [
+            ['modificationTime', 'DESC'],
+            ['uuid', 'DESC'],
           ],
-        },
-        replacements: {
-          cursorValue: Time.now(cursorModificationTime.toISOString()),
-          cursorUuid,
-        },
-        order: [
-          ['modificationTime', 'DESC'],
-          ['uuid', 'DESC'],
-        ],
-        limit: 1001,
-      });
+          limit: 1001,
+        }),
+      );
     });
   });
 

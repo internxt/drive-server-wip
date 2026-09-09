@@ -39,11 +39,8 @@ import { type FileModel } from './file.model';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
-import {
-  decodeCursor,
-  encodeCursor,
-  FileSyncCursorDto,
-} from './utils/file-cursor.util';
+import { FileSyncCursorDto } from './utils/file-cursor.util';
+import { decodeCursor, encodeCursor } from '../../common/utils/cursor.util';
 import {
   FolderFilesCursorDto,
   FolderFilesSortBy,
@@ -74,6 +71,7 @@ import {
 import { type Workspace } from '../workspaces/domains/workspaces.domain';
 import { FavoriteUseCases } from '../favorite/favorite.usecase';
 import { FavoriteItemType } from '../favorite/favorite.domain';
+import { SequelizeFavoriteRepository } from '../favorite/favorite.repository';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -114,6 +112,7 @@ export class FileUseCases {
     private readonly restoreFileVersionAction: RestoreFileVersionAction,
     private readonly undoFileVersioningAction: UndoFileVersioningAction,
     private readonly favoriteUsecases: FavoriteUseCases,
+    private readonly favoriteRepository: SequelizeFavoriteRepository,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -659,7 +658,7 @@ export class FileUseCases {
   }
 
   async getFolderFilesWithCursor(
-    userId: UserAttributes['id'],
+    user: User,
     folderUuid: Folder['uuid'],
     query: GetFolderContentFilesCursorDto,
   ): Promise<{ files: File[]; nextCursor: string | null }> {
@@ -684,11 +683,15 @@ export class FileUseCases {
     const { files, hasMore } =
       await this.fileRepository.findFolderFilesWithCursor({
         folderUuid,
-        userId,
+        userId: user.id,
         sortBy,
         order,
         pageSize,
         cursor,
+        options: {
+          withThumbnails: query.withThumbnails,
+          withSharings: query.withSharings,
+        },
       });
 
     const lastFile = files.at(-1);
@@ -705,7 +708,24 @@ export class FileUseCases {
           })
         : null;
 
-    const filesWithOldAttributes = files.map((file) =>
+    let filesWithFavoriteMark = files;
+    if (query.withFavorites) {
+      const favoritedUuids = await this.favoriteRepository.findFavoritedItemIds(
+        user.uuid,
+        files.map((file) => file.uuid),
+        FavoriteItemType.File,
+      );
+
+      filesWithFavoriteMark = files.map(
+        (file) =>
+          ({
+            ...file,
+            isFavorite: favoritedUuids.has(file.uuid),
+          }) as File,
+      );
+    }
+
+    const filesWithOldAttributes = filesWithFavoriteMark.map((file) =>
       this.addOldAttributes(file),
     );
 
@@ -1284,7 +1304,7 @@ export class FileUseCases {
   }
 
   addOldAttributes(file: File): any {
-    const thumbnails = file.thumbnails;
+    const thumbnails = file.thumbnails ?? [];
 
     const thumbnailsWithOldAttributers = thumbnails.map((thumbnail) => ({
       ...thumbnail,

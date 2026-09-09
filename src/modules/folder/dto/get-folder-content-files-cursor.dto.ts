@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
@@ -58,6 +59,36 @@ export class GetFolderContentFilesCursorDto {
   @Min(1)
   @Max(1000)
   limit?: number;
+
+  @ApiProperty({
+    description: 'Whether to include each file favorite status',
+    default: false,
+    required: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true')
+  @IsBoolean()
+  withFavorites?: boolean;
+
+  @ApiProperty({
+    description: 'Whether to include each file thumbnails',
+    default: false,
+    required: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true')
+  @IsBoolean()
+  withThumbnails?: boolean;
+
+  @ApiProperty({
+    description: 'Whether to include each file sharing info',
+    default: false,
+    required: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true')
+  @IsBoolean()
+  withSharings?: boolean;
 }
 
 export class FolderFilesCursorDto {

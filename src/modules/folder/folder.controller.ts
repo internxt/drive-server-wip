@@ -224,11 +224,7 @@ export class FolderController {
     @Query() query: GetFolderContentFilesCursorDto,
   ): Promise<GetFolderContentFilesV2ResponseDto> {
     const { files, nextCursor } =
-      await this.fileUseCases.getFolderFilesWithCursor(
-        user.id,
-        folderUuid,
-        query,
-      );
+      await this.fileUseCases.getFolderFilesWithCursor(user, folderUuid, query);
 
     return { files, nextCursor };
   }
