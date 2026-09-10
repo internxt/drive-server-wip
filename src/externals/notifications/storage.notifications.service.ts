@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { type Queue } from 'bullmq';
 import { NotificationService } from './notification.service';
 import { type User } from '../../modules/user/user.domain';
 import { NotificationEvent } from './events/notification.event';
@@ -7,6 +9,13 @@ import { SequelizeUserRepository } from '../../modules/user/user.repository';
 import { type FolderDto } from '../../modules/folder/dto/responses/folder.dto';
 import { type FileDto } from '../../modules/file/dto/responses/file.dto';
 import { type ItemToTrashDto } from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
+
+export const APN_REFRESH_QUEUE = 'apn-refresh';
+export const APN_REFRESH_DEBOUNCE_MS = 15_000;
+
+export interface ApnRefreshJobData {
+  userUuid: string;
+}
 
 enum StorageEvents {
   FILE_CREATED = 'FILE_CREATED',
@@ -35,6 +44,9 @@ export class StorageNotificationService {
     private readonly notificationService: NotificationService,
     private readonly apnService: ApnService,
     private readonly userRepository: SequelizeUserRepository,
+    @Optional()
+    @InjectQueue(APN_REFRESH_QUEUE)
+    private readonly apnRefreshQueue?: Queue<ApnRefreshJobData>,
   ) {}
 
   fileCreated({ payload, user, clientId }: EventArguments<FileDto>) {
@@ -50,7 +62,7 @@ export class StorageNotificationService {
     this.notificationService.add(event);
 
     if (!user.ownsBackupsBucket(payload.bucket)) {
-      this.getTokensAndSendApnNotification(user.uuid);
+      this.enqueueApnRefresh(user.uuid);
     }
   }
 
@@ -67,7 +79,7 @@ export class StorageNotificationService {
     this.notificationService.add(event);
 
     if (!user.ownsBackupsBucket(payload.bucket)) {
-      this.getTokensAndSendApnNotification(user.uuid);
+      this.enqueueApnRefresh(user.uuid);
     }
   }
 
@@ -86,7 +98,7 @@ export class StorageNotificationService {
     );
 
     this.notificationService.add(event);
-    this.getTokensAndSendApnNotification(user.uuid);
+    this.enqueueApnRefresh(user.uuid);
   }
 
   folderCreated({ payload, user, clientId }: EventArguments<FolderDto>) {
@@ -100,7 +112,7 @@ export class StorageNotificationService {
     );
 
     this.notificationService.add(event);
-    this.getTokensAndSendApnNotification(user.uuid);
+    this.enqueueApnRefresh(user.uuid);
   }
 
   folderUpdated({ payload, user, clientId }: EventArguments<FolderDto>) {
@@ -114,7 +126,7 @@ export class StorageNotificationService {
     );
 
     this.notificationService.add(event);
-    this.getTokensAndSendApnNotification(user.uuid);
+    this.enqueueApnRefresh(user.uuid);
   }
 
   folderDeleted({
@@ -132,7 +144,7 @@ export class StorageNotificationService {
     );
 
     this.notificationService.add(event);
-    this.getTokensAndSendApnNotification(user.uuid);
+    this.enqueueApnRefresh(user.uuid);
   }
 
   itemsTrashed({ payload, user, clientId }: EventArguments<ItemToTrashDto[]>) {
@@ -146,7 +158,7 @@ export class StorageNotificationService {
     );
 
     this.notificationService.add(event);
-    this.getTokensAndSendApnNotification(user.uuid);
+    this.enqueueApnRefresh(user.uuid);
   }
 
   planUpdated({
@@ -210,6 +222,29 @@ export class StorageNotificationService {
       isStorageNotification: false,
       customKeys: { event: StorageEvents.WORKSPACE_LEFT },
     });
+  }
+
+  enqueueApnRefresh(userUuid: string) {
+    if (!this.apnRefreshQueue) {
+      return;
+    }
+
+    this.apnRefreshQueue
+      .add(
+        'refresh',
+        { userUuid },
+        {
+          delay: APN_REFRESH_DEBOUNCE_MS,
+          deduplication: { id: userUuid },
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5_000 },
+          removeOnComplete: true,
+          removeOnFail: true,
+        },
+      )
+      .catch((error) => {
+        this.logger.error({ userUuid, error }, 'Error enqueuing APN refresh.');
+      });
   }
 
   async getTokensAndSendApnNotification(
