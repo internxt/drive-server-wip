@@ -483,6 +483,24 @@ describe('StorageNotificationService', () => {
 
       expect(errorSpy).toHaveBeenCalled();
     });
+
+    it('When the APN refresh queue is not registered, then it should skip enqueuing without throwing', async () => {
+      const moduleWithoutQueue = await Test.createTestingModule({
+        providers: [
+          StorageNotificationService,
+          { provide: getQueueToken(APN_REFRESH_QUEUE), useValue: null },
+        ],
+      })
+        .useMocker(createMock)
+        .compile();
+      const serviceWithoutQueue = moduleWithoutQueue.get(
+        StorageNotificationService,
+      );
+
+      expect(() =>
+        serviceWithoutQueue.enqueueApnRefresh(user.uuid),
+      ).not.toThrow();
+    });
   });
 
   describe('getTokensAndSendApnNotification', () => {
