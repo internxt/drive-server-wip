@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { type Queue } from 'bullmq';
 import { NotificationService } from './notification.service';
@@ -44,8 +44,9 @@ export class StorageNotificationService {
     private readonly notificationService: NotificationService,
     private readonly apnService: ApnService,
     private readonly userRepository: SequelizeUserRepository,
+    @Optional()
     @InjectQueue(APN_REFRESH_QUEUE)
-    private readonly apnRefreshQueue: Queue<ApnRefreshJobData>,
+    private readonly apnRefreshQueue?: Queue<ApnRefreshJobData>,
   ) {}
 
   fileCreated({ payload, user, clientId }: EventArguments<FileDto>) {
@@ -224,6 +225,10 @@ export class StorageNotificationService {
   }
 
   enqueueApnRefresh(userUuid: string) {
+    if (!this.apnRefreshQueue) {
+      return;
+    }
+
     this.apnRefreshQueue
       .add(
         'refresh',

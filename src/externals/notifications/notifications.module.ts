@@ -1,17 +1,13 @@
 import { Module } from '@nestjs/common';
 import { NotificationService } from './notification.service';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { BullModule } from '@nestjs/bullmq';
+import { ConditionalModule, ConfigModule } from '@nestjs/config';
 import { NotificationListener } from './listeners/notification.listener';
 import { HttpClientModule } from '../http/http.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { SendLinkListener } from './listeners/send-link.listener';
 import { AuthListener } from './listeners/auth.listener';
 import { NewsletterService } from '../newsletter';
-import {
-  APN_REFRESH_QUEUE,
-  StorageNotificationService,
-} from './storage.notifications.service';
+import { StorageNotificationService } from './storage.notifications.service';
 import { ApnModule } from '../apn/apn.module';
 import {
   SequelizeUserRepository,
@@ -20,7 +16,7 @@ import {
 import { SequelizeModule } from '@nestjs/sequelize';
 import { UserNotificationTokensModel } from '../../modules/user/user-notification-tokens.model';
 import { ApnRefreshProcessor } from './apn-refresh.processor';
-import { buildBullConnectionOptions } from '../../lib/bull-connection';
+import { ApnRefreshQueueModule } from './apn-refresh-queue.module';
 
 @Module({
   imports: [
@@ -29,13 +25,10 @@ import { buildBullConnectionOptions } from '../../lib/bull-connection';
     MailerModule,
     SequelizeModule.forFeature([UserModel, UserNotificationTokensModel]),
     ApnModule,
-    BullModule.registerQueueAsync({
-      name: APN_REFRESH_QUEUE,
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        connection: buildBullConnectionOptions(configService),
-      }),
-    }),
+    ConditionalModule.registerWhen(
+      ApnRefreshQueueModule,
+      (env) => !!env.REDIS_JOBS_CONNECTION_STRING,
+    ),
   ],
   controllers: [],
   providers: [
