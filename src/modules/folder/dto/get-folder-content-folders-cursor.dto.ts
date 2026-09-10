@@ -6,9 +6,9 @@ import {
   CursorPageTokenDto,
 } from '../../../common/dto/cursor-pagination.dto';
 
-export class GetFolderContentFilesCursorDto extends CursorPaginationDto {
+export class GetFolderContentFoldersCursorDto extends CursorPaginationDto {
   @ApiProperty({
-    description: 'Whether to include each file favorite status',
+    description: 'Whether to include each folder favorite status',
     default: false,
     required: false,
   })
@@ -18,17 +18,7 @@ export class GetFolderContentFilesCursorDto extends CursorPaginationDto {
   withFavorites?: boolean;
 
   @ApiProperty({
-    description: 'Whether to include each file thumbnails',
-    default: false,
-    required: false,
-  })
-  @IsOptional()
-  @Transform(({ value }) => value === 'true')
-  @IsBoolean()
-  withThumbnails?: boolean;
-
-  @ApiProperty({
-    description: 'Whether to include each file sharing info',
+    description: 'Whether to include each folder sharing info',
     default: false,
     required: false,
   })
@@ -38,4 +28,4 @@ export class GetFolderContentFilesCursorDto extends CursorPaginationDto {
   withSharings?: boolean;
 }
 
-export class FolderFilesCursorDto extends CursorPageTokenDto {}
+export class FolderFoldersCursorDto extends CursorPageTokenDto {}

@@ -31,6 +31,8 @@ import {
   FavoriteItemType,
   type FavoriteAttributes,
 } from '../favorite/favorite.domain';
+import { SortOrder } from '../../common/order.type';
+import { type FolderFoldersCursorDto } from './dto/get-folder-content-folders-cursor.dto';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -176,6 +178,16 @@ interface FolderRepository {
     offset: number,
     order?: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
   ): Promise<Folder[]>;
+  findFolderSubfoldersWithCursor(params: {
+    parentUuid: Folder['parentUuid'];
+    userId: User['id'];
+    order: SortOrder;
+    pageSize: number;
+    cursor?: FolderFoldersCursorDto;
+    options?: {
+      withSharings?: boolean;
+    };
+  }): Promise<{ folders: Folder[]; hasMore: boolean }>;
 }
 
 @Injectable()
@@ -223,12 +235,24 @@ export class SequelizeFolderRepository implements FolderRepository {
       deleted: searchBy.deleted,
     };
 
-    if (searchBy && searchBy.plainName.length > 0) {
-      where.plainName = { [Op.in]: searchBy.plainName };
-    }
+    // COLLATE "custom_numeric" needed to hit folders_parentuuid_plainname_numeric_unique
+    const plainNameCondition =
+      searchBy && searchBy.plainName.length > 0
+        ? [
+            Sequelize.literal(
+              '"FolderModel"."plain_name" COLLATE "custom_numeric" IN (:plainNames)',
+            ),
+          ]
+        : [];
 
     const folders = await this.folderModel.findAll({
-      where,
+      where: {
+        ...where,
+        ...(plainNameCondition.length && { [Op.and]: plainNameCondition }),
+      },
+      replacements: plainNameCondition.length
+        ? { plainNames: searchBy.plainName }
+        : undefined,
     });
 
     return folders.map(this.toDomain.bind(this));
@@ -261,6 +285,80 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
 
     return folders.map(this.toDomain.bind(this));
+  }
+
+  async findFolderSubfoldersWithCursor({
+    parentUuid,
+    userId,
+    order,
+    pageSize,
+    cursor,
+    options,
+  }: {
+    parentUuid: Folder['parentUuid'];
+    userId: User['id'];
+    order: SortOrder;
+    pageSize: number;
+    cursor?: FolderFoldersCursorDto;
+    options?: {
+      withSharings?: boolean;
+    };
+  }): Promise<{ folders: Folder[]; hasMore: boolean }> {
+    // COLLATE "custom_numeric" needed to hit folders_parentuuid_plainname_numeric_unique
+    const sortColumn = '"FolderModel"."plain_name" COLLATE "custom_numeric"';
+    const comparator = order === SortOrder.DESC ? '<' : '>';
+    const orderDirection = order === SortOrder.DESC ? 'DESC' : 'ASC';
+
+    const whereCondition: WhereOptions<FolderAttributes> = {
+      parentUuid,
+      userId,
+      deleted: false,
+      removed: false,
+      ...(cursor
+        ? {
+            [Op.and]: [
+              Sequelize.literal(
+                `(${sortColumn}, "FolderModel"."uuid") ${comparator} (:cursorValue, :cursorUuid)`,
+              ),
+            ],
+          }
+        : null),
+    };
+
+    const rows = await this.folderModel.findAll({
+      where: whereCondition,
+      replacements: cursor
+        ? {
+            cursorValue: cursor.lastValue,
+            cursorUuid: cursor.lastUuid,
+          }
+        : undefined,
+      include: [
+        ...(options?.withSharings
+          ? [
+              {
+                separate: true,
+                model: SharingModel,
+                attributes: ['type', 'id'],
+                required: false,
+              },
+            ]
+          : []),
+      ],
+      subQuery: false,
+      order: [
+        Sequelize.literal(
+          `"FolderModel"."plain_name" COLLATE "custom_numeric" ${orderDirection}`,
+        ),
+        ['uuid', orderDirection],
+      ],
+      limit: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+
+    return { folders: page.map(this.toDomain.bind(this)), hasMore };
   }
 
   async findTrashedNotExpired(
@@ -547,11 +645,15 @@ export class SequelizeFolderRepository implements FolderRepository {
       where: {
         [Op.or]: [
           { name: { [Op.eq]: name } },
-          { plainName: { [Op.eq]: plainName } },
+          // COLLATE "custom_numeric" needed to hit folders_parentuuid_plainname_numeric_unique
+          Sequelize.literal(
+            '"FolderModel"."plain_name" COLLATE "custom_numeric" = :plainName',
+          ),
         ],
         parentUuid: { [Op.eq]: parentUuid },
         deleted: { [Op.eq]: deleted },
       },
+      replacements: { plainName },
     });
     return folder ? this.toDomain(folder) : null;
   }

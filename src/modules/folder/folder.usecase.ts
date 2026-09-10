@@ -36,6 +36,12 @@ import { type MoveFolderDto } from './dto/move-folder.dto';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { FavoriteUseCases } from '../favorite/favorite.usecase';
 import { FavoriteItemType } from '../favorite/favorite.domain';
+import { SequelizeFavoriteRepository } from '../favorite/favorite.repository';
+import { decodeCursor, encodeCursor } from '../../common/utils/cursor.util';
+import {
+  type GetFolderContentFoldersCursorDto,
+  FolderFoldersCursorDto,
+} from './dto/get-folder-content-folders-cursor.dto';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -53,6 +59,7 @@ export class FolderUseCases {
     private readonly fileRepository: SequelizeFileRepository,
     private readonly cryptoService: CryptoService,
     private readonly favoriteUsecases: FavoriteUseCases,
+    private readonly favoriteRepository: SequelizeFavoriteRepository,
   ) {}
 
   getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
@@ -738,6 +745,71 @@ export class FolderUseCases {
     return foldersWithMaybePlainName.map((folder) =>
       folder.plainName ? folder : this.decryptFolderName(folder),
     );
+  }
+
+  async getFolderSubfoldersWithCursor(
+    user: User,
+    folderUuid: Folder['uuid'],
+    query: GetFolderContentFoldersCursorDto,
+  ): Promise<{ folders: Folder[]; nextCursor: string | null }> {
+    const { order, limit: pageSize } = query;
+
+    const cursor = query.cursor
+      ? decodeCursor(FolderFoldersCursorDto, query.cursor)
+      : undefined;
+
+    if (query.cursor && !cursor) {
+      throw new BadRequestException('Invalid cursor');
+    }
+
+    if (cursor && cursor.order !== order) {
+      throw new BadRequestException('Cursor does not match order filter');
+    }
+
+    const { folders, hasMore } =
+      await this.folderRepository.findFolderSubfoldersWithCursor({
+        parentUuid: folderUuid,
+        userId: user.id,
+        order,
+        pageSize,
+        cursor,
+        options: {
+          withSharings: query.withSharings,
+        },
+      });
+
+    const lastFolder = folders.at(-1);
+    const nextCursor =
+      hasMore && lastFolder
+        ? encodeCursor({
+            lastUuid: lastFolder.uuid,
+            order,
+            lastValue: lastFolder.plainName,
+          })
+        : null;
+
+    let foldersWithFavoriteMark = folders;
+    if (query.withFavorites) {
+      const favoritedUuids = await this.favoriteRepository.findFavoritedItemIds(
+        user.uuid,
+        folders.map((folder) => folder.uuid),
+        FavoriteItemType.Folder,
+      );
+      foldersWithFavoriteMark = folders.map(
+        (folder) =>
+          ({
+            ...folder,
+            isFavorite: favoritedUuids.has(folder.uuid),
+          }) as Folder,
+      );
+    }
+
+    return {
+      folders: foldersWithFavoriteMark.map((folder) =>
+        folder.plainName ? folder : this.decryptFolderName(folder),
+      ),
+      nextCursor,
+    };
   }
 
   async getTrashedFolders(
