@@ -9,6 +9,8 @@ export class User implements UserAttributes {
   username: string;
   bridgeUser: string;
   password: string;
+  passwordHash?: string;
+  argonSalt?: string;
   mnemonic: string;
   rootFolderId: number;
   hKey: Buffer | string;
@@ -42,6 +44,8 @@ export class User implements UserAttributes {
     username,
     bridgeUser,
     password,
+    passwordHash,
+    argonSalt,
     mnemonic,
     rootFolderId,
     hKey,
@@ -74,6 +78,8 @@ export class User implements UserAttributes {
     this.username = username;
     this.bridgeUser = bridgeUser;
     this.password = password;
+    this.passwordHash = passwordHash;
+    this.argonSalt = argonSalt;
     this.mnemonic = mnemonic;
     this.rootFolderId = rootFolderId;
     this.hKey = hKey;

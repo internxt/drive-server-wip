@@ -102,6 +102,7 @@ import { PaymentRequiredException } from '../feature-limit/exceptions/payment-re
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
 import { CaptchaGuard } from '../auth/captcha.guard';
+import { UpdatePasswordV2Dto } from './dto/update-password-v2.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -1264,4 +1265,58 @@ export class UserController {
       message: 'Checkout event tracked successfully',
     };
   }
+
+  @Patch('v2/password')
+  @ApiBearerAuth()
+  @WorkspaceLogAction(WorkspaceLogType.ChangedPassword)
+  @AuditLog({ action: AuditAction.PasswordChanged })
+  async updatePasswordV2(
+    @Body() updatePasswordDto: UpdatePasswordV2Dto,
+    @UserDecorator() user: User,
+    @Client() clientId: string,
+  ) {
+    const isDriveWeb = clientId === ClientEnum.Web;
+
+    if (!isDriveWeb) {
+      throw new BadRequestException(
+        'Change password is only allowed from the web app',
+      );
+    }
+
+    try {
+
+      const receivedHash = updatePasswordDto.currentPasswordHash;
+      const storedHash = user.password.toString();
+
+      if (storedHash !== receivedHash) {
+        throw new UnauthorizedException();
+      }
+
+      const { encryptedMnemonic, newSalt, newPasswordHash } = updatePasswordDto;
+
+      await this.userUseCases.updatePasswordV2(user, {
+        currentPasswordHash: updatePasswordDto.currentPasswordHash,
+        newPasswordHash: newPasswordHash,
+        newSalt,
+        encryptedMnemonic: encryptedMnemonic,
+        encryptedPrivateKey: updatePasswordDto.encryptedPrivateKey,
+        encryptedPrivateKyberKey: updatePasswordDto.encryptedPrivateKyberKey,
+      });
+
+      const { newToken } = await this.userUseCases.getAuthTokens(
+        user,
+        getFutureIAT(),
+      );
+
+      return { status: 'success', token: newToken };
+    } catch (err) {
+      Logger.error(
+        `[AUTH/UPDATEPASSWORD-V2] ERROR: ${(err as Error).message}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+      throw err;
+    }
+  }
+
 }

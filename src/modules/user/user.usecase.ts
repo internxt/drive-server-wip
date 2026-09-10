@@ -87,6 +87,8 @@ import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import { type GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
 import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import { type UserResponseDto } from './dto/responses/user-credentials.dto';
+import { type LoginAccessV2Dto } from '../auth/dto/login-access-v2.dto';
+import { UpdatePasswordV2Dto } from './dto/update-password-v2.dto';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -1371,6 +1373,46 @@ export class UserUseCases {
     }
   }
 
+    async updatePasswordV2(
+    user: User,
+    updatePasswordDto: UpdatePasswordV2Dto,
+  ): Promise<void> {
+    const { newPasswordHash, newSalt, encryptedMnemonic, encryptedPrivateKey, encryptedPrivateKyberKey } =
+      updatePasswordDto;
+
+    const keysToUpdate: Partial<Record<UserKeysEncryptVersions, string>> = {
+      ecc: encryptedPrivateKey,
+      kyber: encryptedPrivateKyberKey,
+    };
+
+    const userKeys = await this.keyServerUseCases.findUserKeys(user.id);
+
+    if (userKeys.kyber?.privateKey && !keysToUpdate.kyber) {
+      throw new BadRequestException(
+        'User has kyber keys, you need to send kyber keys to update user password',
+      );
+    }
+
+    await this.userRepository.updateById(user.id, {
+      passwordHash: newPasswordHash,
+      argonSalt: newSalt,
+      password: null,
+      hKey: null,
+      mnemonic: encryptedMnemonic,
+      lastPasswordChangedAt: new Date(),
+    });
+
+    for (const [version, key] of Object.entries(keysToUpdate)) {
+      if (key) {
+        await this.keyServerUseCases.updateByUserAndEncryptVersion(
+          user.id,
+          version as UserKeysEncryptVersions,
+          { privateKey: key },
+        );
+      }
+    }
+  }
+
   async getAvatarUrl(avatarKey: string) {
     if (!avatarKey) return null;
 
@@ -2195,5 +2237,109 @@ export class UserUseCases {
       token: oldToken,
       newToken: newToken,
     };
+  }
+  async loginAccessV2(
+    loginAccessDto: LoginAccessV2Dto
+    & { platform?: string },
+  ) {
+    const MAX_LOGIN_FAIL_ATTEMPTS = 10;
+
+    const userData = await this.findByEmail(loginAccessDto.email.toLowerCase());
+
+    if (!userData) {
+      throw new UnauthorizedException('Wrong login credentials');
+    }
+
+    if (!userData.passwordHash) {
+      throw new UnauthorizedException(
+        'This account does not support argon2 login yet',
+      );
+    }
+
+    const loginAttemptsLimitReached =
+      userData.errorLoginCount >= MAX_LOGIN_FAIL_ATTEMPTS;
+
+    if (loginAttemptsLimitReached) {
+      throw new ForbiddenException(
+        'Your account has been blocked for security reasons. Please reach out to us',
+      );
+    }
+
+    const receivedHash = loginAccessDto.passwordHash;
+
+   if (loginAccessDto.passwordHash !== userData.passwordHash) {
+      await this.userRepository.loginFailed(userData, true);
+      throw new UnauthorizedException('Wrong login credentials');
+    }
+
+    const twoFactorEnabled =
+      userData.secret_2FA && userData.secret_2FA.length > 0;
+    if (twoFactorEnabled) {
+      const tfaResult = speakeasy.totp.verifyDelta({
+        secret: userData.secret_2FA,
+        token: loginAccessDto.tfa,
+        encoding: 'base32',
+        window: 2,
+      });
+
+      if (!tfaResult) {
+        await this.userRepository.loginFailed(userData, true);
+        throw new UnauthorizedException('Wrong 2-factor auth code');
+      }
+    }
+
+    const { newToken } = await this.getAuthTokens(
+      userData,
+      undefined,
+      '3d',
+      loginAccessDto.platform,
+    );
+    await this.userRepository.loginFailed(userData, false);
+
+    this.updateByUuid(userData.uuid, { updatedAt: new Date() });
+
+    const rootFolder = await this.getOrCreateUserRootFolderAndBucket(userData);
+
+    const userBucket = rootFolder?.bucket;
+
+    const keys = await this.keyServerUseCases.findUserKeys(userData.id);
+
+    const user = {
+      email: userData.email,
+      userId: userData.userId,
+      mnemonic: userData.mnemonic.toString(),
+      root_folder_id: rootFolder?.id,
+      rootFolderId: rootFolder?.uuid,
+      name: userData.name,
+      lastname: userData.lastname,
+      uuid: userData.uuid,
+      credit: userData.credit,
+      createdAt: userData.createdAt,
+      tierId: userData.tierId,
+      keys: {
+        ecc: {
+          privateKey: keys.ecc?.privateKey || null,
+          publicKey: keys.ecc?.publicKey || null,
+        },
+        kyber: {
+          privateKey: keys.kyber?.privateKey || null,
+          publicKey: keys.kyber?.publicKey || null,
+        },
+      },
+      bucket: userBucket,
+      registerCompleted: userData.registerCompleted,
+      teams: false,
+      username: userData.username,
+      bridgeUser: userData.bridgeUser,
+      sharedWorkspace: userData.sharedWorkspace,
+      appSumoDetails: null,
+      hasReferralsProgram: false,
+      backupsBucket: userData.backupsBucket,
+      avatar: userData.avatar ? await this.getAvatarUrl(userData.avatar) : null,
+      emailVerified: userData.emailVerified,
+      lastPasswordChangedAt: userData.lastPasswordChangedAt,
+    };
+
+    return { user, token: newToken };
   }
 }
