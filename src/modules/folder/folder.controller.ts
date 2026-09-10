@@ -50,6 +50,8 @@ import { Client } from '../../common/decorators/client.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
+import { GetFoldersSyncDto } from './dto/get-folders-sync.dto';
+import { GetFoldersSyncResponseDto } from './dto/responses/get-folders-sync.dto';
 import { Requester } from '../auth/decorators/requester.decorator';
 import {
   type CreateBulkFoldersResponseDto,
@@ -582,6 +584,38 @@ export class FolderController {
 
       throw err;
     }
+  }
+
+  @Get('/sync')
+  @ApiOperation({
+    summary: 'Get delta of folders since a date',
+  })
+  @ApiOkResponse({ type: GetFoldersSyncResponseDto })
+  async getFoldersSync(
+    @UserDecorator() user: User,
+    @Query() queryParams: GetFoldersSyncDto,
+  ): Promise<GetFoldersSyncResponseDto> {
+    const { status, updatedAt, cursor, limit } = queryParams;
+
+    const { folders, nextCursor } =
+      await this.folderUseCases.getFoldersUpdatedAfterWithCursor(
+        user.id,
+        status,
+        new Date(updatedAt || 1),
+        limit ?? 1000,
+        cursor,
+      );
+
+    folders.forEach((f) => {
+      delete f.deletedAt;
+      delete f.removedAt;
+
+      if (!f.plainName) {
+        f.plainName = this.folderUseCases.decryptFolderName(f).plainName;
+      }
+    });
+
+    return { folders, nextCursor };
   }
 
   @Get('/:uuid/meta')

@@ -1037,6 +1037,172 @@ describe('FolderController', () => {
     });
   });
 
+  describe('getFoldersSync', () => {
+    const buildQuery = (overrides = {}) => ({
+      status: FolderStatus.EXISTS,
+      updatedAt: new Date('2024-01-01T00:00:00.000Z').toISOString(),
+      cursor: undefined,
+      limit: undefined,
+      ...overrides,
+    });
+
+    it('When called, then it should call the usecase with parsed params', async () => {
+      const query = buildQuery();
+      jest
+        .spyOn(folderUseCases, 'getFoldersUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          folders: [],
+          hasMore: false,
+          nextCursor: null,
+        });
+
+      await folderController.getFoldersSync(userMocked, query as any);
+
+      expect(
+        folderUseCases.getFoldersUpdatedAfterWithCursor,
+      ).toHaveBeenCalledWith(
+        userMocked.id,
+        query.status,
+        new Date(query.updatedAt),
+        1000,
+        undefined,
+      );
+    });
+
+    it('When updatedAt is not provided, then it should default to the epoch', async () => {
+      const query = buildQuery({ updatedAt: undefined, cursor: 'abc' });
+      jest
+        .spyOn(folderUseCases, 'getFoldersUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          folders: [],
+          hasMore: false,
+          nextCursor: null,
+        });
+
+      await folderController.getFoldersSync(userMocked, query as any);
+
+      expect(
+        folderUseCases.getFoldersUpdatedAfterWithCursor,
+      ).toHaveBeenCalledWith(
+        userMocked.id,
+        query.status,
+        new Date(1),
+        1000,
+        'abc',
+      );
+    });
+
+    it('When a limit is provided, then it should forward it instead of the default', async () => {
+      const query = buildQuery({ limit: 50 });
+      jest
+        .spyOn(folderUseCases, 'getFoldersUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          folders: [],
+          hasMore: false,
+          nextCursor: null,
+        });
+
+      await folderController.getFoldersSync(userMocked, query as any);
+
+      expect(
+        folderUseCases.getFoldersUpdatedAfterWithCursor,
+      ).toHaveBeenCalledWith(
+        userMocked.id,
+        query.status,
+        expect.any(Date),
+        50,
+        undefined,
+      );
+    });
+
+    it('When folders are returned, then it should strip deletedAt/removedAt fields', async () => {
+      const rawFolder = {
+        ...newFolder(),
+        plainName: 'already-set',
+        deleted: true,
+        deletedAt: new Date(),
+        removed: true,
+        removedAt: new Date(),
+      };
+      jest
+        .spyOn(folderUseCases, 'getFoldersUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          folders: [rawFolder as any],
+          hasMore: false,
+          nextCursor: null,
+        });
+
+      const result = await folderController.getFoldersSync(
+        userMocked,
+        buildQuery() as any,
+      );
+
+      expect(result.folders[0]).not.toHaveProperty('deletedAt');
+      expect(result.folders[0]).not.toHaveProperty('removedAt');
+      expect(result.folders[0]).toHaveProperty('deleted');
+      expect(result.folders[0]).toHaveProperty('removed');
+    });
+
+    it('When a folder has no plainName, then it should decrypt it via decryptFolderName', async () => {
+      const rawFolder = { ...newFolder(), plainName: undefined };
+      jest
+        .spyOn(folderUseCases, 'getFoldersUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          folders: [rawFolder as any],
+          hasMore: false,
+          nextCursor: null,
+        });
+      jest
+        .spyOn(folderUseCases, 'decryptFolderName')
+        .mockReturnValue({ plainName: 'decrypted-name' } as any);
+
+      const result = await folderController.getFoldersSync(
+        userMocked,
+        buildQuery() as any,
+      );
+
+      expect(folderUseCases.decryptFolderName).toHaveBeenCalledWith(rawFolder);
+      expect(result.folders[0].plainName).toBe('decrypted-name');
+    });
+
+    it('When a folder already has a plainName, then it should not call decryptFolderName', async () => {
+      const rawFolder = { ...newFolder(), plainName: 'already-set' };
+      jest
+        .spyOn(folderUseCases, 'getFoldersUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          folders: [rawFolder as any],
+          hasMore: false,
+          nextCursor: null,
+        });
+      jest.spyOn(folderUseCases, 'decryptFolderName');
+
+      const result = await folderController.getFoldersSync(
+        userMocked,
+        buildQuery() as any,
+      );
+
+      expect(folderUseCases.decryptFolderName).not.toHaveBeenCalled();
+      expect(result.folders[0].plainName).toBe('already-set');
+    });
+
+    it('When the usecase returns a nextCursor, then it should be returned as-is', async () => {
+      jest
+        .spyOn(folderUseCases, 'getFoldersUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          folders: [],
+          hasMore: true,
+          nextCursor: 'encoded-cursor-token',
+        });
+
+      const result = await folderController.getFoldersSync(
+        userMocked,
+        buildQuery() as any,
+      );
+
+      expect(result.nextCursor).toBe('encoded-cursor-token');
+    });
+  });
+
   describe('getFolder', () => {
     const folderUuid = v4();
 

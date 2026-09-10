@@ -6,7 +6,7 @@ import { Folder } from './folder.domain';
 import { type FolderAttributes } from './folder.attributes';
 import { newFolder, newUser } from '../../../test/fixtures';
 import { FileStatus } from '../file/file.domain';
-import { Op, QueryTypes } from 'sequelize';
+import { Op, QueryTypes, Sequelize } from 'sequelize';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { WorkspaceItemType } from '../workspaces/attributes/workspace-items-users.attributes';
 import { UserModel } from '../user/user.model';
@@ -1615,6 +1615,95 @@ describe('SequelizeFolderRepository', () => {
           transaction: expect.any(Object),
         }),
       );
+    });
+  });
+
+  describe('findFoldersWithCursorWhereUpdatedAfter', () => {
+    const user = newUser();
+
+    it('When called without a cursor, then it should filter by updatedAfter and mark hasMore false when rows fit the page', async () => {
+      const where = { userId: user.id };
+      const updatedAfter = new Date();
+      const folder = newFolder();
+
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([folder] as any);
+
+      const result = await repository.findFoldersWithCursorWhereUpdatedAfter({
+        where,
+        updatedAfter,
+        pageSize: 1000,
+      });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: {
+          ...where,
+          parentUuid: { [Op.not]: null },
+          updatedAt: { [Op.gt]: updatedAfter },
+        },
+        replacements: undefined,
+        order: [
+          ['updatedAt', 'ASC'],
+          ['uuid', 'ASC'],
+        ],
+        limit: 1001,
+      });
+      expect(result).toEqual({ folders: expect.any(Array), hasMore: false });
+      expect(result.folders).toHaveLength(1);
+    });
+
+    it('When there is one more row than the page size, then hasMore is true and the extra row is dropped', async () => {
+      const where = { userId: user.id };
+      const updatedAfter = new Date();
+      const folders = [newFolder(), newFolder()];
+
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
+
+      const result = await repository.findFoldersWithCursorWhereUpdatedAfter({
+        where,
+        updatedAfter,
+        pageSize: 1,
+      });
+
+      expect(result.hasMore).toBe(true);
+      expect(result.folders).toHaveLength(1);
+    });
+
+    it('When a cursor is provided, then it filters by the cursor tuple and ignores updatedAfter', async () => {
+      const where = { userId: user.id };
+      const updatedAfter = new Date();
+      const cursorUpdatedAt = new Date('2024-01-01T00:00:00.000Z');
+      const cursorId = v4();
+
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findFoldersWithCursorWhereUpdatedAfter({
+        where,
+        updatedAfter,
+        pageSize: 1000,
+        cursor: {
+          updatedAt: cursorUpdatedAt.toISOString(),
+          uuid: cursorId,
+        },
+      });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: {
+          ...where,
+          parentUuid: { [Op.not]: null },
+          [Op.and]: [
+            Sequelize.literal(
+              '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
+            ),
+          ],
+        },
+        replacements: { cursorUpdatedAt, cursorId },
+        order: [
+          ['updatedAt', 'ASC'],
+          ['uuid', 'ASC'],
+        ],
+        limit: 1001,
+        logging: expect.any(Function),
+      });
     });
   });
 });
