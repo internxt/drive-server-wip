@@ -220,10 +220,6 @@ describe('FolderController', () => {
         const expectedSubfolders = [
           newFolder({ attributes: { id: 1, parentUuid: folder.uuid } }),
         ];
-        const mappedSubfolders = expectedSubfolders.map((f) => ({
-          ...f,
-          status: f.getFolderStatus(),
-        }));
         const nextCursor = 'encoded-cursor';
         jest
           .spyOn(folderUseCases, 'getFolderSubfoldersWithCursor')
@@ -239,7 +235,7 @@ describe('FolderController', () => {
           query as any,
         );
 
-        expect(result).toEqual({ folders: mappedSubfolders, nextCursor });
+        expect(result).toEqual({ folders: expectedSubfolders, nextCursor });
         expect(
           folderUseCases.getFolderSubfoldersWithCursor,
         ).toHaveBeenCalledWith(userMocked, folder.uuid, query);

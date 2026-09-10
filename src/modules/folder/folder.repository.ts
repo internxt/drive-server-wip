@@ -197,8 +197,6 @@ export class SequelizeFolderRepository implements FolderRepository {
     private readonly folderModel: typeof FolderModel,
   ) {}
 
-  // plain_name comparisons/sorts must use COLLATE "custom_numeric" to match
-  // the folders_parentuuid_plainname_numeric_unique index and actually use it.
   private applyCollateToPlainNameSort(
     order: Array<[keyof FolderModel, string]>,
   ): Array<[keyof FolderModel, string] | Literal> {

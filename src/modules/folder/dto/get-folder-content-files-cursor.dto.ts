@@ -1,50 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsOptional } from 'class-validator';
 import {
-  IsBoolean,
-  IsEnum,
-  IsInt,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Max,
-  MaxLength,
-  Min,
-} from 'class-validator';
-import { SortOrder } from '../../../common/order.type';
+  CursorPaginationDto,
+  CursorPageTokenDto,
+} from '../../../common/dto/cursor-pagination.dto';
 
-export class GetFolderContentFilesCursorDto {
-  @ApiProperty({
-    description: 'Sort direction',
-    enum: SortOrder,
-    default: SortOrder.ASC,
-    required: false,
-  })
-  @IsOptional()
-  @IsEnum(SortOrder)
-  order: SortOrder = SortOrder.ASC;
-
-  @ApiProperty({
-    description: 'Cursor from a previous response to fetch the next page',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(256)
-  cursor?: string;
-
-  @ApiProperty({
-    description: 'Page size',
-    default: 100,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(50)
-  @Max(1000)
-  limit: number = 100;
-
+export class GetFolderContentFilesCursorDto extends CursorPaginationDto {
   @ApiProperty({
     description: 'Whether to include each file favorite status',
     default: false,
@@ -76,13 +38,4 @@ export class GetFolderContentFilesCursorDto {
   withSharings?: boolean;
 }
 
-export class FolderFilesCursorDto {
-  @IsUUID()
-  lastUuid: string;
-
-  @IsEnum(SortOrder)
-  order: SortOrder;
-
-  @IsString()
-  lastValue: string;
-}
+export class FolderFilesCursorDto extends CursorPageTokenDto {}

@@ -343,10 +343,7 @@ export class FolderController {
         query,
       );
 
-    return {
-      folders: folders.map((f) => ({ ...f, status: f.getFolderStatus() })),
-      nextCursor,
-    };
+    return { folders, nextCursor };
   }
 
   @Get('/content/:uuid/folders/existence')
