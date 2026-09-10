@@ -197,6 +197,8 @@ export class SequelizeFolderRepository implements FolderRepository {
     private readonly folderModel: typeof FolderModel,
   ) {}
 
+  // plain_name comparisons/sorts must use COLLATE "custom_numeric" to match
+  // the folders_parentuuid_plainname_numeric_unique index and actually use it.
   private applyCollateToPlainNameSort(
     order: Array<[keyof FolderModel, string]>,
   ): Array<[keyof FolderModel, string] | Literal> {
@@ -235,6 +237,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       deleted: searchBy.deleted,
     };
 
+    // COLLATE "custom_numeric" needed to hit folders_parentuuid_plainname_numeric_unique
     const plainNameCondition =
       searchBy && searchBy.plainName.length > 0
         ? [
@@ -303,6 +306,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       withSharings?: boolean;
     };
   }): Promise<{ folders: Folder[]; hasMore: boolean }> {
+    // COLLATE "custom_numeric" needed to hit folders_parentuuid_plainname_numeric_unique
     const sortColumn = '"FolderModel"."plain_name" COLLATE "custom_numeric"';
     const comparator = order === SortOrder.DESC ? '<' : '>';
 
@@ -642,6 +646,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       where: {
         [Op.or]: [
           { name: { [Op.eq]: name } },
+          // COLLATE "custom_numeric" needed to hit folders_parentuuid_plainname_numeric_unique
           Sequelize.literal(
             '"FolderModel"."plain_name" COLLATE "custom_numeric" = :plainName',
           ),

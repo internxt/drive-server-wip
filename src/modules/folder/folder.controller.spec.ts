@@ -126,85 +126,124 @@ describe('FolderController', () => {
   });
 
   describe('get folder content', () => {
-    it('When get folder subfiles are requested by folder uuid, then the child files are returned', async () => {
-      const expectedSubfiles = [
-        newFile({ attributes: { id: 1, folderUuid: folder.uuid } }),
-        newFile({ attributes: { id: 2, folderUuid: folder.uuid } }),
-        newFile({ attributes: { id: 3, folderUuid: folder.uuid } }),
-      ];
-      jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue(expectedSubfiles);
+    describe('getFolderContentFiles (deprecated)', () => {
+      it('When get folder subfiles are requested by folder uuid, then the child files are returned', async () => {
+        const expectedSubfiles = [
+          newFile({ attributes: { id: 1, folderUuid: folder.uuid } }),
+          newFile({ attributes: { id: 2, folderUuid: folder.uuid } }),
+          newFile({ attributes: { id: 3, folderUuid: folder.uuid } }),
+        ];
+        jest
+          .spyOn(fileUseCases, 'getFiles')
+          .mockResolvedValue(expectedSubfiles);
 
-      const result = await folderController.getFolderContentFiles(
-        userMocked,
-        folder.uuid,
-        { limit: 50, offset: 0, sort: 'id', order: SortOrder.ASC },
-      );
-      expect(result).toEqual({ files: expectedSubfiles });
-      expect(fileUseCases.getFiles).toHaveBeenCalledWith(
-        userMocked.id,
-        expect.objectContaining({ folderUuid: folder.uuid }),
-        expect.objectContaining({ favoriteUserUuid: userMocked.uuid }),
-      );
-    });
-
-    it('When get folder subfiles v2 (keyset pagination) is requested, then it delegates to getFolderFilesWithCursor and returns files + nextCursor', async () => {
-      const expectedSubfiles = [
-        newFile({ attributes: { id: 1, folderUuid: folder.uuid } }),
-      ];
-      const nextCursor = 'encoded-cursor';
-      jest
-        .spyOn(fileUseCases, 'getFolderFilesWithCursor')
-        .mockResolvedValue({ files: expectedSubfiles, nextCursor });
-
-      const query = { sortBy: undefined, order: undefined };
-      const result = await folderController.getFolderContentFilesV2(
-        userMocked,
-        folder.uuid,
-        query as any,
-      );
-
-      expect(result).toEqual({ files: expectedSubfiles, nextCursor });
-      expect(fileUseCases.getFolderFilesWithCursor).toHaveBeenCalledWith(
-        userMocked,
-        folder.uuid,
-        query,
-      );
-    });
-
-    it('When get folder subfolders are requested by folder uuid, then the child folders are returned', async () => {
-      const expectedSubfolders = [
-        newFolder({ attributes: { id: 1, parentUuid: folder.uuid } }),
-        newFolder({ attributes: { id: 2, parentUuid: folder.uuid } }),
-        newFolder({ attributes: { id: 3, parentUuid: folder.uuid } }),
-      ];
-      const mappedSubfolders = expectedSubfolders.map((f) => {
-        let folderStatus: FileStatus;
-        if (f.removed) {
-          folderStatus = FileStatus.DELETED;
-        } else if (f.deleted) {
-          folderStatus = FileStatus.TRASHED;
-        } else {
-          folderStatus = FileStatus.EXISTS;
-        }
-        return { ...f, status: folderStatus };
+        const result = await folderController.getFolderContentFiles(
+          userMocked,
+          folder.uuid,
+          { limit: 50, offset: 0, sort: 'id', order: SortOrder.ASC },
+        );
+        expect(result).toEqual({ files: expectedSubfiles });
+        expect(fileUseCases.getFiles).toHaveBeenCalledWith(
+          userMocked.id,
+          expect.objectContaining({ folderUuid: folder.uuid }),
+          expect.objectContaining({ favoriteUserUuid: userMocked.uuid }),
+        );
       });
+    });
 
-      jest
-        .spyOn(folderUseCases, 'getFolders')
-        .mockResolvedValue(expectedSubfolders);
+    describe('getFolderContentFilesV2', () => {
+      it('When get folder subfiles v2 (keyset pagination) is requested, then it delegates to getFolderFilesWithCursor and returns files + nextCursor', async () => {
+        const expectedSubfiles = [
+          newFile({ attributes: { id: 1, folderUuid: folder.uuid } }),
+        ];
+        const nextCursor = 'encoded-cursor';
+        jest
+          .spyOn(fileUseCases, 'getFolderFilesWithCursor')
+          .mockResolvedValue({ files: expectedSubfiles, nextCursor });
 
-      const result = await folderController.getFolderContentFolders(
-        userMocked,
-        folder.uuid,
-        { limit: 50, offset: 0, sort: 'id', order: SortOrder.ASC },
-      );
+        const query = { sortBy: undefined, order: undefined };
+        const result = await folderController.getFolderContentFilesV2(
+          userMocked,
+          folder.uuid,
+          query as any,
+        );
 
-      expect(result).toEqual({ folders: mappedSubfolders });
-      expect(folderUseCases.getFolders).toHaveBeenCalledWith(
-        userMocked.id,
-        expect.objectContaining({ parentUuid: folder.uuid }),
-        expect.objectContaining({ favoriteUserUuid: userMocked.uuid }),
-      );
+        expect(result).toEqual({ files: expectedSubfiles, nextCursor });
+        expect(fileUseCases.getFolderFilesWithCursor).toHaveBeenCalledWith(
+          userMocked,
+          folder.uuid,
+          query,
+        );
+      });
+    });
+
+    describe('getFolderContentFolders (deprecated)', () => {
+      it('When get folder subfolders are requested by folder uuid, then the child folders are returned', async () => {
+        const expectedSubfolders = [
+          newFolder({ attributes: { id: 1, parentUuid: folder.uuid } }),
+          newFolder({ attributes: { id: 2, parentUuid: folder.uuid } }),
+          newFolder({ attributes: { id: 3, parentUuid: folder.uuid } }),
+        ];
+        const mappedSubfolders = expectedSubfolders.map((f) => {
+          let folderStatus: FileStatus;
+          if (f.removed) {
+            folderStatus = FileStatus.DELETED;
+          } else if (f.deleted) {
+            folderStatus = FileStatus.TRASHED;
+          } else {
+            folderStatus = FileStatus.EXISTS;
+          }
+          return { ...f, status: folderStatus };
+        });
+
+        jest
+          .spyOn(folderUseCases, 'getFolders')
+          .mockResolvedValue(expectedSubfolders);
+
+        const result = await folderController.getFolderContentFolders(
+          userMocked,
+          folder.uuid,
+          { limit: 50, offset: 0, sort: 'id', order: SortOrder.ASC },
+        );
+
+        expect(result).toEqual({ folders: mappedSubfolders });
+        expect(folderUseCases.getFolders).toHaveBeenCalledWith(
+          userMocked.id,
+          expect.objectContaining({ parentUuid: folder.uuid }),
+          expect.objectContaining({ favoriteUserUuid: userMocked.uuid }),
+        );
+      });
+    });
+
+    describe('getFolderContentFoldersV2', () => {
+      it('When the next page of subfolders is requested, then it returns the folders with the token for the following page', async () => {
+        const expectedSubfolders = [
+          newFolder({ attributes: { id: 1, parentUuid: folder.uuid } }),
+        ];
+        const mappedSubfolders = expectedSubfolders.map((f) => ({
+          ...f,
+          status: f.getFolderStatus(),
+        }));
+        const nextCursor = 'encoded-cursor';
+        jest
+          .spyOn(folderUseCases, 'getFolderSubfoldersWithCursor')
+          .mockResolvedValue({
+            folders: expectedSubfolders,
+            nextCursor,
+          });
+
+        const query = { order: undefined };
+        const result = await folderController.getFolderContentFoldersV2(
+          userMocked,
+          folder.uuid,
+          query as any,
+        );
+
+        expect(result).toEqual({ folders: mappedSubfolders, nextCursor });
+        expect(
+          folderUseCases.getFolderSubfoldersWithCursor,
+        ).toHaveBeenCalledWith(userMocked, folder.uuid, query);
+      });
     });
   });
 

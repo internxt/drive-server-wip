@@ -297,6 +297,7 @@ export class FolderController {
   }
 
   @Get('/content/:uuid/folders')
+  @ApiOperation({ deprecated: true })
   @ApiOkResponse({ type: FoldersDto })
   async getFolderContentFolders(
     @UserDecorator() user: User,
