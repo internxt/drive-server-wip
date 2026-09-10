@@ -461,6 +461,7 @@ export class SequelizeFileRepository implements FileRepository {
   }): Promise<{ files: File[]; hasMore: boolean }> {
     const sortColumn = '"FileModel"."plain_name" COLLATE "custom_numeric"';
     const comparator = order === SortOrder.DESC ? '<' : '>';
+    const orderDirection = order === SortOrder.DESC ? 'DESC' : 'ASC';
 
     const whereCondition: WhereOptions<FileAttributes> = {
       folderUuid,
@@ -509,9 +510,9 @@ export class SequelizeFileRepository implements FileRepository {
       subQuery: false,
       order: [
         Sequelize.literal(
-          `"FileModel"."plain_name" COLLATE "custom_numeric" ${order}`,
+          `"FileModel"."plain_name" COLLATE "custom_numeric" ${orderDirection}`,
         ),
-        ['uuid', order],
+        ['uuid', orderDirection],
       ],
       limit: pageSize + 1,
     });

@@ -307,6 +307,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     // COLLATE "custom_numeric" needed to hit folders_parentuuid_plainname_numeric_unique
     const sortColumn = '"FolderModel"."plain_name" COLLATE "custom_numeric"';
     const comparator = order === SortOrder.DESC ? '<' : '>';
+    const orderDirection = order === SortOrder.DESC ? 'DESC' : 'ASC';
 
     const whereCondition: WhereOptions<FolderAttributes> = {
       parentUuid,
@@ -347,9 +348,9 @@ export class SequelizeFolderRepository implements FolderRepository {
       subQuery: false,
       order: [
         Sequelize.literal(
-          `"FolderModel"."plain_name" COLLATE "custom_numeric" ${order}`,
+          `"FolderModel"."plain_name" COLLATE "custom_numeric" ${orderDirection}`,
         ),
-        ['uuid', order],
+        ['uuid', orderDirection],
       ],
       limit: pageSize + 1,
     });
