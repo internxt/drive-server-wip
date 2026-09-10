@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
 import { Time } from '../../lib/time';
 import { type FileUpdatedAtIdCursorDto } from './utils/file-cursor.util';
+import { type FolderFilesCursorDto } from '../folder/dto/get-folder-content-files-cursor.dto';
+import { SortOrder } from '../../common/order.type';
 import { InjectModel } from '@nestjs/sequelize';
 import { File, type FileAttributes, FileStatus } from './file.domain';
 import {
@@ -146,6 +148,17 @@ export interface FileRepository {
     updatedAfter: Date;
     pageSize: number;
     cursor?: FileUpdatedAtIdCursorDto;
+  }): Promise<{ files: File[]; hasMore: boolean }>;
+  findFolderFilesWithCursor(params: {
+    folderUuid: Folder['uuid'];
+    userId: User['id'];
+    order: SortOrder;
+    pageSize: number;
+    cursor?: FolderFilesCursorDto;
+    options?: {
+      withThumbnails?: boolean;
+      withSharings?: boolean;
+    };
   }): Promise<{ files: File[]; hasMore: boolean }>;
   getFilesWithUserByUuuid(
     fileUuids: string[],
@@ -418,6 +431,87 @@ export class SequelizeFileRepository implements FileRepository {
       order: [
         ['updatedAt', 'ASC'],
         ['uuid', 'ASC'],
+      ],
+      limit: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+
+    return { files: page.map(this.toDomain.bind(this)), hasMore };
+  }
+
+  async findFolderFilesWithCursor({
+    folderUuid,
+    userId,
+    order,
+    pageSize,
+    cursor,
+    options,
+  }: {
+    folderUuid: Folder['uuid'];
+    userId: User['id'];
+    order: SortOrder;
+    pageSize: number;
+    cursor?: FolderFilesCursorDto;
+    options?: {
+      withThumbnails?: boolean;
+      withSharings?: boolean;
+    };
+  }): Promise<{ files: File[]; hasMore: boolean }> {
+    const sortColumn = '"FileModel"."plain_name" COLLATE "custom_numeric"';
+    const comparator = order === SortOrder.DESC ? '<' : '>';
+
+    const whereCondition: WhereOptions<FileAttributes> = {
+      folderUuid,
+      userId,
+      status: FileStatus.EXISTS,
+      ...(cursor
+        ? {
+            [Op.and]: [
+              Sequelize.literal(
+                `(${sortColumn}, "FileModel"."uuid") ${comparator} (:cursorValue, :cursorUuid)`,
+              ),
+            ],
+          }
+        : null),
+    };
+
+    const rows = await this.fileModel.findAll({
+      where: whereCondition,
+      replacements: cursor
+        ? {
+            cursorValue: cursor.lastValue,
+            cursorUuid: cursor.lastUuid,
+          }
+        : undefined,
+      include: [
+        ...(options?.withThumbnails
+          ? [
+              {
+                separate: true,
+                model: this.thumbnailModel,
+                required: false,
+              },
+            ]
+          : []),
+        ...(options?.withSharings
+          ? [
+              {
+                separate: true,
+                model: SharingModel,
+                attributes: ['type', 'id'],
+                required: false,
+              },
+            ]
+          : []),
+      ],
+      subQuery: false,
+      order: [
+        Sequelize.literal(
+          `"FileModel"."plain_name" COLLATE "custom_numeric" ${order}`,
+        ),
+        ['uuid', order],
       ],
       limit: pageSize + 1,
     });

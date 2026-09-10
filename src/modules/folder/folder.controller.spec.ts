@@ -147,6 +147,30 @@ describe('FolderController', () => {
       );
     });
 
+    it('When get folder subfiles v2 (keyset pagination) is requested, then it delegates to getFolderFilesWithCursor and returns files + nextCursor', async () => {
+      const expectedSubfiles = [
+        newFile({ attributes: { id: 1, folderUuid: folder.uuid } }),
+      ];
+      const nextCursor = 'encoded-cursor';
+      jest
+        .spyOn(fileUseCases, 'getFolderFilesWithCursor')
+        .mockResolvedValue({ files: expectedSubfiles, nextCursor });
+
+      const query = { sortBy: undefined, order: undefined };
+      const result = await folderController.getFolderContentFilesV2(
+        userMocked,
+        folder.uuid,
+        query as any,
+      );
+
+      expect(result).toEqual({ files: expectedSubfiles, nextCursor });
+      expect(fileUseCases.getFolderFilesWithCursor).toHaveBeenCalledWith(
+        userMocked,
+        folder.uuid,
+        query,
+      );
+    });
+
     it('When get folder subfolders are requested by folder uuid, then the child folders are returned', async () => {
       const expectedSubfolders = [
         newFolder({ attributes: { id: 1, parentUuid: folder.uuid } }),

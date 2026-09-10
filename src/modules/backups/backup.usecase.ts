@@ -23,11 +23,8 @@ import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { FileStatus } from '../file/file.domain';
 import { type File } from '../file/file.domain';
-import {
-  decodeCursor,
-  encodeCursor,
-  FileUpdatedAtIdCursorDto,
-} from '../file/utils/file-cursor.util';
+import { FileUpdatedAtIdCursorDto } from '../file/utils/file-cursor.util';
+import { decodeCursor, encodeCursor } from '../../common/utils/cursor.util';
 
 @Injectable()
 export class BackupUseCase {

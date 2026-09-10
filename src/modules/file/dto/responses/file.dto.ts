@@ -2,6 +2,13 @@ import { ApiProperty } from '@nestjs/swagger';
 import { FileStatus } from '../../file.domain';
 import { ThumbnailDto } from '../../../thumbnail/dto/thumbnail.dto';
 
+export class FileSharingDto {
+  @ApiProperty()
+  id: string;
+  @ApiProperty()
+  type: string;
+}
+
 export class FileDto {
   @ApiProperty()
   id: number;
@@ -46,6 +53,8 @@ export class FileDto {
   isFavorite?: boolean;
   @ApiProperty({ type: ThumbnailDto, isArray: true, required: false })
   thumbnails?: ThumbnailDto[];
+  @ApiProperty({ type: FileSharingDto, isArray: true, required: false })
+  sharings?: FileSharingDto[];
 }
 
 export class FilesDto {

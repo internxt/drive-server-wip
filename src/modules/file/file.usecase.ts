@@ -39,11 +39,12 @@ import { type FileModel } from './file.model';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
+import { FileSyncCursorDto } from './utils/file-cursor.util';
+import { decodeCursor, encodeCursor } from '../../common/utils/cursor.util';
 import {
-  decodeCursor,
-  encodeCursor,
-  FileSyncCursorDto,
-} from './utils/file-cursor.util';
+  FolderFilesCursorDto,
+  GetFolderContentFilesCursorDto,
+} from '../folder/dto/get-folder-content-files-cursor.dto';
 import { type MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
@@ -68,6 +69,7 @@ import {
 import { type Workspace } from '../workspaces/domains/workspaces.domain';
 import { FavoriteUseCases } from '../favorite/favorite.usecase';
 import { FavoriteItemType } from '../favorite/favorite.domain';
+import { SequelizeFavoriteRepository } from '../favorite/favorite.repository';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -108,6 +110,7 @@ export class FileUseCases {
     private readonly restoreFileVersionAction: RestoreFileVersionAction,
     private readonly undoFileVersioningAction: UndoFileVersioningAction,
     private readonly favoriteUsecases: FavoriteUseCases,
+    private readonly favoriteRepository: SequelizeFavoriteRepository,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -648,6 +651,73 @@ export class FileUseCases {
     return {
       files: files.map((file) => file.toJSON()) as File[],
       hasMore,
+      nextCursor,
+    };
+  }
+
+  async getFolderFilesWithCursor(
+    user: User,
+    folderUuid: Folder['uuid'],
+    query: GetFolderContentFilesCursorDto,
+  ): Promise<{ files: File[]; nextCursor: string | null }> {
+    const { order, limit: pageSize } = query;
+
+    const cursor = query.cursor
+      ? decodeCursor(FolderFilesCursorDto, query.cursor)
+      : undefined;
+
+    if (query.cursor && !cursor) {
+      throw new BadRequestException('Invalid cursor');
+    }
+
+    if (cursor && cursor.order !== order) {
+      throw new BadRequestException('Cursor does not match order filter');
+    }
+
+    const { files, hasMore } =
+      await this.fileRepository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        order,
+        pageSize,
+        cursor,
+        options: {
+          withThumbnails: query.withThumbnails,
+          withSharings: query.withSharings,
+        },
+      });
+
+    const lastFile = files.at(-1);
+    const nextCursor =
+      hasMore && lastFile
+        ? encodeCursor({
+            lastUuid: lastFile.uuid,
+            order,
+            lastValue: lastFile.plainName,
+          })
+        : null;
+
+    let filesWithFavoriteMark = files;
+    if (query.withFavorites) {
+      const favoritedUuids = await this.favoriteRepository.findFavoritedItemIds(
+        user.uuid,
+        files.map((file) => file.uuid),
+        FavoriteItemType.File,
+      );
+
+      filesWithFavoriteMark = files.map(
+        (file) =>
+          ({
+            ...file,
+            isFavorite: favoritedUuids.has(file.uuid),
+          }) as File,
+      );
+    }
+
+    return {
+      files: filesWithFavoriteMark.map((file) =>
+        file.plainName ? file : this.decrypFileName(file),
+      ),
       nextCursor,
     };
   }
@@ -1219,7 +1289,7 @@ export class FileUseCases {
   }
 
   addOldAttributes(file: File): any {
-    const thumbnails = file.thumbnails;
+    const thumbnails = file.thumbnails ?? [];
 
     const thumbnailsWithOldAttributers = thumbnails.map((thumbnail) => ({
       ...thumbnail,

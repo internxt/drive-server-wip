@@ -70,6 +70,8 @@ import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { GetFilesInFoldersDto } from './dto/get-files-in-folder.dto';
 import { GetFoldersInFoldersDto } from './dto/get-folders-in-folder.dto';
 import { GetFoldersQueryDto } from './dto/get-folders.dto';
+import { GetFolderContentFilesCursorDto } from './dto/get-folder-content-files-cursor.dto';
+import { GetFolderContentFilesV2ResponseDto } from './dto/responses/get-folder-content-files-v2.dto';
 
 class BadRequestWrongFolderIdException extends BadRequestException {
   constructor() {
@@ -187,6 +189,7 @@ export class FolderController {
   }
 
   @Get('/content/:uuid/files')
+  @ApiOperation({ deprecated: true })
   @ApiOkResponse({ type: FilesDto })
   async getFolderContentFiles(
     @UserDecorator() user: User,
@@ -208,6 +211,22 @@ export class FolderController {
     );
 
     return { files };
+  }
+
+  @Get('/v2/content/:uuid/files')
+  @ApiOperation({
+    summary: 'Get files in a folder with cursor based pagination',
+  })
+  @ApiOkResponse({ type: GetFolderContentFilesV2ResponseDto })
+  async getFolderContentFilesV2(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
+    @Query() query: GetFolderContentFilesCursorDto,
+  ): Promise<GetFolderContentFilesV2ResponseDto> {
+    const { files, nextCursor } =
+      await this.fileUseCases.getFolderFilesWithCursor(user, folderUuid, query);
+
+    return { files, nextCursor };
   }
 
   @Get(':id/files')
@@ -847,5 +866,4 @@ export class FolderController {
       clientId,
     });
   }
-
 }
