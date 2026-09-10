@@ -1702,7 +1702,6 @@ describe('SequelizeFolderRepository', () => {
           ['uuid', 'ASC'],
         ],
         limit: 1001,
-        logging: expect.any(Function),
       });
     });
   });
