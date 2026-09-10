@@ -1,15 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsOptional } from 'class-validator';
-import { FileStatus } from '../file.domain';
+import { FolderStatus } from '../folder.domain';
 import { GetSyncDto } from '../../../common/dto/get-sync.dto';
 
-export class GetFilesSyncDto extends GetSyncDto {
+export class GetFoldersSyncDto extends GetSyncDto {
   @ApiProperty({
-    description: 'File status filter',
-    enum: FileStatus,
+    description: 'Folder status filter',
+    enum: FolderStatus,
     required: false,
   })
   @IsOptional()
-  @IsEnum(FileStatus)
-  status?: FileStatus;
+  @IsEnum(FolderStatus)
+  status?: FolderStatus;
 }

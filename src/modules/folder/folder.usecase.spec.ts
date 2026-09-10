@@ -28,6 +28,7 @@ import { CalculateFolderSizeTimeoutException } from './exception/calculate-folde
 import { SharingService } from '../sharing/sharing.service';
 import { type UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { FileStatus } from '../file/file.domain';
+import { FolderStatus } from './folder.domain';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { FavoriteUseCases } from '../favorite/favorite.usecase';
 import { FavoriteItemType } from '../favorite/favorite.domain';
@@ -182,10 +183,9 @@ describe('FolderUseCases', () => {
         [mockBackupFolder.uuid, mockFolder.uuid],
         FavoriteItemType.Folder,
       );
-      expect(favoriteUseCases.removeFavoritesInsideFolders).toHaveBeenCalledWith(
-        user,
-        [mockBackupFolder.uuid, mockFolder.uuid],
-      );
+      expect(
+        favoriteUseCases.removeFavoritesInsideFolders,
+      ).toHaveBeenCalledWith(user, [mockBackupFolder.uuid, mockFolder.uuid]);
     });
 
     it('When only ids are passed, then only folders by id should be searched', async () => {
@@ -2411,6 +2411,199 @@ describe('FolderUseCases', () => {
         uuidSort,
       );
       expect(result).toEqual(folders);
+    });
+  });
+
+  describe('getFoldersUpdatedAfterWithCursor', () => {
+    const userIdForSync = 1;
+    const updatedAfter = new Date();
+    const mockFolders = [newFolder(), newFolder()];
+
+    it('When status is provided, then it should filter the repository query by its deleted/removed mapping', async () => {
+      jest
+        .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({ folders: mockFolders, hasMore: false });
+
+      await service.getFoldersUpdatedAfterWithCursor(
+        userIdForSync,
+        FolderStatus.EXISTS,
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(
+        folderRepository.findFoldersWithCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith({
+        where: { userId: userIdForSync, deleted: false, removed: false },
+        updatedAfter,
+        pageSize: 1000,
+        cursor: undefined,
+      });
+    });
+
+    it('When status is not provided, then it should not filter the repository query by status', async () => {
+      jest
+        .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({ folders: mockFolders, hasMore: false });
+
+      await service.getFoldersUpdatedAfterWithCursor(
+        userIdForSync,
+        undefined,
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(
+        folderRepository.findFoldersWithCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith({
+        where: { userId: userIdForSync },
+        updatedAfter,
+        pageSize: 1000,
+        cursor: undefined,
+      });
+    });
+
+    it('When a valid cursorToken is provided, then it should decode it and pass it to the repository', async () => {
+      const cursorData = {
+        updatedAt: updatedAfter.toISOString(),
+        uuid: v4(),
+      };
+      const cursorToken = Buffer.from(JSON.stringify(cursorData)).toString(
+        'base64',
+      );
+
+      jest
+        .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({ folders: mockFolders, hasMore: false });
+
+      await service.getFoldersUpdatedAfterWithCursor(
+        userIdForSync,
+        undefined,
+        updatedAfter,
+        1000,
+        cursorToken,
+      );
+
+      expect(
+        folderRepository.findFoldersWithCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(expect.objectContaining({ cursor: cursorData }));
+    });
+
+    it('When the cursor status does not match the requested status, then it should throw', async () => {
+      const cursorData = {
+        updatedAt: updatedAfter.toISOString(),
+        uuid: v4(),
+        status: FolderStatus.EXISTS,
+      };
+      const cursorToken = Buffer.from(JSON.stringify(cursorData)).toString(
+        'base64',
+      );
+
+      jest.spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter');
+
+      await expect(
+        service.getFoldersUpdatedAfterWithCursor(
+          userIdForSync,
+          FolderStatus.TRASHED,
+          updatedAfter,
+          1000,
+          cursorToken,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(
+        folderRepository.findFoldersWithCursorWhereUpdatedAfter,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When an invalid cursorToken is provided, then it should throw', async () => {
+      jest.spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter');
+
+      await expect(
+        service.getFoldersUpdatedAfterWithCursor(
+          userIdForSync,
+          undefined,
+          updatedAfter,
+          1000,
+          'not-a-valid-cursor',
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(
+        folderRepository.findFoldersWithCursorWhereUpdatedAfter,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When hasMore is true, then it should return an encoded nextCursor built from the last folder', async () => {
+      const lastFolder = mockFolders[mockFolders.length - 1];
+      jest
+        .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({ folders: mockFolders, hasMore: true });
+
+      const result = await service.getFoldersUpdatedAfterWithCursor(
+        userIdForSync,
+        undefined,
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(result.nextCursor).not.toBeNull();
+      const decoded = JSON.parse(
+        Buffer.from(result.nextCursor, 'base64').toString('utf-8'),
+      );
+      expect(decoded).toEqual({
+        updatedAt: lastFolder.updatedAt.toISOString(),
+        uuid: lastFolder.uuid,
+      });
+    });
+
+    it('When hasMore is false, then nextCursor should be null', async () => {
+      jest
+        .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({ folders: mockFolders, hasMore: false });
+
+      const result = await service.getFoldersUpdatedAfterWithCursor(
+        userIdForSync,
+        undefined,
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('When hasMore is true but there are no folders, then nextCursor should be null', async () => {
+      jest
+        .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({ folders: [], hasMore: true });
+
+      const result = await service.getFoldersUpdatedAfterWithCursor(
+        userIdForSync,
+        undefined,
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('When folders are returned, then it should return them as-is', async () => {
+      jest
+        .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({ folders: mockFolders, hasMore: false });
+
+      const result = await service.getFoldersUpdatedAfterWithCursor(
+        userIdForSync,
+        undefined,
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(result.folders).toEqual(mockFolders);
     });
   });
 });

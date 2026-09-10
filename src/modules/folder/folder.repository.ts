@@ -31,6 +31,8 @@ import {
   FavoriteItemType,
   type FavoriteAttributes,
 } from '../favorite/favorite.domain';
+import { Time } from '../../lib/time';
+import { type FolderUpdatedAtIdCursorDto } from './utils/folder-cursor.util';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -113,6 +115,12 @@ interface FolderRepository {
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
   ): Promise<Array<Folder> | []>;
+  findFoldersWithCursorWhereUpdatedAfter(params: {
+    where: Partial<FolderAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FolderUpdatedAtIdCursorDto;
+  }): Promise<{ folders: Folder[]; hasMore: boolean }>;
   updateByFolderId(
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
@@ -946,6 +954,51 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
 
     return folders.map((folder) => this.toDomain(folder));
+  }
+
+  async findFoldersWithCursorWhereUpdatedAfter({
+    where,
+    updatedAfter,
+    pageSize,
+    cursor,
+  }: {
+    where: Partial<FolderAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FolderUpdatedAtIdCursorDto;
+  }): Promise<{ folders: Folder[]; hasMore: boolean }> {
+    const cursorUpdatedAt = cursor ? Time.now(cursor.updatedAt) : null;
+
+    const whereCondition: WhereOptions<FolderAttributes> = {
+      ...where,
+      parentUuid: { [Op.not]: null },
+      ...(cursor
+        ? {
+            [Op.and]: [
+              Sequelize.literal(
+                '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
+              ),
+            ],
+          }
+        : { updatedAt: { [Op.gt]: updatedAfter } }),
+    };
+
+    const rows = await this.folderModel.findAll({
+      where: whereCondition,
+      replacements: cursor
+        ? { cursorUpdatedAt, cursorId: cursor.uuid }
+        : undefined,
+      order: [
+        ['updatedAt', 'ASC'],
+        ['uuid', 'ASC'],
+      ],
+      limit: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+
+    return { folders: page.map((f) => this.toDomain(f)), hasMore };
   }
 
   async findAllCursorInWorkspaceWhereUpdatedAfter(
