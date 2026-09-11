@@ -25,6 +25,11 @@ jest.mock('../../lib/query-timeout', () => ({
   withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
 }));
 
+// Attaches a Sequelize-model-like `get()` for the raw cursor timestamp
+// attribute, without losing the File instance's own methods (toJSON, etc).
+const withCursorTimestamp = (file: ReturnType<typeof newFile>, value: string) =>
+  Object.assign(file, { get: jest.fn().mockReturnValue(value) });
+
 describe('FileRepository', () => {
   let repository: FileRepository;
   let fileModel: typeof FileModel;
@@ -106,8 +111,13 @@ describe('FileRepository', () => {
       const folderUuids = [v4(), v4()];
       const updatedAfter = new Date();
       const file = newFile();
+      const cursorTimestamp = '2026-01-01T10:00:00.123456Z';
 
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([
+          withCursorTimestamp(file, cursorTimestamp),
+        ] as any);
 
       const result = await repository.getFilesByFolderUuidsWithCursor({
         folderUuids,
@@ -122,6 +132,7 @@ describe('FileRepository', () => {
           updatedAt: { [Op.gt]: updatedAfter },
           userId: user.id,
         },
+        attributes: { include: [expect.any(Array)] },
         include: [
           expect.objectContaining({ as: 'thumbnails', required: false }),
         ],
@@ -131,14 +142,20 @@ describe('FileRepository', () => {
         ],
         limit: 1001,
       });
-      expect(result).toEqual({ files: expect.any(Array), hasMore: false });
+      expect(result).toEqual({
+        files: expect.any(Array),
+        hasMore: false,
+        lastRowCursorUpdatedAt: cursorTimestamp,
+      });
       expect(result.files).toHaveLength(1);
     });
 
     it('When there is one more row than the page size, then hasMore is true and the extra row is dropped', async () => {
       const folderUuids = [v4()];
       const updatedAfter = new Date();
-      const files = [newFile(), newFile()];
+      const files = [newFile(), newFile()].map((file) =>
+        withCursorTimestamp(file, '2026-01-01T10:00:00.123456Z'),
+      );
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(files as any);
 
@@ -153,10 +170,10 @@ describe('FileRepository', () => {
       expect(result.files).toHaveLength(1);
     });
 
-    it('When a cursor is provided, then it filters by the cursor tuple and ignores updatedAfter', async () => {
+    it('When a cursor is provided, then it filters by the cursor tuple (raw string, no Date roundtrip) and ignores updatedAfter', async () => {
       const folderUuids = [v4()];
       const updatedAfter = new Date();
-      const cursorUpdatedAt = new Date('2024-01-01T00:00:00.000Z');
+      const cursorUpdatedAt = '2024-01-01T00:00:00.123456Z';
       const cursorId = v4();
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
@@ -167,7 +184,7 @@ describe('FileRepository', () => {
         pageSize: 1000,
         userId: user.id,
         cursor: {
-          updatedAt: cursorUpdatedAt.toISOString(),
+          updatedAt: cursorUpdatedAt,
           uuid: cursorId,
         },
       });
@@ -178,11 +195,15 @@ describe('FileRepository', () => {
           userId: user.id,
           [Op.and]: [
             Sequelize.literal(
-              '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
+              '("updated_at", "uuid") > (:cursorTimestamp::timestamptz, :cursorTieBreaker)',
             ),
           ],
         },
-        replacements: { cursorUpdatedAt, cursorId },
+        attributes: { include: [expect.any(Array)] },
+        replacements: {
+          cursorTimestamp: cursorUpdatedAt,
+          cursorTieBreaker: cursorId,
+        },
         include: [
           expect.objectContaining({ as: 'thumbnails', required: false }),
         ],
@@ -200,8 +221,13 @@ describe('FileRepository', () => {
       const where = { userId: user.id, status: FileStatus.EXISTS };
       const updatedAfter = new Date();
       const file = newFile();
+      const cursorTimestamp = '2026-01-01T10:00:00.123456Z';
 
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([
+          withCursorTimestamp(file, cursorTimestamp),
+        ] as any);
 
       const result = await repository.findFilesWithCursorWhereUpdatedAfter({
         where,
@@ -214,6 +240,7 @@ describe('FileRepository', () => {
           ...where,
           updatedAt: { [Op.gt]: updatedAfter },
         },
+        attributes: { include: [expect.any(Array)] },
         replacements: undefined,
         order: [
           ['updatedAt', 'ASC'],
@@ -221,14 +248,20 @@ describe('FileRepository', () => {
         ],
         limit: 1001,
       });
-      expect(result).toEqual({ files: expect.any(Array), hasMore: false });
+      expect(result).toEqual({
+        files: expect.any(Array),
+        hasMore: false,
+        lastRowCursorUpdatedAt: cursorTimestamp,
+      });
       expect(result.files).toHaveLength(1);
     });
 
     it('When there is one more row than the page size, then hasMore is true and the extra row is dropped', async () => {
       const where = { userId: user.id };
       const updatedAfter = new Date();
-      const files = [newFile(), newFile()];
+      const files = [newFile(), newFile()].map((file) =>
+        withCursorTimestamp(file, '2026-01-01T10:00:00.123456Z'),
+      );
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(files as any);
 
@@ -242,10 +275,10 @@ describe('FileRepository', () => {
       expect(result.files).toHaveLength(1);
     });
 
-    it('When a cursor is provided, then it filters by the cursor tuple and ignores updatedAfter', async () => {
+    it('When a cursor is provided, then it filters by the cursor tuple (raw string, no Date roundtrip) and ignores updatedAfter', async () => {
       const where = { userId: user.id };
       const updatedAfter = new Date();
-      const cursorUpdatedAt = new Date('2024-01-01T00:00:00.000Z');
+      const cursorUpdatedAt = '2024-01-01T00:00:00.123456Z';
       const cursorId = v4();
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
@@ -255,7 +288,7 @@ describe('FileRepository', () => {
         updatedAfter,
         pageSize: 1000,
         cursor: {
-          updatedAt: cursorUpdatedAt.toISOString(),
+          updatedAt: cursorUpdatedAt,
           uuid: cursorId,
         },
       });
@@ -265,11 +298,15 @@ describe('FileRepository', () => {
           ...where,
           [Op.and]: [
             Sequelize.literal(
-              '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
+              '("updated_at", "uuid") > (:cursorTimestamp::timestamptz, :cursorTieBreaker)',
             ),
           ],
         },
-        replacements: { cursorUpdatedAt, cursorId },
+        attributes: { include: [expect.any(Array)] },
+        replacements: {
+          cursorTimestamp: cursorUpdatedAt,
+          cursorTieBreaker: cursorId,
+        },
         order: [
           ['updatedAt', 'ASC'],
           ['uuid', 'ASC'],

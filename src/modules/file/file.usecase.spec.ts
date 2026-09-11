@@ -2233,7 +2233,11 @@ describe('FileUseCases', () => {
     it('When status is provided, then it should filter the repository query by status', async () => {
       jest
         .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
+        .mockResolvedValueOnce({
+          files: mockFiles,
+          hasMore: false,
+          lastRowCursorUpdatedAt: null,
+        });
 
       await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
@@ -2256,7 +2260,11 @@ describe('FileUseCases', () => {
     it('When status is not provided, then it should not filter the repository query by status', async () => {
       jest
         .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
+        .mockResolvedValueOnce({
+          files: mockFiles,
+          hasMore: false,
+          lastRowCursorUpdatedAt: null,
+        });
 
       await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
@@ -2287,7 +2295,11 @@ describe('FileUseCases', () => {
 
       jest
         .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
+        .mockResolvedValueOnce({
+          files: mockFiles,
+          hasMore: false,
+          lastRowCursorUpdatedAt: null,
+        });
 
       await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
@@ -2345,11 +2357,18 @@ describe('FileUseCases', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('When hasMore is true, then it should return an encoded nextCursor built from the last file', async () => {
+    it('When hasMore is true, then it should return an encoded nextCursor built from the raw microsecond-precision timestamp', async () => {
       const lastFile = mockFiles[mockFiles.length - 1];
+      // Full-precision string returned by the repository's `to_char` read — must be
+      // used as-is, not `lastFile.updatedAt.toISOString()` (which is ms-truncated).
+      const microsecondPreciseUpdatedAt = '2026-01-01T10:00:00.123456Z';
       jest
         .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce({ files: mockFiles, hasMore: true });
+        .mockResolvedValueOnce({
+          files: mockFiles,
+          hasMore: true,
+          lastRowCursorUpdatedAt: microsecondPreciseUpdatedAt,
+        });
 
       const result = await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
@@ -2364,15 +2383,39 @@ describe('FileUseCases', () => {
         Buffer.from(result.nextCursor, 'base64').toString('utf-8'),
       );
       expect(decoded).toEqual({
-        updatedAt: lastFile.updatedAt.toISOString(),
+        updatedAt: microsecondPreciseUpdatedAt,
         uuid: lastFile.uuid,
       });
+    });
+
+    it('When hasMore is true but lastRowCursorUpdatedAt is null, then nextCursor should be null', async () => {
+      jest
+        .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({
+          files: mockFiles,
+          hasMore: true,
+          lastRowCursorUpdatedAt: null,
+        });
+
+      const result = await service.getFilesUpdatedAfterWithCursor(
+        userIdForSync,
+        undefined,
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(result.nextCursor).toBeNull();
     });
 
     it('When hasMore is false, then nextCursor should be null', async () => {
       jest
         .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
+        .mockResolvedValueOnce({
+          files: mockFiles,
+          hasMore: false,
+          lastRowCursorUpdatedAt: null,
+        });
 
       const result = await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
@@ -2388,7 +2431,11 @@ describe('FileUseCases', () => {
     it('When hasMore is true but there are no files, then nextCursor should be null', async () => {
       jest
         .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce({ files: [], hasMore: true });
+        .mockResolvedValueOnce({
+          files: [],
+          hasMore: true,
+          lastRowCursorUpdatedAt: null,
+        });
 
       const result = await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,
@@ -2404,7 +2451,11 @@ describe('FileUseCases', () => {
     it('When files are returned, then it should map them through toJSON', async () => {
       jest
         .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce({ files: mockFiles, hasMore: false });
+        .mockResolvedValueOnce({
+          files: mockFiles,
+          hasMore: false,
+          lastRowCursorUpdatedAt: null,
+        });
 
       const result = await service.getFilesUpdatedAfterWithCursor(
         userIdForSync,

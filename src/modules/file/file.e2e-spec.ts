@@ -366,4 +366,78 @@ describe('File module', () => {
       });
     });
   });
+
+  describe('Cursor sync microsecond precision', () => {
+    let createdFiles: File[];
+
+    beforeEach(async () => {
+      createdFiles = [];
+    });
+
+    afterEach(async () => {
+      if (createdFiles.length > 0) {
+        await fileModel.destroy({
+          where: { id: { [Op.in]: createdFiles.map((f) => f.id) } },
+        });
+        createdFiles = [];
+      }
+    });
+
+    const createTestFile = async () => {
+      const fileAttributes = newFile({
+        attributes: {
+          folderId: testUser.rootFolder?.id,
+          folderUuid: testUser.rootFolder?.uuid,
+          userId: testUser.user.id,
+          status: FileStatus.EXISTS,
+        },
+      });
+      const file = await fileRepository.create(fileAttributes);
+      createdFiles.push(file);
+      return file;
+    };
+
+    // Sequelize can't bind microsecond-precision values through normal
+    // create()/update() calls, so force them with a raw UPDATE.
+    const setUpdatedAt = (uuid: string, isoWithMicroseconds: string) =>
+      fileModel.sequelize.query(
+        'UPDATE files SET updated_at = :updatedAt WHERE uuid = :uuid',
+        { replacements: { updatedAt: isoWithMicroseconds, uuid } },
+      );
+
+    it('When two files share the same updated_at millisecond but differ in microseconds, then paginating by cursor should not repeat or skip either row', async () => {
+      const fileA = await createTestFile();
+      const fileB = await createTestFile();
+
+      await setUpdatedAt(fileA.uuid, '2026-01-01T10:00:00.123456Z');
+      await setUpdatedAt(fileB.uuid, '2026-01-01T10:00:00.123999Z');
+
+      const page1 = await fileRepository.findFilesWithCursorWhereUpdatedAfter({
+        where: { userId: testUser.user.id },
+        updatedAfter: new Date(0),
+        pageSize: 1,
+      });
+      expect(page1.hasMore).toBe(true);
+      expect(page1.lastRowCursorUpdatedAt).not.toBeNull();
+
+      const page2 = await fileRepository.findFilesWithCursorWhereUpdatedAfter({
+        where: { userId: testUser.user.id },
+        updatedAfter: new Date(0),
+        pageSize: 10,
+        cursor: {
+          updatedAt: page1.lastRowCursorUpdatedAt,
+          uuid: page1.files[0].uuid,
+        },
+      });
+
+      const firstPageUuid = page1.files[0].uuid;
+      const secondPageUuids = page2.files.map((f) => f.uuid);
+
+      expect(secondPageUuids).not.toContain(firstPageUuid);
+      expect(new Set([firstPageUuid, ...secondPageUuids]).size).toBe(2);
+      expect([fileA.uuid, fileB.uuid].sort()).toEqual(
+        [firstPageUuid, ...secondPageUuids].sort(),
+      );
+    });
+  });
 });
