@@ -35,6 +35,17 @@ describe('file-cursor.util', () => {
 
       expect(decodeCursor(FileUpdatedAtIdCursorDto, token)).toBeNull();
     });
+
+    it('When updatedAt carries full microsecond precision, then it should still decode successfully', () => {
+      const cursor: FileUpdatedAtIdCursorDto = {
+        updatedAt: '2026-01-01T10:00:00.123456Z',
+        uuid: v4(),
+      };
+
+      const token = encodeCursor(cursor);
+
+      expect(decodeCursor(FileUpdatedAtIdCursorDto, token)).toEqual(cursor);
+    });
   });
 
   describe('FileSyncCursorDto', () => {

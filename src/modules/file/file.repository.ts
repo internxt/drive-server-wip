@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
-import { Time } from '../../lib/time';
+import {
+  cursorTimestampTupleFilter,
+  cursorUpdatedAtAttribute,
+} from '../../common/utils/cursor-sql.util';
 import { type FileUpdatedAtIdCursorDto } from './utils/file-cursor.util';
 import { type FolderFilesCursorDto } from '../folder/dto/get-folder-content-files-cursor.dto';
 import { SortOrder } from '../../common/order.type';
@@ -142,13 +145,21 @@ export interface FileRepository {
     pageSize: number;
     userId: User['id'];
     cursor?: FileUpdatedAtIdCursorDto;
-  }): Promise<{ files: File[]; hasMore: boolean }>;
+  }): Promise<{
+    files: File[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }>;
   findFilesWithCursorWhereUpdatedAfter(params: {
     where: Partial<FileAttributes>;
     updatedAfter: Date;
     pageSize: number;
     cursor?: FileUpdatedAtIdCursorDto;
-  }): Promise<{ files: File[]; hasMore: boolean }>;
+  }): Promise<{
+    files: File[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }>;
   findFolderFilesWithCursor(params: {
     folderUuid: Folder['uuid'];
     userId: User['id'];
@@ -407,27 +418,26 @@ export class SequelizeFileRepository implements FileRepository {
     updatedAfter: Date;
     pageSize: number;
     cursor?: FileUpdatedAtIdCursorDto;
-  }): Promise<{ files: File[]; hasMore: boolean }> {
-    const cursorUpdatedAt = cursor ? Time.now(cursor.updatedAt) : null;
+  }): Promise<{
+    files: File[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }> {
+    const cursorFilter = cursor
+      ? cursorTimestampTupleFilter(cursor.updatedAt, cursor.uuid)
+      : null;
 
     const whereCondition: WhereOptions<FileAttributes> = {
       ...where,
-      ...(cursor
-        ? {
-            [Op.and]: [
-              Sequelize.literal(
-                '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
-              ),
-            ],
-          }
+      ...(cursorFilter
+        ? cursorFilter.where
         : { updatedAt: { [Op.gt]: updatedAfter } }),
     };
 
     const rows = await this.fileModel.findAll({
       where: whereCondition,
-      replacements: cursor
-        ? { cursorUpdatedAt, cursorId: cursor.uuid }
-        : undefined,
+      attributes: { include: [cursorUpdatedAtAttribute()] },
+      replacements: cursorFilter?.replacements,
       order: [
         ['updatedAt', 'ASC'],
         ['uuid', 'ASC'],
@@ -437,8 +447,15 @@ export class SequelizeFileRepository implements FileRepository {
 
     const hasMore = rows.length > pageSize;
     const page = hasMore ? rows.slice(0, pageSize) : rows;
+    const lastRow = page.at(-1);
 
-    return { files: page.map(this.toDomain.bind(this)), hasMore };
+    return {
+      files: page.map(this.toDomain.bind(this)),
+      hasMore,
+      lastRowCursorUpdatedAt: lastRow
+        ? (lastRow.get('updatedAtCursor') as string)
+        : null,
+    };
   }
 
   async findFolderFilesWithCursor({
@@ -1019,28 +1036,27 @@ export class SequelizeFileRepository implements FileRepository {
     pageSize: number;
     userId: User['id'];
     cursor?: FileUpdatedAtIdCursorDto;
-  }): Promise<{ files: File[]; hasMore: boolean }> {
-    const cursorUpdatedAt = cursor ? Time.now(cursor.updatedAt) : null;
+  }): Promise<{
+    files: File[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }> {
+    const cursorFilter = cursor
+      ? cursorTimestampTupleFilter(cursor.updatedAt, cursor.uuid)
+      : null;
 
     const where: WhereOptions<FileAttributes> = {
       folderUuid: { [Op.in]: folderUuids },
       userId,
-      ...(cursor
-        ? {
-            [Op.and]: [
-              Sequelize.literal(
-                '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
-              ),
-            ],
-          }
+      ...(cursorFilter
+        ? cursorFilter.where
         : { updatedAt: { [Op.gt]: updatedAfter } }),
     };
 
     const rows = await this.fileModel.findAll({
       where,
-      replacements: cursor
-        ? { cursorUpdatedAt, cursorId: cursor.uuid }
-        : undefined,
+      attributes: { include: [cursorUpdatedAtAttribute()] },
+      replacements: cursorFilter?.replacements,
       include: [
         {
           model: this.thumbnailModel,
@@ -1057,8 +1073,15 @@ export class SequelizeFileRepository implements FileRepository {
 
     const hasMore = rows.length > pageSize;
     const page = hasMore ? rows.slice(0, pageSize) : rows;
+    const lastRow = page.at(-1);
 
-    return { files: page.map(this.toDomain.bind(this)), hasMore };
+    return {
+      files: page.map(this.toDomain.bind(this)),
+      hasMore,
+      lastRowCursorUpdatedAt: lastRow
+        ? (lastRow.get('updatedAtCursor') as string)
+        : null,
+    };
   }
 
   async findOneBy(where: Partial<FileAttributes>): Promise<File | null> {

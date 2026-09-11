@@ -630,7 +630,7 @@ export class FileUseCases {
       filter.status = status;
     }
 
-    const { files, hasMore } =
+    const { files, hasMore, lastRowCursorUpdatedAt } =
       await this.fileRepository.findFilesWithCursorWhereUpdatedAfter({
         where: filter,
         updatedAfter,
@@ -640,9 +640,9 @@ export class FileUseCases {
 
     const lastFile = files.at(-1);
     const nextCursor =
-      hasMore && lastFile
+      hasMore && lastFile && lastRowCursorUpdatedAt
         ? encodeCursor({
-            updatedAt: lastFile.updatedAt.toISOString(),
+            updatedAt: lastRowCursorUpdatedAt,
             uuid: lastFile.uuid,
             status,
           })
