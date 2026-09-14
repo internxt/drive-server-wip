@@ -2546,9 +2546,8 @@ describe('FolderUseCases', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('When hasMore is true, then it should return an encoded nextCursor built from the raw microsecond-precision timestamp', async () => {
+    it('When hasMore is true, then it should return the nextCursor with microsecond precision', async () => {
       const lastFolder = mockFolders[mockFolders.length - 1];
-      // full precision, must be used as-is instead of the millisecond-truncated Date
       const microsecondPreciseUpdatedAt = '2026-01-01T10:00:00.123456Z';
       jest
         .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
