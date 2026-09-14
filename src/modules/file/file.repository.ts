@@ -184,7 +184,7 @@ export interface FileRepository {
     daysBack: number,
     limit: number,
     offset: number,
-    options?: { withThumbnails?: boolean },
+    options?: { withThumbnails?: boolean; bucket?: string },
   ): Promise<File[]>;
   sumFileSizeDeltaBetweenDates(
     userId: FileAttributes['userId'],
@@ -881,10 +881,10 @@ export class SequelizeFileRepository implements FileRepository {
     daysBack: number,
     limit: number,
     offset: number,
-    options: { withThumbnails?: boolean } = {},
+    options: { withThumbnails?: boolean; bucket?: string } = {},
   ): Promise<File[]> {
     const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
-    const { withThumbnails = true } = options;
+    const { withThumbnails = true, bucket } = options;
 
     const thumbnailIncludes = withThumbnails
       ? [
@@ -909,6 +909,7 @@ export class SequelizeFileRepository implements FileRepository {
         userId,
         status: FileStatus.EXISTS,
         updatedAt: { [Op.gte]: since },
+        ...(bucket && { bucket }),
       },
       include: [
         {

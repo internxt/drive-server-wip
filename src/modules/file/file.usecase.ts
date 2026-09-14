@@ -752,7 +752,7 @@ export class FileUseCases {
   }
 
   async getRecentFiles(
-    userId: UserAttributes['id'],
+    user: User,
     options?: {
       limit?: number;
       offset?: number;
@@ -760,12 +760,17 @@ export class FileUseCases {
     },
   ): Promise<File[]> {
     const { limit = 20, offset = 0, withThumbnails = true } = options ?? {};
+
+    const rootFolder = await this.folderUsecases.getFolderByIdNoDecryption(
+      user.rootFolderId,
+    );
+
     const files = await this.fileRepository.findRecent(
-      userId,
+      user.id,
       RECENT_FILES_DAYS,
       limit,
       offset,
-      { withThumbnails },
+      { withThumbnails, bucket: rootFolder?.bucket },
     );
 
     const filesModified = files.map((file) => this.addOldAttributes(file));

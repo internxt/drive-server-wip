@@ -3835,6 +3835,17 @@ describe('FileUseCases', () => {
   });
 
   describe('getRecentFiles', () => {
+    const rootFolder = newFolder({
+      owner: userMocked,
+      attributes: { id: userMocked.rootFolderId, bucket: 'root-bucket' },
+    });
+
+    beforeEach(() => {
+      jest
+        .spyOn(folderUseCases, 'getFolderByIdNoDecryption')
+        .mockResolvedValue(rootFolder);
+    });
+
     it('When called with options, then it should call findRecent with correct params', async () => {
       const file = newFile({
         owner: userMocked,
@@ -3842,7 +3853,7 @@ describe('FileUseCases', () => {
       });
       jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([file]);
 
-      const result = await service.getRecentFiles(userMocked.id, {
+      const result = await service.getRecentFiles(userMocked, {
         limit: 10,
         offset: 0,
       });
@@ -3853,35 +3864,35 @@ describe('FileUseCases', () => {
         RECENT_FILES_DAYS,
         10,
         0,
-        { withThumbnails: true },
+        { withThumbnails: true, bucket: rootFolder.bucket },
       );
     });
 
     it('When called without options, then it should use defaults', async () => {
       jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([]);
 
-      await service.getRecentFiles(userMocked.id);
+      await service.getRecentFiles(userMocked);
 
       expect(fileRepository.findRecent).toHaveBeenCalledWith(
         userMocked.id,
         RECENT_FILES_DAYS,
         20,
         0,
-        { withThumbnails: true },
+        { withThumbnails: true, bucket: rootFolder.bucket },
       );
     });
 
     it('When called with withThumbnails false, then it should pass it to repository', async () => {
       jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([]);
 
-      await service.getRecentFiles(userMocked.id, { withThumbnails: false });
+      await service.getRecentFiles(userMocked, { withThumbnails: false });
 
       expect(fileRepository.findRecent).toHaveBeenCalledWith(
         userMocked.id,
         RECENT_FILES_DAYS,
         20,
         0,
-        { withThumbnails: false },
+        { withThumbnails: false, bucket: rootFolder.bucket },
       );
     });
 
@@ -3892,7 +3903,7 @@ describe('FileUseCases', () => {
       });
       jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([file]);
 
-      const result = await service.getRecentFiles(userMocked.id, { limit: 10 });
+      const result = await service.getRecentFiles(userMocked, { limit: 10 });
 
       expect(result).toHaveLength(1);
       expect(result[0].plainName).toBe('report.pdf');
@@ -3905,7 +3916,7 @@ describe('FileUseCases', () => {
       });
       jest.spyOn(fileRepository, 'findRecent').mockResolvedValue([file]);
 
-      const result = await service.getRecentFiles(userMocked.id, { limit: 10 });
+      const result = await service.getRecentFiles(userMocked, { limit: 10 });
 
       expect(result).toHaveLength(1);
     });
