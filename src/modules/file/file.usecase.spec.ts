@@ -2359,8 +2359,7 @@ describe('FileUseCases', () => {
 
     it('When hasMore is true, then it should return an encoded nextCursor built from the raw microsecond-precision timestamp', async () => {
       const lastFile = mockFiles[mockFiles.length - 1];
-      // Full-precision string returned by the repository's `to_char` read — must be
-      // used as-is, not `lastFile.updatedAt.toISOString()` (which is ms-truncated).
+      // full precision, must be used as-is instead of the millisecond-truncated Date
       const microsecondPreciseUpdatedAt = '2026-01-01T10:00:00.123456Z';
       jest
         .spyOn(fileRepository, 'findFilesWithCursorWhereUpdatedAfter')

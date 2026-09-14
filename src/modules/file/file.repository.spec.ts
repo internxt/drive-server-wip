@@ -170,7 +170,7 @@ describe('FileRepository', () => {
       expect(result.files).toHaveLength(1);
     });
 
-    it('When a cursor is provided, then it filters by the cursor tuple (raw string, no Date roundtrip) and ignores updatedAfter', async () => {
+    it('When a cursor is provided, then it filters by the cursor tuple and ignores updatedAfter', async () => {
       const folderUuids = [v4()];
       const updatedAfter = new Date();
       const cursorUpdatedAt = '2024-01-01T00:00:00.123456Z';
@@ -275,7 +275,7 @@ describe('FileRepository', () => {
       expect(result.files).toHaveLength(1);
     });
 
-    it('When a cursor is provided, then it filters by the cursor tuple (raw string, no Date roundtrip) and ignores updatedAfter', async () => {
+    it('When a cursor is provided, then it filters by the cursor tuple and ignores updatedAfter', async () => {
       const where = { userId: user.id };
       const updatedAfter = new Date();
       const cursorUpdatedAt = '2024-01-01T00:00:00.123456Z';
@@ -1308,7 +1308,12 @@ describe('FileRepository', () => {
     it('When recent files are found, then it should return them', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValue([model]);
 
-      const result = await repository.findRecent(user.id, RECENT_FILES_DAYS_BACK, 10, 0);
+      const result = await repository.findRecent(
+        user.id,
+        RECENT_FILES_DAYS_BACK,
+        10,
+        0,
+      );
 
       expect(fileModel.findAll).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1327,7 +1332,12 @@ describe('FileRepository', () => {
     it('When no recent files are found, then it should return empty array', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
 
-      const result = await repository.findRecent(user.id, RECENT_FILES_DAYS_BACK, 10, 0);
+      const result = await repository.findRecent(
+        user.id,
+        RECENT_FILES_DAYS_BACK,
+        10,
+        0,
+      );
 
       expect(fileModel.findAll).toHaveBeenCalledTimes(1);
       expect(result).toEqual([]);
@@ -1336,7 +1346,9 @@ describe('FileRepository', () => {
     it('When thumbnails are excluded, then it should not include thumbnail models', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
 
-      await repository.findRecent(user.id, RECENT_FILES_DAYS_BACK, 10, 0, { withThumbnails: false });
+      await repository.findRecent(user.id, RECENT_FILES_DAYS_BACK, 10, 0, {
+        withThumbnails: false,
+      });
 
       expect(fileModel.findAll).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1351,7 +1363,9 @@ describe('FileRepository', () => {
       const DRIVE_BUCKET = 'drive-bucket';
       jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
 
-      await repository.findRecent(user.id, RECENT_FILES_DAYS_BACK, 10, 0, { bucket: DRIVE_BUCKET });
+      await repository.findRecent(user.id, RECENT_FILES_DAYS_BACK, 10, 0, {
+        bucket: DRIVE_BUCKET,
+      });
 
       expect(fileModel.findAll).toHaveBeenCalledWith(
         expect.objectContaining({

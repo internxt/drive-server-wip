@@ -31,8 +31,11 @@ import {
   FavoriteItemType,
   type FavoriteAttributes,
 } from '../favorite/favorite.domain';
-import { Time } from '../../lib/time';
 import { type FolderUpdatedAtIdCursorDto } from './utils/folder-cursor.util';
+import {
+  cursorTimestampTupleFilter,
+  cursorUpdatedAtAttribute,
+} from '../../common/utils/cursor-sql.util';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -120,7 +123,11 @@ interface FolderRepository {
     updatedAfter: Date;
     pageSize: number;
     cursor?: FolderUpdatedAtIdCursorDto;
-  }): Promise<{ folders: Folder[]; hasMore: boolean }>;
+  }): Promise<{
+    folders: Folder[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }>;
   updateByFolderId(
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
@@ -966,28 +973,27 @@ export class SequelizeFolderRepository implements FolderRepository {
     updatedAfter: Date;
     pageSize: number;
     cursor?: FolderUpdatedAtIdCursorDto;
-  }): Promise<{ folders: Folder[]; hasMore: boolean }> {
-    const cursorUpdatedAt = cursor ? Time.now(cursor.updatedAt) : null;
+  }): Promise<{
+    folders: Folder[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }> {
+    const cursorFilter = cursor
+      ? cursorTimestampTupleFilter(cursor.updatedAt, cursor.uuid)
+      : null;
 
     const whereCondition: WhereOptions<FolderAttributes> = {
       ...where,
       parentUuid: { [Op.not]: null },
-      ...(cursor
-        ? {
-            [Op.and]: [
-              Sequelize.literal(
-                '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
-              ),
-            ],
-          }
+      ...(cursorFilter
+        ? cursorFilter.where
         : { updatedAt: { [Op.gt]: updatedAfter } }),
     };
 
     const rows = await this.folderModel.findAll({
       where: whereCondition,
-      replacements: cursor
-        ? { cursorUpdatedAt, cursorId: cursor.uuid }
-        : undefined,
+      attributes: { include: [cursorUpdatedAtAttribute()] },
+      replacements: cursorFilter?.replacements,
       order: [
         ['updatedAt', 'ASC'],
         ['uuid', 'ASC'],
@@ -997,8 +1003,15 @@ export class SequelizeFolderRepository implements FolderRepository {
 
     const hasMore = rows.length > pageSize;
     const page = hasMore ? rows.slice(0, pageSize) : rows;
+    const lastRow = page.at(-1);
 
-    return { folders: page.map((f) => this.toDomain(f)), hasMore };
+    return {
+      folders: page.map((f) => this.toDomain(f)),
+      hasMore,
+      lastRowCursorUpdatedAt: lastRow
+        ? (lastRow.get('updatedAtCursor') as string)
+        : null,
+    };
   }
 
   async findAllCursorInWorkspaceWhereUpdatedAfter(

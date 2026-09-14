@@ -724,7 +724,7 @@ export class FolderUseCases {
       ...(status ? Folder.getFilterByStatus(status) : {}),
     };
 
-    const { folders, hasMore } =
+    const { folders, hasMore, lastRowCursorUpdatedAt } =
       await this.folderRepository.findFoldersWithCursorWhereUpdatedAfter({
         where: filter,
         updatedAfter,
@@ -734,9 +734,9 @@ export class FolderUseCases {
 
     const lastFolder = folders.at(-1);
     const nextCursor =
-      hasMore && lastFolder
+      hasMore && lastFolder && lastRowCursorUpdatedAt
         ? encodeCursor({
-            updatedAt: lastFolder.updatedAt.toISOString(),
+            updatedAt: lastRowCursorUpdatedAt,
             uuid: lastFolder.uuid,
             status,
           })
