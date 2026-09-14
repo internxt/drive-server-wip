@@ -367,7 +367,8 @@ describe('File module', () => {
     });
   });
 
-  describe('Cursor sync microsecond precision', () => {
+  // GET /files/sync
+  describe('Cursor sync', () => {
     let createdFiles: File[];
 
     beforeEach(async () => {
@@ -397,15 +398,13 @@ describe('File module', () => {
       return file;
     };
 
-    // Sequelize can't bind microsecond-precision values through normal
-    // create()/update() calls, so force them with a raw UPDATE.
     const setUpdatedAt = (uuid: string, isoWithMicroseconds: string) =>
       fileModel.sequelize.query(
         'UPDATE files SET updated_at = :updatedAt WHERE uuid = :uuid',
         { replacements: { updatedAt: isoWithMicroseconds, uuid } },
       );
 
-    it('When two files share the same updated_at millisecond but differ in microseconds, then paginating by cursor should not repeat or skip either row', async () => {
+    it('When paginating by cursor, then it should not repeat or skip rows', async () => {
       const fileA = await createTestFile();
       const fileB = await createTestFile();
 
