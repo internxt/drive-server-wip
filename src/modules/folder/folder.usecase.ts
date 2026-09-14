@@ -17,6 +17,7 @@ import { type UserAttributes } from '../user/user.attributes';
 import { SequelizeUserRepository } from '../user/user.repository';
 import {
   Folder,
+  FolderStatus,
   type FolderOptions,
   type SortableFolderAttributes,
 } from './folder.domain';
@@ -36,6 +37,8 @@ import { type MoveFolderDto } from './dto/move-folder.dto';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { FavoriteUseCases } from '../favorite/favorite.usecase';
 import { FavoriteItemType } from '../favorite/favorite.domain';
+import { encodeCursor, decodeCursor } from '../../common/utils/cursor.util';
+import { FolderSyncCursorDto } from './utils/folder-cursor.util';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -691,6 +694,55 @@ export class FolderUseCases {
       options.offset,
       additionalOrders,
     );
+  }
+
+  async getFoldersUpdatedAfterWithCursor(
+    userId: UserAttributes['id'],
+    status: FolderStatus | undefined,
+    updatedAfter: Date,
+    pageSize: number,
+    cursorToken: string | undefined,
+  ): Promise<{
+    folders: Folder[];
+    hasMore: boolean;
+    nextCursor: string | null;
+  }> {
+    const cursor = cursorToken
+      ? decodeCursor(FolderSyncCursorDto, cursorToken)
+      : undefined;
+
+    if (cursorToken && !cursor) {
+      throw new BadRequestException('Invalid cursor');
+    }
+
+    if (cursor && cursor.status !== status) {
+      throw new BadRequestException('Cursor does not match status filter');
+    }
+
+    const filter: Partial<FolderAttributes> = {
+      userId,
+      ...(status ? Folder.getFilterByStatus(status) : {}),
+    };
+
+    const { folders, hasMore } =
+      await this.folderRepository.findFoldersWithCursorWhereUpdatedAfter({
+        where: filter,
+        updatedAfter,
+        pageSize,
+        cursor,
+      });
+
+    const lastFolder = folders.at(-1);
+    const nextCursor =
+      hasMore && lastFolder
+        ? encodeCursor({
+            updatedAt: lastFolder.updatedAt.toISOString(),
+            uuid: lastFolder.uuid,
+            status,
+          })
+        : null;
+
+    return { folders, hasMore, nextCursor };
   }
 
   getWorkspacesFoldersUpdatedAfter(
