@@ -2422,7 +2422,11 @@ describe('FolderUseCases', () => {
     it('When status is provided, then it should filter the repository query by its deleted/removed mapping', async () => {
       jest
         .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce({ folders: mockFolders, hasMore: false });
+        .mockResolvedValueOnce({
+          folders: mockFolders,
+          hasMore: false,
+          lastRowCursorUpdatedAt: null,
+        });
 
       await service.getFoldersUpdatedAfterWithCursor(
         userIdForSync,
@@ -2445,7 +2449,11 @@ describe('FolderUseCases', () => {
     it('When status is not provided, then it should not filter the repository query by status', async () => {
       jest
         .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce({ folders: mockFolders, hasMore: false });
+        .mockResolvedValueOnce({
+          folders: mockFolders,
+          hasMore: false,
+          lastRowCursorUpdatedAt: null,
+        });
 
       await service.getFoldersUpdatedAfterWithCursor(
         userIdForSync,
@@ -2476,7 +2484,11 @@ describe('FolderUseCases', () => {
 
       jest
         .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce({ folders: mockFolders, hasMore: false });
+        .mockResolvedValueOnce({
+          folders: mockFolders,
+          hasMore: false,
+          lastRowCursorUpdatedAt: null,
+        });
 
       await service.getFoldersUpdatedAfterWithCursor(
         userIdForSync,
@@ -2534,11 +2546,16 @@ describe('FolderUseCases', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('When hasMore is true, then it should return an encoded nextCursor built from the last folder', async () => {
+    it('When hasMore is true, then it should return the nextCursor with microsecond precision', async () => {
       const lastFolder = mockFolders[mockFolders.length - 1];
+      const microsecondPreciseUpdatedAt = '2026-01-01T10:00:00.123456Z';
       jest
         .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce({ folders: mockFolders, hasMore: true });
+        .mockResolvedValueOnce({
+          folders: mockFolders,
+          hasMore: true,
+          lastRowCursorUpdatedAt: microsecondPreciseUpdatedAt,
+        });
 
       const result = await service.getFoldersUpdatedAfterWithCursor(
         userIdForSync,
@@ -2553,15 +2570,39 @@ describe('FolderUseCases', () => {
         Buffer.from(result.nextCursor, 'base64').toString('utf-8'),
       );
       expect(decoded).toEqual({
-        updatedAt: lastFolder.updatedAt.toISOString(),
+        updatedAt: microsecondPreciseUpdatedAt,
         uuid: lastFolder.uuid,
       });
+    });
+
+    it('When hasMore is true but lastRowCursorUpdatedAt is null, then nextCursor should be null', async () => {
+      jest
+        .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({
+          folders: mockFolders,
+          hasMore: true,
+          lastRowCursorUpdatedAt: null,
+        });
+
+      const result = await service.getFoldersUpdatedAfterWithCursor(
+        userIdForSync,
+        undefined,
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(result.nextCursor).toBeNull();
     });
 
     it('When hasMore is false, then nextCursor should be null', async () => {
       jest
         .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce({ folders: mockFolders, hasMore: false });
+        .mockResolvedValueOnce({
+          folders: mockFolders,
+          hasMore: false,
+          lastRowCursorUpdatedAt: null,
+        });
 
       const result = await service.getFoldersUpdatedAfterWithCursor(
         userIdForSync,
@@ -2577,7 +2618,11 @@ describe('FolderUseCases', () => {
     it('When hasMore is true but there are no folders, then nextCursor should be null', async () => {
       jest
         .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce({ folders: [], hasMore: true });
+        .mockResolvedValueOnce({
+          folders: [],
+          hasMore: true,
+          lastRowCursorUpdatedAt: null,
+        });
 
       const result = await service.getFoldersUpdatedAfterWithCursor(
         userIdForSync,
@@ -2593,7 +2638,11 @@ describe('FolderUseCases', () => {
     it('When folders are returned, then it should return them as-is', async () => {
       jest
         .spyOn(folderRepository, 'findFoldersWithCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce({ folders: mockFolders, hasMore: false });
+        .mockResolvedValueOnce({
+          folders: mockFolders,
+          hasMore: false,
+          lastRowCursorUpdatedAt: null,
+        });
 
       const result = await service.getFoldersUpdatedAfterWithCursor(
         userIdForSync,
