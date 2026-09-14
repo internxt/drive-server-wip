@@ -492,7 +492,7 @@ export class FileController {
       );
     }
 
-    const files = this.fileUseCases.getRecentFiles(user, {
+    const files = this.fileUseCases.getRecentFiles(user.id, {
       limit,
       offset: 0,
     });
