@@ -6,7 +6,7 @@ import { Folder } from './folder.domain';
 import { type FolderAttributes } from './folder.attributes';
 import { newFolder, newUser } from '../../../test/fixtures';
 import { FileStatus } from '../file/file.domain';
-import { Op, QueryTypes } from 'sequelize';
+import { Op, QueryTypes, Sequelize } from 'sequelize';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { WorkspaceItemType } from '../workspaces/attributes/workspace-items-users.attributes';
 import { UserModel } from '../user/user.model';
@@ -14,6 +14,7 @@ import { SharingModel } from '../sharing/models';
 import { v4 } from 'uuid';
 import { randomInt } from 'crypto';
 import { Time } from '../../lib/time';
+import { SortOrder } from '../../common/order.type';
 
 jest.mock('../../lib/query-timeout', () => ({
   withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
@@ -125,7 +126,7 @@ describe('SequelizeFolderRepository', () => {
     const parentUuid = v4();
     const plainNames = ['Document', 'Image'];
 
-    it('When folders are searched with names, then it should handle the call with names', async () => {
+    it('When folders are searched with names, then it should filter by the collated plain_name', async () => {
       await repository.findByParentUuid(parentUuid, {
         plainName: plainNames,
         deleted: false,
@@ -135,14 +136,19 @@ describe('SequelizeFolderRepository', () => {
       expect(folderModel.findAll).toHaveBeenCalledWith({
         where: {
           parentUuid,
-          plainName: { [Op.in]: plainNames },
           deleted: false,
           removed: false,
+          [Op.and]: [
+            Sequelize.literal(
+              '"FolderModel"."plain_name" COLLATE "custom_numeric" IN (:plainNames)',
+            ),
+          ],
         },
+        replacements: { plainNames },
       });
     });
 
-    it('When called without specific criteria, then it should handle the call', async () => {
+    it('When called without specific criteria, then it should handle the call without a plain_name condition', async () => {
       await repository.findByParentUuid(parentUuid, {
         plainName: [],
         deleted: false,
@@ -155,6 +161,7 @@ describe('SequelizeFolderRepository', () => {
           deleted: false,
           removed: false,
         },
+        replacements: undefined,
       });
     });
   });
@@ -758,6 +765,146 @@ describe('SequelizeFolderRepository', () => {
       const result = await repository.findUserFoldersByUuid(user, folderUuids);
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('findFolderSubfoldersWithCursor', () => {
+    const parentUuid = newFolder().uuid;
+    const userId = newUser().id;
+
+    it('When called without a cursor sorted by plainName ASC, then it filters by parent/user/status and orders with collation', async () => {
+      const subfolder = newFolder();
+
+      jest
+        .spyOn(folderModel, 'findAll')
+        .mockResolvedValueOnce([subfolder] as any);
+
+      const result = await repository.findFolderSubfoldersWithCursor({
+        parentUuid,
+        userId,
+        order: SortOrder.ASC,
+        pageSize: 1000,
+      });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            parentUuid,
+            userId,
+            deleted: false,
+            removed: false,
+          },
+          replacements: undefined,
+          include: [],
+          subQuery: false,
+          order: [
+            Sequelize.literal(
+              '"FolderModel"."plain_name" COLLATE "custom_numeric" ASC',
+            ),
+            ['uuid', 'ASC'],
+          ],
+          limit: 1001,
+        }),
+      );
+      expect(result).toEqual({ folders: expect.any(Array), hasMore: false });
+    });
+
+    it('When sharings are not requested, then it does not include them', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findFolderSubfoldersWithCursor({
+        parentUuid,
+        userId,
+        order: SortOrder.ASC,
+        pageSize: 1000,
+      });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ include: [] }),
+      );
+    });
+
+    it('When sharings are requested, then it includes them', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findFolderSubfoldersWithCursor({
+        parentUuid,
+        userId,
+        order: SortOrder.ASC,
+        pageSize: 1000,
+        options: { withSharings: true },
+      });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: [
+            expect.objectContaining({
+              model: SharingModel,
+              attributes: ['type', 'id'],
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('When there is one more row than the page size, then hasMore is true and the extra row is dropped', async () => {
+      const subfolders = [newFolder(), newFolder()];
+
+      jest
+        .spyOn(folderModel, 'findAll')
+        .mockResolvedValueOnce(subfolders as any);
+
+      const result = await repository.findFolderSubfoldersWithCursor({
+        parentUuid,
+        userId,
+        order: SortOrder.ASC,
+        pageSize: 1,
+      });
+
+      expect(result.hasMore).toBe(true);
+      expect(result.folders).toHaveLength(1);
+    });
+
+    it('When a plainName cursor is provided, then it filters by the collated tuple comparator', async () => {
+      const cursorUuid = v4();
+
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findFolderSubfoldersWithCursor({
+        parentUuid,
+        userId,
+        order: SortOrder.ASC,
+        pageSize: 1000,
+        cursor: {
+          lastUuid: cursorUuid,
+          order: SortOrder.ASC,
+          lastValue: 'folder-b',
+        },
+      });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            parentUuid,
+            userId,
+            deleted: false,
+            removed: false,
+            [Op.and]: [
+              Sequelize.literal(
+                '("FolderModel"."plain_name" COLLATE "custom_numeric", "FolderModel"."uuid") > (:cursorValue, :cursorUuid)',
+              ),
+            ],
+          },
+          replacements: { cursorValue: 'folder-b', cursorUuid },
+          order: [
+            Sequelize.literal(
+              '"FolderModel"."plain_name" COLLATE "custom_numeric" ASC',
+            ),
+            ['uuid', 'ASC'],
+          ],
+          limit: 1001,
+        }),
+      );
     });
   });
 
