@@ -1248,6 +1248,7 @@ describe('FileRepository', () => {
   });
 
   describe('findRecent', () => {
+    const RECENT_FILES_DAYS_BACK = 7;
     const mockFile = newFile();
     const toJson = {
       id: mockFile.id,
@@ -1270,14 +1271,14 @@ describe('FileRepository', () => {
     it('When recent files are found, then it should return them', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValue([model]);
 
-      const result = await repository.findRecent(1, 7, 10, 0);
+      const result = await repository.findRecent(user.id, RECENT_FILES_DAYS_BACK, 10, 0);
 
       expect(fileModel.findAll).toHaveBeenCalledWith(
         expect.objectContaining({
           limit: 10,
           offset: 0,
           where: expect.objectContaining({
-            userId: 1,
+            userId: user.id,
             status: FileStatus.EXISTS,
           }),
           order: [['updatedAt', 'DESC']],
@@ -1289,7 +1290,7 @@ describe('FileRepository', () => {
     it('When no recent files are found, then it should return empty array', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
 
-      const result = await repository.findRecent(1, 7, 10, 0);
+      const result = await repository.findRecent(user.id, RECENT_FILES_DAYS_BACK, 10, 0);
 
       expect(fileModel.findAll).toHaveBeenCalledTimes(1);
       expect(result).toEqual([]);
@@ -1298,7 +1299,7 @@ describe('FileRepository', () => {
     it('When thumbnails are excluded, then it should not include thumbnail models', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
 
-      await repository.findRecent(1, 7, 10, 0, { withThumbnails: false });
+      await repository.findRecent(user.id, RECENT_FILES_DAYS_BACK, 10, 0, { withThumbnails: false });
 
       expect(fileModel.findAll).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1307,6 +1308,32 @@ describe('FileRepository', () => {
           ]),
         }),
       );
+    });
+
+    it('When bucket is provided, then it should filter by bucket', async () => {
+      const DRIVE_BUCKET = 'drive-bucket';
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findRecent(user.id, RECENT_FILES_DAYS_BACK, 10, 0, { bucket: DRIVE_BUCKET });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: user.id,
+            status: FileStatus.EXISTS,
+            bucket: DRIVE_BUCKET,
+          }),
+        }),
+      );
+    });
+
+    it('When bucket is not provided, then it should not filter by bucket', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findRecent(user.id, RECENT_FILES_DAYS_BACK, 10, 0);
+
+      const whereArg = (fileModel.findAll as jest.Mock).mock.calls[0][0].where;
+      expect(whereArg).not.toHaveProperty('bucket');
     });
   });
 

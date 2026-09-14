@@ -134,7 +134,7 @@ describe('FileController', () => {
 
       const result = await fileController.getRecentFiles(userMocked, limit);
       expect(result).toEqual(files);
-      expect(fileUseCases.getRecentFiles).toHaveBeenCalledWith(userMocked.id, {
+      expect(fileUseCases.getRecentFiles).toHaveBeenCalledWith(userMocked, {
         limit,
         offset: 0,
       });
@@ -150,7 +150,7 @@ describe('FileController', () => {
 
       fileController.getRecentFiles(userMocked);
 
-      expect(fileUseCases.getRecentFiles).toHaveBeenCalledWith(userMocked.id, {
+      expect(fileUseCases.getRecentFiles).toHaveBeenCalledWith(userMocked, {
         limit: API_LIMITS.FILES.GET.LIMIT.UPPER_BOUND,
         offset: 0,
       });
@@ -812,9 +812,7 @@ describe('FileController', () => {
 
       await fileController.getFilesSync(userMocked, query as any);
 
-      expect(
-        fileUseCases.getFilesUpdatedAfterWithCursor,
-      ).toHaveBeenCalledWith(
+      expect(fileUseCases.getFilesUpdatedAfterWithCursor).toHaveBeenCalledWith(
         userMocked.id,
         query.status,
         new Date(query.updatedAt),
@@ -835,9 +833,7 @@ describe('FileController', () => {
 
       await fileController.getFilesSync(userMocked, query as any);
 
-      expect(
-        fileUseCases.getFilesUpdatedAfterWithCursor,
-      ).toHaveBeenCalledWith(
+      expect(fileUseCases.getFilesUpdatedAfterWithCursor).toHaveBeenCalledWith(
         userMocked.id,
         query.status,
         new Date(1),
@@ -858,9 +854,7 @@ describe('FileController', () => {
 
       await fileController.getFilesSync(userMocked, query as any);
 
-      expect(
-        fileUseCases.getFilesUpdatedAfterWithCursor,
-      ).toHaveBeenCalledWith(
+      expect(fileUseCases.getFilesUpdatedAfterWithCursor).toHaveBeenCalledWith(
         userMocked.id,
         query.status,
         expect.any(Date),
