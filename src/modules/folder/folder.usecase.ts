@@ -382,6 +382,7 @@ export class FolderUseCases {
       parentUuid: parentFolder.uuid,
       plainName: newFolderDto.plainName,
       deleted: false,
+      removed: false,
     });
 
     if (nameAlreadyInUse) {
