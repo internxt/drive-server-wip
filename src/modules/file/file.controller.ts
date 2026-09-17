@@ -518,29 +518,11 @@ export class FileController {
       throw new BadRequestException('Path is too deep');
     }
 
-    try {
-      const file = await this.fileUseCases.getFileMetadataByPath(
-        user,
-        filePath,
-      );
-      if (!file) {
-        throw new NotFoundException('File not found');
-      }
-      return file;
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-
-      const { email, uuid } = user;
-      const err = error as Error;
-
-      new Logger().error(
-        `[FILE/METADATABYPATH] ERROR: ${err.message}, CONTEXT ${JSON.stringify({
-          user: { email, uuid },
-        })} STACK: ${err.stack || 'NO STACK'}`,
-      );
+    const file = await this.fileUseCases.getFileMetadataByPath(user, filePath);
+    if (!file) {
+      throw new NotFoundException('File not found');
     }
+    return file;
   }
 
   @Post('/thumbnail')
