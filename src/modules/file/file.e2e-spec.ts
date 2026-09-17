@@ -1,8 +1,13 @@
 import { type NestExpressApplication } from '@nestjs/platform-express';
-import { BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  type ArgumentsHost,
+} from '@nestjs/common';
+import { createMock } from '@golevelup/ts-jest';
 import { getModelToken } from '@nestjs/sequelize';
 import { v4 } from 'uuid';
-import { Op } from 'sequelize';
+import { Op, UniqueConstraintError } from 'sequelize';
 
 import {
   createTestUser,
@@ -17,6 +22,7 @@ import { FileModel } from './file.model';
 import { newFile } from '../../../test/fixtures';
 import { Time } from '../../lib/time';
 import { type File, FileStatus } from './file.domain';
+import { UniqueConstraintFilter } from '../../common/filters/unique-constraint.filter';
 
 describe('File module', () => {
   let app: NestExpressApplication;
@@ -522,6 +528,45 @@ describe('File module', () => {
       expect(page.files).toHaveLength(0);
       expect(page.hasMore).toBe(false);
       expect(page.nextCursor).toBeNull();
+    });
+  });
+
+  describe('File unique constraint', () => {
+    it('When a file with a duplicated name is inserted, then the violated constraint is mapped to a conflict', async () => {
+      const fileAttributes = newFile({
+        attributes: {
+          folderId: testUser.rootFolder?.id,
+          folderUuid: testUser.rootFolder?.uuid,
+          userId: testUser.user.id,
+          status: FileStatus.EXISTS,
+        },
+      });
+      await fileRepository.create(fileAttributes);
+
+      const duplicatedFile = newFile({
+        attributes: {
+          plainName: fileAttributes.plainName,
+          type: fileAttributes.type,
+          folderId: testUser.rootFolder?.id,
+          folderUuid: testUser.rootFolder?.uuid,
+          userId: testUser.user.id,
+          status: FileStatus.EXISTS,
+        },
+      });
+
+      const error = await fileRepository
+        .create(duplicatedFile)
+        .then(() => null)
+        .catch((err) => err);
+
+      expect(error).toBeInstanceOf(UniqueConstraintError);
+      expect(() =>
+        new UniqueConstraintFilter().catch(error, createMock<ArgumentsHost>()),
+      ).toThrow(
+        new ConflictException(
+          'A file with this name already exists in this location',
+        ),
+      );
     });
   });
 });

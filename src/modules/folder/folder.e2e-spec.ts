@@ -1,4 +1,10 @@
-import { HttpStatus } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpStatus,
+  type ArgumentsHost,
+} from '@nestjs/common';
+import { createMock } from '@golevelup/ts-jest';
+import { UniqueConstraintError } from 'sequelize';
 import { type NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 
@@ -14,6 +20,7 @@ import {
 } from '../../../test/helpers/user.helper';
 import { createTestApp } from '../../../test/helpers/test-app.helper';
 import { AesService } from '../../externals/crypto/aes';
+import { UniqueConstraintFilter } from '../../common/filters/unique-constraint.filter';
 
 describe('Folder module', () => {
   let app: NestExpressApplication;
@@ -56,7 +63,7 @@ describe('Folder module', () => {
       createFolderDto.plainName = folderName;
       createFolderDto.parentFolderUuid = folderUuid;
 
-      const response = await makeRequest('post', `/folders/`)
+      const response = await makeRequest('post', '/folders/')
         .send(createFolderDto)
         .expect(HttpStatus.CREATED);
       expect(response.body).toMatchObject({
@@ -73,7 +80,7 @@ describe('Folder module', () => {
       createFolderDto.plainName = folderName;
       createFolderDto.parentFolderUuid = anotherTestUser.rootFolder.uuid;
 
-      await makeRequest('post', `/folders/`)
+      await makeRequest('post', '/folders/')
         .send(createFolderDto)
         .expect(HttpStatus.NOT_FOUND);
     });
@@ -176,6 +183,43 @@ describe('Folder module', () => {
 
       expect(response.body).toHaveProperty('folders');
       expect(response.body.folders.length).toBe(1);
+    });
+  });
+
+  describe('Folder unique constraint', () => {
+    it('When a folder with a duplicated name is inserted, then the violated constraint is mapped to a conflict', async () => {
+      const folderAttributes = newFolder({
+        attributes: {
+          parentId: testUser.rootFolder?.id,
+          parentUuid: testUser.rootFolder?.uuid,
+          userId: testUser.user.id,
+        },
+      });
+      await folderRepository.createWithAttributes(folderAttributes);
+
+      const duplicatedFolder = newFolder({
+        attributes: {
+          name: folderAttributes.name,
+          plainName: folderAttributes.plainName,
+          parentId: testUser.rootFolder?.id,
+          parentUuid: testUser.rootFolder?.uuid,
+          userId: testUser.user.id,
+        },
+      });
+
+      const error = await folderRepository
+        .createWithAttributes(duplicatedFolder)
+        .then(() => null)
+        .catch((err) => err);
+
+      expect(error).toBeInstanceOf(UniqueConstraintError);
+      expect(() =>
+        new UniqueConstraintFilter().catch(error, createMock<ArgumentsHost>()),
+      ).toThrow(
+        new ConflictException(
+          'A folder with this name already exists in this location',
+        ),
+      );
     });
   });
 });
