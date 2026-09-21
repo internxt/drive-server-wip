@@ -33,6 +33,11 @@ import {
 } from '../favorite/favorite.domain';
 import { SortOrder } from '../../common/order.type';
 import { type FolderFoldersCursorDto } from './dto/get-folder-content-folders-cursor.dto';
+import { type FolderUpdatedAtIdCursorDto } from './utils/folder-cursor.util';
+import {
+  cursorTimestampTupleFilter,
+  cursorUpdatedAtAttribute,
+} from '../../common/utils/cursor-sql.util';
 
 function mapSnakeCaseToCamelCase(data) {
   const camelCasedObject = {};
@@ -115,6 +120,16 @@ interface FolderRepository {
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
   ): Promise<Array<Folder> | []>;
+  findFoldersWithCursorWhereUpdatedAfter(params: {
+    where: Partial<FolderAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FolderUpdatedAtIdCursorDto;
+  }): Promise<{
+    folders: Folder[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }>;
   updateByFolderId(
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
@@ -1048,6 +1063,57 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
 
     return folders.map((folder) => this.toDomain(folder));
+  }
+
+  async findFoldersWithCursorWhereUpdatedAfter({
+    where,
+    updatedAfter,
+    pageSize,
+    cursor,
+  }: {
+    where: Partial<FolderAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FolderUpdatedAtIdCursorDto;
+  }): Promise<{
+    folders: Folder[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }> {
+    const cursorFilter = cursor
+      ? cursorTimestampTupleFilter(cursor.updatedAt, cursor.uuid)
+      : null;
+
+    const whereCondition: WhereOptions<FolderAttributes> = {
+      ...where,
+      parentUuid: { [Op.not]: null },
+      ...(cursorFilter
+        ? cursorFilter.where
+        : { updatedAt: { [Op.gt]: updatedAfter } }),
+    };
+
+    const rows = await this.folderModel.findAll({
+      where: whereCondition,
+      attributes: { include: [cursorUpdatedAtAttribute()] },
+      replacements: cursorFilter?.replacements,
+      order: [
+        ['updatedAt', 'ASC'],
+        ['uuid', 'ASC'],
+      ],
+      limit: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+    const lastRow = page.at(-1);
+
+    return {
+      folders: page.map((f) => this.toDomain(f)),
+      hasMore,
+      lastRowCursorUpdatedAt: lastRow
+        ? (lastRow.get('updatedAtCursor') as string)
+        : null,
+    };
   }
 
   async findAllCursorInWorkspaceWhereUpdatedAfter(

@@ -48,6 +48,8 @@ export const AUDIT_ENTITY_ACTIONS: Record<AuditEntityType, AuditAction[]> = {
     AuditAction.AccountReset,
     AuditAction.AccountRecovery,
     AuditAction.AccountDeactivated,
+    AuditAction.UserLimitOverridden,
+    AuditAction.EmptyTrashRequested,
   ],
   [AuditEntityType.Workspace]: [
     AuditAction.WorkspaceCreated,

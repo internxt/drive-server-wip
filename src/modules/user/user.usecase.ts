@@ -1594,9 +1594,11 @@ export class UserUseCases {
       userData.errorLoginCount >= MAX_LOGIN_FAIL_ATTEMPTS;
 
     if (loginAttemptsLimitReached) {
-      throw new ForbiddenException(
-        'Your account has been blocked for security reasons. Please reach out to us',
-      );
+      throw new ForbiddenException({
+        message:
+          'Your account has been blocked for security reasons. Please reach out to us',
+        error: 'ACCOUNT_BLOCKED',
+      });
     }
 
     const hashedPass = this.cryptoService.decryptText(loginAccessDto.password);
