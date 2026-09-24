@@ -238,25 +238,30 @@ export class SharingService {
       if (item.isDeleted()) {
         throw new NotFoundException();
       }
-      const network = this.bridgeService.createNetworkEnvironment(
-        owner.bridgeUser,
-        owner.userId,
-      );
 
-      const encryptionKey = await this.fileUsecases.getEncryptionKeyFromFile(
-        item,
-        sharing.encryptionKey,
-        code,
-        network,
-        sharing.encryptionAlgorithm === NEW_SHARING_VERSION,
-      );
-      response['itemToken'] = await network.createFileToken(
-        item.bucket,
-        item.fileId,
-        'PULL',
-      );
+      response.encryptionKey = null;
+      response['itemToken'] = null;
 
-      response.encryptionKey = encryptionKey;
+      if (!item.isEmpty()) {
+        const network = this.bridgeService.createNetworkEnvironment(
+          owner.bridgeUser,
+          owner.userId,
+        );
+
+        response.encryptionKey =
+          await this.fileUsecases.getEncryptionKeyFromFile(
+            item,
+            sharing.encryptionKey,
+            code,
+            network,
+            sharing.encryptionAlgorithm === NEW_SHARING_VERSION,
+          );
+        response['itemToken'] = await network.createFileToken(
+          item.bucket,
+          item.fileId,
+          'PULL',
+        );
+      }
     } else {
       item = await this.folderUsecases.getByUuid(sharing.itemId);
       if (item.isRemoved()) {
@@ -593,33 +598,21 @@ export class SharingService {
     page: number,
     perPage: number,
   ): Promise<GetFilesResponse> {
-    const getFilesFromFolder = async (
+    const getFilesFromFolder = (
       userId: User['id'],
-      folderId: Folder['id'],
-    ) => {
-      const files = (
-        await this.fileUsecases.getFiles(
-          userId,
-          {
-            folderId: folderId,
-            status: FileStatus.EXISTS,
-          },
-          {
-            limit: perPage,
-            offset: page * perPage,
-          },
-        )
-      ).map((file) => {
-        return {
-          ...file,
-          encryptionKey: null,
-          dateShared: null,
-          sharedWithMe: null,
-        };
-      }) as FileWithSharedInfo[];
-
-      return files;
-    };
+      folderUuid: Folder['uuid'],
+    ) =>
+      this.fileUsecases.getFiles(
+        userId,
+        {
+          folderUuid,
+          status: FileStatus.EXISTS,
+        },
+        {
+          limit: perPage,
+          offset: page * perPage,
+        },
+      );
     const folder = await this.folderUsecases.getByUuid(folderId);
 
     if (folder.isTrashed()) {
@@ -684,9 +677,9 @@ export class SharingService {
       }
     }
 
-    const [ownerRootFolder, items] = await Promise.all([
+    const [ownerRootFolder, files] = await Promise.all([
       this.folderUsecases.getFolderByUserId(owner.rootFolderId, owner.id),
-      getFilesFromFolder(owner.id, folder.id),
+      getFilesFromFolder(owner.id, folder.uuid),
     ]);
 
     const network = this.bridgeService.createNetworkEnvironment(
@@ -694,20 +687,22 @@ export class SharingService {
       owner.userId,
     );
 
-    const encryptionPromises = items.map(async (file) => {
-      const encryptionKey = await this.fileUsecases.getEncryptionKeyFromFile(
-        file,
-        sharing.encryptionKey,
-        code,
-        network,
-        sharing.encryptionAlgorithm === NEW_SHARING_VERSION,
-      );
-
-      file.encryptionKey = encryptionKey;
-      return file;
-    });
-
-    await Promise.all(encryptionPromises);
+    const items = (await Promise.all(
+      files.map(async (file) => ({
+        ...file,
+        encryptionKey: file.isEmpty()
+          ? null
+          : await this.fileUsecases.getEncryptionKeyFromFile(
+              file,
+              sharing.encryptionKey,
+              code,
+              network,
+              sharing.encryptionAlgorithm === NEW_SHARING_VERSION,
+            ),
+        dateShared: null,
+        sharedWithMe: null,
+      })),
+    )) as FileWithSharedInfo[];
 
     return {
       items,

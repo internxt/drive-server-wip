@@ -148,6 +148,10 @@ export class File implements FileAttributes {
     return this.status === FileStatus.DELETED || this.removed;
   }
 
+  isEmpty(): boolean {
+    return BigInt(this.size) === BigInt(0);
+  }
+
   isChildrenOf(folder: Folder): boolean {
     return this.folderId === folder.id;
   }
