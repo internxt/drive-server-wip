@@ -143,6 +143,7 @@ export class SequelizeWorkspaceRepository {
 
   async bulkUpdateInvitesKeysAndUsers(
     invites: Partial<WorkspaceInvite>[],
+    transaction?: Transaction,
   ): Promise<void> {
     const updatePromises = invites.map((invite) =>
       this.modelWorkspaceInvite.update(
@@ -154,6 +155,7 @@ export class SequelizeWorkspaceRepository {
           where: {
             id: invite.id,
           },
+          transaction,
         },
       ),
     );
