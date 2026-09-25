@@ -9,6 +9,7 @@ import {
   UserUseCases,
   ReferralsNotAvailableError,
   UserAlreadyRegisteredError,
+  PreCreatedUserUuidMismatchError,
 } from './user.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
@@ -98,6 +99,10 @@ import { type PreCreatedUser } from './pre-created-user.domain';
 import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import * as bip39 from 'bip39';
 import getEnv from '../../config/configuration';
+import { sign as signJwt } from 'jsonwebtoken';
+import { type Transaction } from 'sequelize';
+import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
+import { ACCOUNT_SETUP_TOKEN_ACTION } from './account-setup-token';
 
 const TEST_MNEMONIC =
   'album middle away ecology napkin quote buffalo method tooth mask laundry film add path suggest heart unaware project neck bird force heavy put latin';
@@ -144,6 +149,7 @@ describe('User use cases', () => {
   let referralsRepository: SequelizeReferralRepository;
   let userReferralsRepository: SequelizeUserReferralsRepository;
   let notificationService: NotificationService;
+  let featureLimitRepository: SequelizeFeatureLimitsRepository;
 
   const user = User.build({
     id: 1,
@@ -250,6 +256,9 @@ describe('User use cases', () => {
     );
     notificationService =
       moduleRef.get<NotificationService>(NotificationService);
+    featureLimitRepository = moduleRef.get<SequelizeFeatureLimitsRepository>(
+      SequelizeFeatureLimitsRepository,
+    );
   });
 
   describe('Resetting a user', () => {
@@ -477,6 +486,7 @@ describe('User use cases', () => {
             invitedUser: expect.stringContaining(newUserUuid),
           }),
         ),
+        undefined,
       );
     });
 
@@ -2277,6 +2287,388 @@ describe('User use cases', () => {
     });
   });
 
+  describe('Completing the account setup of a pre-created user', () => {
+    const jwtSecret = 'account-setup-test-secret';
+    const originalJwtSecret = process.env.JWT_SECRET;
+    const paidTierId = v4();
+    const freeTierId = v4();
+    const networkPass = 'network-pass';
+    const bucketId = 'bucket-id';
+    const eccKeys = {
+      publicKey: 'new-public-key',
+      privateKey: 'new-private-key',
+      revocationKey: 'new-revocation-key',
+    };
+    const kyberKeys = {
+      publicKey: 'new-public-kyber-key',
+      privateKey: 'new-private-kyber-key',
+    };
+
+    let preCreatedUser: ReturnType<typeof newPreCreatedUser>;
+    let rootFolder: Folder;
+    let createdUserRow: User;
+    let transaction: DeepMocked<Transaction>;
+
+    const signSetupToken = (
+      uuid: string,
+      issuedAt: Date,
+      expiresIn: string = '5d',
+    ) =>
+      signJwt(
+        {
+          payload: { uuid, action: ACCOUNT_SETUP_TOKEN_ACTION },
+          iat: Math.floor(issuedAt.getTime() / 1000),
+        },
+        jwtSecret,
+        { expiresIn } as any,
+      );
+
+    const setupRequest = (token: string) => ({
+      token,
+      name: 'My',
+      lastname: 'Internxt',
+      password: 'encrypted-password',
+      salt: 'encrypted-salt',
+      mnemonic: 'encrypted-mnemonic',
+      keys: { ecc: eccKeys, kyber: kyberKeys },
+    });
+
+    const givenBridgeReturnsUuid = (uuid: string) => {
+      jest
+        .spyOn(bridgeService, 'createUser')
+        .mockResolvedValue({ userId: networkPass, uuid });
+    };
+
+    beforeAll(() => {
+      process.env.JWT_SECRET = jwtSecret;
+    });
+
+    afterAll(() => {
+      process.env.JWT_SECRET = originalJwtSecret;
+    });
+
+    beforeEach(() => {
+      const setupEmailSentAt = new Date();
+      setupEmailSentAt.setMilliseconds(0);
+      preCreatedUser = newPreCreatedUser();
+      preCreatedUser.setupEmailSentAt = setupEmailSentAt;
+      preCreatedUser.tierId = paidTierId;
+
+      rootFolder = newFolder();
+      createdUserRow = newUser({
+        attributes: {
+          uuid: preCreatedUser.uuid,
+          email: preCreatedUser.email,
+          rootFolderId: rootFolder.id,
+        },
+      });
+      rootFolder.userId = createdUserRow.id;
+
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUuid')
+        .mockResolvedValue(preCreatedUser);
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(preCreatedUser);
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
+      jest
+        .spyOn(cryptoService, 'decryptText')
+        .mockImplementation((text) => `decrypted-${text}`);
+      givenBridgeReturnsUuid(preCreatedUser.uuid);
+      jest
+        .spyOn(featureLimitRepository, 'getFreeTier')
+        .mockResolvedValue({ id: freeTierId } as any);
+      jest.spyOn(userRepository, 'create').mockResolvedValue(createdUserRow);
+      jest
+        .spyOn(bridgeService, 'createBucket')
+        .mockResolvedValue({ id: bucketId } as any);
+      jest
+        .spyOn(userUseCases, 'createInitialFolders')
+        .mockResolvedValue([rootFolder, newFolder(), newFolder()]);
+      jest.spyOn(configService, 'get').mockReturnValue('config-value');
+      jest
+        .spyOn(userUseCases, 'getNewTokenPayload')
+        .mockReturnValue({ uuid: createdUserRow.uuid } as any);
+      jest
+        .spyOn(keyServerUseCases, 'parseKeysInput')
+        .mockReturnValue({ ecc: eccKeys, kyber: kyberKeys });
+      jest.spyOn(keyServerUseCases, 'addKeysToUser').mockResolvedValue({
+        ecc: newKeyServer({ userId: createdUserRow.id, ...eccKeys }),
+        kyber: newKeyServer({
+          userId: createdUserRow.id,
+          encryptVersion: UserKeysEncryptVersions.Kyber,
+          ...kyberKeys,
+        }),
+      });
+      jest.spyOn(aes, 'decrypt').mockReturnValue('pre-created-private-key');
+      jest
+        .spyOn(sharingRepository, 'getInvitesBySharedwith')
+        .mockResolvedValue([]);
+      jest.spyOn(workspaceRepository, 'findInvitesBy').mockResolvedValue([]);
+      jest
+        .spyOn(folderUseCases, 'getFolderByIdNoDecryption')
+        .mockResolvedValue(rootFolder);
+      transaction = createMock<Transaction>();
+      jest
+        .spyOn(userRepository, 'createTransaction')
+        .mockResolvedValue(transaction);
+    });
+
+    it('When the token is valid, then the user is created with the pre-created uuid, its paid tier and a verified email', async () => {
+      const token = signSetupToken(
+        preCreatedUser.uuid,
+        preCreatedUser.setupEmailSentAt,
+      );
+
+      const result = await userUseCases.completeAccountSetup(
+        setupRequest(token),
+      );
+
+      expect(result.uuid).toBe(preCreatedUser.uuid);
+      expect(result.keys.ecc.publicKey).toBe(eccKeys.publicKey);
+      expect(userRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: preCreatedUser.email,
+          uuid: preCreatedUser.uuid,
+          tierId: paidTierId,
+          emailVerified: true,
+        }),
+      );
+      expect(keyServerUseCases.addKeysToUser).toHaveBeenCalledWith(
+        createdUserRow.id,
+        { ecc: eccKeys, kyber: kyberKeys },
+        transaction,
+      );
+      expect(preCreatedUsersRepository.deleteByUuid).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+        transaction,
+      );
+      expect(transaction.commit).toHaveBeenCalled();
+      expect(transaction.rollback).not.toHaveBeenCalled();
+      expect(userRepository.deleteBy).not.toHaveBeenCalled();
+    });
+
+    it('When the pre-created user has no plan stored, then the user gets the free tier', async () => {
+      preCreatedUser.tierId = null;
+      const token = signSetupToken(
+        preCreatedUser.uuid,
+        preCreatedUser.setupEmailSentAt,
+      );
+
+      await userUseCases.completeAccountSetup(setupRequest(token));
+
+      expect(userRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ tierId: freeTierId }),
+      );
+    });
+
+    it('When the pre-created user has pending sharing invitations, then they are re-encrypted with the new keys', async () => {
+      const invite = SharingInvite.build({
+        id: v4(),
+        type: 'OWNER',
+        roleId: v4(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        encryptionAlgorithm: 'ecc',
+        encryptionKey: 'key-encrypted-for-pre-created-user',
+        sharedWith: preCreatedUser.uuid,
+        itemId: v4(),
+        itemType: 'file',
+      });
+      jest
+        .spyOn(sharingRepository, 'getInvitesBySharedwith')
+        .mockResolvedValue([invite]);
+      jest
+        .spyOn(asymmetricEncryptionService, 'reEncryptHybridCiphertext')
+        .mockImplementation(
+          async ({ newPublicKeyInBase64 }) =>
+            `key-encrypted-with-${newPublicKeyInBase64}`,
+        );
+      const token = signSetupToken(
+        preCreatedUser.uuid,
+        preCreatedUser.setupEmailSentAt,
+      );
+
+      await userUseCases.completeAccountSetup(setupRequest(token));
+
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            encryptionKey: `key-encrypted-with-${eccKeys.publicKey}`,
+            sharedWith: preCreatedUser.uuid,
+          }),
+        ],
+        transaction,
+      );
+    });
+
+    it('When the account setup was already completed, then the token is rejected as invalid', async () => {
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUuid')
+        .mockResolvedValue(null);
+      const token = signSetupToken(
+        preCreatedUser.uuid,
+        preCreatedUser.setupEmailSentAt,
+      );
+
+      await expect(
+        userUseCases.completeAccountSetup(setupRequest(token)),
+      ).rejects.toThrow(new ForbiddenException('Invalid token'));
+      expect(userRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('When a newer setup email was sent, then the old token is rejected as expired', async () => {
+      const previousEmailSentAt = new Date(
+        preCreatedUser.setupEmailSentAt.getTime() - 60_000,
+      );
+      const token = signSetupToken(preCreatedUser.uuid, previousEmailSentAt);
+
+      await expect(
+        userUseCases.completeAccountSetup(setupRequest(token)),
+      ).rejects.toThrow(new ForbiddenException('Token expired'));
+      expect(userRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('When the token is past its expiration, then it is rejected as expired', async () => {
+      const sixDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+      preCreatedUser.setupEmailSentAt = sixDaysAgo;
+      const token = signSetupToken(preCreatedUser.uuid, sixDaysAgo);
+
+      await expect(
+        userUseCases.completeAccountSetup(setupRequest(token)),
+      ).rejects.toThrow(new ForbiddenException('Token expired'));
+      expect(userRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('When no encryption keys are sent, then the setup is rejected before creating anything', async () => {
+      jest
+        .spyOn(keyServerUseCases, 'parseKeysInput')
+        .mockReturnValue({ ecc: null, kyber: null });
+      const token = signSetupToken(
+        preCreatedUser.uuid,
+        preCreatedUser.setupEmailSentAt,
+      );
+
+      await expect(
+        userUseCases.completeAccountSetup({
+          ...setupRequest(token),
+          keys: undefined,
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(userRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('When the network returns a different uuid, then the created user is rolled back and the pre-created user is kept', async () => {
+      const otherUuid = v4();
+      givenBridgeReturnsUuid(otherUuid);
+      createdUserRow.uuid = otherUuid;
+      const token = signSetupToken(
+        preCreatedUser.uuid,
+        preCreatedUser.setupEmailSentAt,
+      );
+
+      await expect(
+        userUseCases.completeAccountSetup(setupRequest(token)),
+      ).rejects.toThrow(PreCreatedUserUuidMismatchError);
+      expect(userRepository.deleteBy).toHaveBeenCalledWith({ uuid: otherUuid });
+      expect(preCreatedUsersRepository.deleteByUuid).not.toHaveBeenCalled();
+      expect(keyServerUseCases.addKeysToUser).not.toHaveBeenCalled();
+    });
+
+    it('When re-encrypting the pending invitations fails midway, then the invitation changes are discarded, the created user is rolled back and the pre-created user is kept', async () => {
+      jest
+        .spyOn(workspaceRepository, 'findInvitesBy')
+        .mockResolvedValue([newWorkspaceInvite()]);
+      jest
+        .spyOn(asymmetricEncryptionService, 'reEncryptHybridCiphertext')
+        .mockResolvedValue('re-encrypted-key');
+      jest
+        .spyOn(workspaceRepository, 'bulkUpdateInvitesKeysAndUsers')
+        .mockRejectedValue(new Error('Database unavailable'));
+      const token = signSetupToken(
+        preCreatedUser.uuid,
+        preCreatedUser.setupEmailSentAt,
+      );
+
+      await expect(
+        userUseCases.completeAccountSetup(setupRequest(token)),
+      ).rejects.toThrow('Database unavailable');
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith(
+        expect.any(Array),
+        transaction,
+      );
+      expect(transaction.rollback).toHaveBeenCalled();
+      expect(transaction.commit).not.toHaveBeenCalled();
+      expect(userRepository.deleteBy).toHaveBeenCalledWith({
+        uuid: preCreatedUser.uuid,
+      });
+      expect(folderUseCases.deleteFolderPermanently).toHaveBeenCalledWith(
+        rootFolder,
+        expect.objectContaining({ id: createdUserRow.id }),
+      );
+      expect(preCreatedUsersRepository.deleteByUuid).not.toHaveBeenCalled();
+    });
+
+    it('When the keys cannot be saved, then the created user is rolled back and the pre-created user is kept', async () => {
+      jest
+        .spyOn(keyServerUseCases, 'addKeysToUser')
+        .mockResolvedValue({ ecc: null, kyber: null });
+      const token = signSetupToken(
+        preCreatedUser.uuid,
+        preCreatedUser.setupEmailSentAt,
+      );
+
+      await expect(
+        userUseCases.completeAccountSetup(setupRequest(token)),
+      ).rejects.toThrow();
+      expect(userRepository.deleteBy).toHaveBeenCalledWith({
+        uuid: preCreatedUser.uuid,
+      });
+      expect(preCreatedUsersRepository.deleteByUuid).not.toHaveBeenCalled();
+      expect(transaction.rollback).toHaveBeenCalled();
+    });
+  });
+
+  describe('Checking whether an email has a paid account pending setup', () => {
+    it('When the email belongs to a paid pre-created user whose setup email was sent, then the setup is pending', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      preCreatedUser.setupEmailSentAt = new Date();
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(preCreatedUser);
+
+      const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
+        preCreatedUser.email,
+      );
+
+      expect(hasPendingSetup).toBe(true);
+    });
+
+    it('When the email belongs to a user pre-created by an invitation, then no setup is pending', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(preCreatedUser);
+
+      const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
+        preCreatedUser.email,
+      );
+
+      expect(hasPendingSetup).toBe(false);
+    });
+
+    it('When the email is not pre-created, then no setup is pending', async () => {
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(null);
+
+      const hasPendingSetup =
+        await userUseCases.hasPendingAccountSetup('new@internxt.com');
+
+      expect(hasPendingSetup).toBe(false);
+    });
+  });
+
   describe('getUserUsage', () => {
     const mailUsage = 512;
     const defaultDriveUsage = 1024;
@@ -2620,16 +3012,19 @@ describe('User use cases', () => {
         preCreatedUser.uuid,
       );
 
-      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([
-        expect.objectContaining({
-          encryptionKey: newSharingEncryptedEccKey,
-          sharedWith: newUserUuid,
-        }),
-        expect.objectContaining({
-          encryptionKey: newSharingEncryptedHybridKey,
-          sharedWith: newUserUuid,
-        }),
-      ]);
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            encryptionKey: newSharingEncryptedEccKey,
+            sharedWith: newUserUuid,
+          }),
+          expect.objectContaining({
+            encryptionKey: newSharingEncryptedHybridKey,
+            sharedWith: newUserUuid,
+          }),
+        ],
+        undefined,
+      );
 
       expect(
         userUseCases.replacePreCreatedUserWorkspaceInvitations,
@@ -2638,9 +3033,11 @@ describe('User use cases', () => {
         newUserUuid,
         preCreatedUserDecryptedKey,
         newPublicKey,
+        undefined,
       );
       expect(preCreatedUsersRepository.deleteByUuid).toHaveBeenCalledWith(
         preCreatedUser.uuid,
+        undefined,
       );
     });
 
@@ -2687,8 +3084,11 @@ describe('User use cases', () => {
         newPublicKey,
       );
 
-      expect(sharingRepository.deleteInvite).toHaveBeenCalledWith(invites[0]);
-      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([]);
+      expect(sharingRepository.deleteInvite).toHaveBeenCalledWith(
+        invites[0],
+        undefined,
+      );
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([], undefined);
     });
 
     it('When invitation is hybrid and new generated public kyber key is provided but pre created user does not have kyber keys, then delete the invitation', async () => {
@@ -2739,8 +3139,11 @@ describe('User use cases', () => {
         newPublicKyberKey,
       );
 
-      expect(sharingRepository.deleteInvite).toHaveBeenCalledWith(invites[0]);
-      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([]);
+      expect(sharingRepository.deleteInvite).toHaveBeenCalledWith(
+        invites[0],
+        undefined,
+      );
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([], undefined);
     });
 
     it('When pre created user is replaced, then sharing invitations encrypted keys should match original message if decrypted with new asymmetric keys', async () => {
@@ -2834,6 +3237,62 @@ describe('User use cases', () => {
       expect(newInviteHybridEncryptedKey).toEqual(sharingDecryptedKey);
       expect(newInviteEccEncryptedKey).toEqual(sharingDecryptedKey);
     }, 10000);
+
+    it('When a transaction is given, then the invitation changes and the pre-created user deletion are written inside it', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      const newUserUuid = v4();
+      const transaction = createMock<Transaction>();
+      const sharingInvite = SharingInvite.build({
+        id: v4(),
+        type: 'OWNER',
+        roleId: v4(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        encryptionAlgorithm: 'ecc',
+        encryptionKey: 'encrypted-key',
+        sharedWith: preCreatedUser.uuid,
+        itemId: v4(),
+        itemType: 'file',
+      });
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValueOnce(preCreatedUser);
+      jest.spyOn(aes, 'decrypt').mockReturnValue('decrypted-private-key');
+      jest
+        .spyOn(sharingRepository, 'getInvitesBySharedwith')
+        .mockResolvedValueOnce([sharingInvite]);
+      jest
+        .spyOn(workspaceRepository, 'findInvitesBy')
+        .mockResolvedValueOnce([
+          newWorkspaceInvite({ invitedUser: preCreatedUser.uuid }),
+        ]);
+      jest
+        .spyOn(asymmetricEncryptionService, 'reEncryptHybridCiphertext')
+        .mockResolvedValue('re-encrypted-key');
+
+      await userUseCases.replacePreCreatedUser(
+        preCreatedUser.email,
+        newUserUuid,
+        'new-public-key',
+        undefined,
+        transaction,
+      );
+
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith(
+        [expect.objectContaining({ encryptionKey: 're-encrypted-key' })],
+        transaction,
+      );
+      expect(
+        workspaceRepository.bulkUpdateInvitesKeysAndUsers,
+      ).toHaveBeenCalledWith(
+        [expect.objectContaining({ encryptionKey: 're-encrypted-key' })],
+        transaction,
+      );
+      expect(preCreatedUsersRepository.deleteByUuid).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+        transaction,
+      );
+    });
   });
 
   describe('updateCredentials', () => {
