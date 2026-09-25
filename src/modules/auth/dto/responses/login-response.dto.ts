@@ -15,4 +15,7 @@ export class LoginResponseDto {
 
   @ApiProperty()
   hasEccKeys: boolean;
+
+  @ApiProperty({ required: false, nullable: true })
+  saltArgon2: string | null;
 }

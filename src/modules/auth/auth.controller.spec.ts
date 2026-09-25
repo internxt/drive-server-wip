@@ -63,6 +63,7 @@ describe('AuthController', () => {
       const user = newUser();
       user.hKey = 'hKey';
       user.secret_2FA = 'secret_2FA';
+      user.argonSalt = 'argonSalt';
 
       const eccKeys = newKeyServer({ userId: user.id });
       const kyberKeys = newKeyServer({
@@ -84,6 +85,7 @@ describe('AuthController', () => {
         hasEccKeys: true,
         sKey: 'encryptedText',
         tfa: true,
+        saltArgon2: 'argonSalt',
       });
     });
 
