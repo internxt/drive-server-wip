@@ -1873,4 +1873,130 @@ describe('SequelizeFolderRepository', () => {
       });
     });
   });
+
+  describe('findWorkspaceFoldersWithCursorWhereUpdatedAfter', () => {
+    const networkUserId = 99;
+    const createdBy = v4();
+    const workspaceId = v4();
+    const withCursorTimestamp = (
+      folder: ReturnType<typeof newFolder>,
+      value: string,
+    ) => Object.assign(folder, { get: jest.fn().mockReturnValue(value) });
+
+    it('When called without a cursor, then it filters by network user, non-root, updatedAfter and workspace item existence', async () => {
+      const updatedAfter = new Date();
+      const cursorTimestamp = '2026-01-01T10:00:00.123456Z';
+      jest
+        .spyOn(folderModel, 'findAll')
+        .mockResolvedValueOnce([
+          withCursorTimestamp(newFolder(), cursorTimestamp),
+        ] as any);
+
+      const result =
+        await repository.findWorkspaceFoldersWithCursorWhereUpdatedAfter({
+          networkUserId,
+          createdBy,
+          workspaceId,
+          where: { deleted: false, removed: false },
+          updatedAfter,
+          pageSize: 1000,
+        });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: {
+          deleted: false,
+          removed: false,
+          userId: networkUserId,
+          parentUuid: { [Op.not]: null },
+          [Op.and]: [
+            { updatedAt: { [Op.gt]: updatedAfter } },
+            expect.objectContaining({
+              val: expect.stringContaining('EXISTS'),
+            }),
+          ],
+        },
+        attributes: { include: [expect.any(Array)] },
+        replacements: {
+          itemType: WorkspaceItemType.Folder,
+          workspaceId,
+          createdBy,
+        },
+        order: [
+          ['updatedAt', 'ASC'],
+          ['uuid', 'ASC'],
+        ],
+        limit: 1001,
+      });
+      expect(result).toEqual({
+        folders: expect.any(Array),
+        hasMore: false,
+        lastRowCursorUpdatedAt: cursorTimestamp,
+      });
+      expect(result.folders).toHaveLength(1);
+    });
+
+    it('When a cursor is provided, then it filters by the cursor tuple and merges its replacements', async () => {
+      const cursorUpdatedAt = '2024-01-01T00:00:00.123456Z';
+      const cursorId = v4();
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findWorkspaceFoldersWithCursorWhereUpdatedAfter({
+        networkUserId,
+        createdBy,
+        workspaceId,
+        where: {},
+        updatedAfter: new Date(),
+        pageSize: 1000,
+        cursor: { updatedAt: cursorUpdatedAt, uuid: cursorId },
+      });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: networkUserId,
+            parentUuid: { [Op.not]: null },
+            [Op.and]: [
+              {
+                [Op.and]: [
+                  Sequelize.literal(
+                    '("updated_at", "uuid") > (:cursorTimestamp::timestamptz, :cursorTieBreaker)',
+                  ),
+                ],
+              },
+              expect.objectContaining({
+                val: expect.stringContaining('EXISTS'),
+              }),
+            ],
+          },
+          replacements: {
+            cursorTimestamp: cursorUpdatedAt,
+            cursorTieBreaker: cursorId,
+            itemType: WorkspaceItemType.Folder,
+            workspaceId,
+            createdBy,
+          },
+        }),
+      );
+    });
+
+    it('When there is one more row than the page size, then hasMore is true and the extra row is dropped', async () => {
+      const folders = [newFolder(), newFolder()].map((folder) =>
+        withCursorTimestamp(folder, '2026-01-01T10:00:00.123456Z'),
+      );
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
+
+      const result =
+        await repository.findWorkspaceFoldersWithCursorWhereUpdatedAfter({
+          networkUserId,
+          createdBy,
+          workspaceId,
+          where: {},
+          updatedAfter: new Date(),
+          pageSize: 1,
+        });
+
+      expect(result.hasMore).toBe(true);
+      expect(result.folders).toHaveLength(1);
+    });
+  });
 });
