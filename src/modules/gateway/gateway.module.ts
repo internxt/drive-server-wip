@@ -10,6 +10,7 @@ import { MailerModule } from '../../externals/mailer/mailer.module';
 import { FolderModule } from '../folder/folder.module';
 import { FileModule } from '../file/file.module';
 import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
+import { BridgeModule } from '../../externals/bridge/bridge.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AuditLogsModule } from '../../common/audit-logs/audit-logs.module';
     FileModule,
     MailerModule,
     AuditLogsModule,
+    BridgeModule,
   ],
   controllers: [GatewayController],
   providers: [GatewayUseCases],

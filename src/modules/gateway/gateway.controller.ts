@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Logger,
-  NotFoundException,
   Param,
   Patch,
   Post,
@@ -248,7 +247,16 @@ export class GatewayController {
     try {
       const user = await this.gatewayUseCases.getUserByUuid(userUuid);
       if (!user) {
-        throw new NotFoundException('User not found');
+        await this.gatewayUseCases.updatePreCreatedUser(userUuid, {
+          newStorageSpaceBytes: maxSpaceBytes,
+          newTierId: tierId,
+        });
+
+        this.logger.log(
+          { body, userUuid, category: 'UPDATE_USER' },
+          'Updated pre-created user successfully',
+        );
+        return;
       }
 
       await this.gatewayUseCases.updateUser(user, {

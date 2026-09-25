@@ -112,6 +112,7 @@ import { CaptchaService } from '../../externals/captcha/captcha.service';
     SequelizeUserReferralsRepository,
     SequelizeReferralRepository,
     SequelizeAttemptChangeEmailRepository,
+    SequelizePreCreatedUsersRepository,
   ],
 })
 export class UserModule {}
