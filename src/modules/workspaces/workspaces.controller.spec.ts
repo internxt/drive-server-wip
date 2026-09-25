@@ -8,6 +8,7 @@ import { WorkspacesController } from './workspaces.controller';
 import { type WorkspacesUsecases } from './workspaces.usecase';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import {
+  newFile,
   newUser,
   newWorkspace,
   newWorkspaceInvite,
@@ -18,6 +19,7 @@ import { v4 } from 'uuid';
 import { type WorkspaceUserMemberDto } from './dto/workspace-user-member.dto';
 import { type CreateWorkspaceFolderDto } from './dto/create-workspace-folder.dto';
 import { WorkspaceItemType } from './attributes/workspace-items-users.attributes';
+import { FileStatus } from '../file/file.domain';
 import { type StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { type CreateWorkspaceFileDto } from './dto/create-workspace-file.dto';
 import { type WorkspaceLog } from './domains/workspace-log.domain';
@@ -777,6 +779,65 @@ describe('Workspace Controller', () => {
         user: member,
         clientId,
       });
+    });
+  });
+
+  describe('GET /:workspaceId/files/sync', () => {
+    const user = newUser();
+    const workspaceId = v4();
+
+    it('When no limit nor updatedAt are provided, then it should use defaults', async () => {
+      const cursor = 'cursor-token';
+      jest
+        .spyOn(workspacesUsecases, 'getPersonalWorkspaceFilesSync')
+        .mockResolvedValueOnce({ files: [], hasMore: false, nextCursor: null });
+
+      await workspacesController.getFilesSync(user, workspaceId, { cursor });
+
+      expect(
+        workspacesUsecases.getPersonalWorkspaceFilesSync,
+      ).toHaveBeenCalledWith(
+        user.uuid,
+        workspaceId,
+        undefined,
+        new Date(1),
+        1000,
+        cursor,
+      );
+    });
+
+    it('When files are returned, then it should strip internal fields and return nextCursor', async () => {
+      const updatedAt = '2026-01-01T00:00:00.000Z';
+      const file = newFile().toJSON();
+      jest
+        .spyOn(workspacesUsecases, 'getPersonalWorkspaceFilesSync')
+        .mockResolvedValueOnce({
+          files: [file] as any,
+          hasMore: true,
+          nextCursor: 'next',
+        });
+
+      const result = await workspacesController.getFilesSync(
+        user,
+        workspaceId,
+        { status: FileStatus.EXISTS, updatedAt, limit: 10 },
+      );
+
+      expect(
+        workspacesUsecases.getPersonalWorkspaceFilesSync,
+      ).toHaveBeenCalledWith(
+        user.uuid,
+        workspaceId,
+        FileStatus.EXISTS,
+        new Date(updatedAt),
+        10,
+        undefined,
+      );
+      expect(result.nextCursor).toBe('next');
+      expect(result.files[0]).not.toHaveProperty('deleted');
+      expect(result.files[0]).not.toHaveProperty('deletedAt');
+      expect(result.files[0]).not.toHaveProperty('removed');
+      expect(result.files[0]).not.toHaveProperty('removedAt');
     });
   });
 

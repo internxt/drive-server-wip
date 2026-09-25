@@ -1715,7 +1715,7 @@ describe('WorkspacesUsecases', () => {
   });
 
   describe('getOwnerAvailableSpace', () => {
-    it("Should return the owner's available space", async () => {
+    it('Should return the owner\'s available space', async () => {
       const owner = newUser();
       const workspace = newWorkspace({ owner });
       const ownerWorkspaceUser = newWorkspaceUser({
@@ -2136,7 +2136,7 @@ describe('WorkspacesUsecases', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it("When new space to be assigned is less than the user's used space, then it should throw", async () => {
+    it('When new space to be assigned is less than the user\'s used space, then it should throw', async () => {
       const workspace = newWorkspace();
       const member = newWorkspaceUser({ attributes: { spaceLimit: 500 } });
       const workspaceUser = newUser();
@@ -5393,7 +5393,7 @@ describe('WorkspacesUsecases', () => {
         expect(folderUseCases.moveFolder).not.toHaveBeenCalled();
       });
 
-      it("When owner doesn't have enough free space then it shoudl throw", async () => {
+      it('When owner doesn\'t have enough free space then it shoudl throw', async () => {
         const workspaceOwner = newUser();
         const workspaceNetworkUser = newUser();
         const member = newUser();
@@ -5442,7 +5442,7 @@ describe('WorkspacesUsecases', () => {
         ).rejects.toThrow(BadRequestException);
       });
 
-      it("When user is not the owner of the workspace, then it should move the member's root folder to the workspace owner's root folder", async () => {
+      it('When user is not the owner of the workspace, then it should move the member\'s root folder to the workspace owner\'s root folder', async () => {
         const workspaceOwner = newUser();
         const workspaceNetworkUser = newUser();
         const member = newUser();
@@ -6166,6 +6166,86 @@ describe('WorkspacesUsecases', () => {
         name: files[0].name,
         similarity: 0.8,
       });
+    });
+  });
+
+  describe('getPersonalWorkspaceFilesSync', () => {
+    const userUuid = v4();
+    const updatedAfter = new Date();
+
+    it('When workspace does not exist, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValueOnce(null);
+
+      await expect(
+        service.getPersonalWorkspaceFilesSync(
+          userUuid,
+          v4(),
+          undefined,
+          updatedAfter,
+          1000,
+          undefined,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When workspace network user does not exist, then it should throw', async () => {
+      const workspace = newWorkspace();
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(null);
+
+      await expect(
+        service.getPersonalWorkspaceFilesSync(
+          userUuid,
+          workspace.id,
+          undefined,
+          updatedAfter,
+          1000,
+          undefined,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When workspace exists, then it should query files owned by the workspace network user', async () => {
+      const networkUser = newUser();
+      const workspace = newWorkspace({
+        attributes: { workspaceUserId: networkUser.uuid },
+      });
+      const expected = { files: [], hasMore: false, nextCursor: null };
+      const cursor = 'cursor-token';
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValueOnce(networkUser);
+      jest
+        .spyOn(fileUseCases, 'getWorkspaceFilesUpdatedAfterWithCursor')
+        .mockResolvedValueOnce(expected);
+
+      const result = await service.getPersonalWorkspaceFilesSync(
+        userUuid,
+        workspace.id,
+        FileStatus.EXISTS,
+        updatedAfter,
+        50,
+        cursor,
+      );
+
+      expect(userRepository.findByUuid).toHaveBeenCalledWith(networkUser.uuid);
+      expect(
+        fileUseCases.getWorkspaceFilesUpdatedAfterWithCursor,
+      ).toHaveBeenCalledWith(
+        networkUser.id,
+        userUuid,
+        workspace.id,
+        FileStatus.EXISTS,
+        updatedAfter,
+        50,
+        cursor,
+      );
+      expect(result).toEqual(expected);
     });
   });
 
