@@ -54,7 +54,7 @@ export class DeleteExpiredFileVersionsAction {
       const batch = versions.slice(0, batchSize);
 
       if (batch.length > 0) {
-        const last = batch[batch.length - 1];
+        const last = batch.at(-1);
         cursor = { userId: last.userId, createdAt: last.createdAt };
         yield batch.map((version) => version.id);
       }

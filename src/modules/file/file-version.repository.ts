@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { QueryTypes, Sequelize } from 'sequelize';
+import { v7 } from 'uuid';
 import { FileVersionModel } from './file-version.model';
 import {
   FileVersion,
@@ -57,6 +58,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
 
   async create(version: CreateFileVersionData): Promise<FileVersion> {
     const createdVersion = await this.model.create({
+      id: v7(),
       fileId: version.fileId,
       userId: version.userId,
       networkFileId: version.networkFileId,
@@ -71,6 +73,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
   async upsert(version: CreateFileVersionData): Promise<FileVersion> {
     const [instance] = await this.model.upsert(
       {
+        id: v7(),
         fileId: version.fileId,
         userId: version.userId,
         networkFileId: version.networkFileId,
@@ -81,6 +84,16 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
       },
       {
         conflictFields: ['file_id', 'network_file_id'],
+        // Excludes id
+        fields: [
+          'fileId',
+          'userId',
+          'networkFileId',
+          'size',
+          'status',
+          'modificationTime',
+          'updatedAt',
+        ],
       },
     );
 
