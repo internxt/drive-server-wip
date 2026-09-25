@@ -250,14 +250,49 @@ describe('Gateway Controller', () => {
       });
     });
 
-    it('When user is not found, then it should throw.', async () => {
+    it('When the uuid is neither a user nor a pre-created user, then it should throw not found', async () => {
       jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(null);
+      jest
+        .spyOn(gatewayUsecases, 'updatePreCreatedUser')
+        .mockRejectedValueOnce(new NotFoundException('User not found'));
 
       await expect(
         gatewayController.updateUser(user.uuid, updateUserDto),
       ).rejects.toThrow(NotFoundException);
 
       expect(gatewayUsecases.updateUser).not.toHaveBeenCalled();
+      expect(storageNotificationsService.planUpdated).not.toHaveBeenCalled();
+    });
+
+    it('When the uuid belongs to a pre-created user, then the plan is applied to it without notifying a plan update', async () => {
+      const preCreatedUserUuid = v4();
+      jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(null);
+
+      await expect(
+        gatewayController.updateUser(preCreatedUserUuid, updateUserWithTierDto),
+      ).resolves.toBeUndefined();
+
+      expect(gatewayUsecases.updatePreCreatedUser).toHaveBeenCalledWith(
+        preCreatedUserUuid,
+        {
+          newStorageSpaceBytes: updateUserWithTierDto.maxSpaceBytes,
+          newTierId: updateUserWithTierDto.tierId,
+        },
+      );
+      expect(gatewayUsecases.updateUser).not.toHaveBeenCalled();
+      expect(storageNotificationsService.planUpdated).not.toHaveBeenCalled();
+    });
+
+    it('When the tier sent for a pre-created user does not exist, then it should throw bad request', async () => {
+      jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(null);
+      jest
+        .spyOn(gatewayUsecases, 'updatePreCreatedUser')
+        .mockRejectedValueOnce(new BadRequestException());
+
+      await expect(
+        gatewayController.updateUser(v4(), updateUserWithTierDto),
+      ).rejects.toThrow(BadRequestException);
+
       expect(storageNotificationsService.planUpdated).not.toHaveBeenCalled();
     });
 

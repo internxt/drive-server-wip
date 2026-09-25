@@ -68,4 +68,8 @@ export class PreCreatedUserModel
   @AllowNull(true)
   @Column(DataType.DATE)
   setupEmailSentAt?: Date | null;
+
+  @AllowNull(true)
+  @Column(DataType.UUID)
+  tierId?: string | null;
 }

@@ -21,6 +21,8 @@ import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit
 import { type Limit } from '../feature-limit/domain/limit.domain';
 import { FeatureNameLimitMap } from './constants';
 import { FileUseCases } from '../file/file.usecase';
+import { SequelizePreCreatedUsersRepository } from '../user/pre-created-users.repository';
+import { BridgeService } from '../../externals/bridge/bridge.service';
 
 @Injectable()
 export class GatewayUseCases {
@@ -36,6 +38,8 @@ export class GatewayUseCases {
     private readonly configService: ConfigService,
     private readonly folderRepository: SequelizeFolderRepository,
     private readonly limitsRepository: SequelizeFeatureLimitsRepository,
+    private readonly preCreatedUsersRepository: SequelizePreCreatedUsersRepository,
+    private readonly networkService: BridgeService,
   ) {}
 
   async initializeWorkspace(
@@ -303,10 +307,7 @@ export class GatewayUseCases {
     }: { newStorageSpaceBytes?: number; newTierId?: string },
   ) {
     if (newTierId) {
-      const tier = await this.featureLimitService.getTier(newTierId);
-      if (!tier) {
-        throw new BadRequestException(`Tier with ID ${newTierId} not found`);
-      }
+      await this.assertTierExists(newTierId);
     }
 
     if (newTierId && newTierId !== user.tierId) {
@@ -380,6 +381,46 @@ export class GatewayUseCases {
   ): Promise<{ uuid: string }> {
     const uuid = await this.userUseCases.preCreateUserWithPlan(email, planName);
     return { uuid };
+  }
+
+  async updatePreCreatedUser(
+    uuid: string,
+    {
+      newStorageSpaceBytes,
+      newTierId,
+    }: { newStorageSpaceBytes?: number; newTierId?: string },
+  ) {
+    const preCreatedUser =
+      await this.preCreatedUsersRepository.findByUuid(uuid);
+    if (!preCreatedUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (newTierId) {
+      await this.assertTierExists(newTierId);
+    }
+
+    if (newTierId && newTierId !== preCreatedUser.tierId) {
+      await this.preCreatedUsersRepository.updateByUuid(uuid, {
+        tierId: newTierId,
+      });
+    }
+
+    if (!newStorageSpaceBytes) {
+      return;
+    }
+
+    await this.networkService.setStorage(
+      preCreatedUser.username,
+      newStorageSpaceBytes,
+    );
+  }
+
+  private async assertTierExists(tierId: string) {
+    const tier = await this.featureLimitService.getTier(tierId);
+    if (!tier) {
+      throw new BadRequestException(`Tier with ID ${tierId} not found`);
+    }
   }
 
   async handleFailedPayment(userId: string): Promise<{ success: boolean }> {
