@@ -34,6 +34,7 @@ import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 import { type UpdatePasswordDto } from './dto/update-password.dto';
 import { type CreateUserDto } from './dto/create-user.dto';
 import { type RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
+import { AccountSetupPendingException } from './exception/account-setup-pending.exception';
 import { type Request } from 'express';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { Test } from '@nestjs/testing';
@@ -113,6 +114,7 @@ describe('User Controller', () => {
     auditLogService = moduleRef.get(AuditLogService);
     klaviyoService = moduleRef.get(KlaviyoTrackingService);
     featureLimitService = moduleRef.get(FeatureLimitService);
+    userUseCases.hasPendingAccountSetup.mockResolvedValue(false);
   });
 
   it('should be defined', () => {
@@ -874,6 +876,26 @@ describe('User Controller', () => {
         userController.createUser(createDto, req, clientId),
       ).rejects.toThrow(InternalServerErrorException);
     });
+
+    it('When the email belongs to a paid account pending its setup, then sign up is forbidden and nothing is created', async () => {
+      const createDto: CreateUserDto = {
+        name: 'Test',
+        lastname: 'User',
+        email: 'Paid@Internxt.com',
+        password: v4(),
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+      };
+      userUseCases.hasPendingAccountSetup.mockResolvedValueOnce(true);
+
+      await expect(
+        userController.createUser(createDto, req, clientId),
+      ).rejects.toThrow(AccountSetupPendingException);
+      expect(userUseCases.hasPendingAccountSetup).toHaveBeenCalledWith(
+        'paid@internxt.com',
+      );
+      expect(userUseCases.createUser).not.toHaveBeenCalled();
+    });
   });
 
   describe('POST /pre-created-users/register', () => {
@@ -1023,6 +1045,49 @@ describe('User Controller', () => {
       await expect(
         userController.registerPreCreatedUser(dto, req),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('When the pre-created user is a paid account pending its setup, then registration is forbidden and nothing is created', async () => {
+      const dto: RegisterPreCreatedUserDto = {
+        name: 'Test',
+        lastname: 'User',
+        email: preCreatedUser.email,
+        password: v4(),
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+        invitationId: v4(),
+      };
+      userUseCases.findPreCreatedByEmail.mockResolvedValueOnce(preCreatedUser);
+      userUseCases.hasPendingAccountSetup.mockResolvedValueOnce(true);
+
+      await expect(
+        userController.registerPreCreatedUser(dto, req),
+      ).rejects.toThrow(AccountSetupPendingException);
+      expect(userUseCases.createUser).not.toHaveBeenCalled();
+    });
+
+    it('When the pre-created user comes from an invitation, then registration creates the user as before', async () => {
+      const dto: RegisterPreCreatedUserDto = {
+        name: 'Test',
+        lastname: 'User',
+        email: preCreatedUser.email,
+        password: v4(),
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+        invitationId: v4(),
+      };
+      userUseCases.findPreCreatedByEmail.mockResolvedValueOnce(preCreatedUser);
+      userUseCases.hasPendingAccountSetup.mockResolvedValueOnce(false);
+      userUseCases.createUser.mockResolvedValueOnce(mockCreateUserResponse);
+      keyServerUseCases.addKeysToUser.mockResolvedValueOnce({
+        kyber: null,
+        ecc: null,
+      });
+
+      const result = await userController.registerPreCreatedUser(dto, req);
+
+      expect(userUseCases.createUser).toHaveBeenCalled();
+      expect(result.uuid).toBe(mockCreateUserResponse.uuid);
     });
   });
 
