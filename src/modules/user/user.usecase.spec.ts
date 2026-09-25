@@ -3237,6 +3237,62 @@ describe('User use cases', () => {
       expect(newInviteHybridEncryptedKey).toEqual(sharingDecryptedKey);
       expect(newInviteEccEncryptedKey).toEqual(sharingDecryptedKey);
     }, 10000);
+
+    it('When a transaction is given, then the invitation changes and the pre-created user deletion are written inside it', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      const newUserUuid = v4();
+      const transaction = createMock<Transaction>();
+      const sharingInvite = SharingInvite.build({
+        id: v4(),
+        type: 'OWNER',
+        roleId: v4(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        encryptionAlgorithm: 'ecc',
+        encryptionKey: 'encrypted-key',
+        sharedWith: preCreatedUser.uuid,
+        itemId: v4(),
+        itemType: 'file',
+      });
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValueOnce(preCreatedUser);
+      jest.spyOn(aes, 'decrypt').mockReturnValue('decrypted-private-key');
+      jest
+        .spyOn(sharingRepository, 'getInvitesBySharedwith')
+        .mockResolvedValueOnce([sharingInvite]);
+      jest
+        .spyOn(workspaceRepository, 'findInvitesBy')
+        .mockResolvedValueOnce([
+          newWorkspaceInvite({ invitedUser: preCreatedUser.uuid }),
+        ]);
+      jest
+        .spyOn(asymmetricEncryptionService, 'reEncryptHybridCiphertext')
+        .mockResolvedValue('re-encrypted-key');
+
+      await userUseCases.replacePreCreatedUser(
+        preCreatedUser.email,
+        newUserUuid,
+        'new-public-key',
+        undefined,
+        transaction,
+      );
+
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith(
+        [expect.objectContaining({ encryptionKey: 're-encrypted-key' })],
+        transaction,
+      );
+      expect(
+        workspaceRepository.bulkUpdateInvitesKeysAndUsers,
+      ).toHaveBeenCalledWith(
+        [expect.objectContaining({ encryptionKey: 're-encrypted-key' })],
+        transaction,
+      );
+      expect(preCreatedUsersRepository.deleteByUuid).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+        transaction,
+      );
+    });
   });
 
   describe('updateCredentials', () => {
