@@ -374,6 +374,14 @@ export class GatewayUseCases {
     }
   }
 
+  async preCreateUserWithPlan(
+    email: string,
+    planName: string,
+  ): Promise<{ uuid: string }> {
+    const uuid = await this.userUseCases.preCreateUserWithPlan(email, planName);
+    return { uuid };
+  }
+
   async handleFailedPayment(userId: string): Promise<{ success: boolean }> {
     const user = await this.userRepository.findByUuid(userId);
     if (!user) {

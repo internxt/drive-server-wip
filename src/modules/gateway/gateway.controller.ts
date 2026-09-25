@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -42,6 +43,10 @@ import {
   AuditPerformerType,
 } from '../../common/audit-logs/audit-logs.attributes';
 import { OverrideUserLimitDto } from './dto/override-user-limit.dto';
+import {
+  PreCreateUserWithPlanDto,
+  PreCreateUserWithPlanResponseDto,
+} from './dto/pre-create-user-with-plan.dto';
 
 @ApiTags('Gateway')
 @Controller('gateway')
@@ -273,6 +278,35 @@ export class GatewayController {
       );
       throw error;
     }
+  }
+
+  @Post('/users/pre-create')
+  @ApiOperation({
+    summary: 'Pre-create a user who paid for a plan',
+    description:
+      'Pre-creates the user with the network user uuid and sends the account setup email once',
+  })
+  @ApiBearerAuth('gateway')
+  @UseGuards(GatewayGuard)
+  @ApiOkResponse({
+    description: 'UUID of the pre-created user',
+    type: PreCreateUserWithPlanResponseDto,
+  })
+  @ApiConflictResponse({ description: 'The user is already registered' })
+  async preCreateUserWithPlan(
+    @Body() dto: PreCreateUserWithPlanDto,
+  ): Promise<PreCreateUserWithPlanResponseDto> {
+    const response = await this.gatewayUseCases.preCreateUserWithPlan(
+      dto.email,
+      dto.planName,
+    );
+
+    this.logger.log(
+      { uuid: response.uuid, category: 'PRE_CREATE_USER' },
+      'Pre-created user with plan',
+    );
+
+    return response;
   }
 
   @Post('/users/failed-payment')

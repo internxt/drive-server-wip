@@ -94,6 +94,7 @@ import { type LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
 import { type PreCreateUserDto } from './dto/pre-create-user.dto';
+import { type PreCreatedUser } from './pre-created-user.domain';
 import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import * as bip39 from 'bip39';
 import getEnv from '../../config/configuration';
@@ -4148,6 +4149,257 @@ describe('User use cases', () => {
         password: existingPreCreatedUser.password.toString(),
       });
       expect(isPreCreated).toBe(false);
+    });
+  });
+
+  describe('Pre-creating a user who paid for a plan', () => {
+    const planName = 'Premium 2TB';
+    const networkUuid = v4();
+    const email = 'buyer@internxt.com';
+    const hostDriveWeb = 'https://drive.internxt.com';
+
+    const preCreatedUserWith = (
+      attributes: Partial<PreCreatedUser>,
+    ): PreCreatedUser => {
+      const preCreatedUser = newPreCreatedUser();
+      Object.assign(preCreatedUser, { email, username: email, ...attributes });
+      return preCreatedUser;
+    };
+
+    beforeEach(() => {
+      process.env.HOST_DRIVE_WEB = hostDriveWeb;
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
+      jest
+        .spyOn(bridgeService, 'createUser')
+        .mockResolvedValue({ userId: 'network-user', uuid: networkUuid });
+      jest.spyOn(configService, 'get').mockReturnValue('default-password');
+      jest
+        .spyOn(cryptoService, 'passToHash')
+        .mockReturnValue({ hash: 'hash', salt: 'salt' });
+      jest
+        .spyOn(cryptoService, 'encryptTextWithKey')
+        .mockReturnValue('encrypted-mnemonic');
+      jest
+        .spyOn(asymmetricEncryptionService, 'generateNewKeys')
+        .mockResolvedValue({
+          privateKeyArmored: 'private-key',
+          publicKeyArmored: 'public-key',
+          revocationCertificate: 'revocation-certificate',
+          privateKyberKeyBase64: 'private-kyber-key',
+          publicKyberKeyBase64: 'public-kyber-key',
+        });
+      jest
+        .spyOn(preCreatedUsersRepository, 'create')
+        .mockResolvedValue(preCreatedUserWith({ uuid: networkUuid }));
+    });
+
+    it('When the email is new, then the user is pre-created with the network user uuid and that uuid is returned', async () => {
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(null);
+
+      const uuid = await userUseCases.preCreateUserWithPlan(
+        'Buyer@Internxt.com',
+        planName,
+      );
+
+      expect(uuid).toBe(networkUuid);
+      expect(bridgeService.createUser).toHaveBeenCalledWith(email);
+      expect(preCreatedUsersRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ email, username: email, uuid: networkUuid }),
+      );
+    });
+
+    it('When the email is new, then the account setup email is sent with the plan name and a single-purpose link that expires in 5 days', async () => {
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(null);
+
+      await userUseCases.preCreateUserWithPlan(email, planName);
+
+      expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledWith(email, {
+        planName,
+        setupUrl: `${hostDriveWeb}/complete-account/newToken`,
+      });
+      expect(Sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: { uuid: networkUuid, action: 'complete-account-setup' },
+        }),
+        expect.any(String),
+        '5d',
+      );
+    });
+
+    it('When the setup email is sent, then the moment it was sent is stored and matches the link token', async () => {
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(null);
+
+      await userUseCases.preCreateUserWithPlan(email, planName);
+
+      const [[, { setupEmailSentAt }]] = jest.mocked(
+        preCreatedUsersRepository.updateByUuid,
+      ).mock.calls;
+      const [[{ iat }]] = jest.mocked(Sign).mock.calls as unknown as [
+        [{ iat: number }],
+      ];
+      expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+        networkUuid,
+        { setupEmailSentAt: expect.any(Date) },
+      );
+      expect(iat).toBe(Math.floor(setupEmailSentAt.getTime() / 1000));
+    });
+
+    it('When the setup email cannot be sent, then it is not marked as sent so a retry sends it', async () => {
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(mailerService, 'sendAccountSetupEmail')
+        .mockRejectedValueOnce(new Error('SendGrid is down'));
+
+      await expect(
+        userUseCases.preCreateUserWithPlan(email, planName),
+      ).rejects.toThrow('SendGrid is down');
+
+      expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
+    });
+
+    it('When the user was already pre-created and emailed, then the same uuid is returned without creating or emailing again', async () => {
+      jest.spyOn(preCreatedUsersRepository, 'findByUsername').mockResolvedValue(
+        preCreatedUserWith({
+          uuid: networkUuid,
+          setupEmailSentAt: new Date('2026-09-20T10:00:00Z'),
+        }),
+      );
+
+      const uuid = await userUseCases.preCreateUserWithPlan(email, planName);
+
+      expect(uuid).toBe(networkUuid);
+      expect(preCreatedUsersRepository.create).not.toHaveBeenCalled();
+      expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
+      expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
+    });
+
+    it('When the user was already pre-created but never emailed, then the setup email is sent', async () => {
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(
+          preCreatedUserWith({ uuid: networkUuid, setupEmailSentAt: null }),
+        );
+
+      await userUseCases.preCreateUserWithPlan(email, planName);
+
+      expect(preCreatedUsersRepository.create).not.toHaveBeenCalled();
+      expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledWith(
+        email,
+        expect.objectContaining({ planName }),
+      );
+    });
+
+    it('When a legacy pre-created user has a random uuid, then it takes the network uuid and keeps its sharing and workspace invitations', async () => {
+      const legacyUuid = v4();
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(
+          preCreatedUserWith({ uuid: legacyUuid, setupEmailSentAt: null }),
+        );
+
+      const uuid = await userUseCases.preCreateUserWithPlan(email, planName);
+
+      expect(uuid).toBe(networkUuid);
+      expect(sharingRepository.updateAllUserSharedWith).toHaveBeenCalledWith(
+        legacyUuid,
+        { sharedWith: networkUuid },
+      );
+      expect(workspaceRepository.updateInvitesBy).toHaveBeenCalledWith(
+        { invitedUser: legacyUuid },
+        { invitedUser: networkUuid },
+      );
+      expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+        legacyUuid,
+        { uuid: networkUuid },
+      );
+      expect(preCreatedUsersRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('When a legacy pre-created user is re-keyed, then its invitations are moved before the user itself so a failed attempt can be retried', async () => {
+      const legacyUuid = v4();
+      const calls: string[] = [];
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(
+          preCreatedUserWith({ uuid: legacyUuid, setupEmailSentAt: null }),
+        );
+      jest
+        .spyOn(sharingRepository, 'updateAllUserSharedWith')
+        .mockImplementation(async () => {
+          calls.push('sharing invitations');
+        });
+      jest
+        .spyOn(workspaceRepository, 'updateInvitesBy')
+        .mockImplementation(async () => {
+          calls.push('workspace invitations');
+        });
+      jest
+        .spyOn(preCreatedUsersRepository, 'updateByUuid')
+        .mockImplementation(async (uuid) => {
+          if (uuid === legacyUuid) calls.push('pre-created user');
+        });
+
+      await userUseCases.preCreateUserWithPlan(email, planName);
+
+      expect(calls).toEqual([
+        'sharing invitations',
+        'workspace invitations',
+        'pre-created user',
+      ]);
+    });
+
+    it('When the user later completes the account setup, then the registered user keeps the uuid returned at pre-creation', async () => {
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(null);
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue('decrypted');
+      jest
+        .spyOn(userRepository, 'create')
+        .mockImplementation(async (attributes) =>
+          newUser({ attributes: { ...attributes } }),
+        );
+      jest
+        .spyOn(bridgeService, 'createBucket')
+        .mockResolvedValue({ id: 'bucket-id' } as any);
+      jest
+        .spyOn(userUseCases, 'createInitialFolders')
+        .mockResolvedValue([newFolder(), newFolder(), newFolder()]);
+
+      const preCreatedUuid = await userUseCases.preCreateUserWithPlan(
+        email,
+        planName,
+      );
+      const { user: registeredUser } = await userUseCases.createUser({
+        email,
+        password: 'encrypted-password',
+        salt: 'encrypted-salt',
+        name: 'Buyer',
+        lastname: 'Internxt',
+        mnemonic: 'mnemonic',
+      });
+
+      expect(registeredUser.uuid).toBe(preCreatedUuid);
+    });
+
+    it('When the email belongs to a registered user, then it is rejected as a conflict without touching the network', async () => {
+      jest
+        .spyOn(userRepository, 'findByUsername')
+        .mockResolvedValue(newUser({ attributes: { email } }));
+
+      await expect(
+        userUseCases.preCreateUserWithPlan(email, planName),
+      ).rejects.toThrow(ConflictException);
+
+      expect(bridgeService.createUser).not.toHaveBeenCalled();
+      expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
     });
   });
 

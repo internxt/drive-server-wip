@@ -7,6 +7,7 @@ import { GatewayController } from './gateway.controller';
 import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import {
   BadRequestException,
+  ConflictException,
   type Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -15,6 +16,11 @@ import { v4 } from 'uuid';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Test } from '@nestjs/testing';
 import { UserLimitResponseDto } from './dto/user-limit-response.dto';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+import { GatewayGuard } from '../auth/gateway.guard';
+import { PreCreateUserWithPlanDto } from './dto/pre-create-user-with-plan.dto';
 
 describe('Gateway Controller', () => {
   let gatewayController: GatewayController;
@@ -294,6 +300,76 @@ describe('Gateway Controller', () => {
         user,
         clientId: 'gateway',
       });
+    });
+  });
+
+  describe('Pre-creating a user who paid for a plan', () => {
+    const body = { email: 'buyer@internxt.com', planName: 'Premium 2TB' };
+
+    const toValidatedBody = async (rawBody: Record<string, unknown>) => {
+      const dto = plainToInstance(PreCreateUserWithPlanDto, rawBody);
+      return { dto, errors: await validate(dto) };
+    };
+
+    it('When the request is not signed with the gateway token, then it is rejected by the gateway guard', () => {
+      const guards = Reflect.getMetadata(
+        GUARDS_METADATA,
+        GatewayController.prototype.preCreateUserWithPlan,
+      );
+
+      expect(guards).toEqual([GatewayGuard]);
+    });
+
+    it('When the user is pre-created, then its uuid is returned', async () => {
+      const uuid = v4();
+      gatewayUsecases.preCreateUserWithPlan.mockResolvedValueOnce({ uuid });
+
+      const response = await gatewayController.preCreateUserWithPlan(body);
+
+      expect(response).toEqual({ uuid });
+      expect(gatewayUsecases.preCreateUserWithPlan).toHaveBeenCalledWith(
+        body.email,
+        body.planName,
+      );
+    });
+
+    it('When the email already belongs to a registered user, then a conflict is returned', async () => {
+      gatewayUsecases.preCreateUserWithPlan.mockRejectedValueOnce(
+        new ConflictException('User already registered'),
+      );
+
+      await expect(
+        gatewayController.preCreateUserWithPlan(body),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When the email has uppercase letters, then it is received in lowercase', async () => {
+      const { dto, errors } = await toValidatedBody({
+        ...body,
+        email: 'Buyer@Internxt.COM',
+      });
+
+      expect(errors).toHaveLength(0);
+      expect(dto.email).toBe('buyer@internxt.com');
+    });
+
+    it('When the email is not valid, then the request is rejected', async () => {
+      const { errors } = await toValidatedBody({
+        ...body,
+        email: 'not-an-email',
+      });
+
+      expect(errors.map((error) => error.property)).toEqual(['email']);
+    });
+
+    it('When the plan name is missing or empty, then the request is rejected', async () => {
+      const [{ errors: missing }, { errors: empty }] = await Promise.all([
+        toValidatedBody({ email: body.email }),
+        toValidatedBody({ ...body, planName: '' }),
+      ]);
+
+      expect(missing.map((error) => error.property)).toEqual(['planName']);
+      expect(empty.map((error) => error.property)).toEqual(['planName']);
     });
   });
 

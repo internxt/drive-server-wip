@@ -160,6 +160,13 @@ export class SequelizeWorkspaceRepository {
     await Promise.all(updatePromises);
   }
 
+  async updateInvitesBy(
+    where: Partial<WorkspaceInviteAttributes>,
+    update: Partial<Omit<WorkspaceInviteAttributes, 'id'>>,
+  ): Promise<void> {
+    await this.modelWorkspaceInvite.update(update, { where });
+  }
+
   async deleteInviteBy(
     where: Partial<WorkspaceInviteAttributes>,
   ): Promise<void> {

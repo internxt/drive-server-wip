@@ -15,6 +15,7 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
   encryptVersion: UserKeysEncryptVersions;
   publicKyberKey?: string;
   privateKyberKey?: string;
+  setupEmailSentAt?: Date | null;
   constructor({
     id,
     email,
@@ -29,6 +30,7 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
     encryptVersion,
     publicKyberKey,
     privateKyberKey,
+    setupEmailSentAt,
   }: PreCreatedUserAttributes) {
     this.id = id;
     this.uuid = uuid;
@@ -43,6 +45,7 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
     this.password = password;
     this.mnemonic = mnemonic;
     this.hKey = hKey;
+    this.setupEmailSentAt = setupEmailSentAt ?? null;
   }
 
   static build(user: PreCreatedUserAttributes): PreCreatedUser {
