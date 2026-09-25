@@ -62,6 +62,7 @@ import { v4, validate } from 'uuid';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
+import { AccountSetupPendingException } from './exception/account-setup-pending.exception';
 import { SharingService } from '../sharing/sharing.service';
 import { CreateAttemptChangeEmailDto } from './dto/create-attempt-change-email.dto';
 import { RequestAccountUnblock } from './dto/account-unblock.dto';
@@ -135,6 +136,8 @@ export class UserController {
     const isDriveWeb = clientId === ClientEnum.Web;
 
     try {
+      await this.rejectPendingAccountSetup(createUserDto.email);
+
       const response = await this.userUseCases.createUser(createUserDto);
 
       const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
@@ -198,7 +201,9 @@ export class UserController {
         uuid: response.uuid,
       };
     } catch (err) {
-      if (err instanceof InvalidReferralCodeError) {
+      if (err instanceof AccountSetupPendingException) {
+        throw err;
+      } else if (err instanceof InvalidReferralCodeError) {
         throw new BadRequestException(err.message);
       } else if (err instanceof UserAlreadyRegisteredError) {
         throw new ConflictException(err.message);
@@ -288,6 +293,8 @@ export class UserController {
         throw new NotFoundException('PRE_CREATED_USER_NOT_FOUND');
       }
 
+      await this.rejectPendingAccountSetup(email);
+
       const userCreated = await this.userUseCases.createUser(createUserDto);
 
       const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
@@ -364,7 +371,9 @@ export class UserController {
     } catch (err) {
       const errorMessage = err.message;
 
-      if (err instanceof InvalidReferralCodeError) {
+      if (err instanceof AccountSetupPendingException) {
+        throw err;
+      } else if (err instanceof InvalidReferralCodeError) {
         throw new BadRequestException(errorMessage);
       } else if (err instanceof UserAlreadyRegisteredError) {
         throw new ConflictException(errorMessage);
@@ -381,6 +390,15 @@ export class UserController {
         })}, STACK: ${(err as Error).stack}`,
       );
       throw err;
+    }
+  }
+
+  private async rejectPendingAccountSetup(email: string) {
+    const hasPendingAccountSetup =
+      await this.userUseCases.hasPendingAccountSetup(email.toLowerCase());
+
+    if (hasPendingAccountSetup) {
+      throw new AccountSetupPendingException();
     }
   }
 
