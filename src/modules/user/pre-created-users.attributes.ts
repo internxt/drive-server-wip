@@ -15,4 +15,5 @@ export interface PreCreatedUserAttributes {
   encryptVersion: KeyServerAttributes['encryptVersion'];
   publicKyberKey?: KeyServerAttributes['publicKey'];
   privateKyberKey?: KeyServerAttributes['privateKey'];
+  setupEmailSentAt?: Date | null;
 }

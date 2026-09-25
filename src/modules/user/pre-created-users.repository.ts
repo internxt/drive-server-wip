@@ -28,6 +28,20 @@ export class SequelizePreCreatedUsersRepository {
     return preCreatedUsers.map((user) => this.toDomain(user));
   }
 
+  async findByUuid(
+    uuid: PreCreatedUserAttributes['uuid'],
+  ): Promise<PreCreatedUser | null> {
+    const user = await this.modelUser.findOne({ where: { uuid } });
+    return user ? this.toDomain(user) : null;
+  }
+
+  async updateByUuid(
+    uuid: PreCreatedUserAttributes['uuid'],
+    update: Partial<Omit<PreCreatedUserAttributes, 'id'>>,
+  ): Promise<void> {
+    await this.modelUser.update(update, { where: { uuid } });
+  }
+
   async create(
     user: Omit<PreCreatedUserAttributes, 'id'>,
   ): Promise<PreCreatedUser> {

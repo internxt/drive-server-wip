@@ -292,6 +292,22 @@ export class MailerService {
     );
   }
 
+  async sendAccountSetupEmail(
+    email: string,
+    { planName, setupUrl }: { planName: string; setupUrl: string },
+  ): Promise<void> {
+    const context = {
+      plan_name: planName,
+      setup_url: setupUrl,
+    };
+
+    await this.send(
+      email,
+      this.configService.get('mailer.templates.accountSetup'),
+      context,
+    );
+  }
+
   async sendFullStorageEmail(userEmail: User['email']): Promise<void> {
     await this.send(
       userEmail,

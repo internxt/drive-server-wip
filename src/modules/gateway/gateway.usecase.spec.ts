@@ -393,6 +393,26 @@ describe('GatewayUseCases', () => {
       });
     });
 
+    describe('Pre-creating a user who paid for a plan', () => {
+      it('When the user is pre-created, then the uuid is returned wrapped for the response', async () => {
+        const uuid = v4();
+        jest
+          .spyOn(userUseCases, 'preCreateUserWithPlan')
+          .mockResolvedValueOnce(uuid);
+
+        const response = await service.preCreateUserWithPlan(
+          'buyer@internxt.com',
+          'Premium 2TB',
+        );
+
+        expect(response).toEqual({ uuid });
+        expect(userUseCases.preCreateUserWithPlan).toHaveBeenCalledWith(
+          'buyer@internxt.com',
+          'Premium 2TB',
+        );
+      });
+    });
+
     describe('getUserCredentials', () => {
       const user = newUser();
       const folder = newFolder();

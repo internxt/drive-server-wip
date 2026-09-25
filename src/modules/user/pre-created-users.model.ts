@@ -64,4 +64,8 @@ export class PreCreatedUserModel
 
   @Column
   hKey: Buffer;
+
+  @AllowNull(true)
+  @Column(DataType.DATE)
+  setupEmailSentAt?: Date | null;
 }

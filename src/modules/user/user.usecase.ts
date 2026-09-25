@@ -87,6 +87,10 @@ import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import { type GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
 import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import { type UserResponseDto } from './dto/responses/user-credentials.dto';
+import {
+  buildAccountSetupUrl,
+  signAccountSetupToken,
+} from './account-setup-token';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -630,7 +634,72 @@ export class UserUseCases {
     );
   }
 
-  async preCreateUser(newUser: PreCreateUserDto): Promise<
+  async preCreateUserWithPlan(
+    rawEmail: PreCreatedUserAttributes['email'],
+    planName: string,
+  ): Promise<PreCreatedUserAttributes['uuid']> {
+    const email = rawEmail.toLowerCase();
+
+    const registeredUser = await this.userRepository.findByUsername(email);
+    if (registeredUser) {
+      throw new ConflictException('User already registered');
+    }
+
+    const { uuid } = await this.networkService.createUser(email);
+    const preCreatedUser =
+      await this.preCreatedUserRepository.findByUsername(email);
+
+    if (!preCreatedUser) {
+      await this.preCreateUser({ email }, uuid);
+    } else if (preCreatedUser.uuid !== uuid) {
+      await this.rekeyPreCreatedUser(preCreatedUser.uuid, uuid);
+    }
+
+    const isSetupEmailPending = !preCreatedUser?.setupEmailSentAt;
+    if (isSetupEmailPending) {
+      await this.sendAccountSetupEmail(email, uuid, planName);
+    }
+
+    return uuid;
+  }
+
+  private async rekeyPreCreatedUser(
+    currentUuid: PreCreatedUserAttributes['uuid'],
+    newUuid: PreCreatedUserAttributes['uuid'],
+  ): Promise<void> {
+    await this.sharingRepository.updateAllUserSharedWith(currentUuid, {
+      sharedWith: newUuid,
+    });
+    await this.workspaceRepository.updateInvitesBy(
+      { invitedUser: currentUuid },
+      { invitedUser: newUuid },
+    );
+    await this.preCreatedUserRepository.updateByUuid(currentUuid, {
+      uuid: newUuid,
+    });
+  }
+
+  private async sendAccountSetupEmail(
+    email: PreCreatedUserAttributes['email'],
+    uuid: PreCreatedUserAttributes['uuid'],
+    planName: string,
+  ): Promise<void> {
+    const sentAt = new Date();
+    const token = signAccountSetupToken(uuid, sentAt);
+
+    await this.mailerService.sendAccountSetupEmail(email, {
+      planName,
+      setupUrl: buildAccountSetupUrl(token),
+    });
+    await this.preCreatedUserRepository.updateByUuid(uuid, {
+      setupEmailSentAt: sentAt,
+    });
+  }
+
+  async preCreateUser(
+    newUser: PreCreateUserDto,
+    uuid: PreCreatedUserAttributes['uuid'] = v4(),
+  ): Promise<
     [
       {
         id: number;
@@ -694,7 +763,7 @@ export class UserUseCases {
 
     const user = await this.preCreatedUserRepository.create({
       email,
-      uuid: v4(),
+      uuid,
       password: hashObj.hash,
       hKey: Buffer.from(hashObj.salt),
       username: email,

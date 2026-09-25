@@ -1064,6 +1064,23 @@ describe('SequelizeWorkspaceRepository', () => {
     });
   });
 
+  describe('Moving workspace invitations to another invited user', () => {
+    it('When the invitations of a user are moved, then every matching invitation points to the new user', async () => {
+      const currentUserUuid = v4();
+      const newUserUuid = v4();
+
+      await repository.updateInvitesBy(
+        { invitedUser: currentUserUuid },
+        { invitedUser: newUserUuid },
+      );
+
+      expect(workspaceInviteModel.update).toHaveBeenCalledWith(
+        { invitedUser: newUserUuid },
+        { where: { invitedUser: currentUserUuid } },
+      );
+    });
+  });
+
   describe('deleteInviteBy', () => {
     it('When deleting invite by criteria, then call destroy method', async () => {
       const where = { id: v4() };
