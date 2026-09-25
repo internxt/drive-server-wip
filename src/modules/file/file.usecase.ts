@@ -612,17 +612,7 @@ export class FileUseCases {
     pageSize: number,
     cursorToken: string | undefined,
   ): Promise<{ files: File[]; hasMore: boolean; nextCursor: string | null }> {
-    const cursor = cursorToken
-      ? decodeCursor(FileSyncCursorDto, cursorToken)
-      : undefined;
-
-    if (cursorToken && !cursor) {
-      throw new BadRequestException('Invalid cursor');
-    }
-
-    if (cursor && cursor.status !== status) {
-      throw new BadRequestException('Cursor does not match status filter');
-    }
+    const cursor = this.decodeFileSyncCursor(cursorToken, status);
 
     const filter: Partial<FileAttributes> = { userId };
 
@@ -638,21 +628,88 @@ export class FileUseCases {
         cursor,
       });
 
-    const lastFile = files.at(-1);
-    const nextCursor =
-      hasMore && lastFile && lastRowCursorUpdatedAt
-        ? encodeCursor({
-            updatedAt: lastRowCursorUpdatedAt,
-            uuid: lastFile.uuid,
-            status,
-          })
-        : null;
+    return {
+      files: files.map((file) => file.toJSON()) as File[],
+      hasMore,
+      nextCursor: this.buildFileSyncNextCursor(
+        files,
+        hasMore,
+        lastRowCursorUpdatedAt,
+        status,
+      ),
+    };
+  }
+
+  async getWorkspaceFilesUpdatedAfterWithCursor(
+    networkUserId: UserAttributes['id'],
+    createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    status: FileStatus | undefined,
+    updatedAfter: Date,
+    pageSize: number,
+    cursorToken: string | undefined,
+  ): Promise<{ files: File[]; hasMore: boolean; nextCursor: string | null }> {
+    const cursor = this.decodeFileSyncCursor(cursorToken, status);
+
+    const { files, hasMore, lastRowCursorUpdatedAt } =
+      await this.fileRepository.findWorkspaceFilesWithCursorWhereUpdatedAfter({
+        networkUserId,
+        createdBy,
+        workspaceId,
+        where: status ? { status } : {},
+        updatedAfter,
+        pageSize,
+        cursor,
+      });
 
     return {
       files: files.map((file) => file.toJSON()) as File[],
       hasMore,
-      nextCursor,
+      nextCursor: this.buildFileSyncNextCursor(
+        files,
+        hasMore,
+        lastRowCursorUpdatedAt,
+        status,
+      ),
     };
+  }
+
+  private decodeFileSyncCursor(
+    cursorToken: string | undefined,
+    status: FileStatus | undefined,
+  ): FileSyncCursorDto | undefined {
+    const cursor = cursorToken
+      ? decodeCursor(FileSyncCursorDto, cursorToken)
+      : undefined;
+
+    if (cursorToken && !cursor) {
+      throw new BadRequestException('Invalid cursor');
+    }
+
+    if (cursor && cursor.status !== status) {
+      throw new BadRequestException('Cursor does not match status filter');
+    }
+
+    return cursor;
+  }
+
+  private buildFileSyncNextCursor(
+    files: File[],
+    hasMore: boolean,
+    lastRowCursorUpdatedAt: string | null,
+    status: FileStatus | undefined,
+  ): string | null {
+    const lastFile = files.at(-1);
+
+    if (!hasMore || !lastFile || !lastRowCursorUpdatedAt) {
+      return null;
+    }
+
+    return encodeCursor({
+      updatedAt: lastRowCursorUpdatedAt,
+      uuid: lastFile.uuid,
+      status,
+    });
   }
 
   async getFolderFilesWithCursor(

@@ -74,6 +74,8 @@ import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { GetSharedItemsDto } from './dto/get-shared-items.dto';
 import { GetSharedWithDto } from './dto/shared-with.dto';
 import { GetWorkspaceFilesQueryDto } from './dto/get-workspace-files.dto';
+import { GetFilesSyncDto } from '../file/dto/get-files-sync.dto';
+import { GetFilesSyncResponseDto } from '../file/dto/responses/get-files-sync.dto';
 import { GetWorkspaceFoldersQueryDto } from './dto/get-workspace-folders.dto';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../../common/decorators/client.decorator';
@@ -301,7 +303,49 @@ export class WorkspacesController {
     return this.workspaceUseCases.removeMemberFromTeam(teamId, memberId);
   }
 
+  @Get('/:workspaceId/files/sync')
+  @ApiOperation({
+    summary: 'Get delta of workspace files created by the user since a date',
+  })
+  @ApiOkResponse({ type: GetFilesSyncResponseDto })
+  @UseGuards(WorkspaceGuard)
+  @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
+  async getFilesSync(
+    @UserDecorator() user: User,
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
+    @Query() query: GetFilesSyncDto,
+  ): Promise<GetFilesSyncResponseDto> {
+    const { status, updatedAt, cursor, limit } = query;
+
+    const { files, nextCursor } =
+      await this.workspaceUseCases.getPersonalWorkspaceFilesSync(
+        user.uuid,
+        workspaceId,
+        status,
+        new Date(updatedAt || 1),
+        limit ?? 1000,
+        cursor,
+      );
+
+    const cleaned = files.map((f) => {
+      delete f.deleted;
+      delete f.deletedAt;
+      delete f.removed;
+      delete f.removedAt;
+
+      return f;
+    });
+
+    return { files: cleaned, nextCursor };
+  }
+
   @Get('/:workspaceId/files')
+  @ApiOperation({
+    summary: 'Get workspace files updated after a date',
+    deprecated: true,
+    description: 'Use GET /workspaces/:workspaceId/files/sync instead',
+  })
   @ApiOkResponse({ isArray: true, type: FileDto })
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.MEMBER)
