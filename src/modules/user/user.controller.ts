@@ -67,6 +67,7 @@ import { AccountSetupPendingException } from './exception/account-setup-pending.
 import { SharingService } from '../sharing/sharing.service';
 import { CreateAttemptChangeEmailDto } from './dto/create-attempt-change-email.dto';
 import { RequestAccountUnblock } from './dto/account-unblock.dto';
+import { ResendAccountSetupEmailDto } from './dto/resend-account-setup-email.dto';
 import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
 import { getFutureIAT } from '../../middlewares/passport';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
@@ -254,6 +255,32 @@ export class UserController {
       }
 
       return { error: errorMessage };
+    }
+  }
+
+  @Post('/pre-created-users/setup-email')
+  @UseGuards(CaptchaGuard)
+  @UseInterceptors(TimingConsistencyInterceptor)
+  @TimingConsistency({ minimumResponseTimeMs: 900 })
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Resend the account setup email of a paid, pending account',
+    description:
+      'Responds the same way whether or not the email has a pending account setup',
+  })
+  @ApiOkResponse({ description: 'Request accepted' })
+  @Public()
+  async resendAccountSetupEmail(
+    @Body() body: ResendAccountSetupEmailDto,
+  ): Promise<void> {
+    try {
+      await this.userUseCases.resendAccountSetupEmail(body.email.toLowerCase());
+    } catch (err) {
+      this.logger.error(
+        `[ACCOUNT_SETUP/RESEND] ERROR: ${(err as Error).message}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
     }
   }
 

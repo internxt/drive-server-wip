@@ -97,6 +97,7 @@ import {
   buildAccountSetupUrl,
   signAccountSetupToken,
 } from './account-setup-token';
+import { AccountSetupPendingException } from './exception/account-setup-pending.exception';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -141,6 +142,8 @@ export class MailLimitReachedException extends HttpException {
     super(customMessage ?? 'Mail Limit reached', HttpStatus.TOO_MANY_REQUESTS);
   }
 }
+
+const ACCOUNT_SETUP_EMAIL_RESENDS_PER_DAY = 5;
 
 type NewUser = Pick<
   UserAttributes,
@@ -290,6 +293,54 @@ export class UserUseCases {
       publicKey: preCreatedUser.publicKey,
       publicKyberKey: preCreatedUser.publicKyberKey,
     };
+  }
+
+  async resendAccountSetupEmail(
+    email: PreCreatedUserAttributes['email'],
+  ): Promise<void> {
+    const registeredUser = await this.userRepository.findByUsername(email);
+    if (registeredUser) {
+      return;
+    }
+
+    const preCreatedUser = await this.findPreCreatedUserWithPendingSetup(email);
+    if (!preCreatedUser) {
+      return;
+    }
+
+    const sentAt = new Date();
+    const todayInUtc = sentAt.toISOString().slice(0, 10);
+    const resendsToday =
+      preCreatedUser.setupEmailResendDate === todayInUtc
+        ? preCreatedUser.setupEmailResendCount
+        : 0;
+
+    if (resendsToday >= ACCOUNT_SETUP_EMAIL_RESENDS_PER_DAY) {
+      Logger.warn(
+        `[ACCOUNT_SETUP/RESEND] Daily limit reached for pre-created user ${preCreatedUser.uuid}`,
+      );
+      return;
+    }
+
+    const setupToken = signAccountSetupToken(preCreatedUser.uuid, sentAt);
+
+    await this.mailerService.sendAccountSetupEmail(preCreatedUser.email, {
+      planName: '',
+      setupUrl: buildAccountSetupUrl(setupToken),
+    });
+    await this.preCreatedUserRepository.updateByUuid(preCreatedUser.uuid, {
+      setupEmailSentAt: sentAt,
+      setupEmailResendCount: resendsToday + 1,
+      setupEmailResendDate: todayInUtc,
+    });
+  }
+
+  private async findPreCreatedUserWithPendingSetup(
+    email: PreCreatedUserAttributes['email'],
+  ): Promise<PreCreatedUser | null> {
+    const preCreatedUser =
+      await this.preCreatedUserRepository.findByUsername(email);
+    return preCreatedUser?.setupEmailSentAt ? preCreatedUser : null;
   }
 
   getWorkspaceMembersByBrigeUser(bridgeUser: string) {
@@ -1785,9 +1836,13 @@ export class UserUseCases {
   ) {
     const MAX_LOGIN_FAIL_ATTEMPTS = 10;
 
-    const userData = await this.findByEmail(loginAccessDto.email.toLowerCase());
+    const email = loginAccessDto.email.toLowerCase();
+    const userData = await this.findByEmail(email);
 
     if (!userData) {
+      if (await this.hasPendingAccountSetup(email)) {
+        throw new AccountSetupPendingException();
+      }
       throw new UnauthorizedException('Wrong login credentials');
     }
 
