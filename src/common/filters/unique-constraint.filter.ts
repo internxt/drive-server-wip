@@ -15,7 +15,7 @@ export class UniqueConstraintFilter implements ExceptionFilter {
   private readonly constraintMessages: Record<string, string> = {
     idx_files_folder_user_name_type_unique_numeric:
       'A file with this name already exists in this location',
-    folders_plainname_parentid_key:
+    folders_parentuuid_plainname_unique:
       'A folder with this name already exists in this location',
   };
 
