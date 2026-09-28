@@ -2467,6 +2467,175 @@ describe('FileUseCases', () => {
     });
   });
 
+  describe('getWorkspaceFilesUpdatedAfterWithCursor', () => {
+    const networkUserId = 1;
+    const createdBy = v4();
+    const workspaceId = v4();
+    const updatedAfter = new Date();
+    const mockFiles = [newFile(), newFile()];
+
+    it('When status is provided, then it should query the repository with workspace params and status', async () => {
+      jest
+        .spyOn(fileRepository, 'findWorkspaceFilesWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({
+          files: mockFiles,
+          hasMore: false,
+          lastRowCursorUpdatedAt: null,
+        });
+
+      await service.getWorkspaceFilesUpdatedAfterWithCursor(
+        networkUserId,
+        createdBy,
+        workspaceId,
+        FileStatus.EXISTS,
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(
+        fileRepository.findWorkspaceFilesWithCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith({
+        networkUserId,
+        createdBy,
+        workspaceId,
+        where: { status: FileStatus.EXISTS },
+        updatedAfter,
+        pageSize: 1000,
+        cursor: undefined,
+      });
+    });
+
+    it('When status is not provided, then it should not filter by status', async () => {
+      jest
+        .spyOn(fileRepository, 'findWorkspaceFilesWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({
+          files: mockFiles,
+          hasMore: false,
+          lastRowCursorUpdatedAt: null,
+        });
+
+      await service.getWorkspaceFilesUpdatedAfterWithCursor(
+        networkUserId,
+        createdBy,
+        workspaceId,
+        undefined,
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(
+        fileRepository.findWorkspaceFilesWithCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
+    });
+
+    it('When an invalid cursorToken is provided, then it should throw', async () => {
+      jest.spyOn(
+        fileRepository,
+        'findWorkspaceFilesWithCursorWhereUpdatedAfter',
+      );
+
+      await expect(
+        service.getWorkspaceFilesUpdatedAfterWithCursor(
+          networkUserId,
+          createdBy,
+          workspaceId,
+          undefined,
+          updatedAfter,
+          1000,
+          'not-a-valid-cursor',
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(
+        fileRepository.findWorkspaceFilesWithCursorWhereUpdatedAfter,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When the cursor status does not match the requested status, then it should throw', async () => {
+      const cursorToken = Buffer.from(
+        JSON.stringify({
+          updatedAt: updatedAfter.toISOString(),
+          uuid: v4(),
+          status: FileStatus.EXISTS,
+        }),
+      ).toString('base64');
+      jest.spyOn(
+        fileRepository,
+        'findWorkspaceFilesWithCursorWhereUpdatedAfter',
+      );
+
+      await expect(
+        service.getWorkspaceFilesUpdatedAfterWithCursor(
+          networkUserId,
+          createdBy,
+          workspaceId,
+          FileStatus.TRASHED,
+          updatedAfter,
+          1000,
+          cursorToken,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(
+        fileRepository.findWorkspaceFilesWithCursorWhereUpdatedAfter,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When hasMore is true, then it should return the nextCursor pointing to the last file', async () => {
+      const lastFile = mockFiles.at(-1);
+      const cursorUpdatedAt = '2026-01-01T10:00:00.123456Z';
+      jest
+        .spyOn(fileRepository, 'findWorkspaceFilesWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({
+          files: mockFiles,
+          hasMore: true,
+          lastRowCursorUpdatedAt: cursorUpdatedAt,
+        });
+
+      const result = await service.getWorkspaceFilesUpdatedAfterWithCursor(
+        networkUserId,
+        createdBy,
+        workspaceId,
+        FileStatus.EXISTS,
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      const decoded = JSON.parse(
+        Buffer.from(result.nextCursor, 'base64').toString('utf-8'),
+      );
+      expect(decoded).toEqual({
+        updatedAt: cursorUpdatedAt,
+        uuid: lastFile.uuid,
+        status: FileStatus.EXISTS,
+      });
+      expect(result.files).toEqual(mockFiles.map((file) => file.toJSON()));
+    });
+
+    it('When hasMore is false, then nextCursor should be null', async () => {
+      jest
+        .spyOn(fileRepository, 'findWorkspaceFilesWithCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce({
+          files: mockFiles,
+          hasMore: false,
+          lastRowCursorUpdatedAt: '2026-01-01T10:00:00.123456Z',
+        });
+
+      const result = await service.getWorkspaceFilesUpdatedAfterWithCursor(
+        networkUserId,
+        createdBy,
+        workspaceId,
+        undefined,
+        updatedAfter,
+        1000,
+        undefined,
+      );
+
+      expect(result.nextCursor).toBeNull();
+    });
+  });
+
   describe('getFolderFilesWithCursor', () => {
     const userForFolder = newUser();
     const folderUuid = newFolder().uuid;
