@@ -407,7 +407,8 @@ export class FileUseCases {
     folder: Folder,
     searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]> {
-    return this.fileRepository.findFilesInFolderByName(
+    return this.fileRepository.findUserFilesInFolderByName(
+      folder.userId,
       folder.uuid,
       searchFilter,
     );

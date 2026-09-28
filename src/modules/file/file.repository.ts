@@ -103,7 +103,8 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     where: FindOptions<FileAttributes>,
   ): Promise<File | null>;
-  findFilesInFolderByName(
+  findUserFilesInFolderByName(
+    userId: File['userId'],
     folderId: Folder['uuid'],
     searchBy: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]>;
@@ -1180,12 +1181,14 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
-  async findFilesInFolderByName(
+  async findUserFilesInFolderByName(
+    userId: File['userId'],
     folderId: Folder['uuid'],
     searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]> {
     const where: WhereOptions<File> = {
       folderUuid: folderId,
+      userId,
       status: FileStatus.EXISTS,
     };
 

@@ -4039,13 +4039,14 @@ describe('FileUseCases', () => {
       const searchFilter = [{ plainName: 'test', type: 'txt' }];
       const mockFiles = [newFile()];
       jest
-        .spyOn(fileRepository, 'findFilesInFolderByName')
+        .spyOn(fileRepository, 'findUserFilesInFolderByName')
         .mockResolvedValue(mockFiles);
 
       const result = await service.searchFilesInFolder(folder, searchFilter);
 
       expect(result).toEqual(mockFiles);
-      expect(fileRepository.findFilesInFolderByName).toHaveBeenCalledWith(
+      expect(fileRepository.findUserFilesInFolderByName).toHaveBeenCalledWith(
+        folder.userId,
         folder.uuid,
         searchFilter,
       );

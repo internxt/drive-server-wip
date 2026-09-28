@@ -73,7 +73,7 @@ interface FolderRepository {
   findByParentUuid(
     parentUuid: Folder['parentUuid'],
     searchBy: {
-      plainName: Folder['plainName'][];
+      plainName: Folder['plainName'] | Folder['plainName'][];
       deleted: boolean;
       removed: boolean;
     },
@@ -252,7 +252,7 @@ export class SequelizeFolderRepository implements FolderRepository {
   async findByParentUuid(
     parentUuid: Folder['parentUuid'],
     searchBy: {
-      plainName: Folder['plainName'][];
+      plainName: Folder['plainName'] | Folder['plainName'][];
       deleted: boolean;
       removed: boolean;
     },
@@ -263,9 +263,11 @@ export class SequelizeFolderRepository implements FolderRepository {
       deleted: searchBy.deleted,
     };
 
+    const plainNames = [searchBy.plainName].flat();
+
     // COLLATE "custom_numeric" needed to hit folders_parentuuid_plainname_numeric_unique
     const plainNameCondition =
-      searchBy && searchBy.plainName.length > 0
+      plainNames.length > 0
         ? [
             Sequelize.literal(
               '"FolderModel"."plain_name" COLLATE "custom_numeric" IN (:plainNames)',
@@ -278,9 +280,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         ...where,
         ...(plainNameCondition.length && { [Op.and]: plainNameCondition }),
       },
-      replacements: plainNameCondition.length
-        ? { plainNames: searchBy.plainName }
-        : undefined,
+      replacements: plainNameCondition.length ? { plainNames } : undefined,
     });
 
     return folders.map(this.toDomain.bind(this));

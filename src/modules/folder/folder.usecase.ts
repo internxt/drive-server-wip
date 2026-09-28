@@ -327,14 +327,16 @@ export class FolderUseCases {
       folder.parentId,
     );
 
-    const folderWithSameNameExists = await this.folderRepository.findOne({
-      name: cryptoFileName,
-      parentUuid: folder.parentUuid,
-      deleted: false,
-      removed: false,
-    });
+    const foldersWithSameName = await this.folderRepository.findByParentUuid(
+      folder.parentUuid,
+      {
+        plainName: newFolderMetadata.plainName,
+        deleted: false,
+        removed: false,
+      },
+    );
 
-    if (folderWithSameNameExists) {
+    if (foldersWithSameName.length > 0) {
       throw new ConflictException(
         'A folder with this name already exists in this location',
       );
@@ -384,14 +386,16 @@ export class FolderUseCases {
       throw new BadRequestException('Invalid folder name');
     }
 
-    const nameAlreadyInUse = await this.folderRepository.findOne({
-      parentUuid: parentFolder.uuid,
-      plainName: newFolderDto.plainName,
-      deleted: false,
-      removed: false,
-    });
+    const foldersWithSameName = await this.folderRepository.findByParentUuid(
+      parentFolder.uuid,
+      {
+        plainName: newFolderDto.plainName,
+        deleted: false,
+        removed: false,
+      },
+    );
 
-    if (nameAlreadyInUse) {
+    if (foldersWithSameName.length > 0) {
       throw new ConflictException(
         'Folder with the same name already exists in this location',
       );
