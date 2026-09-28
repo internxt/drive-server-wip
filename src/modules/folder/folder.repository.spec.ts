@@ -148,6 +148,30 @@ describe('SequelizeFolderRepository', () => {
       });
     });
 
+    it('When a single name is provided, then it should filter by the collated plain_name', async () => {
+      const plainName = 'Document';
+
+      await repository.findByParentUuid(parentUuid, {
+        plainName,
+        deleted: false,
+        removed: false,
+      });
+
+      expect(folderModel.findAll).toHaveBeenCalledWith({
+        where: {
+          parentUuid,
+          deleted: false,
+          removed: false,
+          [Op.and]: [
+            Sequelize.literal(
+              '"FolderModel"."plain_name" COLLATE "custom_numeric" IN (:plainNames)',
+            ),
+          ],
+        },
+        replacements: { plainNames: [plainName] },
+      });
+    });
+
     it('When called without specific criteria, then it should handle the call without a plain_name condition', async () => {
       await repository.findByParentUuid(parentUuid, {
         plainName: [],

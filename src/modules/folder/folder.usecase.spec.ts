@@ -1142,8 +1142,8 @@ describe('FolderUseCases', () => {
         .spyOn(folderRepository, 'findOne')
         .mockResolvedValueOnce(parentFolder);
       jest
-        .spyOn(folderRepository, 'findOne')
-        .mockResolvedValueOnce(existingFolder);
+        .spyOn(folderRepository, 'findByParentUuid')
+        .mockResolvedValueOnce([existingFolder]);
 
       await expect(
         service.createFolder(userMocked, {
@@ -1171,7 +1171,9 @@ describe('FolderUseCases', () => {
       jest
         .spyOn(folderRepository, 'findOne')
         .mockResolvedValueOnce(parentFolder);
-      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(null);
+      jest
+        .spyOn(folderRepository, 'findByParentUuid')
+        .mockResolvedValueOnce([]);
 
       jest
         .spyOn(cryptoService, 'encryptName')
@@ -1188,6 +1190,10 @@ describe('FolderUseCases', () => {
         modificationTime: new Date('2024-09-12T12:00:00Z'),
       });
 
+      expect(folderRepository.findByParentUuid).toHaveBeenCalledWith(
+        parentFolder.uuid,
+        { plainName: folderName, deleted: false, removed: false },
+      );
       expect(result).toEqual(newFolderCreated);
     });
   });
@@ -1682,8 +1688,8 @@ describe('FolderUseCases', () => {
 
       jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(mockFolder);
       jest
-        .spyOn(folderRepository, 'findOne')
-        .mockResolvedValueOnce(folderWithSameName);
+        .spyOn(folderRepository, 'findByParentUuid')
+        .mockResolvedValueOnce([folderWithSameName]);
 
       await expect(
         service.updateFolderMetaData(
@@ -1707,7 +1713,9 @@ describe('FolderUseCases', () => {
 
       jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(mockFolder);
       jest.spyOn(mockFolder, 'isOwnedBy').mockReturnValueOnce(true);
-      jest.spyOn(folderRepository, 'findOne').mockResolvedValueOnce(null);
+      jest
+        .spyOn(folderRepository, 'findByParentUuid')
+        .mockResolvedValueOnce([]);
       jest.spyOn(cryptoService, 'encryptName').mockReturnValue(encryptedName);
       jest
         .spyOn(folderRepository, 'updateByFolderId')
@@ -1719,6 +1727,14 @@ describe('FolderUseCases', () => {
         newFolderMetadata,
       );
 
+      expect(folderRepository.findByParentUuid).toHaveBeenCalledWith(
+        mockFolder.parentUuid,
+        {
+          plainName: newFolderMetadata.plainName,
+          deleted: false,
+          removed: false,
+        },
+      );
       expect(folderRepository.updateByFolderId).toHaveBeenCalledWith(
         mockFolder.id,
         expect.objectContaining({
