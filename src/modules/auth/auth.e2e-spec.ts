@@ -124,11 +124,19 @@ describe('User Authentication E2E', () => {
     });
 
     describe('Rejects requests with non-existent email', () => {
-      it('When email does not exist, then returns 401', async () => {
-        await request(app.getHttpServer())
+      it('When email does not exist, then returns 200 with the same shape as an existing user', async () => {
+        const response = await request(app.getHttpServer())
           .post('/auth/login')
           .send({ email: 'nonexistent@test.com' })
-          .expect(HttpStatus.UNAUTHORIZED);
+          .expect(HttpStatus.OK);
+
+        expect(response.body).toEqual({
+          hasKeys: true,
+          sKey: expect.any(String),
+          tfa: false,
+          hasKyberKeys: true,
+          hasEccKeys: true,
+        });
       });
 
       it('When email format is invalid, then returns 400', async () => {
