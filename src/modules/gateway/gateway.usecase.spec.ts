@@ -400,23 +400,32 @@ describe('GatewayUseCases', () => {
       });
     });
 
-    describe('Pre-creating a user who paid for a plan', () => {
-      it('When the user is pre-created, then the uuid is returned wrapped for the response', async () => {
+    describe('Pre-creating the user of a new customer at checkout', () => {
+      it('When the user is pre-created, then its uuid and setup status are returned', async () => {
+        const response = { uuid: v4(), setupPending: true };
+        jest
+          .spyOn(userUseCases, 'getOrPreCreateUserForCheckout')
+          .mockResolvedValueOnce(response);
+
+        const result =
+          await service.getOrPreCreateUserForCheckout('buyer@internxt.com');
+
+        expect(result).toEqual(response);
+      });
+    });
+
+    describe('Sending the account setup email after the payment', () => {
+      it('When the email is requested, then it is sent for that user and plan', async () => {
         const uuid = v4();
         jest
-          .spyOn(userUseCases, 'preCreateUserWithPlan')
-          .mockResolvedValueOnce(uuid);
+          .spyOn(userUseCases, 'sendAccountSetupEmailIfPending')
+          .mockResolvedValueOnce(undefined);
 
-        const response = await service.preCreateUserWithPlan(
-          'buyer@internxt.com',
-          'Premium 2TB',
-        );
+        await service.sendAccountSetupEmailIfPending(uuid, 'Premium 2TB');
 
-        expect(response).toEqual({ uuid });
-        expect(userUseCases.preCreateUserWithPlan).toHaveBeenCalledWith(
-          'buyer@internxt.com',
-          'Premium 2TB',
-        );
+        expect(
+          userUseCases.sendAccountSetupEmailIfPending,
+        ).toHaveBeenCalledWith(uuid, 'Premium 2TB');
       });
     });
 
