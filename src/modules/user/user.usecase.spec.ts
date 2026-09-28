@@ -90,7 +90,7 @@ import { aes } from '@internxt/lib';
 import { WorkspacesUsecases } from '../workspaces/workspaces.usecase';
 import { PaymentsService } from '../../externals/payments/payments.service';
 import * as jwtLibrary from '../../lib/jwt';
-import { JsonWebTokenError } from 'jsonwebtoken';
+import { JsonWebTokenError, sign as signJwt } from 'jsonwebtoken';
 import { type LegacyRecoverAccountDto } from './dto/legacy-recover-account.dto';
 import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
@@ -99,7 +99,6 @@ import { type PreCreatedUser } from './pre-created-user.domain';
 import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import * as bip39 from 'bip39';
 import getEnv from '../../config/configuration';
-import { sign as signJwt } from 'jsonwebtoken';
 import { type Transaction } from 'sequelize';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
 import {

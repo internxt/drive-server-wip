@@ -52,10 +52,6 @@ import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { type PreCreateUserDto } from './dto/pre-create-user.dto';
 import { type CompleteAccountSetupDto } from './dto/complete-account-setup.dto';
-import {
-  decodeAccountSetupToken,
-  isCurrentAccountSetupToken,
-} from './account-setup-token';
 import { aes } from '@internxt/lib';
 import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { type PreCreatedUser } from './pre-created-user.domain';
@@ -95,6 +91,8 @@ import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import { type UserResponseDto } from './dto/responses/user-credentials.dto';
 import {
   buildAccountSetupUrl,
+  decodeAccountSetupToken,
+  isCurrentAccountSetupToken,
   signAccountSetupToken,
 } from './account-setup-token';
 import { AccountSetupPendingException } from './exception/account-setup-pending.exception';
