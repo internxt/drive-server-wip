@@ -581,7 +581,7 @@ describe('FileRepository', () => {
     });
   });
 
-  describe('findFilesInFolderByName', () => {
+  describe('findUserFilesInFolderByName', () => {
     const folderUuid = v4();
     const userId = 1;
 
@@ -591,9 +591,9 @@ describe('FileRepository', () => {
         { plainName: 'Summary', type: 'doc' },
       ];
 
-      await repository.findFilesInFolderByName(
-        folderUuid,
+      await repository.findUserFilesInFolderByName(
         userId,
+        folderUuid,
         searchCriteria,
       );
 
@@ -623,9 +623,9 @@ describe('FileRepository', () => {
     it('When a file is searched with only plainName, it should handle the missing type', async () => {
       const searchCriteria = [{ plainName: 'Report' }];
 
-      await repository.findFilesInFolderByName(
-        folderUuid,
+      await repository.findUserFilesInFolderByName(
         userId,
+        folderUuid,
         searchCriteria,
       );
 
