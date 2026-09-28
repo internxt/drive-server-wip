@@ -409,6 +409,7 @@ export class FileUseCases {
   ): Promise<File[]> {
     return this.fileRepository.findFilesInFolderByName(
       folder.uuid,
+      folder.userId,
       searchFilter,
     );
   }

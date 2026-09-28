@@ -583,6 +583,7 @@ describe('FileRepository', () => {
 
   describe('findFilesInFolderByName', () => {
     const folderUuid = v4();
+    const userId = 1;
 
     it('When multiple files are searched, it should handle an array of search filters', async () => {
       const searchCriteria = [
@@ -590,11 +591,16 @@ describe('FileRepository', () => {
         { plainName: 'Summary', type: 'doc' },
       ];
 
-      await repository.findFilesInFolderByName(folderUuid, searchCriteria);
+      await repository.findFilesInFolderByName(
+        folderUuid,
+        userId,
+        searchCriteria,
+      );
 
       expect(fileModel.findAll).toHaveBeenCalledWith({
         where: expect.objectContaining({
           folderUuid,
+          userId,
           status: FileStatus.EXISTS,
           [Op.or]: [
             expect.objectContaining({
@@ -617,11 +623,16 @@ describe('FileRepository', () => {
     it('When a file is searched with only plainName, it should handle the missing type', async () => {
       const searchCriteria = [{ plainName: 'Report' }];
 
-      await repository.findFilesInFolderByName(folderUuid, searchCriteria);
+      await repository.findFilesInFolderByName(
+        folderUuid,
+        userId,
+        searchCriteria,
+      );
 
       expect(fileModel.findAll).toHaveBeenCalledWith({
         where: expect.objectContaining({
           folderUuid,
+          userId,
           status: FileStatus.EXISTS,
           [Op.or]: [
             expect.objectContaining({

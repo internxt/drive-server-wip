@@ -4047,6 +4047,7 @@ describe('FileUseCases', () => {
       expect(result).toEqual(mockFiles);
       expect(fileRepository.findFilesInFolderByName).toHaveBeenCalledWith(
         folder.uuid,
+        folder.userId,
         searchFilter,
       );
     });
