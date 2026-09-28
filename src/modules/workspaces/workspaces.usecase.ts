@@ -1081,6 +1081,39 @@ export class WorkspacesUsecases {
     );
   }
 
+  async getPersonalWorkspaceFoldersSync(
+    userUuid: User['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    status: FolderStatus | undefined,
+    updatedAfter: Date,
+    pageSize: number,
+    cursorToken: string | undefined,
+  ) {
+    const workspace = await this.workspaceRepository.findById(workspaceId);
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const networkUser = await this.userRepository.findByUuid(
+      workspace.workspaceUserId,
+    );
+
+    if (!networkUser) {
+      throw new NotFoundException('Workspace user not found');
+    }
+
+    return this.folderUseCases.getWorkspaceFoldersUpdatedAfterWithCursor(
+      networkUser.id,
+      userUuid,
+      workspaceId,
+      status,
+      updatedAfter,
+      pageSize,
+      cursorToken,
+    );
+  }
+
   async getPersonalWorkspaceFoldersInWorkspaceUpdatedAfter(
     userUuid: User['uuid'],
     workspaceId: WorkspaceAttributes['id'],

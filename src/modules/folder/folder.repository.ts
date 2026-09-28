@@ -130,6 +130,19 @@ interface FolderRepository {
     hasMore: boolean;
     lastRowCursorUpdatedAt: string | null;
   }>;
+  findWorkspaceFoldersWithCursorWhereUpdatedAfter(params: {
+    networkUserId: FolderAttributes['userId'];
+    createdBy: WorkspaceItemUserAttributes['createdBy'];
+    workspaceId: WorkspaceAttributes['id'];
+    where: Partial<FolderAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FolderUpdatedAtIdCursorDto;
+  }): Promise<{
+    folders: Folder[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }>;
   updateByFolderId(
     folderId: FolderAttributes['id'],
     update: Partial<Folder>,
@@ -1096,6 +1109,82 @@ export class SequelizeFolderRepository implements FolderRepository {
       where: whereCondition,
       attributes: { include: [cursorUpdatedAtAttribute()] },
       replacements: cursorFilter?.replacements,
+      order: [
+        ['updatedAt', 'ASC'],
+        ['uuid', 'ASC'],
+      ],
+      limit: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+    const lastRow = page.at(-1);
+
+    return {
+      folders: page.map((f) => this.toDomain(f)),
+      hasMore,
+      lastRowCursorUpdatedAt: lastRow
+        ? (lastRow.get('updatedAtCursor') as string)
+        : null,
+    };
+  }
+
+  async findWorkspaceFoldersWithCursorWhereUpdatedAfter({
+    networkUserId,
+    createdBy,
+    workspaceId,
+    where,
+    updatedAfter,
+    pageSize,
+    cursor,
+  }: {
+    networkUserId: FolderAttributes['userId'];
+    createdBy: WorkspaceItemUserAttributes['createdBy'];
+    workspaceId: WorkspaceAttributes['id'];
+    where: Partial<FolderAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FolderUpdatedAtIdCursorDto;
+  }): Promise<{
+    folders: Folder[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }> {
+    const cursorFilter = cursor
+      ? cursorTimestampTupleFilter(cursor.updatedAt, cursor.uuid)
+      : null;
+
+    const createdInWorkspaceByUser = Sequelize.literal(
+      `EXISTS (
+        SELECT 1 FROM workspace_items_users wiu
+        WHERE wiu.item_id = "FolderModel"."uuid"
+          AND wiu.item_type = :itemType
+          AND wiu.workspace_id = :workspaceId
+          AND wiu.created_by = :createdBy
+      )`,
+    );
+
+    const whereCondition: WhereOptions<FolderAttributes> = {
+      ...where,
+      userId: networkUserId,
+      parentUuid: { [Op.not]: null },
+      [Op.and]: [
+        cursorFilter
+          ? cursorFilter.where
+          : { updatedAt: { [Op.gt]: updatedAfter } },
+        createdInWorkspaceByUser,
+      ],
+    };
+
+    const rows = await this.folderModel.findAll({
+      where: whereCondition,
+      attributes: { include: [cursorUpdatedAtAttribute()] },
+      replacements: {
+        ...cursorFilter?.replacements,
+        itemType: WorkspaceItemType.Folder,
+        workspaceId,
+        createdBy,
+      },
       order: [
         ['updatedAt', 'ASC'],
         ['uuid', 'ASC'],

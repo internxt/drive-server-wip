@@ -6249,6 +6249,86 @@ describe('WorkspacesUsecases', () => {
     });
   });
 
+  describe('getPersonalWorkspaceFoldersSync', () => {
+    const userUuid = v4();
+    const updatedAfter = new Date();
+
+    it('When workspace does not exist, then it should throw', async () => {
+      jest.spyOn(workspaceRepository, 'findById').mockResolvedValueOnce(null);
+
+      await expect(
+        service.getPersonalWorkspaceFoldersSync(
+          userUuid,
+          v4(),
+          undefined,
+          updatedAfter,
+          1000,
+          undefined,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When workspace network user does not exist, then it should throw', async () => {
+      const workspace = newWorkspace();
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(null);
+
+      await expect(
+        service.getPersonalWorkspaceFoldersSync(
+          userUuid,
+          workspace.id,
+          undefined,
+          updatedAfter,
+          1000,
+          undefined,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When workspace exists, then it should query folders owned by the workspace network user', async () => {
+      const networkUser = newUser();
+      const workspace = newWorkspace({
+        attributes: { workspaceUserId: networkUser.uuid },
+      });
+      const expected = { folders: [], hasMore: false, nextCursor: null };
+      const cursor = 'cursor-token';
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+      jest
+        .spyOn(userRepository, 'findByUuid')
+        .mockResolvedValueOnce(networkUser);
+      jest
+        .spyOn(folderUseCases, 'getWorkspaceFoldersUpdatedAfterWithCursor')
+        .mockResolvedValueOnce(expected);
+
+      const result = await service.getPersonalWorkspaceFoldersSync(
+        userUuid,
+        workspace.id,
+        FolderStatus.EXISTS,
+        updatedAfter,
+        50,
+        cursor,
+      );
+
+      expect(userRepository.findByUuid).toHaveBeenCalledWith(networkUser.uuid);
+      expect(
+        folderUseCases.getWorkspaceFoldersUpdatedAfterWithCursor,
+      ).toHaveBeenCalledWith(
+        networkUser.id,
+        userUuid,
+        workspace.id,
+        FolderStatus.EXISTS,
+        updatedAfter,
+        50,
+        cursor,
+      );
+      expect(result).toEqual(expected);
+    });
+  });
+
   describe('getPersonalWorkspaceFilesInWorkspaceUpdatedAfter', () => {
     const userUuid = v4();
     const workspaceId = v4();
