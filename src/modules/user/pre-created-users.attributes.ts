@@ -1,6 +1,12 @@
 import { type KeyServerAttributes } from '../keyserver/key-server.domain';
 import { type UserAttributes } from './user.attributes';
 
+export enum PreCreatedUserStatus {
+  AwaitingPayment = 'awaiting_payment',
+  PendingSetup = 'pending_setup',
+  Cancelled = 'cancelled',
+}
+
 export interface PreCreatedUserAttributes {
   id: UserAttributes['id'];
   email: UserAttributes['email'];
@@ -19,4 +25,5 @@ export interface PreCreatedUserAttributes {
   tierId?: string | null;
   setupEmailResendCount?: number;
   setupEmailResendDate?: string | null;
+  status?: PreCreatedUserStatus | null;
 }

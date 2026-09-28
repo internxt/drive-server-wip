@@ -1,5 +1,8 @@
 import { type UserKeysEncryptVersions } from '../keyserver/key-server.domain';
-import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
+import {
+  type PreCreatedUserAttributes,
+  type PreCreatedUserStatus,
+} from './pre-created-users.attributes';
 
 export class PreCreatedUser implements PreCreatedUserAttributes {
   id: number;
@@ -19,6 +22,7 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
   tierId?: string | null;
   setupEmailResendCount: number;
   setupEmailResendDate?: string | null;
+  status?: PreCreatedUserStatus | null;
   constructor({
     id,
     email,
@@ -37,6 +41,7 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
     tierId,
     setupEmailResendCount,
     setupEmailResendDate,
+    status,
   }: PreCreatedUserAttributes) {
     this.id = id;
     this.uuid = uuid;
@@ -55,6 +60,7 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
     this.tierId = tierId ?? null;
     this.setupEmailResendCount = setupEmailResendCount ?? 0;
     this.setupEmailResendDate = setupEmailResendDate ?? null;
+    this.status = status ?? null;
   }
 
   static build(user: PreCreatedUserAttributes): PreCreatedUser {

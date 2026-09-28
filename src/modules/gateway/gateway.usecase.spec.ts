@@ -27,6 +27,7 @@ import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit
 import { LimitTypes, LimitLabels } from '../feature-limit/limits.enum';
 import { FileUseCases } from '../file/file.usecase';
 import { SequelizePreCreatedUsersRepository } from '../user/pre-created-users.repository';
+import { PreCreatedUserStatus } from '../user/pre-created-users.attributes';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 
 describe('GatewayUseCases', () => {
@@ -608,6 +609,80 @@ describe('GatewayUseCases', () => {
         expect(networkService.setStorage).toHaveBeenCalledWith(
           preCreatedUser.username,
           freeStorageBytes,
+        );
+      });
+
+      it('When a user who paid and has not completed the setup gets the free tier back, then the setup is marked as cancelled', async () => {
+        const preCreatedUser = newPreCreatedUser();
+        preCreatedUser.tierId = v4();
+        preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
+        const freeTier = newTier({ label: 'free' });
+        jest
+          .spyOn(preCreatedUsersRepository, 'findByUuid')
+          .mockResolvedValueOnce(preCreatedUser);
+        jest
+          .spyOn(featureLimitService, 'getTier')
+          .mockResolvedValueOnce(freeTier);
+        jest
+          .spyOn(limitsRepository, 'getFreeTier')
+          .mockResolvedValueOnce(freeTier);
+
+        await service.updatePreCreatedUser(preCreatedUser.uuid, {
+          newTierId: freeTier.id,
+        });
+
+        expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+          preCreatedUser.uuid,
+          { tierId: freeTier.id, status: PreCreatedUserStatus.Cancelled },
+        );
+      });
+
+      it('When a user who paid and has not completed the setup changes to another paid tier, then the setup stays pending', async () => {
+        const preCreatedUser = newPreCreatedUser();
+        preCreatedUser.tierId = v4();
+        preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
+        const otherPaidTier = newTier();
+        jest
+          .spyOn(preCreatedUsersRepository, 'findByUuid')
+          .mockResolvedValueOnce(preCreatedUser);
+        jest
+          .spyOn(featureLimitService, 'getTier')
+          .mockResolvedValueOnce(otherPaidTier);
+        jest
+          .spyOn(limitsRepository, 'getFreeTier')
+          .mockResolvedValueOnce(newTier({ label: 'free' }));
+
+        await service.updatePreCreatedUser(preCreatedUser.uuid, {
+          newTierId: otherPaidTier.id,
+        });
+
+        expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+          preCreatedUser.uuid,
+          { tierId: otherPaidTier.id },
+        );
+      });
+
+      it('When a user who has not paid yet gets the free tier, then its status is not changed', async () => {
+        const preCreatedUser = newPreCreatedUser();
+        preCreatedUser.tierId = v4();
+        preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
+        const freeTier = newTier({ label: 'free' });
+        jest
+          .spyOn(preCreatedUsersRepository, 'findByUuid')
+          .mockResolvedValueOnce(preCreatedUser);
+        jest
+          .spyOn(featureLimitService, 'getTier')
+          .mockResolvedValueOnce(freeTier);
+        const getFreeTier = jest.spyOn(limitsRepository, 'getFreeTier');
+
+        await service.updatePreCreatedUser(preCreatedUser.uuid, {
+          newTierId: freeTier.id,
+        });
+
+        expect(getFreeTier).not.toHaveBeenCalled();
+        expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+          preCreatedUser.uuid,
+          { tierId: freeTier.id },
         );
       });
 
