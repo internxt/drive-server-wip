@@ -2284,6 +2284,7 @@ describe('User use cases', () => {
     it('When the email belongs to a paid pre-created user whose setup email was sent, then the setup is pending', async () => {
       const preCreatedUser = newPreCreatedUser();
       preCreatedUser.setupEmailSentAt = new Date();
+      preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
       jest
         .spyOn(preCreatedUsersRepository, 'findByUsername')
         .mockResolvedValue(preCreatedUser);
@@ -2293,6 +2294,35 @@ describe('User use cases', () => {
       );
 
       expect(hasPendingSetup).toBe(true);
+    });
+
+    it('When the pre-created user started a checkout but has not paid yet, then no setup is pending', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(preCreatedUser);
+
+      const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
+        preCreatedUser.email,
+      );
+
+      expect(hasPendingSetup).toBe(false);
+    });
+
+    it('When the subscription was cancelled before completing the setup, then no setup is pending even if the email was sent', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      preCreatedUser.setupEmailSentAt = new Date();
+      preCreatedUser.status = PreCreatedUserStatus.Cancelled;
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(preCreatedUser);
+
+      const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
+        preCreatedUser.email,
+      );
+
+      expect(hasPendingSetup).toBe(false);
     });
 
     it('When the email belongs to a user pre-created by an invitation, then no setup is pending', async () => {

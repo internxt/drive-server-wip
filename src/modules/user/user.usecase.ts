@@ -203,7 +203,7 @@ export class UserUseCases {
   ): Promise<boolean> {
     const preCreatedUser =
       await this.preCreatedUserRepository.findByUsername(email);
-    return !!preCreatedUser?.setupEmailSentAt;
+    return preCreatedUser?.status === PreCreatedUserStatus.PendingSetup;
   }
 
   findByUuids(uuids: User['uuid'][]): Promise<User[]> {
