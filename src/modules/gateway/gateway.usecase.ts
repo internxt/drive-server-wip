@@ -374,12 +374,17 @@ export class GatewayUseCases {
     }
   }
 
-  async preCreateUserWithPlan(
+  getOrPreCreateUserForCheckout(
     email: string,
+  ): Promise<{ uuid: string; setupPending: boolean }> {
+    return this.userUseCases.getOrPreCreateUserForCheckout(email);
+  }
+
+  sendAccountSetupEmailIfPending(
+    uuid: string,
     planName: string,
-  ): Promise<{ uuid: string }> {
-    const uuid = await this.userUseCases.preCreateUserWithPlan(email, planName);
-    return { uuid };
+  ): Promise<void> {
+    return this.userUseCases.sendAccountSetupEmailIfPending(uuid, planName);
   }
 
   async handleFailedPayment(userId: string): Promise<{ success: boolean }> {
