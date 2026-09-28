@@ -341,7 +341,9 @@ export class UserUseCases {
   ): Promise<PreCreatedUser | null> {
     const preCreatedUser =
       await this.preCreatedUserRepository.findByUsername(email);
-    return preCreatedUser?.setupEmailSentAt ? preCreatedUser : null;
+    return preCreatedUser?.status === PreCreatedUserStatus.PendingSetup
+      ? preCreatedUser
+      : null;
   }
 
   getWorkspaceMembersByBrigeUser(bridgeUser: string) {

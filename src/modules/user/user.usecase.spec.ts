@@ -1115,6 +1115,7 @@ describe('User use cases', () => {
     it('When the email has a paid account pending setup, then access is denied telling that the setup is pending', async () => {
       const preCreatedUser = newPreCreatedUser();
       preCreatedUser.setupEmailSentAt = new Date();
+      preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
       jest
         .spyOn(preCreatedUsersRepository, 'findByUsername')
@@ -6422,6 +6423,7 @@ describe('User use cases', () => {
     const pendingSetupUser = (resends?: { count: number; date: string }) => {
       const preCreatedUser = newPreCreatedUser();
       preCreatedUser.setupEmailSentAt = oneHourAgo;
+      preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
       preCreatedUser.setupEmailResendCount = resends?.count ?? 0;
       preCreatedUser.setupEmailResendDate = resends?.date ?? null;
       return preCreatedUser;
@@ -6584,6 +6586,19 @@ describe('User use cases', () => {
       ).resolves.toBeUndefined();
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
+    });
+
+    it('When the subscription was cancelled before completing the setup, then no setup email is sent', async () => {
+      const cancelledUser = pendingSetupUser();
+      cancelledUser.status = PreCreatedUserStatus.Cancelled;
+      givenEmailBelongsTo({ preCreatedUser: cancelledUser });
+
+      await expect(
+        userUseCases.resendAccountSetupEmail(cancelledUser.email),
+      ).resolves.toBeUndefined();
+
+      expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
+      expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
     });
   });
 });
