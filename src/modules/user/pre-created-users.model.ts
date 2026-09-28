@@ -8,7 +8,10 @@ import {
   AllowNull,
   Unique,
 } from 'sequelize-typescript';
-import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
+import {
+  type PreCreatedUserAttributes,
+  type PreCreatedUserStatus,
+} from './pre-created-users.attributes';
 import { type KeyServerAttributes } from '../keyserver/key-server.domain';
 
 @Table({
@@ -72,4 +75,8 @@ export class PreCreatedUserModel
   @AllowNull(true)
   @Column(DataType.UUID)
   tierId?: string | null;
+
+  @AllowNull(true)
+  @Column(DataType.STRING)
+  status?: PreCreatedUserStatus | null;
 }

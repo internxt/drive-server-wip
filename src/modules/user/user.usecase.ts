@@ -52,7 +52,10 @@ import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { type PreCreateUserDto } from './dto/pre-create-user.dto';
 import { aes } from '@internxt/lib';
-import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
+import {
+  type PreCreatedUserAttributes,
+  PreCreatedUserStatus,
+} from './pre-created-users.attributes';
 import { type PreCreatedUser } from './pre-created-user.domain';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
@@ -673,7 +676,18 @@ export class UserUseCases {
       await this.rekeyPreCreatedUser(preCreatedUser.uuid, uuid);
     }
 
-    return { uuid, setupPending: !!preCreatedUser?.setupEmailSentAt };
+    const currentStatus = preCreatedUser?.status;
+    const isSetupPending = currentStatus === PreCreatedUserStatus.PendingSetup;
+    const isAwaitingPayment =
+      currentStatus === PreCreatedUserStatus.AwaitingPayment;
+
+    if (!isSetupPending && !isAwaitingPayment) {
+      await this.preCreatedUserRepository.updateByUuid(uuid, {
+        status: PreCreatedUserStatus.AwaitingPayment,
+      });
+    }
+
+    return { uuid, setupPending: isSetupPending };
   }
 
   async sendAccountSetupEmailIfPending(
@@ -690,7 +704,9 @@ export class UserUseCases {
       return;
     }
 
-    if (!preCreatedUser.setupEmailSentAt) {
+    const isSetupEmailAlreadySent =
+      preCreatedUser.status === PreCreatedUserStatus.PendingSetup;
+    if (!isSetupEmailAlreadySent) {
       await this.sendAccountSetupEmail(preCreatedUser.email, uuid, planName);
     }
   }
@@ -725,6 +741,7 @@ export class UserUseCases {
     });
     await this.preCreatedUserRepository.updateByUuid(uuid, {
       setupEmailSentAt: sentAt,
+      status: PreCreatedUserStatus.PendingSetup,
     });
   }
 

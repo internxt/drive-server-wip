@@ -95,6 +95,7 @@ import { CryptoModule } from '../../externals/crypto/crypto.module';
 import { AsymmetricEncryptionModule } from '../../externals/asymmetric-encryption/asymmetric-encryption.module';
 import { type PreCreateUserDto } from './dto/pre-create-user.dto';
 import { type PreCreatedUser } from './pre-created-user.domain';
+import { PreCreatedUserStatus } from './pre-created-users.attributes';
 import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import * as bip39 from 'bip39';
 import getEnv from '../../config/configuration';
@@ -4314,6 +4315,19 @@ describe('User use cases', () => {
       );
     });
 
+    it('When the email is new, then the pre-created user is left awaiting the payment', async () => {
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(null);
+
+      await userUseCases.getOrPreCreateUserForCheckout(email);
+
+      expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+        networkUuid,
+        { status: PreCreatedUserStatus.AwaitingPayment },
+      );
+    });
+
     it('When the user is pre-created, then no email is sent', async () => {
       jest
         .spyOn(preCreatedUsersRepository, 'findByUsername')
@@ -4322,26 +4336,67 @@ describe('User use cases', () => {
       await userUseCases.getOrPreCreateUserForCheckout(email);
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
-      expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
+      expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ setupEmailSentAt: expect.anything() }),
+      );
     });
 
     it('When the user was already pre-created and has not paid yet, then the same uuid is returned without creating it again', async () => {
+      jest.spyOn(preCreatedUsersRepository, 'findByUsername').mockResolvedValue(
+        preCreatedUserWith({
+          uuid: networkUuid,
+          status: PreCreatedUserStatus.AwaitingPayment,
+        }),
+      );
+
+      const result = await userUseCases.getOrPreCreateUserForCheckout(email);
+
+      expect(result).toEqual({ uuid: networkUuid, setupPending: false });
+      expect(preCreatedUsersRepository.create).not.toHaveBeenCalled();
+      expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
+    });
+
+    it('When the user was pre-created by an invitation, then it is reused and left awaiting the payment', async () => {
       jest
         .spyOn(preCreatedUsersRepository, 'findByUsername')
         .mockResolvedValue(
-          preCreatedUserWith({ uuid: networkUuid, setupEmailSentAt: null }),
+          preCreatedUserWith({ uuid: networkUuid, status: null }),
         );
 
       const result = await userUseCases.getOrPreCreateUserForCheckout(email);
 
       expect(result).toEqual({ uuid: networkUuid, setupPending: false });
       expect(preCreatedUsersRepository.create).not.toHaveBeenCalled();
+      expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+        networkUuid,
+        { status: PreCreatedUserStatus.AwaitingPayment },
+      );
+    });
+
+    it('When the user cancelled before completing the setup and checks out again, then it is awaiting the payment again', async () => {
+      jest.spyOn(preCreatedUsersRepository, 'findByUsername').mockResolvedValue(
+        preCreatedUserWith({
+          uuid: networkUuid,
+          status: PreCreatedUserStatus.Cancelled,
+          setupEmailSentAt: new Date('2026-09-20T10:00:00Z'),
+        }),
+      );
+
+      const result = await userUseCases.getOrPreCreateUserForCheckout(email);
+
+      expect(result).toEqual({ uuid: networkUuid, setupPending: false });
+      expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+        networkUuid,
+        { status: PreCreatedUserStatus.AwaitingPayment },
+      );
     });
 
     it('When the user already paid and has not completed the setup, then the setup is reported as pending', async () => {
       jest.spyOn(preCreatedUsersRepository, 'findByUsername').mockResolvedValue(
         preCreatedUserWith({
           uuid: networkUuid,
+          status: PreCreatedUserStatus.PendingSetup,
           setupEmailSentAt: new Date('2026-09-20T10:00:00Z'),
         }),
       );
@@ -4350,6 +4405,7 @@ describe('User use cases', () => {
 
       expect(result).toEqual({ uuid: networkUuid, setupPending: true });
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
+      expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
     });
 
     it('When a legacy pre-created user has a random uuid, then it takes the network uuid and keeps its sharing and workspace invitations', async () => {
@@ -4398,8 +4454,8 @@ describe('User use cases', () => {
         });
       jest
         .spyOn(preCreatedUsersRepository, 'updateByUuid')
-        .mockImplementation(async () => {
-          calls.push('pre-created user');
+        .mockImplementation(async (uuid) => {
+          if (uuid === legacyUuid) calls.push('pre-created user');
         });
 
       await userUseCases.getOrPreCreateUserForCheckout(email);
@@ -4510,7 +4566,10 @@ describe('User use cases', () => {
       ];
       expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
         preCreatedUser.uuid,
-        { setupEmailSentAt: expect.any(Date) },
+        {
+          setupEmailSentAt: expect.any(Date),
+          status: PreCreatedUserStatus.PendingSetup,
+        },
       );
       expect(iat).toBe(Math.floor(setupEmailSentAt.getTime() / 1000));
     });
@@ -4533,8 +4592,28 @@ describe('User use cases', () => {
       expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
     });
 
+    it('When the user cancelled and paid again, then a new setup email is sent', async () => {
+      preCreatedUser.setupEmailSentAt = new Date('2026-09-20T10:00:00Z');
+      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUuid')
+        .mockResolvedValue(preCreatedUser);
+
+      await userUseCases.sendAccountSetupEmailIfPending(
+        preCreatedUser.uuid,
+        planName,
+      );
+
+      expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledTimes(1);
+      expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+        expect.objectContaining({ status: PreCreatedUserStatus.PendingSetup }),
+      );
+    });
+
     it('When the email was already sent, then it is not sent again', async () => {
       preCreatedUser.setupEmailSentAt = new Date('2026-09-20T10:00:00Z');
+      preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
       jest
         .spyOn(preCreatedUsersRepository, 'findByUuid')
         .mockResolvedValue(preCreatedUser);
