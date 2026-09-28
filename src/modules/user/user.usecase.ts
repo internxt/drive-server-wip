@@ -766,10 +766,12 @@ export class UserUseCases {
     );
   }
 
-  async preCreateUserWithPlan(
+  async getOrPreCreateUserForCheckout(
     rawEmail: PreCreatedUserAttributes['email'],
-    planName: string,
-  ): Promise<PreCreatedUserAttributes['uuid']> {
+  ): Promise<{
+    uuid: PreCreatedUserAttributes['uuid'];
+    setupPending: boolean;
+  }> {
     const email = rawEmail.toLowerCase();
 
     const registeredUser = await this.userRepository.findByUsername(email);
@@ -787,12 +789,26 @@ export class UserUseCases {
       await this.rekeyPreCreatedUser(preCreatedUser.uuid, uuid);
     }
 
-    const isSetupEmailPending = !preCreatedUser?.setupEmailSentAt;
-    if (isSetupEmailPending) {
-      await this.sendAccountSetupEmail(email, uuid, planName);
+    return { uuid, setupPending: !!preCreatedUser?.setupEmailSentAt };
+  }
+
+  async sendAccountSetupEmailIfPending(
+    uuid: PreCreatedUserAttributes['uuid'],
+    planName: string,
+  ): Promise<void> {
+    const preCreatedUser = await this.preCreatedUserRepository.findByUuid(uuid);
+
+    if (!preCreatedUser) {
+      const registeredUser = await this.userRepository.findByUuid(uuid);
+      if (!registeredUser) {
+        throw new NotFoundException('User not found');
+      }
+      return;
     }
 
-    return uuid;
+    if (!preCreatedUser.setupEmailSentAt) {
+      await this.sendAccountSetupEmail(preCreatedUser.email, uuid, planName);
+    }
   }
 
   private async rekeyPreCreatedUser(
