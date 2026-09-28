@@ -22,6 +22,8 @@ import { type Limit } from '../feature-limit/domain/limit.domain';
 import { FeatureNameLimitMap } from './constants';
 import { FileUseCases } from '../file/file.usecase';
 import { SequelizePreCreatedUsersRepository } from '../user/pre-created-users.repository';
+import { type PreCreatedUser } from '../user/pre-created-user.domain';
+import { PreCreatedUserStatus } from '../user/pre-created-users.attributes';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 
 @Injectable()
@@ -406,8 +408,13 @@ export class GatewayUseCases {
     }
 
     if (newTierId && newTierId !== preCreatedUser.tierId) {
+      const isSetupCancelled = await this.isPendingSetupCancelledBy(
+        preCreatedUser,
+        newTierId,
+      );
       await this.preCreatedUsersRepository.updateByUuid(uuid, {
         tierId: newTierId,
+        ...(isSetupCancelled && { status: PreCreatedUserStatus.Cancelled }),
       });
     }
 
@@ -419,6 +426,22 @@ export class GatewayUseCases {
       preCreatedUser.username,
       newStorageSpaceBytes,
     );
+  }
+
+  /**
+   * A pre-created user who paid gets the free tier back when the subscription
+   * is cancelled before the account setup is completed.
+   */
+  private async isPendingSetupCancelledBy(
+    preCreatedUser: PreCreatedUser,
+    newTierId: string,
+  ): Promise<boolean> {
+    if (preCreatedUser.status !== PreCreatedUserStatus.PendingSetup) {
+      return false;
+    }
+
+    const freeTier = await this.limitsRepository.getFreeTier();
+    return freeTier?.id === newTierId;
   }
 
   private async assertTierExists(tierId: string) {

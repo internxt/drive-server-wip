@@ -404,6 +404,12 @@ describe('Gateway Controller', () => {
 
       expect(errors.map((error) => error.property)).toEqual(['email']);
     });
+
+    it('When the email is not text, then the request is rejected', async () => {
+      const { errors } = await toValidatedBody({ email: 12345 });
+
+      expect(errors.map((error) => error.property)).toEqual(['email']);
+    });
   });
 
   describe('Sending the account setup email after the payment', () => {
