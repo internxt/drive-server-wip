@@ -2310,10 +2310,26 @@ describe('User use cases', () => {
       expect(hasPendingSetup).toBe(false);
     });
 
+    it('When the checkout paid and the tier was already applied but the setup email has not been sent yet, then the setup is pending', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
+      preCreatedUser.tierId = 'fake-tier-id';
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(preCreatedUser);
+
+      const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
+        preCreatedUser.email,
+      );
+
+      expect(hasPendingSetup).toBe(true);
+    });
+
     it('When the subscription was cancelled before completing the setup, then no setup is pending even if the email was sent', async () => {
       const preCreatedUser = newPreCreatedUser();
       preCreatedUser.setupEmailSentAt = new Date();
       preCreatedUser.status = PreCreatedUserStatus.Cancelled;
+      preCreatedUser.tierId = 'fake-tier-id';
       jest
         .spyOn(preCreatedUsersRepository, 'findByUsername')
         .mockResolvedValue(preCreatedUser);

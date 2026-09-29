@@ -203,7 +203,17 @@ export class UserUseCases {
   ): Promise<boolean> {
     const preCreatedUser =
       await this.preCreatedUserRepository.findByUsername(email);
-    return preCreatedUser?.status === PreCreatedUserStatus.PendingSetup;
+
+    if (!preCreatedUser) return false;
+
+    if (preCreatedUser.status === PreCreatedUserStatus.PendingSetup) {
+      return true;
+    }
+
+    return (
+      preCreatedUser.status === PreCreatedUserStatus.AwaitingPayment &&
+      preCreatedUser.tierId != null
+    );
   }
 
   findByUuids(uuids: User['uuid'][]): Promise<User[]> {
