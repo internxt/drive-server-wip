@@ -34,6 +34,7 @@ import { AuthGuard } from './modules/auth/auth.guard';
 import { CacheManagerModule } from './modules/cache-manager/cache-manager.module';
 import { ReferralModule } from './modules/referral/referral.module';
 import { HealthModule } from './infrastructure/health/health.module';
+import { RuntimeMonitorService } from './lib/runtime-monitor.service';
 
 const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
 const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
@@ -123,7 +124,7 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
                   .trim();
                 logger.debug(oneLineQuery);
               } catch (error) {
-                logger.debug(`Failed to format sql`, sql);
+                logger.debug('Failed to format sql', sql);
               }
             },
       }),
@@ -165,6 +166,7 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
       provide: APP_GUARD,
       useClass: AuthGuard,
     },
+    RuntimeMonitorService,
   ],
 })
 export class AppModule {}
