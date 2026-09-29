@@ -56,6 +56,9 @@ import {
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { CaptchaGuard } from '../auth/captcha.guard';
+import { TIMING_CONSISTENCY_KEY } from '../auth/decorators/timing-consistency.decorator';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -121,6 +124,52 @@ describe('User Controller', () => {
 
   it('should be defined', () => {
     expect(userController).toBeDefined();
+  });
+
+  describe('Resending the account setup email', () => {
+    const resendHandler = UserController.prototype.resendAccountSetupEmail;
+
+    it('When the email has a paid account pending setup or is unknown, then the response is the same', async () => {
+      userUseCases.resendAccountSetupEmail.mockResolvedValue(undefined);
+
+      const pendingSetupResponse = await userController.resendAccountSetupEmail(
+        { email: 'buyer@internxt.com' },
+      );
+      const unknownEmailResponse = await userController.resendAccountSetupEmail(
+        { email: 'unknown@internxt.com' },
+      );
+
+      expect(pendingSetupResponse).toBeUndefined();
+      expect(unknownEmailResponse).toEqual(pendingSetupResponse);
+    });
+
+    it('When the setup email cannot be sent, then the response is the same as when it is sent', async () => {
+      userUseCases.resendAccountSetupEmail.mockRejectedValueOnce(
+        new Error('Email provider unavailable'),
+      );
+
+      await expect(
+        userController.resendAccountSetupEmail({ email: 'buyer@internxt.com' }),
+      ).resolves.toBeUndefined();
+    });
+
+    it('When the email is typed with capital letters, then the setup email is requested for the lowercase email', async () => {
+      await userController.resendAccountSetupEmail({
+        email: 'Buyer@Internxt.COM',
+      });
+
+      expect(userUseCases.resendAccountSetupEmail).toHaveBeenCalledWith(
+        'buyer@internxt.com',
+      );
+    });
+
+    it('When the setup email is requested, then a captcha is required and the response time does not depend on the email', () => {
+      const guards = Reflect.getMetadata(GUARDS_METADATA, resendHandler);
+      const timing = Reflect.getMetadata(TIMING_CONSISTENCY_KEY, resendHandler);
+
+      expect(guards).toContain(CaptchaGuard);
+      expect(timing).toEqual({ minimumResponseTimeMs: 900 });
+    });
   });
 
   describe('POST /unblock-account', () => {

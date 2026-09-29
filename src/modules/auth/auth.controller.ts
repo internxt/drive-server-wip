@@ -18,6 +18,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
   ApiPaymentRequiredResponse,
@@ -51,6 +52,7 @@ import { Client } from '../../common/decorators/client.decorator';
 import { type ClientEnum } from '../../common/enums/platform.enum';
 import { MailService } from '../../externals/mail/mail.service';
 import { isManagedMailDomain } from './managed-mail-domains';
+import { AccountSetupPendingException } from '../user/exception/account-setup-pending.exception';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -82,6 +84,10 @@ export class AuthController {
     summary: 'Get security details to log in',
   })
   @ApiOkResponse({ description: 'Retrieve details', type: LoginResponseDto })
+  @ApiForbiddenResponse({
+    description:
+      'The email has a paid account whose setup is pending (code AccountSetupPending)',
+  })
   @Public()
   async login(@Body() body: LoginDto): Promise<LoginResponseDto> {
     const email = await this.resolveLoginEmail(body.email.toLowerCase());
@@ -89,6 +95,9 @@ export class AuthController {
     const user = await this.userUseCases.findByEmail(email);
 
     if (!user) {
+      if (await this.userUseCases.hasPendingAccountSetup(email)) {
+        throw new AccountSetupPendingException();
+      }
       throw new UnauthorizedException('Wrong login credentials');
     }
 
@@ -128,6 +137,10 @@ export class AuthController {
   @ApiOkResponse({
     description: 'User  successfully accessed their account',
     type: LoginAccessResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description:
+      'The account is blocked, or the email has a paid account whose setup is pending (code AccountSetupPending)',
   })
   @Public()
   @WorkspaceLogAction(WorkspaceLogType.Login)
