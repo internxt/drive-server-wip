@@ -49,6 +49,7 @@ export default () => ({
     notifications: {
       url: process.env.NOTIFICATIONS_URL,
       key: process.env.NOTIFICATIONS_API_KEY,
+      enabled: process.env.NOTIFICATIONS_API_ENABLED === 'true',
     },
     storage: {
       url: process.env.STORAGE_API_URL,
