@@ -3694,6 +3694,31 @@ describe('FileUseCases', () => {
         );
       });
 
+      it('When replacing with an empty file whose size arrives as a plain number, then it should set fileId to null', async () => {
+        const mockFile = newFile({
+          attributes: { fileId: null, size: BigInt(0) },
+        });
+        const replaceData = { fileId: '', size: 0 as unknown as bigint };
+
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+        jest.spyOn(service, 'checkEmptyFilesLimit').mockResolvedValue();
+        jest
+          .spyOn(service, 'isFileVersionable')
+          .mockResolvedValue({ versionable: false, limits: null });
+        const updateSpy = jest
+          .spyOn(fileRepository, 'updateByUuidAndUserId')
+          .mockResolvedValue();
+
+        await service.replaceFile(userMocked, mockFile.uuid, replaceData);
+
+        expect(service.checkEmptyFilesLimit).toHaveBeenCalledWith(userMocked);
+        expect(updateSpy).toHaveBeenCalledWith(
+          mockFile.uuid,
+          userMocked.id,
+          expect.objectContaining({ fileId: null }),
+        );
+      });
+
       it('When replacing with empty file and limit does not exist, then it should throw', async () => {
         const mockFile = newFile({
           attributes: {
