@@ -680,6 +680,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         ],
         parentUuid: { [Op.eq]: parentUuid },
         deleted: { [Op.eq]: deleted },
+        removed: { [Op.eq]: false },
       },
       replacements: { plainName },
     });
