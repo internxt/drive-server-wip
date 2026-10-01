@@ -18,6 +18,10 @@ export class NotificationListener {
 
   @OnEvent('notification.*')
   async handleNotificationEvent(event: NotificationEvent) {
+    if (!this.configService.get<boolean>('apis.notifications.enabled')) {
+      return;
+    }
+
     const apiNotificationURL: string = this.configService.get(
       'apis.notifications.url',
     );
