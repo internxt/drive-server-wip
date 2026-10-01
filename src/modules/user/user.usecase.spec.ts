@@ -892,7 +892,7 @@ describe('User use cases', () => {
   });
 
   describe('getUserNotificationTokens', () => {
-    it("When getting notification tokens, Then it should return the user's tokens", async () => {
+    it('When getting notification tokens, Then it should return the user\'s tokens', async () => {
       const user = newUser();
       const mockTokens: UserNotificationTokens[] = [
         newNotificationToken(),
@@ -944,7 +944,7 @@ describe('User use cases', () => {
 
       expect(Sign).toHaveBeenCalledWith(
         {
-          jti: expect.stringMatching(`[a-f0-9-]{36}`),
+          jti: expect.stringMatching('[a-f0-9-]{36}'),
           sub: user.uuid,
           payload: {
             uuid: user.uuid,
@@ -990,7 +990,7 @@ describe('User use cases', () => {
 
       expect(Sign).toHaveBeenCalledWith(
         {
-          jti: expect.stringMatching(`[a-f0-9-]{36}`),
+          jti: expect.stringMatching('[a-f0-9-]{36}'),
           sub: user.uuid,
           payload: {
             uuid: user.uuid,
@@ -1035,7 +1035,7 @@ describe('User use cases', () => {
 
       expect(Sign).toHaveBeenCalledWith(
         {
-          jti: expect.stringMatching(`[a-f0-9-]{36}`),
+          jti: expect.stringMatching('[a-f0-9-]{36}'),
           sub: user.uuid,
           payload: {
             uuid: user.uuid,
@@ -1110,9 +1110,11 @@ describe('User use cases', () => {
       });
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(user);
 
-      await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        userUseCases.loginAccess(loginAccessDto),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({ error: 'ACCOUNT_BLOCKED' }),
+      });
     });
 
     it('When the 2FA code is wrong and limit is reached, then it should throw', async () => {

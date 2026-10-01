@@ -12,7 +12,6 @@ import {
   BadRequestException,
   Delete,
   Put,
-  UnauthorizedException,
   HttpException,
   Query,
 } from '@nestjs/common';
@@ -89,7 +88,15 @@ export class AuthController {
     const user = await this.userUseCases.findByEmail(email);
 
     if (!user) {
-      throw new UnauthorizedException('Wrong login credentials');
+      return {
+        hasKeys: true,
+        sKey: this.cryptoService.encryptText(
+          this.cryptoService.fakeSaltFor(email),
+        ),
+        tfa: false,
+        hasKyberKeys: true,
+        hasEccKeys: true,
+      };
     }
 
     try {

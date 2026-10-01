@@ -316,6 +316,124 @@ describe('FileRepository', () => {
     });
   });
 
+  describe('findWorkspaceFilesWithCursorWhereUpdatedAfter', () => {
+    const networkUserId = 99;
+    const createdBy = v4();
+
+    it('When called without a cursor, then it filters by network user, updatedAfter and workspace item existence', async () => {
+      const updatedAfter = new Date();
+      const cursorTimestamp = '2026-01-01T10:00:00.123456Z';
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([
+          withCursorTimestamp(newFile(), cursorTimestamp),
+        ] as any);
+
+      const result =
+        await repository.findWorkspaceFilesWithCursorWhereUpdatedAfter({
+          networkUserId,
+          createdBy,
+          workspaceId: workspace.id,
+          where: { status: FileStatus.EXISTS },
+          updatedAfter,
+          pageSize: 1000,
+        });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: {
+          status: FileStatus.EXISTS,
+          userId: networkUserId,
+          [Op.and]: [
+            { updatedAt: { [Op.gt]: updatedAfter } },
+            expect.objectContaining({
+              val: expect.stringContaining('EXISTS'),
+            }),
+          ],
+        },
+        attributes: { include: [expect.any(Array)] },
+        replacements: {
+          itemType: 'file',
+          workspaceId: workspace.id,
+          createdBy,
+        },
+        order: [
+          ['updatedAt', 'ASC'],
+          ['uuid', 'ASC'],
+        ],
+        limit: 1001,
+      });
+      expect(result).toEqual({
+        files: expect.any(Array),
+        hasMore: false,
+        lastRowCursorUpdatedAt: cursorTimestamp,
+      });
+      expect(result.files).toHaveLength(1);
+    });
+
+    it('When a cursor is provided, then it filters by the cursor tuple and merges its replacements', async () => {
+      const cursorUpdatedAt = '2024-01-01T00:00:00.123456Z';
+      const cursorId = v4();
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findWorkspaceFilesWithCursorWhereUpdatedAfter({
+        networkUserId,
+        createdBy,
+        workspaceId: workspace.id,
+        where: {},
+        updatedAfter: new Date(),
+        pageSize: 1000,
+        cursor: { updatedAt: cursorUpdatedAt, uuid: cursorId },
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: networkUserId,
+            [Op.and]: [
+              {
+                [Op.and]: [
+                  Sequelize.literal(
+                    '("updated_at", "uuid") > (:cursorTimestamp::timestamptz, :cursorTieBreaker)',
+                  ),
+                ],
+              },
+              expect.objectContaining({
+                val: expect.stringContaining('EXISTS'),
+              }),
+            ],
+          },
+          replacements: {
+            cursorTimestamp: cursorUpdatedAt,
+            cursorTieBreaker: cursorId,
+            itemType: 'file',
+            workspaceId: workspace.id,
+            createdBy,
+          },
+        }),
+      );
+    });
+
+    it('When there is one more row than the page size, then hasMore is true and the extra row is dropped', async () => {
+      const files = [newFile(), newFile()].map((file) =>
+        withCursorTimestamp(file, '2026-01-01T10:00:00.123456Z'),
+      );
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(files as any);
+
+      const result =
+        await repository.findWorkspaceFilesWithCursorWhereUpdatedAfter({
+          networkUserId,
+          createdBy,
+          workspaceId: workspace.id,
+          where: {},
+          updatedAfter: new Date(),
+          pageSize: 1,
+        });
+
+      expect(result.hasMore).toBe(true);
+      expect(result.files).toHaveLength(1);
+    });
+  });
+
   describe('findFolderFilesWithCursor', () => {
     const folderUuid = newFolder().uuid;
 
@@ -463,8 +581,9 @@ describe('FileRepository', () => {
     });
   });
 
-  describe('findFilesInFolderByName', () => {
+  describe('findUserFilesInFolderByName', () => {
     const folderUuid = v4();
+    const userId = 1;
 
     it('When multiple files are searched, it should handle an array of search filters', async () => {
       const searchCriteria = [
@@ -472,11 +591,16 @@ describe('FileRepository', () => {
         { plainName: 'Summary', type: 'doc' },
       ];
 
-      await repository.findFilesInFolderByName(folderUuid, searchCriteria);
+      await repository.findUserFilesInFolderByName(
+        userId,
+        folderUuid,
+        searchCriteria,
+      );
 
       expect(fileModel.findAll).toHaveBeenCalledWith({
         where: expect.objectContaining({
           folderUuid,
+          userId,
           status: FileStatus.EXISTS,
           [Op.or]: [
             expect.objectContaining({
@@ -499,11 +623,16 @@ describe('FileRepository', () => {
     it('When a file is searched with only plainName, it should handle the missing type', async () => {
       const searchCriteria = [{ plainName: 'Report' }];
 
-      await repository.findFilesInFolderByName(folderUuid, searchCriteria);
+      await repository.findUserFilesInFolderByName(
+        userId,
+        folderUuid,
+        searchCriteria,
+      );
 
       expect(fileModel.findAll).toHaveBeenCalledWith({
         where: expect.objectContaining({
           folderUuid,
+          userId,
           status: FileStatus.EXISTS,
           [Op.or]: [
             expect.objectContaining({
