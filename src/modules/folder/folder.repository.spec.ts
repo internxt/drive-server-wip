@@ -291,6 +291,32 @@ describe('SequelizeFolderRepository', () => {
     });
   });
 
+  describe('findByNameAndParentUuid', () => {
+    it('When searching by name and parent, then it should only look for non removed folders', async () => {
+      const parentUuid = v4();
+      jest.spyOn(folderModel, 'findOne').mockResolvedValueOnce(null);
+
+      const result = await repository.findByNameAndParentUuid(
+        'encrypted-name',
+        'plain-name',
+        parentUuid,
+        false,
+      );
+
+      expect(folderModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            parentUuid: { [Op.eq]: parentUuid },
+            deleted: { [Op.eq]: false },
+            removed: { [Op.eq]: false },
+          }),
+          replacements: { plainName: 'plain-name' },
+        }),
+      );
+      expect(result).toBeNull();
+    });
+  });
+
   describe('updateBy', () => {
     it('When folders are updated, it should update by the fields provided', async () => {
       const userId = 134455;
