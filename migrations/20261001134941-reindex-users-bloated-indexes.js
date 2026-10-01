@@ -10,9 +10,6 @@ module.exports = {
       'REINDEX INDEX CONCURRENTLY bridge_user_index',
     );
     await queryInterface.sequelize.query(
-      'REINDEX INDEX CONCURRENTLY username',
-    );
-    await queryInterface.sequelize.query(
       'REINDEX INDEX CONCURRENTLY "uuid_UNIQUE"',
     );
   },
