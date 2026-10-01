@@ -18,6 +18,7 @@ import { type AcceptInviteDto } from './dto/accept-invite.dto';
 import { type ChangeSharingType } from './dto/change-sharing-type.dto';
 import { type UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
 import { type SetSharingPasswordDto } from './dto/set-sharing-password.dto';
+import { type SetSharingExpirationDto } from './dto/set-sharing-expiration.dto';
 import { type CreateSharingDto } from './dto/create-sharing.dto';
 import { type User } from '../user/user.domain';
 import { type File } from '../file/file.domain';
@@ -182,6 +183,56 @@ describe('SharingController', () => {
 
       expect(result).toBe(expectedSharing);
       expect(sharingService.removeSharingPassword).toHaveBeenCalledWith(
+        user,
+        sharingId,
+      );
+    });
+  });
+
+  describe('setPublicSharingExpiration', () => {
+    it('When setting public sharing expiration, then it calls service with correct parameters', async () => {
+      const sharingId = sharing.id;
+      const linkExpirationDate = new Date('2026-10-31T22:59:59.999Z');
+      const sharingExpirationDto: SetSharingExpirationDto = {
+        linkExpirationDate,
+      };
+      const expectedSharing = newSharing();
+
+      jest
+        .spyOn(sharingService, 'setSharingExpiration')
+        .mockResolvedValue(expectedSharing);
+
+      const result = await controller.setPublicSharingExpiration(
+        user,
+        sharingId,
+        sharingExpirationDto,
+      );
+
+      expect(result).toBe(expectedSharing);
+      expect(sharingService.setSharingExpiration).toHaveBeenCalledWith(
+        user,
+        sharingId,
+        linkExpirationDate,
+      );
+    });
+  });
+
+  describe('removePublicSharingExpiration', () => {
+    it('When removing public sharing expiration, then it calls service with correct parameters', async () => {
+      const sharingId = sharing.id;
+      const expectedSharing = newSharing();
+
+      jest
+        .spyOn(sharingService, 'removeSharingExpiration')
+        .mockResolvedValue(expectedSharing);
+
+      const result = await controller.removePublicSharingExpiration(
+        user,
+        sharingId,
+      );
+
+      expect(result).toBe(expectedSharing);
+      expect(sharingService.removeSharingExpiration).toHaveBeenCalledWith(
         user,
         sharingId,
       );

@@ -20,6 +20,8 @@ import { MailerModule } from '../../externals/mailer/mailer.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { SecurityModule } from '../security/security.module';
 import { DeleteExpiredFileVersionsTask } from './tasks/delete-expired-file-versions.task';
+import { DeleteExpiredSharingsTask } from './tasks/delete-expired-sharings.task';
+import { SharingModule } from '../sharing/sharing.module';
 import {
   TrashCleanupScheduler,
   TRASH_CLEANUP_QUEUE,
@@ -57,6 +59,7 @@ import { buildBullConnectionOptions } from '../../lib/bull-connection';
     FileModule,
     FolderModule,
     UserModule,
+    SharingModule,
     MailerModule,
     FeatureLimitModule,
     SecurityModule,
@@ -69,6 +72,7 @@ import { buildBullConnectionOptions } from '../../lib/bull-connection';
     RetroActiveDeleteItemsCleanupTask,
     InactiveUsersEmailTask,
     DeleteExpiredFileVersionsTask,
+    DeleteExpiredSharingsTask,
     TrashCleanupScheduler,
     TrashCleanupProcessor,
     HardDeleteOldFilesScheduler,
