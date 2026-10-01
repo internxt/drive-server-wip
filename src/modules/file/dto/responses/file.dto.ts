@@ -7,6 +7,8 @@ export class FileSharingDto {
   id: string;
   @ApiProperty()
   type: string;
+  @ApiProperty({ required: false, nullable: true })
+  expirationAt?: Date | null;
 }
 
 export class FileDto {
