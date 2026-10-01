@@ -6,6 +6,10 @@ import type { WorkspaceTeam } from '../workspaces/domains/workspace-team.domain'
 export const HYBRID_ALGORITHM = 'hybrid';
 export const HYBRID_ALGORITHM_WITH_BUCKET_KEY = 'hybrid-v2';
 
+const isHybridAlgorithm = (encryptionAlgorithm: string): boolean =>
+  encryptionAlgorithm === HYBRID_ALGORITHM ||
+  encryptionAlgorithm === HYBRID_ALGORITHM_WITH_BUCKET_KEY;
+
 export type Item = File | Folder;
 type ItemId = File['uuid'] | Folder['uuid'];
 type AddTimeStamps<T> = T & {
@@ -145,10 +149,7 @@ export class Sharing implements SharingAttributes {
   }
 
   isHybrid(): boolean {
-    return (
-      this.encryptionAlgorithm === HYBRID_ALGORITHM ||
-      this.encryptionAlgorithm === HYBRID_ALGORITHM_WITH_BUCKET_KEY
-    );
+    return isHybridAlgorithm(this.encryptionAlgorithm);
   }
 
   isProtected(): boolean {
@@ -286,10 +287,7 @@ export class SharingInvite implements SharingInviteAttributes {
   }
 
   isHybrid(): boolean {
-    return (
-      this.encryptionAlgorithm === HYBRID_ALGORITHM ||
-      this.encryptionAlgorithm === HYBRID_ALGORITHM_WITH_BUCKET_KEY
-    );
+    return isHybridAlgorithm(this.encryptionAlgorithm);
   }
 
   toJSON(): SharingInviteAttributes {

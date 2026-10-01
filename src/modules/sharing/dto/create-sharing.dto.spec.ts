@@ -17,7 +17,7 @@ describe('CreateSharingDto Validation', () => {
 
     const errors = await validate(dto);
 
-    expect(errors.length).toBe(0);
+    expect(errors).toHaveLength(0);
   });
 
   it('When the link expiration date is a valid ISO date, then it passes', async () => {
@@ -28,7 +28,7 @@ describe('CreateSharingDto Validation', () => {
 
     const errors = await validate(dto);
 
-    expect(errors.length).toBe(0);
+    expect(errors).toHaveLength(0);
   });
 
   it('When the link expiration date is not a date, then it fails', async () => {

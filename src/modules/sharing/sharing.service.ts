@@ -1378,20 +1378,30 @@ export class SharingService {
   async deleteExpiredSharings(
     batchSize = 100,
   ): Promise<{ deletedCount: number }> {
-    let deletedCount = 0;
-    let expiredSharingIds: Sharing['id'][];
-
-    do {
-      expiredSharingIds =
-        await this.sharingRepository.findExpiredSharingIds(batchSize);
-
-      if (expiredSharingIds.length > 0) {
-        await this.sharingRepository.deleteSharingsByIds(expiredSharingIds);
-        deletedCount += expiredSharingIds.length;
-      }
-    } while (expiredSharingIds.length === batchSize);
+    const deletedCount = await this.deleteExpiredSharingsInBatches(batchSize);
 
     return { deletedCount };
+  }
+
+  private async deleteExpiredSharingsInBatches(
+    batchSize: number,
+    deletedCount = 0,
+  ): Promise<number> {
+    const expiredSharingIds =
+      await this.sharingRepository.findExpiredSharingIds(batchSize);
+
+    if (expiredSharingIds.length === 0) {
+      return deletedCount;
+    }
+
+    await this.sharingRepository.deleteSharingsByIds(expiredSharingIds);
+    const totalDeletedCount = deletedCount + expiredSharingIds.length;
+
+    // Batches run one after another, each one reads the expired sharings left by the previous one
+    const hasMoreExpiredSharings = expiredSharingIds.length === batchSize;
+    return hasMoreExpiredSharings
+      ? this.deleteExpiredSharingsInBatches(batchSize, totalDeletedCount)
+      : totalDeletedCount;
   }
 
   private getValidExpirationDate(
