@@ -73,6 +73,10 @@ export class PreCreatedUserModel
   setupEmailSentAt?: Date | null;
 
   @AllowNull(true)
+  @Column(DataType.UUID)
+  tierId?: string | null;
+
+  @AllowNull(true)
   @Column(DataType.STRING)
   status?: PreCreatedUserStatus | null;
 }

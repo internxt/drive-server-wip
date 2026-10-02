@@ -393,35 +393,6 @@ describe('GatewayUseCases', () => {
       });
     });
 
-    describe('Pre-creating the user of a new customer at checkout', () => {
-      it('When the user is pre-created, then its uuid and setup status are returned', async () => {
-        const response = { uuid: v4(), setupPending: true };
-        jest
-          .spyOn(userUseCases, 'getOrPreCreateUserForCheckout')
-          .mockResolvedValueOnce(response);
-
-        const result =
-          await service.getOrPreCreateUserForCheckout('buyer@internxt.com');
-
-        expect(result).toEqual(response);
-      });
-    });
-
-    describe('Sending the account setup email after the payment', () => {
-      it('When the email is requested, then it is sent for that user and plan', async () => {
-        const uuid = v4();
-        jest
-          .spyOn(userUseCases, 'sendAccountSetupEmailIfPending')
-          .mockResolvedValueOnce(undefined);
-
-        await service.sendAccountSetupEmailIfPending(uuid, 'Premium 2TB');
-
-        expect(
-          userUseCases.sendAccountSetupEmailIfPending,
-        ).toHaveBeenCalledWith(uuid, 'Premium 2TB');
-      });
-    });
-
     describe('getUserCredentials', () => {
       const user = newUser();
       const folder = newFolder();
