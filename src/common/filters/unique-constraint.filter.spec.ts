@@ -36,7 +36,7 @@ describe('UniqueConstraintFilter', () => {
   });
 
   it('When a folder unique constraint is violated, it should throw 409 with the folder message', () => {
-    const error = makeError('folders_plainname_parentid_key');
+    const error = makeError('folders_parentuuid_plainname_unique');
 
     expect(() => filter.catch(error, mockHost)).toThrow(
       new ConflictException(
