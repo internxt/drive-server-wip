@@ -137,6 +137,7 @@ type PublicSharingInfo = Pick<
 type SharingItemInfo = Pick<Item, 'plainName' | 'type' | 'size'>;
 
 const NEW_SHARING_VERSION = 'inxt-v3';
+const MAX_SHARING_EXPIRATION_YEARS = 1;
 
 @Injectable()
 export class SharingService {
@@ -215,6 +216,8 @@ export class SharingService {
     if (!sharing.isPublic()) {
       throw new ForbiddenException();
     }
+
+    await this.assertSharingIsNotExpired(sharing);
 
     if (sharing.isProtected() && !plainPassword) {
       throw new PasswordNeededError();
@@ -299,6 +302,8 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
+    await this.assertSharingIsNotExpired(sharing);
+
     let item: Item;
     if (sharing.itemType === 'file') {
       item = await this.fileUsecases.getByUuid(sharing.itemId);
@@ -365,6 +370,52 @@ export class SharingService {
 
     sharing.encryptedPassword = null;
     await this.sharingRepository.updateSharing({ id: sharing.id }, sharing);
+
+    return sharing;
+  }
+
+  async setSharingExpiration(
+    user: User,
+    id: Sharing['id'],
+    linkExpirationDate: Date | string,
+  ): Promise<Sharing> {
+    const sharing = await this.getOwnedPublicSharing(user, id);
+
+    sharing.expirationAt = this.getValidExpirationDate(linkExpirationDate);
+    await this.sharingRepository.updateSharing({ id: sharing.id }, sharing);
+
+    return sharing;
+  }
+
+  async removeSharingExpiration(
+    user: User,
+    id: Sharing['id'],
+  ): Promise<Sharing> {
+    const sharing = await this.getOwnedPublicSharing(user, id);
+
+    sharing.expirationAt = null;
+    await this.sharingRepository.updateSharing({ id: sharing.id }, sharing);
+
+    return sharing;
+  }
+
+  private async getOwnedPublicSharing(
+    user: User,
+    id: Sharing['id'],
+  ): Promise<Sharing> {
+    const sharing = await this.sharingRepository.findOneSharing({
+      id,
+    });
+
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
+    if (!sharing.isPublic() || !sharing.isOwnedBy(user)) {
+      throw new BadRequestException();
+    }
+
+    await this.assertSharingIsNotExpired(sharing);
 
     return sharing;
   }
@@ -530,7 +581,14 @@ export class SharingService {
         ? folderId
         : decoded.sharedRootFolderId,
       itemType: 'folder',
+      type: SharingType.Public,
     });
+
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
+    await this.assertSharingIsNotExpired(sharing);
 
     const owner = await this.usersUsecases.getUser(sharing.ownerId);
 
@@ -655,11 +713,14 @@ export class SharingService {
         ? folderId
         : decoded.sharedRootFolderId,
       itemType: 'folder',
+      type: SharingType.Public,
     });
 
     if (!sharing) {
       throw new NotFoundException();
     }
+
+    await this.assertSharingIsNotExpired(sharing);
 
     const owner = await this.usersUsecases.getUser(sharing.ownerId);
 
@@ -1244,6 +1305,8 @@ export class SharingService {
       );
     }
 
+    const expirationAt = this.getValidExpirationDate(dto.linkExpirationDate);
+
     if (dto.itemType === 'file') {
       item = await this.fileUsecases.getByUuid(dto.itemId);
     } else if (dto.itemType === 'folder') {
@@ -1258,6 +1321,7 @@ export class SharingService {
       sharedWith: '00000000-0000-0000-0000-000000000000',
       type: SharingType.Public,
       ownerId: user.uuid,
+      expirationAt,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -1272,11 +1336,16 @@ export class SharingService {
       );
     }
 
-    const sharing = await this.sharingRepository.findOneSharingBy({
+    let sharing = await this.sharingRepository.findOneSharingBy({
       itemId: dto.itemId,
       itemType: dto.itemType,
       type: SharingType.Public,
     });
+
+    if (sharing?.isExpired()) {
+      await this.sharingRepository.deleteSharing(sharing.id);
+      sharing = null;
+    }
 
     if (!item.isOwnedBy(user) && !sharing) {
       throw new ForbiddenException();
@@ -1299,6 +1368,101 @@ export class SharingService {
       });
 
     return sharingCreated;
+  }
+
+  async deleteExpiredSharings(
+    batchSize = 100,
+  ): Promise<{ deletedCount: number }> {
+    const deletedCount = await this.deleteExpiredSharingsInBatches(batchSize);
+
+    return { deletedCount };
+  }
+
+  private async deleteExpiredSharingsInBatches(
+    batchSize: number,
+    deletedCount = 0,
+  ): Promise<number> {
+    const expiredSharingIds =
+      await this.sharingRepository.findExpiredSharingIds(batchSize);
+
+    if (expiredSharingIds.length === 0) {
+      return deletedCount;
+    }
+
+    await this.sharingRepository.deleteSharingsByIds(expiredSharingIds);
+    const totalDeletedCount = deletedCount + expiredSharingIds.length;
+
+    // Batches run one after another, each one reads the expired sharings left by the previous one
+    const hasMoreExpiredSharings = expiredSharingIds.length === batchSize;
+    return hasMoreExpiredSharings
+      ? this.deleteExpiredSharingsInBatches(batchSize, totalDeletedCount)
+      : totalDeletedCount;
+  }
+
+  private getValidExpirationDate(
+    expirationDate?: Date | string | null,
+  ): Date | null {
+    if (!expirationDate) {
+      return null;
+    }
+
+    const expirationAt = new Date(expirationDate);
+
+    if (Number.isNaN(expirationAt.getTime())) {
+      throw new BadRequestException('The expiration date is not valid');
+    }
+
+    const now = new Date();
+    const maxExpirationAt = new Date(now);
+    maxExpirationAt.setFullYear(
+      maxExpirationAt.getFullYear() + MAX_SHARING_EXPIRATION_YEARS,
+    );
+    maxExpirationAt.setDate(maxExpirationAt.getDate() + 1);
+
+    if (expirationAt.getTime() <= now.getTime()) {
+      throw new BadRequestException(
+        'The expiration date must be in the future',
+      );
+    }
+
+    if (expirationAt.getTime() > maxExpirationAt.getTime()) {
+      throw new BadRequestException(
+        `The expiration date cannot be more than ${MAX_SHARING_EXPIRATION_YEARS} year from now`,
+      );
+    }
+
+    return expirationAt;
+  }
+
+  private async findNotExpiredPublicSharing(
+    itemId: Sharing['itemId'],
+    itemType: Sharing['itemType'],
+    sharedWithType: SharedWithType,
+  ): Promise<Sharing | null> {
+    const publicSharing =
+      await this.sharingRepository.findOneByOwnerOrSharedWithItem(
+        '00000000-0000-0000-0000-000000000000',
+        itemId,
+        itemType,
+        SharingType.Public,
+        sharedWithType,
+      );
+
+    if (publicSharing?.isExpired()) {
+      await this.sharingRepository.deleteSharing(publicSharing.id);
+      return null;
+    }
+
+    return publicSharing;
+  }
+
+  private async assertSharingIsNotExpired(sharing: Sharing): Promise<void> {
+    if (!sharing.isExpired()) {
+      return;
+    }
+
+    await this.sharingRepository.deleteSharing(sharing.id);
+    throw new NotFoundException('Sharing expired');
   }
 
   private async removeItemFromBeingShared(
@@ -1631,6 +1795,7 @@ export class SharingService {
           sharingId: folderWithSharedInfo.id,
           encryptionKey: folderWithSharedInfo.encryptionKey,
           dateShared: folderWithSharedInfo.createdAt,
+          linkExpirationDate: folderWithSharedInfo.expirationAt ?? null,
           sharedWithMe: user.uuid !== folderWithSharedInfo.folder.user.uuid,
           user: {
             ...folderWithSharedInfo.folder.user,
@@ -1689,6 +1854,7 @@ export class SharingService {
             this.fileUsecases.decrypFileName(fileInfo).plainName,
           encryptionKey: sharingInfo.encryptionKey,
           dateShared: sharingInfo.createdAt,
+          linkExpirationDate: sharingInfo.expirationAt ?? null,
           sharedWithMe: user.uuid !== fileInfo.user.uuid,
           user: {
             ...fileInfo.user,
@@ -2129,13 +2295,7 @@ export class SharingService {
     sharedWithType = SharedWithType.Individual,
   ): Promise<Sharing> {
     const [publicSharing, privateSharing] = await Promise.all([
-      this.sharingRepository.findOneByOwnerOrSharedWithItem(
-        '00000000-0000-0000-0000-000000000000',
-        itemId,
-        itemType,
-        SharingType.Public,
-        sharedWithType,
-      ),
+      this.findNotExpiredPublicSharing(itemId, itemType, sharedWithType),
       this.sharingRepository.findOneByOwnerOrSharedWithItem(
         user.uuid,
         itemId,
@@ -2161,13 +2321,7 @@ export class SharingService {
     sharedWithType = SharedWithType.Individual,
   ): Promise<ItemSharingInfoDto> {
     const [publicSharing, privateSharing] = await Promise.all([
-      this.sharingRepository.findOneByOwnerOrSharedWithItem(
-        '00000000-0000-0000-0000-000000000000',
-        itemId,
-        itemType,
-        SharingType.Public,
-        sharedWithType,
-      ),
+      this.findNotExpiredPublicSharing(itemId, itemType, sharedWithType),
       this.sharingRepository.findOneByOwnerOrSharedWithItem(
         user.uuid,
         itemId,
@@ -2192,6 +2346,7 @@ export class SharingService {
             id: publicSharing?.id,
             isPasswordProtected: !!publicSharing?.encryptedPassword,
             encryptedCode: publicSharing?.encryptedCode,
+            expirationAt: publicSharing?.expirationAt ?? null,
           }
         : null,
       type: sharedItem?.type || SharingType.Private,
@@ -2211,6 +2366,8 @@ export class SharingService {
     if (!sharing) {
       throw new SharingNotFoundException();
     }
+
+    await this.assertSharingIsNotExpired(sharing);
 
     return this.folderUsecases.getFolderSizeByUuid(sharing.itemId, false);
   }

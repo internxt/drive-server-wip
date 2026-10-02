@@ -305,7 +305,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         {
           separate: true,
           model: SharingModel,
-          attributes: ['type', 'id'],
+          attributes: ['type', 'id', 'expirationAt'],
           required: false,
         },
         ...this.favoriteInclude(favoriteUserUuid),
@@ -541,7 +541,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         {
           separate: true,
           model: SharingModel,
-          attributes: ['type', 'id'],
+          attributes: ['type', 'id', 'expirationAt'],
           required: false,
         },
       ],
@@ -578,7 +578,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         {
           separate: true,
           model: SharingModel,
-          attributes: ['type', 'id'],
+          attributes: ['type', 'id', 'expirationAt'],
           required: false,
         },
       ],

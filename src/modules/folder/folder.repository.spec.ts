@@ -381,7 +381,7 @@ describe('SequelizeFolderRepository', () => {
           {
             separate: true,
             model: SharingModel,
-            attributes: ['type', 'id'],
+            attributes: ['type', 'id', 'expirationAt'],
             required: false,
           },
         ],
@@ -449,7 +449,7 @@ describe('SequelizeFolderRepository', () => {
           {
             separate: true,
             model: SharingModel,
-            attributes: ['type', 'id'],
+            attributes: ['type', 'id', 'expirationAt'],
             required: false,
           },
         ],
@@ -985,7 +985,7 @@ describe('SequelizeFolderRepository', () => {
           {
             separate: true,
             model: SharingModel,
-            attributes: ['type', 'id'],
+            attributes: ['type', 'id', 'expirationAt'],
             required: false,
           },
         ],
