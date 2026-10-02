@@ -1,5 +1,8 @@
 import { type UserKeysEncryptVersions } from '../keyserver/key-server.domain';
-import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
+import {
+  type PreCreatedUserAttributes,
+  type PreCreatedUserStatus,
+} from './pre-created-users.attributes';
 
 export class PreCreatedUser implements PreCreatedUserAttributes {
   id: number;
@@ -15,6 +18,8 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
   encryptVersion: UserKeysEncryptVersions;
   publicKyberKey?: string;
   privateKyberKey?: string;
+  setupEmailSentAt?: Date | null;
+  status?: PreCreatedUserStatus | null;
   constructor({
     id,
     email,
@@ -29,6 +34,8 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
     encryptVersion,
     publicKyberKey,
     privateKyberKey,
+    setupEmailSentAt,
+    status,
   }: PreCreatedUserAttributes) {
     this.id = id;
     this.uuid = uuid;
@@ -43,6 +50,8 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
     this.password = password;
     this.mnemonic = mnemonic;
     this.hKey = hKey;
+    this.setupEmailSentAt = setupEmailSentAt ?? null;
+    this.status = status ?? null;
   }
 
   static build(user: PreCreatedUserAttributes): PreCreatedUser {

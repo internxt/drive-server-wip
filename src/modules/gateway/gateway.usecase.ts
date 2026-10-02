@@ -374,6 +374,19 @@ export class GatewayUseCases {
     }
   }
 
+  getOrPreCreateUserForCheckout(
+    email: string,
+  ): Promise<{ uuid: string; setupPending: boolean }> {
+    return this.userUseCases.getOrPreCreateUserForCheckout(email);
+  }
+
+  sendAccountSetupEmailIfPending(
+    uuid: string,
+    planName: string,
+  ): Promise<void> {
+    return this.userUseCases.sendAccountSetupEmailIfPending(uuid, planName);
+  }
+
   async handleFailedPayment(userId: string): Promise<{ success: boolean }> {
     const user = await this.userRepository.findByUuid(userId);
     if (!user) {

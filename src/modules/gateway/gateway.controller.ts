@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Logger,
   NotFoundException,
   Param,
@@ -14,6 +15,9 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
+  ApiNoContentResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -42,6 +46,11 @@ import {
   AuditPerformerType,
 } from '../../common/audit-logs/audit-logs.attributes';
 import { OverrideUserLimitDto } from './dto/override-user-limit.dto';
+import {
+  PreCreateUserForCheckoutDto,
+  PreCreateUserForCheckoutResponseDto,
+} from './dto/pre-create-user-for-checkout.dto';
+import { SendAccountSetupEmailDto } from './dto/send-account-setup-email.dto';
 
 @ApiTags('Gateway')
 @Controller('gateway')
@@ -273,6 +282,65 @@ export class GatewayController {
       );
       throw error;
     }
+  }
+
+  @Post('/users/pre-create')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get or pre-create the user of a new customer starting a checkout',
+    description:
+      'Pre-creates the user with the network user uuid, or returns the existing pre-created user. It does not send any email',
+  })
+  @ApiBearerAuth('gateway')
+  @UseGuards(GatewayGuard)
+  @ApiOkResponse({
+    description:
+      'UUID of the pre-created user and whether its setup is pending',
+    type: PreCreateUserForCheckoutResponseDto,
+  })
+  @ApiConflictResponse({ description: 'The user is already registered' })
+  async getOrPreCreateUserForCheckout(
+    @Body() dto: PreCreateUserForCheckoutDto,
+  ): Promise<PreCreateUserForCheckoutResponseDto> {
+    const response = await this.gatewayUseCases.getOrPreCreateUserForCheckout(
+      dto.email,
+    );
+
+    this.logger.log(
+      { ...response, category: 'PRE_CREATE_USER' },
+      'Got or pre-created user for checkout',
+    );
+
+    return response;
+  }
+
+  @Post('/users/:uuid/setup-email')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Send the account setup email once the payment is confirmed',
+    description:
+      'Sends the email only if the pre-created user has not received it yet. It does nothing for registered users',
+  })
+  @ApiParam({
+    name: 'uuid',
+    type: String,
+    required: true,
+    description: 'User UUID',
+  })
+  @ApiBearerAuth('gateway')
+  @UseGuards(GatewayGuard)
+  @ApiNoContentResponse({
+    description: 'The setup email is sent or not needed',
+  })
+  @ApiNotFoundResponse({ description: 'User not found' })
+  async sendAccountSetupEmail(
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+    @Body() dto: SendAccountSetupEmailDto,
+  ): Promise<void> {
+    await this.gatewayUseCases.sendAccountSetupEmailIfPending(
+      uuid,
+      dto.planName,
+    );
   }
 
   @Post('/users/failed-payment')
