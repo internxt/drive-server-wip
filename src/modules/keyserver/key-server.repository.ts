@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { type Transaction } from 'sequelize';
 import { type UserAttributes } from '../user/user.attributes';
 import { KeyServer, type KeyServerAttributes } from './key-server.domain';
 import { KeyServerModel } from './key-server.model';
@@ -14,6 +15,7 @@ export class SequelizeKeyServerRepository {
   async findUserKeysOrCreate(
     userId: UserAttributes['id'],
     data: Partial<KeyServerAttributes>,
+    transaction?: Transaction,
   ): Promise<[KeyServer | null, boolean]> {
     const optionalWhere = {};
 
@@ -24,6 +26,7 @@ export class SequelizeKeyServerRepository {
     const [userKeys, wasCreated] = await this.model.findOrCreate({
       where: { userId, ...optionalWhere },
       defaults: data,
+      transaction,
     });
 
     return userKeys

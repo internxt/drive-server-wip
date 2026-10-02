@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { PreCreatedUserModel } from './pre-created-users.model';
 import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { PreCreatedUser } from './pre-created-user.domain';
-import { Op } from 'sequelize';
+import { Op, type Transaction } from 'sequelize';
 
 @Injectable()
 export class SequelizePreCreatedUsersRepository {
@@ -50,9 +50,13 @@ export class SequelizePreCreatedUsersRepository {
     return this.toDomain(dbUser);
   }
 
-  async deleteByUuid(uuid: PreCreatedUserAttributes['uuid']): Promise<void> {
+  async deleteByUuid(
+    uuid: PreCreatedUserAttributes['uuid'],
+    transaction?: Transaction,
+  ): Promise<void> {
     await this.modelUser.destroy({
       where: { uuid },
+      transaction,
     });
   }
 

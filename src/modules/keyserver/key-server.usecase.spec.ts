@@ -64,6 +64,7 @@ describe('Key Server Use Cases', () => {
           ...keys,
           encryptVersion: 'ecc',
         },
+        undefined,
       );
     });
 
@@ -161,6 +162,7 @@ describe('Key Server Use Cases', () => {
           userId,
           ...validEccKey,
         },
+        undefined,
       );
     });
   });

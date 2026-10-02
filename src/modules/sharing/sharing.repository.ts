@@ -22,7 +22,7 @@ import { User } from '../user/user.domain';
 import { Folder } from '../folder/folder.domain';
 import { FolderModel } from '../folder/folder.model';
 import { UserModel } from '../user/user.model';
-import sequelize, { Op, type WhereOptions } from 'sequelize';
+import sequelize, { Op, type Transaction, type WhereOptions } from 'sequelize';
 import { type GetInviteDto, type GetInvitesDto } from './dto/get-invites.dto';
 import { File, FileStatus } from '../file/file.domain';
 import { FileModel } from '../file/file.model';
@@ -969,7 +969,10 @@ export class SequelizeSharingRepository implements SharingRepository {
     return invites.map((i) => SharingInvite.build(i.toJSON<SharingInvite>()));
   }
 
-  async bulkUpdate(invites: Partial<SharingInvite>[]): Promise<void> {
+  async bulkUpdate(
+    invites: Partial<SharingInvite>[],
+    transaction?: Transaction,
+  ): Promise<void> {
     const updatePromises = invites.map((invite) =>
       this.sharingInvites.update(
         {
@@ -980,6 +983,7 @@ export class SequelizeSharingRepository implements SharingRepository {
           where: {
             id: invite.id,
           },
+          transaction,
         },
       ),
     );
@@ -1116,11 +1120,15 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
-  async deleteInvite(invite: SharingInvite): Promise<void> {
+  async deleteInvite(
+    invite: SharingInvite,
+    transaction?: Transaction,
+  ): Promise<void> {
     await this.sharingInvites.destroy({
       where: {
         id: invite.id,
       },
+      transaction,
     });
   }
 
