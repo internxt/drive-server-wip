@@ -3487,6 +3487,53 @@ describe('FileUseCases', () => {
       });
     });
 
+    it('When file is versionable but currently empty, then it should not create a version', async () => {
+      const mockFile = newFile({
+        attributes: {
+          fileId: null,
+          bucket: 'test-bucket',
+          type: 'pdf',
+          size: BigInt(0),
+        },
+      });
+      const replaceData = {
+        fileId: 'new-file-id',
+        size: BigInt(200),
+      };
+
+      jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+      jest
+        .spyOn(service, 'isFileVersionable')
+        .mockResolvedValue({ versionable: true, limits: null });
+      const createVersionSpy = jest.spyOn(createFileVersionAction, 'execute');
+      const updateSpy = jest
+        .spyOn(fileRepository, 'updateByUuidAndUserId')
+        .mockResolvedValue();
+      const deleteFileSpy = jest.spyOn(bridgeService, 'deleteFile');
+
+      const result = await service.replaceFile(
+        userMocked,
+        mockFile.uuid,
+        replaceData,
+      );
+
+      expect(createVersionSpy).not.toHaveBeenCalled();
+      expect(updateSpy).toHaveBeenCalledWith(
+        mockFile.uuid,
+        userMocked.id,
+        expect.objectContaining({
+          fileId: replaceData.fileId,
+          size: replaceData.size,
+        }),
+      );
+      expect(deleteFileSpy).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        ...mockFile.toJSON(),
+        fileId: replaceData.fileId,
+        size: replaceData.size,
+      });
+    });
+
     it('When file is not versionable due to limits, then it should use standard flow', async () => {
       const mockFile = newFile({
         attributes: {
