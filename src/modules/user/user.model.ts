@@ -70,6 +70,14 @@ export class UserModel extends Model implements UserAttributes {
   @Column
   errorLoginCount: number;
 
+  @AllowNull
+  @Column
+  passwordHash: string;
+
+  @AllowNull
+  @Column
+  argonSalt: string;
+
   @Default(false)
   @AllowNull
   @Column

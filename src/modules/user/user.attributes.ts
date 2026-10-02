@@ -10,6 +10,8 @@ export interface UserAttributes {
   mnemonic: string;
   rootFolderId: number;
   rootFolder?: any;
+  argonSalt?: string;
+  passwordHash?: string;
   hKey: Buffer | string;
   secret_2FA: string;
   errorLoginCount: number;
