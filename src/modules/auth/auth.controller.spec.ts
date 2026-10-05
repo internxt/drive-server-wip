@@ -10,6 +10,7 @@ import {
   ConflictException,
   type Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import { v4 } from 'uuid';
@@ -24,7 +25,6 @@ import { PaymentRequiredException } from '../feature-limit/exceptions/payment-re
 import { PlatformName } from '../../common/constants';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { MailService } from '../../externals/mail/mail.service';
-import { AccountSetupPendingException } from '../user/exception/account-setup-pending.exception';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -133,25 +133,32 @@ describe('AuthController', () => {
       );
     });
 
-    it('When the email has a paid account pending setup, then access is denied telling that the setup is pending', async () => {
-      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(null);
+    it('When the email has a paid account pending setup, then login responds exactly like for an unknown email so emails cannot be enumerated', async () => {
+      const fakeSalt = 'a'.repeat(32);
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValue(null);
+      jest.spyOn(cryptoService, 'fakeSaltFor').mockReturnValue(fakeSalt);
+      jest
+        .spyOn(cryptoService, 'encryptText')
+        .mockReturnValue('encryptedFakeSalt');
       userUseCases.hasPendingAccountSetup.mockResolvedValueOnce(true);
 
-      const loginAttempt = authController.login({
+      const pendingSetupResult = await authController.login({
         email: 'Buyer@Internxt.com',
       });
 
-      await expect(loginAttempt).rejects.toThrow(AccountSetupPendingException);
-      await expect(loginAttempt).rejects.toMatchObject({
-        status: 403,
-        response: {
-          message: expect.any(String),
-          code: 'AccountSetupPending',
-        },
+      userUseCases.hasPendingAccountSetup.mockResolvedValueOnce(false);
+      const unknownEmailResult = await authController.login({
+        email: 'unknown@internxt.com',
       });
-      expect(userUseCases.hasPendingAccountSetup).toHaveBeenCalledWith(
-        'buyer@internxt.com',
-      );
+
+      expect(pendingSetupResult).toEqual(unknownEmailResult);
+      expect(pendingSetupResult).toEqual({
+        hasKeys: true,
+        sKey: 'encryptedFakeSalt',
+        tfa: false,
+        hasKyberKeys: true,
+        hasEccKeys: true,
+      });
     });
 
     it('When the email belongs to a registered user, then the pending setup check does not apply', async () => {
@@ -257,13 +264,13 @@ describe('AuthController', () => {
     loginAccessDto.publicKey = 'publicKey';
     loginAccessDto.revocateKey = 'revocateKey';
 
-    it('When the email has a paid account pending setup, then the pending setup error reaches the caller', async () => {
+    it('When the email has no registered user, then the generic wrong credentials error reaches the caller', async () => {
       userUseCases.loginAccess.mockRejectedValueOnce(
-        new AccountSetupPendingException(),
+        new UnauthorizedException('Wrong login credentials'),
       );
 
       await expect(authController.loginAccess(loginAccessDto)).rejects.toThrow(
-        AccountSetupPendingException,
+        new UnauthorizedException('Wrong login credentials'),
       );
     });
 

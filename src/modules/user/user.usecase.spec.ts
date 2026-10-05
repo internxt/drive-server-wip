@@ -101,11 +101,7 @@ import * as bip39 from 'bip39';
 import getEnv from '../../config/configuration';
 import { type Transaction } from 'sequelize';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
-import {
-  ACCOUNT_SETUP_TOKEN_ACTION,
-  isCurrentAccountSetupToken,
-} from './user.usecase';
-import { AccountSetupPendingException } from './exception/account-setup-pending.exception';
+import { ACCOUNT_SETUP_TOKEN_ACTION } from './account-setup-link';
 
 const TEST_MNEMONIC =
   'album middle away ecology napkin quote buffalo method tooth mask laundry film add path suggest heart unaware project neck bird force heavy put latin';
@@ -1109,28 +1105,6 @@ describe('User use cases', () => {
       await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
         new UnauthorizedException('Wrong login credentials'),
       );
-    });
-
-    it('When the email has a paid account pending setup, then access is denied telling that the setup is pending', async () => {
-      const preCreatedUser = newPreCreatedUser();
-      preCreatedUser.setupEmailSentAt = new Date();
-      preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
-      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUsername')
-        .mockResolvedValue(preCreatedUser);
-
-      const loginAttempt = userUseCases.loginAccess({
-        email: preCreatedUser.email,
-        password: v4(),
-        tfa: '',
-        ...keys,
-      });
-
-      await expect(loginAttempt).rejects.toThrow(AccountSetupPendingException);
-      await expect(loginAttempt).rejects.toMatchObject({
-        response: { code: 'AccountSetupPending' },
-      });
     });
 
     it('When the email was only invited to a shared item or workspace, then the response is the same as for an unknown email', async () => {
@@ -6094,6 +6068,8 @@ describe('User use cases', () => {
   });
 
   describe('Resending the account setup email', () => {
+    const jwtSecret = 'account-setup-resend-test-secret';
+    const originalJwtSecret = process.env.JWT_SECRET;
     const now = new Date('2026-09-25T12:00:00.000Z');
     const todayInUtc = '2026-09-25';
     const yesterdayInUtc = '2026-09-24';
@@ -6123,9 +6099,11 @@ describe('User use cases', () => {
         .mockResolvedValue(preCreatedUser);
     };
 
-    const issuedAtOfSentLink = (): number => {
-      const [claims] = jest.mocked(Sign).mock.calls.at(-1);
-      return (claims as { iat: number }).iat;
+    const sentSetupToken = (): string => {
+      const [[, { setupUrl }]] = jest.mocked(
+        mailerService.sendAccountSetupEmail,
+      ).mock.calls;
+      return setupUrl.split('/complete-account/')[1];
     };
 
     const storedUpdate = () => {
@@ -6133,6 +6111,14 @@ describe('User use cases', () => {
         .mock.calls[0];
       return update;
     };
+
+    beforeAll(() => {
+      process.env.JWT_SECRET = jwtSecret;
+    });
+
+    afterAll(() => {
+      process.env.JWT_SECRET = originalJwtSecret;
+    });
 
     beforeEach(() => {
       jest.useFakeTimers({ now });
@@ -6142,9 +6128,8 @@ describe('User use cases', () => {
       jest.useRealTimers();
     });
 
-    it('When the email has a paid account pending setup, then a new setup link is emailed and the previous link stops working', async () => {
+    it('When the email has a paid account pending setup, then a new setup link is emailed with a token issued at the resend', async () => {
       const preCreatedUser = pendingSetupUser();
-      const previousLinkIssuedAt = Math.floor(oneHourAgo.getTime() / 1000);
       givenEmailBelongsTo({ preCreatedUser });
 
       await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
@@ -6157,22 +6142,53 @@ describe('User use cases', () => {
           setupUrl: expect.stringContaining('/complete-account/'),
         },
       );
-      expect(Sign).toHaveBeenLastCalledWith(
-        expect.objectContaining({
+      const decoded = jwtLibrary.verifyWithDefaultSecret(sentSetupToken()) as {
+        payload: { uuid: string; action: string };
+        iat: number;
+      };
+      expect(decoded.payload).toEqual({
+        uuid: preCreatedUser.uuid,
+        action: ACCOUNT_SETUP_TOKEN_ACTION,
+      });
+      expect(decoded.iat).toBe(Math.floor(setupEmailSentAt.getTime() / 1000));
+    });
+
+    it('When a token from the resend is used to complete the setup, then it is accepted, and the previous link is rejected as expired', async () => {
+      const preCreatedUser = pendingSetupUser();
+      givenEmailBelongsTo({ preCreatedUser });
+      const previousToken = signJwt(
+        {
           payload: {
             uuid: preCreatedUser.uuid,
-            action: 'complete-account-setup',
+            action: ACCOUNT_SETUP_TOKEN_ACTION,
           },
-        }),
-        expect.anything(),
-        '5d',
+          iat: Math.floor(oneHourAgo.getTime() / 1000),
+        },
+        jwtSecret,
+        { expiresIn: '5d' } as any,
       );
-      expect(
-        isCurrentAccountSetupToken(issuedAtOfSentLink(), setupEmailSentAt),
-      ).toBe(true);
-      expect(
-        isCurrentAccountSetupToken(previousLinkIssuedAt, setupEmailSentAt),
-      ).toBe(false);
+
+      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+      const newToken = sentSetupToken();
+      const { setupEmailSentAt } = storedUpdate();
+      preCreatedUser.setupEmailSentAt = setupEmailSentAt;
+
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUuid')
+        .mockResolvedValue(preCreatedUser);
+      jest
+        .spyOn(keyServerUseCases, 'parseKeysInput')
+        .mockReturnValue({ ecc: null, kyber: null });
+
+      await expect(
+        userUseCases.completeAccountSetup({
+          token: previousToken,
+        } as any),
+      ).rejects.toThrow(new ForbiddenException('Token expired'));
+
+      await expect(
+        userUseCases.completeAccountSetup({ token: newToken } as any),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('When the setup email is resent, then it counts towards today\'s limit together with the new link', async () => {

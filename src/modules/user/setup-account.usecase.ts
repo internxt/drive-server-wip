@@ -8,7 +8,7 @@ import {
   PreCreatedUserStatus,
   type PreCreatedUserAttributes,
 } from './pre-created-users.attributes';
-import { ACCOUNT_SETUP_TOKEN_ACTION, UserUseCases } from './user.usecase';
+import { UserUseCases } from './user.usecase';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
@@ -16,8 +16,7 @@ import { SequelizeUserRepository } from './user.repository';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PreCreateUserForCheckoutResponseDto } from '../gateway/dto/pre-create-user-for-checkout.dto';
 import { UserNotFoundException } from './exception/user-not-found.exception';
-import { signWithExpiry } from '../../middlewares/passport';
-import getEnv from '../../config/configuration';
+import { buildAccountSetupUrl } from './account-setup-link';
 
 @Injectable()
 export class SetupCheckoutAccountUseCase {
@@ -147,18 +146,11 @@ export class SetupCheckoutAccountUseCase {
     planName: string,
   ): Promise<void> {
     const sentAt = new Date();
-    const token = signWithExpiry(
-      {
-        payload: { uuid, action: ACCOUNT_SETUP_TOKEN_ACTION },
-        iat: Math.floor(sentAt.getTime() / 1000),
-      },
-      getEnv().secrets.jwt,
-      { expiresIn: '5d' },
-    );
+    const { setupUrl } = buildAccountSetupUrl(uuid, sentAt);
 
     await this.mailerService.sendAccountSetupEmail(email, {
       planName,
-      setupUrl: `${process.env.HOST_DRIVE_WEB}/complete-account/${token}`,
+      setupUrl,
     });
     await this.preCreatedUserRepository.updateByUuid(uuid, {
       setupEmailSentAt: sentAt,

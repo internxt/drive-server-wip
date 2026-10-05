@@ -96,8 +96,10 @@ import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import { type GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
 import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import { type UserResponseDto } from './dto/responses/user-credentials.dto';
-
-export const ACCOUNT_SETUP_TOKEN_ACTION = 'complete-account-setup';
+import {
+  ACCOUNT_SETUP_TOKEN_ACTION,
+  buildAccountSetupUrl,
+} from './account-setup-link';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -332,12 +334,13 @@ export class UserUseCases {
       return;
     }
 
-    const setupToken = signAccountSetupToken(preCreatedUser.uuid, sentAt);
+    const { setupUrl } = buildAccountSetupUrl(preCreatedUser.uuid, sentAt);
 
     await this.mailerService.sendAccountSetupEmail(preCreatedUser.email, {
       planName: '',
-      setupUrl: buildAccountSetupUrl(setupToken),
+      setupUrl,
     });
+
     await this.preCreatedUserRepository.updateByUuid(preCreatedUser.uuid, {
       setupEmailSentAt: sentAt,
       setupEmailResendCount: resendsToday + 1,
@@ -1833,9 +1836,6 @@ export class UserUseCases {
     const userData = await this.findByEmail(email);
 
     if (!userData) {
-      if (await this.hasPendingAccountSetup(email)) {
-        throw new AccountSetupPendingException();
-      }
       throw new UnauthorizedException('Wrong login credentials');
     }
 
