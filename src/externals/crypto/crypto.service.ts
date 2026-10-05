@@ -87,6 +87,14 @@ export class CryptoService {
     return hashedObjetc;
   }
 
+  fakeSaltFor(email: string): string {
+    return crypto
+      .createHmac('sha256', this.cryptoSecret)
+      .update(`login-fake-salt:${email}`)
+      .digest('hex')
+      .slice(0, 32);
+  }
+
   /* DECRYPT */
 
   decryptName(cipherText, salt) {
