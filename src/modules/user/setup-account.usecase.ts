@@ -202,6 +202,7 @@ export class SetupCheckoutAccountUseCase {
 
     await this.preCreatedUserRepository.updateByUuid(networkUuid, {
       status: PreCreatedUserStatus.AwaitingPayment,
+      tierId: null,
     });
   }
 
