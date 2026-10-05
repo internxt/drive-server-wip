@@ -120,15 +120,6 @@ export class UserAlreadyRegisteredError extends Error {
   }
 }
 
-export class PreCreatedUserUuidMismatchError extends Error {
-  constructor(preCreatedUuid: string, createdUuid: string) {
-    super(
-      `Pre-created user ${preCreatedUuid} was created with a different uuid ${createdUuid}`,
-    );
-    Object.setPrototypeOf(this, PreCreatedUserUuidMismatchError.prototype);
-  }
-}
-
 export class UserNotFoundError extends Error {
   constructor() {
     super('User not found');
@@ -608,6 +599,10 @@ export class UserUseCases {
       throw new ForbiddenException('Invalid token');
     }
 
+    if (preCreatedUser.status !== PreCreatedUserStatus.PendingSetup) {
+      throw new ForbiddenException('Invalid token');
+    }
+
     if (!preCreatedUser.setupEmailSentAt) {
       throw new ForbiddenException('Invalid token');
     }
@@ -637,67 +632,42 @@ export class UserUseCases {
       emailVerified: true,
     });
 
-    try {
-      if (createdUser.uuid !== preCreatedUser.uuid) {
-        throw new PreCreatedUserUuidMismatchError(
-          preCreatedUser.uuid,
-          createdUser.uuid,
-        );
-      }
+    const keys = await this.keyServerUseCases.addKeysToUser(
+      createdUser.user.id,
+      { ecc, kyber },
+    );
 
-      const keys = await this.saveKeysAndReplacePreCreatedUser(
-        createdUser.user.id,
-        preCreatedUser,
-        { ecc, kyber },
-      );
+    await this.movePreCreatedUserToCreatedUser(
+      preCreatedUser,
+      createdUser.uuid,
+      keys,
+    );
 
-      return { ...createdUser, keys };
-    } catch (err) {
-      const rootFolder = await this.folderUseCases.getFolderByIdNoDecryption(
-        createdUser.user.rootFolderId,
-      );
-      await this.rollbackCreatedUser(createdUser.user, rootFolder);
-
-      throw err;
-    }
+    return { ...createdUser, keys };
   }
 
-  private async saveKeysAndReplacePreCreatedUser(
-    userId: User['id'],
+  private async movePreCreatedUserToCreatedUser(
     preCreatedUser: PreCreatedUser,
-    newKeys: Parameters<KeyServerUseCases['addKeysToUser']>[1],
-  ) {
-    const transaction = await this.userRepository.createTransaction();
-    let keys: Awaited<ReturnType<KeyServerUseCases['addKeysToUser']>>;
-
-    try {
-      keys = await this.keyServerUseCases.addKeysToUser(
-        userId,
-        newKeys,
-        transaction,
-      );
-
-      if (!keys.ecc) {
-        throw new Error(
-          `Could not save the keys of user ${preCreatedUser.uuid}`,
+    createdUserUuid: User['uuid'],
+    keys: Awaited<ReturnType<KeyServerUseCases['addKeysToUser']>>,
+  ): Promise<void> {
+    if (keys.ecc) {
+      try {
+        await this.replacePreCreatedUser(
+          preCreatedUser.email,
+          createdUserUuid,
+          keys.ecc.publicKey,
+          keys.kyber?.publicKey,
+        );
+        return;
+      } catch (error) {
+        Logger.error(
+          `[ACCOUNT_SETUP/COMPLETE] Could not move the invitations of pre-created user ${preCreatedUser.uuid}: ${(error as Error).message}`,
         );
       }
-
-      await this.replacePreCreatedUser(
-        preCreatedUser.email,
-        preCreatedUser.uuid,
-        keys.ecc.publicKey,
-        keys.kyber?.publicKey,
-        transaction,
-      );
-    } catch (err) {
-      await transaction.rollback();
-      throw err;
     }
 
-    await transaction.commit();
-
-    return keys;
+    await this.preCreatedUserRepository.deleteByUuid(preCreatedUser.uuid);
   }
 
   async replacePreCreatedUser(
