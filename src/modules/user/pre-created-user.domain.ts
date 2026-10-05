@@ -65,6 +65,14 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
     return this.status === PreCreatedUserStatus.PendingSetup;
   }
 
+  hasPendingAccountSetup(): boolean {
+    const hasPaidBeforeTheSetupEmail =
+      this.status === PreCreatedUserStatus.AwaitingPayment &&
+      this.tierId != null;
+
+    return this.isPendingSetup() || hasPaidBeforeTheSetupEmail;
+  }
+
   toJSON() {
     return {
       id: this.id,

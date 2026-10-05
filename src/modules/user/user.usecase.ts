@@ -12,7 +12,6 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { type Transaction } from 'sequelize';
 import { v4, validate } from 'uuid';
 import { generateMnemonic } from 'bip39';
 import * as speakeasy from 'speakeasy';
@@ -200,16 +199,7 @@ export class UserUseCases {
     const preCreatedUser =
       await this.preCreatedUserRepository.findByUsername(email);
 
-    if (!preCreatedUser) return false;
-
-    if (preCreatedUser.status === PreCreatedUserStatus.PendingSetup) {
-      return true;
-    }
-
-    return (
-      preCreatedUser.status === PreCreatedUserStatus.AwaitingPayment &&
-      preCreatedUser.tierId != null
-    );
+    return preCreatedUser?.hasPendingAccountSetup() ?? false;
   }
 
   findByUuids(uuids: User['uuid'][]): Promise<User[]> {
@@ -558,7 +548,6 @@ export class UserUseCases {
     newUserUuid: string,
     newPublicKey: string,
     newPublicKyberKey?: string,
-    transaction?: Transaction,
   ) {
     const preCreatedUser =
       await this.preCreatedUserRepository.findByUsername(email);
@@ -586,7 +575,7 @@ export class UserUseCases {
       const { encryptionKey } = invite;
 
       if (invite.isHybrid() && (!newPublicKyberKey || !privateKyberKey)) {
-        await this.sharingRepository.deleteInvite(invite, transaction);
+        await this.sharingRepository.deleteInvite(invite);
         continue;
       }
 
@@ -607,20 +596,23 @@ export class UserUseCases {
       invitesToUpdate.push(invite);
     }
 
-    await this.sharingRepository.bulkUpdate(invitesToUpdate, transaction);
+    await this.sharingRepository.bulkUpdate(invitesToUpdate);
 
     await this.replacePreCreatedUserWorkspaceInvitations(
       preCreatedUser.uuid,
       newUserUuid,
       privateKey,
       newPublicKey,
-      transaction,
     );
 
-    await this.preCreatedUserRepository.deleteByUuid(
-      preCreatedUser.uuid,
-      transaction,
-    );
+    if (preCreatedUser.tierId) {
+      await this.userRepository.updateBy(
+        { uuid: newUserUuid },
+        { tierId: preCreatedUser.tierId },
+      );
+    }
+
+    await this.preCreatedUserRepository.deleteByUuid(preCreatedUser.uuid);
   }
 
   async replacePreCreatedUserWorkspaceInvitations(
@@ -628,7 +620,6 @@ export class UserUseCases {
     newUserUuid: User['uuid'],
     privateKeyInBase64: string,
     newPublicKey: string,
-    transaction?: Transaction,
   ) {
     const invitations = await this.workspaceRepository.findInvitesBy({
       invitedUser: preCreatedUserUuid,
@@ -655,7 +646,6 @@ export class UserUseCases {
 
     await this.workspaceRepository.bulkUpdateInvitesKeysAndUsers(
       invitationsUpdated,
-      transaction,
     );
   }
 
