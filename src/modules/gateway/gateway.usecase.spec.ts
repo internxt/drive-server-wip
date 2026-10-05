@@ -11,7 +11,6 @@ import {
   newFolder,
   newFeatureLimit,
   newVersioningLimits,
-  newPreCreatedUser,
 } from '../../../test/fixtures';
 import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
@@ -26,9 +25,6 @@ import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
 import { LimitTypes, LimitLabels } from '../feature-limit/limits.enum';
 import { FileUseCases } from '../file/file.usecase';
-import { SequelizePreCreatedUsersRepository } from '../user/pre-created-users.repository';
-import { PreCreatedUserStatus } from '../user/pre-created-users.attributes';
-import { BridgeService } from '../../externals/bridge/bridge.service';
 
 describe('GatewayUseCases', () => {
   let service: GatewayUseCases;
@@ -43,8 +39,6 @@ describe('GatewayUseCases', () => {
   let mailerService: MailerService;
   let folderRepository: SequelizeFolderRepository;
   let limitsRepository: SequelizeFeatureLimitsRepository;
-  let preCreatedUsersRepository: SequelizePreCreatedUsersRepository;
-  let networkService: BridgeService;
   beforeEach(async () => {
     loggerMock = createMock<Logger>();
     const module: TestingModule = await Test.createTestingModule({
@@ -73,8 +67,6 @@ describe('GatewayUseCases', () => {
     limitsRepository = module.get<SequelizeFeatureLimitsRepository>(
       SequelizeFeatureLimitsRepository,
     );
-    preCreatedUsersRepository = module.get(SequelizePreCreatedUsersRepository);
-    networkService = module.get(BridgeService);
   });
 
   it('should be defined', () => {
@@ -401,35 +393,6 @@ describe('GatewayUseCases', () => {
       });
     });
 
-    describe('Pre-creating the user of a new customer at checkout', () => {
-      it('When the user is pre-created, then its uuid and setup status are returned', async () => {
-        const response = { uuid: v4(), setupPending: true };
-        jest
-          .spyOn(userUseCases, 'getOrPreCreateUserForCheckout')
-          .mockResolvedValueOnce(response);
-
-        const result =
-          await service.getOrPreCreateUserForCheckout('buyer@internxt.com');
-
-        expect(result).toEqual(response);
-      });
-    });
-
-    describe('Sending the account setup email after the payment', () => {
-      it('When the email is requested, then it is sent for that user and plan', async () => {
-        const uuid = v4();
-        jest
-          .spyOn(userUseCases, 'sendAccountSetupEmailIfPending')
-          .mockResolvedValueOnce(undefined);
-
-        await service.sendAccountSetupEmailIfPending(uuid, 'Premium 2TB');
-
-        expect(
-          userUseCases.sendAccountSetupEmailIfPending,
-        ).toHaveBeenCalledWith(uuid, 'Premium 2TB');
-      });
-    });
-
     describe('getUserCredentials', () => {
       const user = newUser();
       const folder = newFolder();
@@ -538,235 +501,6 @@ describe('GatewayUseCases', () => {
 
         await expect(service.getUserByUuid(user.uuid)).resolves.toBeNull();
         expect(userRepository.findByUuid).toHaveBeenCalledWith(user.uuid);
-      });
-    });
-
-    describe('Applying a plan to a pre-created user', () => {
-      const newStorageSpaceBytes = 5000000;
-
-      it('When the uuid is not a pre-created user, then it should throw not found', async () => {
-        jest
-          .spyOn(preCreatedUsersRepository, 'findByUuid')
-          .mockResolvedValueOnce(null);
-
-        await expect(
-          service.updatePreCreatedUser(v4(), {
-            newStorageSpaceBytes,
-            newTierId: v4(),
-          }),
-        ).rejects.toThrow(NotFoundException);
-
-        expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
-        expect(networkService.setStorage).not.toHaveBeenCalled();
-      });
-
-      it('When a paid tier is purchased, then the tier is stored on the pre-created user and the storage is applied in the network', async () => {
-        const preCreatedUser = newPreCreatedUser();
-        const paidTier = newTier();
-        jest
-          .spyOn(preCreatedUsersRepository, 'findByUuid')
-          .mockResolvedValueOnce(preCreatedUser);
-        jest
-          .spyOn(featureLimitService, 'getTier')
-          .mockResolvedValueOnce(paidTier);
-
-        await service.updatePreCreatedUser(preCreatedUser.uuid, {
-          newStorageSpaceBytes,
-          newTierId: paidTier.id,
-        });
-
-        expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
-          preCreatedUser.uuid,
-          { tierId: paidTier.id },
-        );
-        expect(networkService.setStorage).toHaveBeenCalledWith(
-          preCreatedUser.username,
-          newStorageSpaceBytes,
-        );
-      });
-
-      it('When the subscription is cancelled before the setup is completed, then the free tier replaces the stored tier', async () => {
-        const preCreatedUser = newPreCreatedUser();
-        preCreatedUser.tierId = v4();
-        const freeTier = newTier({ label: 'free' });
-        const freeStorageBytes = 1073741824;
-        jest
-          .spyOn(preCreatedUsersRepository, 'findByUuid')
-          .mockResolvedValueOnce(preCreatedUser);
-        jest
-          .spyOn(featureLimitService, 'getTier')
-          .mockResolvedValueOnce(freeTier);
-
-        await service.updatePreCreatedUser(preCreatedUser.uuid, {
-          newStorageSpaceBytes: freeStorageBytes,
-          newTierId: freeTier.id,
-        });
-
-        expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
-          preCreatedUser.uuid,
-          { tierId: freeTier.id },
-        );
-        expect(networkService.setStorage).toHaveBeenCalledWith(
-          preCreatedUser.username,
-          freeStorageBytes,
-        );
-      });
-
-      it('When a user who paid and has not completed the setup gets the free tier back, then the setup is marked as cancelled', async () => {
-        const preCreatedUser = newPreCreatedUser();
-        preCreatedUser.tierId = v4();
-        preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
-        const freeTier = newTier({ label: 'free' });
-        jest
-          .spyOn(preCreatedUsersRepository, 'findByUuid')
-          .mockResolvedValueOnce(preCreatedUser);
-        jest
-          .spyOn(featureLimitService, 'getTier')
-          .mockResolvedValueOnce(freeTier);
-        jest
-          .spyOn(limitsRepository, 'getFreeTier')
-          .mockResolvedValueOnce(freeTier);
-
-        await service.updatePreCreatedUser(preCreatedUser.uuid, {
-          newTierId: freeTier.id,
-        });
-
-        expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
-          preCreatedUser.uuid,
-          { tierId: freeTier.id, status: PreCreatedUserStatus.Cancelled },
-        );
-      });
-
-      it('When a user who paid and has not completed the setup changes to another paid tier, then the setup stays pending', async () => {
-        const preCreatedUser = newPreCreatedUser();
-        preCreatedUser.tierId = v4();
-        preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
-        const otherPaidTier = newTier();
-        jest
-          .spyOn(preCreatedUsersRepository, 'findByUuid')
-          .mockResolvedValueOnce(preCreatedUser);
-        jest
-          .spyOn(featureLimitService, 'getTier')
-          .mockResolvedValueOnce(otherPaidTier);
-        jest
-          .spyOn(limitsRepository, 'getFreeTier')
-          .mockResolvedValueOnce(newTier({ label: 'free' }));
-
-        await service.updatePreCreatedUser(preCreatedUser.uuid, {
-          newTierId: otherPaidTier.id,
-        });
-
-        expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
-          preCreatedUser.uuid,
-          { tierId: otherPaidTier.id },
-        );
-      });
-
-      it('When a user who has not paid yet gets the free tier, then its status is not changed', async () => {
-        const preCreatedUser = newPreCreatedUser();
-        preCreatedUser.tierId = v4();
-        preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
-        const freeTier = newTier({ label: 'free' });
-        jest
-          .spyOn(preCreatedUsersRepository, 'findByUuid')
-          .mockResolvedValueOnce(preCreatedUser);
-        jest
-          .spyOn(featureLimitService, 'getTier')
-          .mockResolvedValueOnce(freeTier);
-        const getFreeTier = jest.spyOn(limitsRepository, 'getFreeTier');
-
-        await service.updatePreCreatedUser(preCreatedUser.uuid, {
-          newTierId: freeTier.id,
-        });
-
-        expect(getFreeTier).not.toHaveBeenCalled();
-        expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
-          preCreatedUser.uuid,
-          { tierId: freeTier.id },
-        );
-      });
-
-      it('When the tier does not exist, then it should throw bad request and change nothing', async () => {
-        const preCreatedUser = newPreCreatedUser();
-        jest
-          .spyOn(preCreatedUsersRepository, 'findByUuid')
-          .mockResolvedValueOnce(preCreatedUser);
-        jest.spyOn(featureLimitService, 'getTier').mockResolvedValueOnce(null);
-
-        await expect(
-          service.updatePreCreatedUser(preCreatedUser.uuid, {
-            newStorageSpaceBytes,
-            newTierId: v4(),
-          }),
-        ).rejects.toThrow(BadRequestException);
-
-        expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
-        expect(networkService.setStorage).not.toHaveBeenCalled();
-      });
-
-      it('When the pre-created user already has the tier, then only the storage is applied', async () => {
-        const preCreatedUser = newPreCreatedUser();
-        const currentTier = newTier();
-        preCreatedUser.tierId = currentTier.id;
-        jest
-          .spyOn(preCreatedUsersRepository, 'findByUuid')
-          .mockResolvedValueOnce(preCreatedUser);
-        jest
-          .spyOn(featureLimitService, 'getTier')
-          .mockResolvedValueOnce(currentTier);
-
-        await service.updatePreCreatedUser(preCreatedUser.uuid, {
-          newStorageSpaceBytes,
-          newTierId: currentTier.id,
-        });
-
-        expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
-        expect(networkService.setStorage).toHaveBeenCalledWith(
-          preCreatedUser.username,
-          newStorageSpaceBytes,
-        );
-      });
-
-      it('When no storage is sent, then the storage in the network is left untouched', async () => {
-        const preCreatedUser = newPreCreatedUser();
-        const paidTier = newTier();
-        jest
-          .spyOn(preCreatedUsersRepository, 'findByUuid')
-          .mockResolvedValueOnce(preCreatedUser);
-        jest
-          .spyOn(featureLimitService, 'getTier')
-          .mockResolvedValueOnce(paidTier);
-
-        await service.updatePreCreatedUser(preCreatedUser.uuid, {
-          newTierId: paidTier.id,
-        });
-
-        expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
-          preCreatedUser.uuid,
-          { tierId: paidTier.id },
-        );
-        expect(networkService.setStorage).not.toHaveBeenCalled();
-      });
-
-      it('When the plan is applied, then no registered-user side effects are triggered', async () => {
-        const preCreatedUser = newPreCreatedUser();
-        const paidTier = newTier();
-        jest
-          .spyOn(preCreatedUsersRepository, 'findByUuid')
-          .mockResolvedValueOnce(preCreatedUser);
-        jest
-          .spyOn(featureLimitService, 'getTier')
-          .mockResolvedValueOnce(paidTier);
-
-        await service.updatePreCreatedUser(preCreatedUser.uuid, {
-          newStorageSpaceBytes,
-          newTierId: paidTier.id,
-        });
-
-        expect(userRepository.updateBy).not.toHaveBeenCalled();
-        expect(cacheManagerService.setUserStorageLimit).not.toHaveBeenCalled();
-        expect(fileUseCases.undoFileVersioning).not.toHaveBeenCalled();
-        expect(fileUseCases.partialUndoFileVersioning).not.toHaveBeenCalled();
       });
     });
 

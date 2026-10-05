@@ -5,14 +5,12 @@ import {
   Post,
   Logger,
   NotFoundException,
-  UseGuards,
   Get,
   HttpStatus,
   ConflictException,
   BadRequestException,
   Delete,
   Put,
-  UnauthorizedException,
   HttpException,
   Query,
 } from '@nestjs/common';
@@ -98,7 +96,15 @@ export class AuthController {
       if (await this.userUseCases.hasPendingAccountSetup(email)) {
         throw new AccountSetupPendingException();
       }
-      throw new UnauthorizedException('Wrong login credentials');
+      return {
+        hasKeys: true,
+        sKey: this.cryptoService.encryptText(
+          this.cryptoService.fakeSaltFor(email),
+        ),
+        tfa: false,
+        hasKyberKeys: true,
+        hasEccKeys: true,
+      };
     }
 
     try {

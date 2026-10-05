@@ -23,6 +23,8 @@ const httpAgent = new HttpAgent(agentConfig);
 @Module({
   imports: [
     HttpModule.register({
+      // Prevent slow connections from queuing up requests.
+      timeout: 15000,
       httpsAgent: httpsAgent,
       httpAgent: httpAgent,
     }),

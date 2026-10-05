@@ -1,7 +1,7 @@
 import { type UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 import {
+  PreCreatedUserStatus,
   type PreCreatedUserAttributes,
-  type PreCreatedUserStatus,
 } from './pre-created-users.attributes';
 
 export class PreCreatedUser implements PreCreatedUserAttributes {
@@ -65,6 +65,10 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
 
   static build(user: PreCreatedUserAttributes): PreCreatedUser {
     return new PreCreatedUser(user);
+  }
+
+  isPendingSetup(): boolean {
+    return this.status === PreCreatedUserStatus.PendingSetup;
   }
 
   toJSON() {

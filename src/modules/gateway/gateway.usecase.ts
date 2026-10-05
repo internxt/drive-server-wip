@@ -13,7 +13,6 @@ import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
-import { ConfigService } from '@nestjs/config';
 import { JWT_1DAY_EXPIRATION } from '../auth/constants';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { type Workspace } from '../workspaces/domains/workspaces.domain';
@@ -21,10 +20,6 @@ import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit
 import { type Limit } from '../feature-limit/domain/limit.domain';
 import { FeatureNameLimitMap } from './constants';
 import { FileUseCases } from '../file/file.usecase';
-import { SequelizePreCreatedUsersRepository } from '../user/pre-created-users.repository';
-import { type PreCreatedUser } from '../user/pre-created-user.domain';
-import { PreCreatedUserStatus } from '../user/pre-created-users.attributes';
-import { BridgeService } from '../../externals/bridge/bridge.service';
 
 @Injectable()
 export class GatewayUseCases {
@@ -37,11 +32,8 @@ export class GatewayUseCases {
     private readonly featureLimitService: FeatureLimitService,
     private readonly fileUseCases: FileUseCases,
     private readonly mailerService: MailerService,
-    private readonly configService: ConfigService,
     private readonly folderRepository: SequelizeFolderRepository,
     private readonly limitsRepository: SequelizeFeatureLimitsRepository,
-    private readonly preCreatedUsersRepository: SequelizePreCreatedUsersRepository,
-    private readonly networkService: BridgeService,
   ) {}
 
   async initializeWorkspace(
@@ -375,73 +367,6 @@ export class GatewayUseCases {
         );
       }
     }
-  }
-
-  getOrPreCreateUserForCheckout(
-    email: string,
-  ): Promise<{ uuid: string; setupPending: boolean }> {
-    return this.userUseCases.getOrPreCreateUserForCheckout(email);
-  }
-
-  sendAccountSetupEmailIfPending(
-    uuid: string,
-    planName: string,
-  ): Promise<void> {
-    return this.userUseCases.sendAccountSetupEmailIfPending(uuid, planName);
-  }
-
-  async updatePreCreatedUser(
-    uuid: string,
-    {
-      newStorageSpaceBytes,
-      newTierId,
-    }: { newStorageSpaceBytes?: number; newTierId?: string },
-  ) {
-    const preCreatedUser =
-      await this.preCreatedUsersRepository.findByUuid(uuid);
-    if (!preCreatedUser) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (newTierId) {
-      await this.assertTierExists(newTierId);
-    }
-
-    if (newTierId && newTierId !== preCreatedUser.tierId) {
-      const isSetupCancelled = await this.isPendingSetupCancelledBy(
-        preCreatedUser,
-        newTierId,
-      );
-      await this.preCreatedUsersRepository.updateByUuid(uuid, {
-        tierId: newTierId,
-        ...(isSetupCancelled && { status: PreCreatedUserStatus.Cancelled }),
-      });
-    }
-
-    if (!newStorageSpaceBytes) {
-      return;
-    }
-
-    await this.networkService.setStorage(
-      preCreatedUser.username,
-      newStorageSpaceBytes,
-    );
-  }
-
-  /**
-   * A pre-created user who paid gets the free tier back when the subscription
-   * is cancelled before the account setup is completed.
-   */
-  private async isPendingSetupCancelledBy(
-    preCreatedUser: PreCreatedUser,
-    newTierId: string,
-  ): Promise<boolean> {
-    if (preCreatedUser.status !== PreCreatedUserStatus.PendingSetup) {
-      return false;
-    }
-
-    const freeTier = await this.limitsRepository.getFreeTier();
-    return freeTier?.id === newTierId;
   }
 
   private async assertTierExists(tierId: string) {

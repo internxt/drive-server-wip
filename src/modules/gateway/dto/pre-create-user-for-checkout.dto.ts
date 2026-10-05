@@ -1,18 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import { IsEmail } from 'class-validator';
-
-export class PreCreateUserForCheckoutDto {
-  @ApiProperty({
-    example: 'user@internxt.com',
-    description: 'Email of the customer starting a checkout',
-  })
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.toLowerCase() : value,
-  )
-  @IsEmail()
-  email: string;
-}
+import { IsEnum } from 'class-validator';
+import { PreCreatedUserStatus } from '../../user/pre-created-users.attributes';
 
 export class PreCreateUserForCheckoutResponseDto {
   @ApiProperty({
@@ -22,9 +10,10 @@ export class PreCreateUserForCheckoutResponseDto {
   uuid: string;
 
   @ApiProperty({
-    example: false,
-    description:
-      'Whether the user already paid and has not completed the account setup yet',
+    example: 'awaiting_payment',
+    description: 'The status of the pre-created user',
+    required: false,
   })
-  setupPending: boolean;
+  @IsEnum(PreCreatedUserStatus)
+  status?: PreCreatedUserStatus;
 }
