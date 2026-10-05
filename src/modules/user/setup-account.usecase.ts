@@ -19,7 +19,7 @@ import { type PreCreatedUser } from './pre-created-user.domain';
 import { UniqueConstraintError } from 'sequelize';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
-import { UserNotFoundException } from './exception/user-not-found.exception';
+import { PreCreatedUserNotFoundException } from './exception/pre-created-user-not-found.exception';
 import { signWithExpiry } from '../../middlewares/passport';
 import getEnv from '../../config/configuration';
 
@@ -75,7 +75,7 @@ export class SetupCheckoutAccountUseCase {
     );
 
     if (!preCreatedUser) {
-      throw new UserNotFoundException('Pre-created user not found');
+      throw new PreCreatedUserNotFoundException();
     }
 
     return {
@@ -120,7 +120,7 @@ export class SetupCheckoutAccountUseCase {
     const updateData: Partial<Omit<PreCreatedUserAttributes, 'id'>> = {};
     const preCreatedUser = await this.preCreatedUserRepository.findByUuid(uuid);
     if (!preCreatedUser) {
-      throw new UserNotFoundException('Pre-created user not found');
+      throw new PreCreatedUserNotFoundException();
     }
 
     if (newTierId !== undefined) {
@@ -167,8 +167,9 @@ export class SetupCheckoutAccountUseCase {
   ): Promise<PreCreateUserForCheckoutResponseDto> {
     try {
       const [preCreatedUser] = await this.userUseCases.preCreateUser(
-        { email, status: PreCreatedUserStatus.AwaitingPayment },
+        { email },
         uuid,
+        PreCreatedUserStatus.AwaitingPayment,
       );
 
       return { uuid, status: preCreatedUser.status };

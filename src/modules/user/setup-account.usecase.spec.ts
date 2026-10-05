@@ -19,7 +19,7 @@ import { SequelizeUserRepository } from './user.repository';
 import { UserUseCases } from './user.usecase';
 import { type PreCreatedUser } from './pre-created-user.domain';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { UserNotFoundException } from './exception/user-not-found.exception';
+import { PreCreatedUserNotFoundException } from './exception/pre-created-user-not-found.exception';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 
@@ -102,8 +102,9 @@ describe('Setup account use cases', () => {
       });
       expect(bridgeService.createUser).toHaveBeenCalledWith(email);
       expect(userUseCases.preCreateUser).toHaveBeenCalledWith(
-        { email, status: PreCreatedUserStatus.AwaitingPayment },
+        { email },
         networkUuid,
+        PreCreatedUserStatus.AwaitingPayment,
       );
     });
 
@@ -323,12 +324,17 @@ describe('Setup account use cases', () => {
       );
     });
 
-    test('When the email is not pre-created, then it is reported as not found', async () => {
+    test('When the email is not pre-created, then it is reported as not found with the code the gateway clients recognize', async () => {
       preCreatedUsersRepository.findByUsername.mockResolvedValue(null);
 
-      await expect(setupAccountUseCase.get(email)).rejects.toThrow(
-        UserNotFoundException,
-      );
+      const error = await setupAccountUseCase.get(email).catch((e) => e);
+
+      expect(error).toBeInstanceOf(PreCreatedUserNotFoundException);
+      expect(error.getStatus()).toBe(404);
+      expect(error.getResponse()).toEqual({
+        message: 'Pre-created user not found',
+        code: 'USER_NOT_FOUND',
+      });
     });
 
     test('When the email only belongs to a registered user, then it is reported as not found without consulting the registered users', async () => {
@@ -338,7 +344,7 @@ describe('Setup account use cases', () => {
       preCreatedUsersRepository.findByUsername.mockResolvedValue(null);
 
       await expect(setupAccountUseCase.get(email)).rejects.toThrow(
-        UserNotFoundException,
+        NotFoundException,
       );
 
       expect(userRepository.findByUsername).not.toHaveBeenCalled();
@@ -500,7 +506,7 @@ describe('Setup account use cases', () => {
         setupAccountUseCase.update(v4(), {
           newTierId: v4(),
         }),
-      ).rejects.toThrow(UserNotFoundException);
+      ).rejects.toThrow(NotFoundException);
 
       expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
       expect(bridgeService.setStorage).not.toHaveBeenCalled();

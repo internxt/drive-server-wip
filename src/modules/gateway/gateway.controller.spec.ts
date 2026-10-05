@@ -26,7 +26,6 @@ import { UpdatePreCreatedUserDto } from './dto/update-pre-created-user.dto';
 import { SendAccountSetupEmailDto } from './dto/send-account-setup-email.dto';
 import { SetupCheckoutAccountUseCase } from '../user/setup-account.usecase';
 import { PreCreatedUserStatus } from '../user/pre-created-users.attributes';
-import { UserNotFoundException } from '../user/exception/user-not-found.exception';
 
 const toValidatedBody = async <T extends object>(
   cls: new () => T,
@@ -282,12 +281,12 @@ describe('Gateway Controller', () => {
     it('When the uuid belongs to neither a registered nor a pre-created user, then it should throw not found', async () => {
       jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(null);
       setupAccountUseCase.update.mockRejectedValueOnce(
-        new UserNotFoundException('Pre-created user not found'),
+        new NotFoundException('Pre-created user not found'),
       );
 
       await expect(
         gatewayController.updateUser(user.uuid, updateUserDto),
-      ).rejects.toThrow(UserNotFoundException);
+      ).rejects.toThrow(NotFoundException);
 
       expect(gatewayUsecases.updateUser).not.toHaveBeenCalled();
       expect(storageNotificationsService.planUpdated).not.toHaveBeenCalled();
