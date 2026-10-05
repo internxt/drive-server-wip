@@ -23,7 +23,6 @@ import {
   HttpException,
   UseInterceptors,
   ConflictException,
-  ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -410,7 +409,9 @@ export class UserController {
   @ApiOkResponse({ description: 'Pre creates a user' })
   @ApiBadRequestResponse({ description: 'Missing required fields' })
   async preCreateUser(@Body() createUserDto: PreCreateUserDto) {
-    const [user] = await this.userUseCases.preCreateUser(createUserDto);
+    const [user] = await this.userUseCases.preCreateUser({
+      email: createUserDto.email,
+    });
 
     return {
       user: {

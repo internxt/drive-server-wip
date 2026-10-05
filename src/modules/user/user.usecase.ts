@@ -662,6 +662,7 @@ export class UserUseCases {
   async preCreateUser(
     newUser: PreCreateUserDto,
     uuid: PreCreatedUserAttributes['uuid'] = v4(),
+    status?: PreCreatedUserStatus,
   ): Promise<
     [
       {
@@ -678,7 +679,6 @@ export class UserUseCases {
     ]
   > {
     const email = newUser.email.toLowerCase();
-    const status = newUser.status;
 
     const [existentUser, preCreatedUser] = await Promise.all([
       this.userRepository.findByUsername(email),

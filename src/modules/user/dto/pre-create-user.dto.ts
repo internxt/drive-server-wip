@@ -1,7 +1,6 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsEmail, IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { type UserAttributes } from '../user.attributes';
-import { PreCreatedUserStatus } from '../pre-created-users.attributes';
 
 export class PreCreateUserDto {
   @IsNotEmpty()
@@ -11,12 +10,4 @@ export class PreCreateUserDto {
     description: 'Email of the new account',
   })
   email: UserAttributes['email'];
-
-  @IsOptional()
-  @IsEnum(PreCreatedUserStatus)
-  @ApiProperty({
-    example: 'awaiting_payment',
-    description: 'Status of the pre-created user',
-  })
-  status?: PreCreatedUserStatus;
 }

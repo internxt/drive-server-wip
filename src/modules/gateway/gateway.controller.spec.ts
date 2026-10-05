@@ -26,7 +26,6 @@ import { UpdatePreCreatedUserDto } from './dto/update-pre-created-user.dto';
 import { SendAccountSetupEmailDto } from './dto/send-account-setup-email.dto';
 import { SetupCheckoutAccountUseCase } from '../user/setup-account.usecase';
 import { PreCreatedUserStatus } from '../user/pre-created-users.attributes';
-import { UserNotFoundException } from '../user/exception/user-not-found.exception';
 
 const toValidatedBody = async <T extends object>(
   cls: new () => T,
@@ -266,12 +265,28 @@ describe('Gateway Controller', () => {
       });
     });
 
-    it('When the uuid does not belong to a registered user, then it should throw not found', async () => {
+    it('When the uuid belongs to a pre-created user, then its plan is updated without notifying a registered user', async () => {
       jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(null);
+
+      await gatewayController.updateUser(user.uuid, updateUserWithTierDto);
+
+      expect(setupAccountUseCase.update).toHaveBeenCalledWith(user.uuid, {
+        newStorageSpaceBytes: updateUserWithTierDto.maxSpaceBytes,
+        newTierId: updateUserWithTierDto.tierId,
+      });
+      expect(gatewayUsecases.updateUser).not.toHaveBeenCalled();
+      expect(storageNotificationsService.planUpdated).not.toHaveBeenCalled();
+    });
+
+    it('When the uuid belongs to neither a registered nor a pre-created user, then it should throw not found', async () => {
+      jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(null);
+      setupAccountUseCase.update.mockRejectedValueOnce(
+        new NotFoundException('Pre-created user not found'),
+      );
 
       await expect(
         gatewayController.updateUser(user.uuid, updateUserDto),
-      ).rejects.toThrow(UserNotFoundException);
+      ).rejects.toThrow(NotFoundException);
 
       expect(gatewayUsecases.updateUser).not.toHaveBeenCalled();
       expect(storageNotificationsService.planUpdated).not.toHaveBeenCalled();
@@ -345,17 +360,17 @@ describe('Gateway Controller', () => {
         uuid: v4(),
         status: PreCreatedUserStatus.AwaitingPayment,
       };
-      setupAccountUseCase.create.mockResolvedValueOnce(response);
+      setupAccountUseCase.getOrCreate.mockResolvedValueOnce(response);
 
       const result =
         await gatewayController.createPreCreateUserForCheckout(body);
 
       expect(result).toEqual(response);
-      expect(setupAccountUseCase.create).toHaveBeenCalledWith(body.email);
+      expect(setupAccountUseCase.getOrCreate).toHaveBeenCalledWith(body.email);
     });
 
     it('When the email already belongs to a registered user, then a conflict is returned', async () => {
-      setupAccountUseCase.create.mockRejectedValueOnce(
+      setupAccountUseCase.getOrCreate.mockRejectedValueOnce(
         new ConflictException('User already registered'),
       );
 
