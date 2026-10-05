@@ -266,8 +266,24 @@ describe('Gateway Controller', () => {
       });
     });
 
-    it('When the uuid does not belong to a registered user, then it should throw not found', async () => {
+    it('When the uuid belongs to a pre-created user, then its plan is updated without notifying a registered user', async () => {
       jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(null);
+
+      await gatewayController.updateUser(user.uuid, updateUserWithTierDto);
+
+      expect(setupAccountUseCase.update).toHaveBeenCalledWith(user.uuid, {
+        newStorageSpaceBytes: updateUserWithTierDto.maxSpaceBytes,
+        newTierId: updateUserWithTierDto.tierId,
+      });
+      expect(gatewayUsecases.updateUser).not.toHaveBeenCalled();
+      expect(storageNotificationsService.planUpdated).not.toHaveBeenCalled();
+    });
+
+    it('When the uuid belongs to neither a registered nor a pre-created user, then it should throw not found', async () => {
+      jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(null);
+      setupAccountUseCase.update.mockRejectedValueOnce(
+        new UserNotFoundException('Pre-created user not found'),
+      );
 
       await expect(
         gatewayController.updateUser(user.uuid, updateUserDto),

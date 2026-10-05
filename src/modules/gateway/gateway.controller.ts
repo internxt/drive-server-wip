@@ -259,6 +259,8 @@ export class GatewayController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Update user plan and storage',
+    description:
+      'Updates a registered user, or a pre-created one while it has not completed the account setup',
   })
   @ApiParam({
     name: 'uuid',
@@ -281,9 +283,16 @@ export class GatewayController {
     try {
       const user = await this.gatewayUseCases.getUserByUuid(userUuid);
       if (!user) {
-        throw new UserNotFoundException(
-          'User does not exist. Please create the user first.',
+        await this.setupAccountUseCases.update(userUuid, {
+          newStorageSpaceBytes: maxSpaceBytes,
+          newTierId: tierId,
+        });
+
+        this.logger.log(
+          { body, userUuid, category: 'UPDATE_USER' },
+          'Updated pre-created user successfully',
         );
+        return;
       }
 
       await this.gatewayUseCases.updateUser(user, {
