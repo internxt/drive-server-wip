@@ -54,8 +54,8 @@ import { type PreCreateUserDto } from './dto/pre-create-user.dto';
 import { type CompleteAccountSetupDto } from './dto/complete-account-setup.dto';
 import { aes } from '@internxt/lib';
 import {
-  type PreCreatedUserAttributes,
   PreCreatedUserStatus,
+  type PreCreatedUserAttributes,
 } from './pre-created-users.attributes';
 import { type PreCreatedUser } from './pre-created-user.domain';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
@@ -93,10 +93,8 @@ import { type GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-pub
 import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import { type UserResponseDto } from './dto/responses/user-credentials.dto';
 import {
-  buildAccountSetupUrl,
   decodeAccountSetupToken,
   isCurrentAccountSetupToken,
-  signAccountSetupToken,
 } from './account-setup-token';
 
 export class ReferralsNotAvailableError extends Error {
@@ -217,7 +215,17 @@ export class UserUseCases {
   ): Promise<boolean> {
     const preCreatedUser =
       await this.preCreatedUserRepository.findByUsername(email);
-    return preCreatedUser?.status === PreCreatedUserStatus.PendingSetup;
+
+    if (!preCreatedUser) return false;
+
+    if (preCreatedUser.status === PreCreatedUserStatus.PendingSetup) {
+      return true;
+    }
+
+    return (
+      preCreatedUser.status === PreCreatedUserStatus.AwaitingPayment &&
+      preCreatedUser.tierId != null
+    );
   }
 
   findByUuids(uuids: User['uuid'][]): Promise<User[]> {
@@ -767,98 +775,6 @@ export class UserUseCases {
     );
   }
 
-  async getOrPreCreateUserForCheckout(
-    rawEmail: PreCreatedUserAttributes['email'],
-  ): Promise<{
-    uuid: PreCreatedUserAttributes['uuid'];
-    setupPending: boolean;
-  }> {
-    const email = rawEmail.toLowerCase();
-
-    const registeredUser = await this.userRepository.findByUsername(email);
-    if (registeredUser) {
-      throw new ConflictException('User already registered');
-    }
-
-    const { uuid } = await this.networkService.createUser(email);
-    const preCreatedUser =
-      await this.preCreatedUserRepository.findByUsername(email);
-
-    if (!preCreatedUser) {
-      await this.preCreateUser({ email }, uuid);
-    } else if (preCreatedUser.uuid !== uuid) {
-      await this.rekeyPreCreatedUser(preCreatedUser.uuid, uuid);
-    }
-
-    const currentStatus = preCreatedUser?.status;
-    const isSetupPending = currentStatus === PreCreatedUserStatus.PendingSetup;
-    const isAwaitingPayment =
-      currentStatus === PreCreatedUserStatus.AwaitingPayment;
-
-    if (!isSetupPending && !isAwaitingPayment) {
-      await this.preCreatedUserRepository.updateByUuid(uuid, {
-        status: PreCreatedUserStatus.AwaitingPayment,
-      });
-    }
-
-    return { uuid, setupPending: isSetupPending };
-  }
-
-  async sendAccountSetupEmailIfPending(
-    uuid: PreCreatedUserAttributes['uuid'],
-    planName: string,
-  ): Promise<void> {
-    const preCreatedUser = await this.preCreatedUserRepository.findByUuid(uuid);
-
-    if (!preCreatedUser) {
-      const registeredUser = await this.userRepository.findByUuid(uuid);
-      if (!registeredUser) {
-        throw new NotFoundException('User not found');
-      }
-      return;
-    }
-
-    const isSetupEmailAlreadySent =
-      preCreatedUser.status === PreCreatedUserStatus.PendingSetup;
-    if (!isSetupEmailAlreadySent) {
-      await this.sendAccountSetupEmail(preCreatedUser.email, uuid, planName);
-    }
-  }
-
-  private async rekeyPreCreatedUser(
-    currentUuid: PreCreatedUserAttributes['uuid'],
-    newUuid: PreCreatedUserAttributes['uuid'],
-  ): Promise<void> {
-    await this.sharingRepository.updateAllUserSharedWith(currentUuid, {
-      sharedWith: newUuid,
-    });
-    await this.workspaceRepository.updateInvitesBy(
-      { invitedUser: currentUuid },
-      { invitedUser: newUuid },
-    );
-    await this.preCreatedUserRepository.updateByUuid(currentUuid, {
-      uuid: newUuid,
-    });
-  }
-
-  private async sendAccountSetupEmail(
-    email: PreCreatedUserAttributes['email'],
-    uuid: PreCreatedUserAttributes['uuid'],
-    planName: string,
-  ): Promise<void> {
-    const sentAt = new Date();
-    const token = signAccountSetupToken(uuid, sentAt);
-
-    await this.mailerService.sendAccountSetupEmail(email, {
-      planName,
-      setupUrl: buildAccountSetupUrl(token),
-    });
-    await this.preCreatedUserRepository.updateByUuid(uuid, {
-      setupEmailSentAt: sentAt,
-      status: PreCreatedUserStatus.PendingSetup,
-    });
-  }
-
   async preCreateUser(
     newUser: PreCreateUserDto,
     uuid: PreCreatedUserAttributes['uuid'] = v4(),
@@ -872,11 +788,13 @@ export class UserUseCases {
         publicKyberKey: string;
         publicKey: string;
         password: string;
+        status?: PreCreatedUserStatus;
       },
       boolean,
     ]
   > {
     const email = newUser.email.toLowerCase();
+    const status = newUser.status;
 
     const [existentUser, preCreatedUser] = await Promise.all([
       this.userRepository.findByUsername(email),
@@ -937,6 +855,7 @@ export class UserUseCases {
       publicKyberKey: publicKyberKeyBase64,
       revocationKey: revocationCertificate,
       encryptVersion: UserKeysEncryptVersions.Ecc,
+      status,
     });
 
     return [
@@ -945,6 +864,7 @@ export class UserUseCases {
         publicKyberKey: user.publicKyberKey.toString(),
         publicKey: user.publicKey.toString(),
         password: user.password.toString(),
+        status: user.status,
       },
       true,
     ];

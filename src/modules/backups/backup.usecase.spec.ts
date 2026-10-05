@@ -113,6 +113,27 @@ describe('BackupUseCase', () => {
         ...newBackupFolder(mockFolder),
       });
     });
+
+    it('When checking for an existing device folder, then it should only look for root folders in the backups bucket', async () => {
+      const findOneSpy = jest
+        .spyOn(folderRepository, 'findOne')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(folderRepository, 'createFolder')
+        .mockResolvedValue(newFolder());
+      jest.spyOn(backupUseCase, 'isFolderEmpty').mockResolvedValue(true);
+
+      await backupUseCase.createDeviceAsFolder(userMocked, 'Device Folder');
+
+      expect(findOneSpy).toHaveBeenCalledWith({
+        bucket: userMocked.backupsBucket,
+        plainName: 'Device Folder',
+        parentId: null,
+        deleted: false,
+        removed: false,
+        userId: userMocked.id,
+      });
+    });
   });
 
   describe('getDevicesAsFolder', () => {

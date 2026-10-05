@@ -73,7 +73,7 @@ interface FolderRepository {
   findByParentUuid(
     parentUuid: Folder['parentUuid'],
     searchBy: {
-      plainName: Folder['plainName'][];
+      plainName: Folder['plainName'] | Folder['plainName'][];
       deleted: boolean;
       removed: boolean;
     },
@@ -121,6 +121,19 @@ interface FolderRepository {
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
   ): Promise<Array<Folder> | []>;
   findFoldersWithCursorWhereUpdatedAfter(params: {
+    where: Partial<FolderAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FolderUpdatedAtIdCursorDto;
+  }): Promise<{
+    folders: Folder[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }>;
+  findWorkspaceFoldersWithCursorWhereUpdatedAfter(params: {
+    networkUserId: FolderAttributes['userId'];
+    createdBy: WorkspaceItemUserAttributes['createdBy'];
+    workspaceId: WorkspaceAttributes['id'];
     where: Partial<FolderAttributes>;
     updatedAfter: Date;
     pageSize: number;
@@ -239,7 +252,7 @@ export class SequelizeFolderRepository implements FolderRepository {
   async findByParentUuid(
     parentUuid: Folder['parentUuid'],
     searchBy: {
-      plainName: Folder['plainName'][];
+      plainName: Folder['plainName'] | Folder['plainName'][];
       deleted: boolean;
       removed: boolean;
     },
@@ -250,9 +263,11 @@ export class SequelizeFolderRepository implements FolderRepository {
       deleted: searchBy.deleted,
     };
 
+    const plainNames = [searchBy.plainName].flat();
+
     // COLLATE "custom_numeric" needed to hit folders_parentuuid_plainname_numeric_unique
     const plainNameCondition =
-      searchBy && searchBy.plainName.length > 0
+      plainNames.length > 0
         ? [
             Sequelize.literal(
               '"FolderModel"."plain_name" COLLATE "custom_numeric" IN (:plainNames)',
@@ -265,9 +280,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         ...where,
         ...(plainNameCondition.length && { [Op.and]: plainNameCondition }),
       },
-      replacements: plainNameCondition.length
-        ? { plainNames: searchBy.plainName }
-        : undefined,
+      replacements: plainNameCondition.length ? { plainNames } : undefined,
     });
 
     return folders.map(this.toDomain.bind(this));
@@ -667,6 +680,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         ],
         parentUuid: { [Op.eq]: parentUuid },
         deleted: { [Op.eq]: deleted },
+        removed: { [Op.eq]: false },
       },
       replacements: { plainName },
     });
@@ -1096,6 +1110,82 @@ export class SequelizeFolderRepository implements FolderRepository {
       where: whereCondition,
       attributes: { include: [cursorUpdatedAtAttribute()] },
       replacements: cursorFilter?.replacements,
+      order: [
+        ['updatedAt', 'ASC'],
+        ['uuid', 'ASC'],
+      ],
+      limit: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+    const lastRow = page.at(-1);
+
+    return {
+      folders: page.map((f) => this.toDomain(f)),
+      hasMore,
+      lastRowCursorUpdatedAt: lastRow
+        ? (lastRow.get('updatedAtCursor') as string)
+        : null,
+    };
+  }
+
+  async findWorkspaceFoldersWithCursorWhereUpdatedAfter({
+    networkUserId,
+    createdBy,
+    workspaceId,
+    where,
+    updatedAfter,
+    pageSize,
+    cursor,
+  }: {
+    networkUserId: FolderAttributes['userId'];
+    createdBy: WorkspaceItemUserAttributes['createdBy'];
+    workspaceId: WorkspaceAttributes['id'];
+    where: Partial<FolderAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FolderUpdatedAtIdCursorDto;
+  }): Promise<{
+    folders: Folder[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }> {
+    const cursorFilter = cursor
+      ? cursorTimestampTupleFilter(cursor.updatedAt, cursor.uuid)
+      : null;
+
+    const createdInWorkspaceByUser = Sequelize.literal(
+      `EXISTS (
+        SELECT 1 FROM workspace_items_users wiu
+        WHERE wiu.item_id = "FolderModel"."uuid"
+          AND wiu.item_type = :itemType
+          AND wiu.workspace_id = :workspaceId
+          AND wiu.created_by = :createdBy
+      )`,
+    );
+
+    const whereCondition: WhereOptions<FolderAttributes> = {
+      ...where,
+      userId: networkUserId,
+      parentUuid: { [Op.not]: null },
+      [Op.and]: [
+        cursorFilter
+          ? cursorFilter.where
+          : { updatedAt: { [Op.gt]: updatedAfter } },
+        createdInWorkspaceByUser,
+      ],
+    };
+
+    const rows = await this.folderModel.findAll({
+      where: whereCondition,
+      attributes: { include: [cursorUpdatedAtAttribute()] },
+      replacements: {
+        ...cursorFilter?.replacements,
+        itemType: WorkspaceItemType.Folder,
+        workspaceId,
+        createdBy,
+      },
       order: [
         ['updatedAt', 'ASC'],
         ['uuid', 'ASC'],

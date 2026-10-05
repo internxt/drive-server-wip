@@ -10,7 +10,6 @@ import {
   ConflictException,
   type Logger,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import { v4 } from 'uuid';
@@ -87,14 +86,48 @@ describe('AuthController', () => {
       });
     });
 
-    it('When user is not found, then it should throw UnauthorizedException', async () => {
+    it('When user is not found, then it should return a fake salt response with the same shape as a real user', async () => {
       const loginDto = new LoginDto();
       loginDto.email = 'test@example.com';
+      const fakeSalt = 'a'.repeat(32);
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(null);
+      jest.spyOn(cryptoService, 'fakeSaltFor').mockReturnValueOnce(fakeSalt);
+      jest
+        .spyOn(cryptoService, 'encryptText')
+        .mockReturnValueOnce('encryptedFakeSalt');
 
+      const result = await authController.login(loginDto);
+
+      expect(cryptoService.fakeSaltFor).toHaveBeenCalledWith(loginDto.email);
+      expect(cryptoService.encryptText).toHaveBeenCalledWith(fakeSalt);
+      expect(result).toEqual({
+        hasKeys: true,
+        sKey: 'encryptedFakeSalt',
+        tfa: false,
+        hasKyberKeys: true,
+        hasEccKeys: true,
+      });
+    });
+
+    it('When user is not found, then it should not look up user keys', async () => {
+      const loginDto = new LoginDto();
+      loginDto.email = 'test@example.com';
       jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(null);
 
-      await expect(authController.login(loginDto)).rejects.toThrow(
-        new UnauthorizedException('Wrong login credentials'),
+      await authController.login(loginDto);
+
+      expect(keyServerUseCases.findUserKeys).not.toHaveBeenCalled();
+    });
+
+    it('When user is not found and email has uppercase, then the fake salt should be derived from the lowercased email', async () => {
+      const loginDto = new LoginDto();
+      loginDto.email = 'TEST@EXAMPLE.COM';
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(null);
+
+      await authController.login(loginDto);
+
+      expect(cryptoService.fakeSaltFor).toHaveBeenCalledWith(
+        'test@example.com',
       );
     });
 
