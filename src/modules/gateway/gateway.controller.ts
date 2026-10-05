@@ -50,7 +50,7 @@ import { CreatePreCreatedUserDto } from './dto/create-pre-created-user.dto';
 import { GetPreCreatedUserDto } from './dto/get-pre-created-user.dto';
 import { UpdatePreCreatedUserDto } from './dto/update-pre-created-user.dto';
 import { SendAccountSetupEmailDto } from './dto/send-account-setup-email.dto';
-import { SetupAccountUseCase } from '../user/setup-account.usecase';
+import { SetupCheckoutAccountUseCase } from '../user/setup-account.usecase';
 import { UserNotFoundException } from '../user/exception/user-not-found.exception';
 
 @ApiTags('Gateway')
@@ -61,7 +61,7 @@ export class GatewayController {
 
   constructor(
     private readonly gatewayUseCases: GatewayUseCases,
-    private readonly setupAccountUseCases: SetupAccountUseCase,
+    private readonly setupAccountUseCases: SetupCheckoutAccountUseCase,
     private readonly storageNotificationsService: StorageNotificationService,
   ) {}
 
@@ -243,7 +243,7 @@ export class GatewayController {
   ): Promise<void> {
     const { uuid, maxSpaceBytes, tierId, status } = dto;
 
-    await this.setupAccountUseCases.updatePreCreatedUserForCheckout(uuid, {
+    await this.setupAccountUseCases.update(uuid, {
       newStorageSpaceBytes: maxSpaceBytes,
       newTierId: tierId,
       status,
@@ -336,8 +336,7 @@ export class GatewayController {
   async createPreCreateUserForCheckout(
     @Body() dto: CreatePreCreatedUserDto,
   ): Promise<PreCreateUserForCheckoutResponseDto> {
-    const response =
-      await this.setupAccountUseCases.createPreCreateUserForCheckout(dto.email);
+    const response = await this.setupAccountUseCases.create(dto.email);
 
     this.logger.log(
       { ...response, category: 'PRE_CREATE_USER' },
@@ -365,7 +364,7 @@ export class GatewayController {
   async getPreCreatedUserForCheckout(
     @Query() dto: GetPreCreatedUserDto,
   ): Promise<PreCreateUserForCheckoutResponseDto> {
-    return this.setupAccountUseCases.getPreCreatedUser(dto.email);
+    return this.setupAccountUseCases.get(dto.email);
   }
 
   @Post('/users/:uuid/setup-email')
@@ -391,10 +390,7 @@ export class GatewayController {
     @Param('uuid', ValidateUUIDPipe) uuid: string,
     @Body() dto: SendAccountSetupEmailDto,
   ): Promise<void> {
-    await this.setupAccountUseCases.sendFirstAccountSetupEmail(
-      uuid,
-      dto.planName,
-    );
+    await this.setupAccountUseCases.sendAccountEmail(uuid, dto.planName);
   }
 
   @Post('/users/failed-payment')

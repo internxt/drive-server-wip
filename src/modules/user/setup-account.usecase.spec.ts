@@ -6,13 +6,14 @@ import {
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { v4 } from 'uuid';
-import { Sign } from '../../middlewares/passport';
+import { signWithExpiry } from '../../middlewares/passport';
+import getEnv from '../../config/configuration';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { newPreCreatedUser, newTier, newUser } from '../../../test/fixtures';
 import { PreCreatedUserStatus } from './pre-created-users.attributes';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
-import { SetupAccountUseCase } from './setup-account.usecase';
+import { SetupCheckoutAccountUseCase } from './setup-account.usecase';
 import { SequelizeUserRepository } from './user.repository';
 import { UserUseCases } from './user.usecase';
 import { type PreCreatedUser } from './pre-created-user.domain';
@@ -22,11 +23,11 @@ import { UserNotFoundException } from './exception/user-not-found.exception';
 jest.mock('../../middlewares/passport', () => ({
   __esModule: true,
   ...jest.requireActual('../../middlewares/passport'),
-  Sign: jest.fn(() => 'newToken'),
+  signWithExpiry: jest.fn(() => 'newToken'),
 }));
 
 describe('Setup account use cases', () => {
-  let setupAccountUseCase: SetupAccountUseCase;
+  let setupAccountUseCase: SetupCheckoutAccountUseCase;
   let userRepository: DeepMocked<SequelizeUserRepository>;
   let preCreatedUsersRepository: DeepMocked<SequelizePreCreatedUsersRepository>;
   let bridgeService: DeepMocked<BridgeService>;
@@ -36,12 +37,12 @@ describe('Setup account use cases', () => {
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
-      providers: [SetupAccountUseCase],
+      providers: [SetupCheckoutAccountUseCase],
     })
       .useMocker(createMock)
       .compile();
 
-    setupAccountUseCase = moduleRef.get(SetupAccountUseCase);
+    setupAccountUseCase = moduleRef.get(SetupCheckoutAccountUseCase);
     userRepository = moduleRef.get(SequelizeUserRepository);
     preCreatedUsersRepository = moduleRef.get(
       SequelizePreCreatedUsersRepository,
@@ -89,10 +90,7 @@ describe('Setup account use cases', () => {
         true,
       ]);
 
-      const result =
-        await setupAccountUseCase.createPreCreateUserForCheckout(
-          'Buyer@Internxt.com',
-        );
+      const result = await setupAccountUseCase.create('Buyer@Internxt.com');
 
       expect(result).toEqual({
         uuid: networkUuid,
@@ -111,7 +109,7 @@ describe('Setup account use cases', () => {
         true,
       ]);
 
-      await setupAccountUseCase.createPreCreateUserForCheckout(email);
+      await setupAccountUseCase.create(email);
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
     });
@@ -121,9 +119,9 @@ describe('Setup account use cases', () => {
         newUser({ attributes: { email } }),
       );
 
-      await expect(
-        setupAccountUseCase.createPreCreateUserForCheckout(email),
-      ).rejects.toThrow(ConflictException);
+      await expect(setupAccountUseCase.create(email)).rejects.toThrow(
+        ConflictException,
+      );
 
       expect(bridgeService.createUser).not.toHaveBeenCalled();
       expect(userUseCases.preCreateUser).not.toHaveBeenCalled();
@@ -134,9 +132,9 @@ describe('Setup account use cases', () => {
         newPreCreatedUser(),
       );
 
-      await expect(
-        setupAccountUseCase.createPreCreateUserForCheckout(email),
-      ).rejects.toThrow(ConflictException);
+      await expect(setupAccountUseCase.create(email)).rejects.toThrow(
+        ConflictException,
+      );
 
       expect(bridgeService.createUser).not.toHaveBeenCalled();
       expect(userUseCases.preCreateUser).not.toHaveBeenCalled();
@@ -153,7 +151,7 @@ describe('Setup account use cases', () => {
         preCreatedUser,
       );
 
-      const result = await setupAccountUseCase.getPreCreatedUser(email);
+      const result = await setupAccountUseCase.get(email);
 
       expect(result).toEqual({
         uuid: preCreatedUser.uuid,
@@ -168,7 +166,7 @@ describe('Setup account use cases', () => {
         preCreatedUser,
       );
 
-      const result = await setupAccountUseCase.getPreCreatedUser(email);
+      const result = await setupAccountUseCase.get(email);
 
       expect(result).toEqual({
         uuid: preCreatedUser.uuid,
@@ -181,7 +179,7 @@ describe('Setup account use cases', () => {
         newPreCreatedUser(),
       );
 
-      await setupAccountUseCase.getPreCreatedUser('Buyer@Internxt.COM');
+      await setupAccountUseCase.get('Buyer@Internxt.COM');
 
       expect(preCreatedUsersRepository.findByUsername).toHaveBeenCalledWith(
         email,
@@ -191,9 +189,9 @@ describe('Setup account use cases', () => {
     test('When the email is not pre-created, then it is reported as not found', async () => {
       preCreatedUsersRepository.findByUsername.mockResolvedValue(null);
 
-      await expect(
-        setupAccountUseCase.getPreCreatedUser(email),
-      ).rejects.toThrow(UserNotFoundException);
+      await expect(setupAccountUseCase.get(email)).rejects.toThrow(
+        UserNotFoundException,
+      );
     });
 
     test('When the email only belongs to a registered user, then it is reported as not found without consulting the registered users', async () => {
@@ -202,9 +200,9 @@ describe('Setup account use cases', () => {
       );
       preCreatedUsersRepository.findByUsername.mockResolvedValue(null);
 
-      await expect(
-        setupAccountUseCase.getPreCreatedUser(email),
-      ).rejects.toThrow(UserNotFoundException);
+      await expect(setupAccountUseCase.get(email)).rejects.toThrow(
+        UserNotFoundException,
+      );
 
       expect(userRepository.findByUsername).not.toHaveBeenCalled();
       expect(userRepository.findByEmail).not.toHaveBeenCalled();
@@ -227,24 +225,21 @@ describe('Setup account use cases', () => {
         .spyOn(preCreatedUsersRepository, 'findByUuid')
         .mockResolvedValue(preCreatedUser);
 
-      await setupAccountUseCase.sendFirstAccountSetupEmail(
-        preCreatedUser.uuid,
-        planName,
-      );
+      await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName);
 
       expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledWith(
         preCreatedUser.email,
         { planName, setupUrl: `${hostDriveWeb}/complete-account/newToken` },
       );
-      expect(Sign).toHaveBeenCalledWith(
+      expect(signWithExpiry).toHaveBeenCalledWith(
         expect.objectContaining({
           payload: {
             uuid: preCreatedUser.uuid,
             action: 'complete-account-setup',
           },
         }),
-        undefined,
-        '5d',
+        getEnv().secrets.jwt,
+        { expiresIn: '5d' },
       );
     });
 
@@ -253,15 +248,12 @@ describe('Setup account use cases', () => {
         .spyOn(preCreatedUsersRepository, 'findByUuid')
         .mockResolvedValue(preCreatedUser);
 
-      await setupAccountUseCase.sendFirstAccountSetupEmail(
-        preCreatedUser.uuid,
-        planName,
-      );
+      await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName);
 
       const [[, { setupEmailSentAt }]] = jest.mocked(
         preCreatedUsersRepository.updateByUuid,
       ).mock.calls;
-      const [[{ iat }]] = jest.mocked(Sign).mock.calls as unknown as [
+      const [[{ iat }]] = jest.mocked(signWithExpiry).mock.calls as unknown as [
         [{ iat: number }],
       ];
       expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
@@ -283,10 +275,7 @@ describe('Setup account use cases', () => {
         .mockRejectedValueOnce(new Error('SendGrid is down'));
 
       await expect(
-        setupAccountUseCase.sendFirstAccountSetupEmail(
-          preCreatedUser.uuid,
-          planName,
-        ),
+        setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName),
       ).rejects.toThrow('SendGrid is down');
 
       expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
@@ -299,10 +288,7 @@ describe('Setup account use cases', () => {
         .spyOn(preCreatedUsersRepository, 'findByUuid')
         .mockResolvedValue(preCreatedUser);
 
-      await setupAccountUseCase.sendFirstAccountSetupEmail(
-        preCreatedUser.uuid,
-        planName,
-      );
+      await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName);
 
       expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledTimes(1);
       expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
@@ -318,10 +304,7 @@ describe('Setup account use cases', () => {
         .spyOn(preCreatedUsersRepository, 'findByUuid')
         .mockResolvedValue(preCreatedUser);
 
-      await setupAccountUseCase.sendFirstAccountSetupEmail(
-        preCreatedUser.uuid,
-        planName,
-      );
+      await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName);
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
       expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
@@ -336,10 +319,7 @@ describe('Setup account use cases', () => {
         .spyOn(userRepository, 'findByUuid')
         .mockResolvedValue(registeredUser);
 
-      await setupAccountUseCase.sendFirstAccountSetupEmail(
-        registeredUser.uuid,
-        planName,
-      );
+      await setupAccountUseCase.sendAccountEmail(registeredUser.uuid, planName);
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
     });
@@ -351,7 +331,7 @@ describe('Setup account use cases', () => {
       jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
 
       await expect(
-        setupAccountUseCase.sendFirstAccountSetupEmail(v4(), planName),
+        setupAccountUseCase.sendAccountEmail(v4(), planName),
       ).rejects.toThrow(NotFoundException);
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
@@ -377,7 +357,7 @@ describe('Setup account use cases', () => {
         .mockResolvedValue(null);
 
       await expect(
-        setupAccountUseCase.updatePreCreatedUserForCheckout(v4(), {
+        setupAccountUseCase.update(v4(), {
           newTierId: v4(),
         }),
       ).rejects.toThrow(UserNotFoundException);
@@ -391,10 +371,7 @@ describe('Setup account use cases', () => {
       const newTierId = v4();
 
       await expect(
-        setupAccountUseCase.updatePreCreatedUserForCheckout(
-          preCreatedUser.uuid,
-          { newTierId },
-        ),
+        setupAccountUseCase.update(preCreatedUser.uuid, { newTierId }),
       ).rejects.toThrow(BadRequestException);
 
       expect(featureLimitService.getTier).toHaveBeenCalledWith(newTierId);
@@ -408,10 +385,10 @@ describe('Setup account use cases', () => {
         .spyOn(featureLimitService, 'getTier')
         .mockResolvedValue(newTier({ id: newTierId }));
 
-      await setupAccountUseCase.updatePreCreatedUserForCheckout(
-        preCreatedUser.uuid,
-        { newTierId, status: PreCreatedUserStatus.Cancelled },
-      );
+      await setupAccountUseCase.update(preCreatedUser.uuid, {
+        newTierId,
+        status: PreCreatedUserStatus.Cancelled,
+      });
 
       expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
         preCreatedUser.uuid,
@@ -420,10 +397,7 @@ describe('Setup account use cases', () => {
     });
 
     test('When no new tier or status are given, then nothing is stored', async () => {
-      await setupAccountUseCase.updatePreCreatedUserForCheckout(
-        preCreatedUser.uuid,
-        {},
-      );
+      await setupAccountUseCase.update(preCreatedUser.uuid, {});
 
       expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
         preCreatedUser.uuid,
@@ -432,10 +406,9 @@ describe('Setup account use cases', () => {
     });
 
     test('When no new storage is given, then the storage in the network is left untouched', async () => {
-      await setupAccountUseCase.updatePreCreatedUserForCheckout(
-        preCreatedUser.uuid,
-        { newTierId: preCreatedUser.tierId },
-      );
+      await setupAccountUseCase.update(preCreatedUser.uuid, {
+        newTierId: preCreatedUser.tierId,
+      });
 
       expect(bridgeService.setStorage).not.toHaveBeenCalled();
     });
@@ -443,10 +416,10 @@ describe('Setup account use cases', () => {
     test('When a new storage is given, then it is applied to the network user', async () => {
       const newStorageSpaceBytes = 3298534883328;
 
-      await setupAccountUseCase.updatePreCreatedUserForCheckout(
-        preCreatedUser.uuid,
-        { newTierId: preCreatedUser.tierId, newStorageSpaceBytes },
-      );
+      await setupAccountUseCase.update(preCreatedUser.uuid, {
+        newTierId: preCreatedUser.tierId,
+        newStorageSpaceBytes,
+      });
 
       expect(bridgeService.setStorage).toHaveBeenCalledWith(
         preCreatedUser.username,

@@ -24,7 +24,7 @@ import { CreatePreCreatedUserDto } from './dto/create-pre-created-user.dto';
 import { GetPreCreatedUserDto } from './dto/get-pre-created-user.dto';
 import { UpdatePreCreatedUserDto } from './dto/update-pre-created-user.dto';
 import { SendAccountSetupEmailDto } from './dto/send-account-setup-email.dto';
-import { SetupAccountUseCase } from '../user/setup-account.usecase';
+import { SetupCheckoutAccountUseCase } from '../user/setup-account.usecase';
 import { PreCreatedUserStatus } from '../user/pre-created-users.attributes';
 import { UserNotFoundException } from '../user/exception/user-not-found.exception';
 
@@ -33,7 +33,7 @@ describe('Gateway Controller', () => {
   let gatewayUsecases: DeepMocked<GatewayUseCases>;
   let storageNotificationsService: DeepMocked<StorageNotificationService>;
   let loggerMock: DeepMocked<Logger>;
-  let setupAccountUseCase: DeepMocked<SetupAccountUseCase>;
+  let setupAccountUseCase: DeepMocked<SetupCheckoutAccountUseCase>;
 
   beforeEach(async () => {
     loggerMock = createMock<Logger>();
@@ -49,7 +49,7 @@ describe('Gateway Controller', () => {
     gatewayController = moduleRef.get(GatewayController);
     gatewayUsecases = moduleRef.get(GatewayUseCases);
     storageNotificationsService = moduleRef.get(StorageNotificationService);
-    setupAccountUseCase = moduleRef.get(SetupAccountUseCase);
+    setupAccountUseCase = moduleRef.get(SetupCheckoutAccountUseCase);
   });
 
   it('should be defined', () => {
@@ -342,21 +342,17 @@ describe('Gateway Controller', () => {
         uuid: v4(),
         status: PreCreatedUserStatus.AwaitingPayment,
       };
-      setupAccountUseCase.createPreCreateUserForCheckout.mockResolvedValueOnce(
-        response,
-      );
+      setupAccountUseCase.create.mockResolvedValueOnce(response);
 
       const result =
         await gatewayController.createPreCreateUserForCheckout(body);
 
       expect(result).toEqual(response);
-      expect(
-        setupAccountUseCase.createPreCreateUserForCheckout,
-      ).toHaveBeenCalledWith(body.email);
+      expect(setupAccountUseCase.create).toHaveBeenCalledWith(body.email);
     });
 
     it('When the email already belongs to a registered user, then a conflict is returned', async () => {
-      setupAccountUseCase.createPreCreateUserForCheckout.mockRejectedValueOnce(
+      setupAccountUseCase.create.mockRejectedValueOnce(
         new ConflictException('User already registered'),
       );
 
@@ -419,19 +415,17 @@ describe('Gateway Controller', () => {
         uuid: v4(),
         status: PreCreatedUserStatus.PendingSetup,
       };
-      setupAccountUseCase.getPreCreatedUser.mockResolvedValueOnce(response);
+      setupAccountUseCase.get.mockResolvedValueOnce(response);
 
       const result =
         await gatewayController.getPreCreatedUserForCheckout(query);
 
       expect(result).toEqual(response);
-      expect(setupAccountUseCase.getPreCreatedUser).toHaveBeenCalledWith(
-        query.email,
-      );
+      expect(setupAccountUseCase.get).toHaveBeenCalledWith(query.email);
     });
 
     it('When the email is not pre-created, then not found is returned', async () => {
-      setupAccountUseCase.getPreCreatedUser.mockRejectedValueOnce(
+      setupAccountUseCase.get.mockRejectedValueOnce(
         new NotFoundException('Pre-created user not found'),
       );
 
@@ -499,16 +493,14 @@ describe('Gateway Controller', () => {
         maxSpaceBytes,
       });
 
-      expect(
-        setupAccountUseCase.updatePreCreatedUserForCheckout,
-      ).toHaveBeenCalledWith(uuid, {
+      expect(setupAccountUseCase.update).toHaveBeenCalledWith(uuid, {
         newStorageSpaceBytes: maxSpaceBytes,
         newTierId: tierId,
       });
     });
 
     it('When the pre-created user does not exist, then not found is returned', async () => {
-      setupAccountUseCase.updatePreCreatedUserForCheckout.mockRejectedValueOnce(
+      setupAccountUseCase.update.mockRejectedValueOnce(
         new NotFoundException('Pre-created user not found'),
       );
 
@@ -518,7 +510,7 @@ describe('Gateway Controller', () => {
     });
 
     it('When the tier does not exist, then a bad request is returned', async () => {
-      setupAccountUseCase.updatePreCreatedUserForCheckout.mockRejectedValueOnce(
+      setupAccountUseCase.update.mockRejectedValueOnce(
         new BadRequestException(`Tier with ID ${tierId} not found`),
       );
 
@@ -623,13 +615,14 @@ describe('Gateway Controller', () => {
 
       expect(statusCode).toBe(204);
       expect(result).toBeUndefined();
-      expect(
-        setupAccountUseCase.sendFirstAccountSetupEmail,
-      ).toHaveBeenCalledWith(uuid, body.planName);
+      expect(setupAccountUseCase.sendAccountEmail).toHaveBeenCalledWith(
+        uuid,
+        body.planName,
+      );
     });
 
     it('When the user does not exist, then not found is returned', async () => {
-      setupAccountUseCase.sendFirstAccountSetupEmail.mockRejectedValueOnce(
+      setupAccountUseCase.sendAccountEmail.mockRejectedValueOnce(
         new NotFoundException('User not found'),
       );
 
@@ -638,14 +631,16 @@ describe('Gateway Controller', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When the plan name is missing or empty, then the request is rejected', async () => {
-      const [{ errors: missing }, { errors: empty }] = await Promise.all([
-        toValidatedBody({}),
-        toValidatedBody({ planName: '' }),
-      ]);
+    it('When the plan name is omitted, then the request is accepted because it is optional', async () => {
+      const { errors } = await toValidatedBody({});
 
-      expect(missing.map((error) => error.property)).toEqual(['planName']);
-      expect(empty.map((error) => error.property)).toEqual(['planName']);
+      expect(errors).toEqual([]);
+    });
+
+    it('When the plan name is not a string, then the request is rejected', async () => {
+      const { errors } = await toValidatedBody({ planName: 42 });
+
+      expect(errors.map((error) => error.property)).toEqual(['planName']);
     });
   });
 
