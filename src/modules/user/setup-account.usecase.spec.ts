@@ -437,6 +437,30 @@ describe('Setup account use cases', () => {
       );
     });
 
+    test('When the email cannot be sent and releasing it also fails, then the sending error is the one reported', async () => {
+      const sendError = new Error('SendGrid is down');
+      mailerService.sendAccountSetupEmail.mockRejectedValueOnce(sendError);
+      preCreatedUsersRepository.updateByUuid.mockRejectedValueOnce(
+        new Error('database error'),
+      );
+
+      await expect(
+        setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName),
+      ).rejects.toThrow(sendError);
+    });
+
+    test('When the plan name is unknown, then the email is still sent without it', async () => {
+      await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid);
+
+      expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledWith(
+        preCreatedUser.email,
+        {
+          planName: undefined,
+          setupUrl: `${hostDriveWeb}/complete-account/newToken`,
+        },
+      );
+    });
+
     test('When the email was already sent, then it is not sent again', async () => {
       preCreatedUser.setupEmailSentAt = new Date('2026-09-20T10:00:00Z');
       preCreatedUser.status = PreCreatedUserStatus.PendingSetup;

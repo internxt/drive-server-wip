@@ -51,7 +51,6 @@ import { GetPreCreatedUserDto } from './dto/get-pre-created-user.dto';
 import { UpdatePreCreatedUserDto } from './dto/update-pre-created-user.dto';
 import { SendAccountSetupEmailDto } from './dto/send-account-setup-email.dto';
 import { SetupCheckoutAccountUseCase } from '../user/setup-account.usecase';
-import { UserNotFoundException } from '../user/exception/user-not-found.exception';
 
 @ApiTags('Gateway')
 @Controller('gateway')
@@ -338,10 +337,7 @@ export class GatewayController {
       'UUID of the pre-created user and whether its setup is pending',
     type: PreCreateUserForCheckoutResponseDto,
   })
-  @ApiConflictResponse({
-    description: 'The user is already registered',
-    type: UserNotFoundException,
-  })
+  @ApiConflictResponse({ description: 'The user is already registered' })
   async createPreCreateUserForCheckout(
     @Body() dto: CreatePreCreatedUserDto,
   ): Promise<PreCreateUserForCheckoutResponseDto> {

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -20,8 +21,7 @@ import { UniqueConstraintError } from 'sequelize';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { PreCreatedUserNotFoundException } from './exception/pre-created-user-not-found.exception';
-import { signWithExpiry } from '../../middlewares/passport';
-import getEnv from '../../config/configuration';
+import { buildAccountSetupUrl } from './account-setup-link';
 
 @Injectable()
 export class SetupCheckoutAccountUseCase {
@@ -86,7 +86,7 @@ export class SetupCheckoutAccountUseCase {
 
   async sendAccountEmail(
     uuid: PreCreatedUserAttributes['uuid'],
-    planName: string,
+    planName?: string,
   ): Promise<void> {
     const preCreatedUser = await this.preCreatedUserRepository.findByUuid(uuid);
 
@@ -223,7 +223,7 @@ export class SetupCheckoutAccountUseCase {
 
   private async sendAccountSetupEmail(
     preCreatedUser: PreCreatedUser,
-    planName: string,
+    planName?: string,
   ): Promise<void> {
     const { uuid, email } = preCreatedUser;
     const sentAt = new Date();
@@ -238,27 +238,32 @@ export class SetupCheckoutAccountUseCase {
       return;
     }
 
-    const token = signWithExpiry(
-      {
-        payload: { uuid, action: 'complete-account-setup' },
-        iat: Math.floor(sentAt.getTime() / 1000),
-      },
-      getEnv().secrets.jwt,
-      { expiresIn: '5d' },
-    );
+    const { setupUrl } = buildAccountSetupUrl(uuid, sentAt);
 
     try {
       await this.mailerService.sendAccountSetupEmail(email, {
         planName,
-        setupUrl: `${process.env.HOST_DRIVE_WEB}/complete-account/${token}`,
+        setupUrl,
       });
     } catch (error) {
-      await this.preCreatedUserRepository.updateByUuid(uuid, {
+      await this.rollbackSetupEmailSent(preCreatedUser);
+
+      throw error;
+    }
+  }
+
+  private async rollbackSetupEmailSent(
+    preCreatedUser: PreCreatedUser,
+  ): Promise<void> {
+    try {
+      await this.preCreatedUserRepository.updateByUuid(preCreatedUser.uuid, {
         status: PreCreatedUserStatus.AwaitingPayment,
         setupEmailSentAt: preCreatedUser.setupEmailSentAt,
       });
-
-      throw error;
+    } catch (releaseError) {
+      Logger.error(
+        `[ACCOUNT_SETUP/SEND_EMAIL] Could not roll back the setup email sent to pre-created user ${preCreatedUser.uuid}: ${(releaseError as Error).message}`,
+      );
     }
   }
 }
