@@ -61,18 +61,7 @@ describe('Setup account use cases', () => {
     const networkUuid = v4();
     const email = 'buyer@internxt.com';
 
-    beforeEach(() => {
-      userRepository.findByUsername.mockResolvedValue(null);
-      preCreatedUsersRepository.findByUsername.mockResolvedValue(null);
-      bridgeService.createUser.mockResolvedValue({
-        userId: 'network-user',
-        uuid: networkUuid,
-      });
-    });
-
-    const toPreCreatedUserResult = (
-      overrides: Partial<{ uuid: string; status: PreCreatedUserStatus }>,
-    ) => ({
+    const preCreatedUserResult = {
       id: 1,
       email,
       uuid: networkUuid,
@@ -81,15 +70,22 @@ describe('Setup account use cases', () => {
       publicKey: 'public-key',
       password: '',
       status: PreCreatedUserStatus.AwaitingPayment,
-      ...overrides,
+    };
+
+    beforeEach(() => {
+      userRepository.findByUsername.mockResolvedValue(null);
+      preCreatedUsersRepository.findByUsername.mockResolvedValue(null);
+      bridgeService.createUser.mockResolvedValue({
+        userId: 'network-user',
+        uuid: networkUuid,
+      });
+      userUseCases.preCreateUser.mockResolvedValue([
+        preCreatedUserResult,
+        true,
+      ]);
     });
 
     test('When the email is new, then the user is pre-created with the network user uuid, awaiting the payment', async () => {
-      userUseCases.preCreateUser.mockResolvedValueOnce([
-        toPreCreatedUserResult({}),
-        true,
-      ]);
-
       const result = await setupAccountUseCase.create('Buyer@Internxt.com');
 
       expect(result).toEqual({
@@ -104,11 +100,6 @@ describe('Setup account use cases', () => {
     });
 
     test('When the user is pre-created, then no setup email is sent', async () => {
-      userUseCases.preCreateUser.mockResolvedValueOnce([
-        toPreCreatedUserResult({}),
-        true,
-      ]);
-
       await setupAccountUseCase.create(email);
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
@@ -144,35 +135,23 @@ describe('Setup account use cases', () => {
   describe('Getting a pre-created user by email', () => {
     const email = 'buyer@internxt.com';
 
-    test('When the user is pre-created and its setup is pending, then its uuid and status are returned', async () => {
-      const preCreatedUser = newPreCreatedUser();
-      preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
-      preCreatedUsersRepository.findByUsername.mockResolvedValue(
-        preCreatedUser,
-      );
+    test.each([
+      { status: PreCreatedUserStatus.PendingSetup },
+      { status: PreCreatedUserStatus.AwaitingPayment },
+    ])(
+      'When the user is pre-created and its status is $status, then its uuid and status are returned',
+      async ({ status }) => {
+        const preCreatedUser = newPreCreatedUser();
+        preCreatedUser.status = status;
+        preCreatedUsersRepository.findByUsername.mockResolvedValue(
+          preCreatedUser,
+        );
 
-      const result = await setupAccountUseCase.get(email);
+        const result = await setupAccountUseCase.get(email);
 
-      expect(result).toEqual({
-        uuid: preCreatedUser.uuid,
-        status: PreCreatedUserStatus.PendingSetup,
-      });
-    });
-
-    test('When the user is pre-created and awaiting the payment, then its uuid and status are returned', async () => {
-      const preCreatedUser = newPreCreatedUser();
-      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
-      preCreatedUsersRepository.findByUsername.mockResolvedValue(
-        preCreatedUser,
-      );
-
-      const result = await setupAccountUseCase.get(email);
-
-      expect(result).toEqual({
-        uuid: preCreatedUser.uuid,
-        status: PreCreatedUserStatus.AwaitingPayment,
-      });
-    });
+        expect(result).toEqual({ uuid: preCreatedUser.uuid, status });
+      },
+    );
 
     test('When the email has uppercase letters, then the user is looked up by the lowercase email', async () => {
       preCreatedUsersRepository.findByUsername.mockResolvedValue(
@@ -218,13 +197,10 @@ describe('Setup account use cases', () => {
       process.env.HOST_DRIVE_WEB = hostDriveWeb;
       preCreatedUser = newPreCreatedUser();
       preCreatedUser.setupEmailSentAt = null;
+      preCreatedUsersRepository.findByUuid.mockResolvedValue(preCreatedUser);
     });
 
     test('When the pre-created user has not received it yet, then the email is sent with the plan name and a single-purpose link that expires in 5 days', async () => {
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUuid')
-        .mockResolvedValue(preCreatedUser);
-
       await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName);
 
       expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledWith(
@@ -244,10 +220,6 @@ describe('Setup account use cases', () => {
     });
 
     test('When the email is sent, then the moment it was sent is stored and matches the link token', async () => {
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUuid')
-        .mockResolvedValue(preCreatedUser);
-
       await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName);
 
       const [[, { setupEmailSentAt }]] = jest.mocked(
@@ -267,12 +239,9 @@ describe('Setup account use cases', () => {
     });
 
     test('When the email cannot be sent, then it is not marked as sent so a retry sends it', async () => {
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUuid')
-        .mockResolvedValue(preCreatedUser);
-      jest
-        .spyOn(mailerService, 'sendAccountSetupEmail')
-        .mockRejectedValueOnce(new Error('SendGrid is down'));
+      mailerService.sendAccountSetupEmail.mockRejectedValueOnce(
+        new Error('SendGrid is down'),
+      );
 
       await expect(
         setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName),
@@ -284,9 +253,6 @@ describe('Setup account use cases', () => {
     test('When the user cancelled and paid again, then a new setup email is sent', async () => {
       preCreatedUser.setupEmailSentAt = new Date('2026-09-20T10:00:00Z');
       preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUuid')
-        .mockResolvedValue(preCreatedUser);
 
       await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName);
 
@@ -300,9 +266,6 @@ describe('Setup account use cases', () => {
     test('When the email was already sent, then it is not sent again', async () => {
       preCreatedUser.setupEmailSentAt = new Date('2026-09-20T10:00:00Z');
       preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUuid')
-        .mockResolvedValue(preCreatedUser);
 
       await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName);
 
@@ -312,12 +275,8 @@ describe('Setup account use cases', () => {
 
     test('When the uuid belongs to a registered user, then nothing is sent', async () => {
       const registeredUser = newUser();
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUuid')
-        .mockResolvedValue(null);
-      jest
-        .spyOn(userRepository, 'findByUuid')
-        .mockResolvedValue(registeredUser);
+      preCreatedUsersRepository.findByUuid.mockResolvedValue(null);
+      userRepository.findByUuid.mockResolvedValue(registeredUser);
 
       await setupAccountUseCase.sendAccountEmail(registeredUser.uuid, planName);
 
@@ -325,10 +284,8 @@ describe('Setup account use cases', () => {
     });
 
     test('When the uuid belongs to no user, then it is reported as not found', async () => {
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUuid')
-        .mockResolvedValue(null);
-      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
+      preCreatedUsersRepository.findByUuid.mockResolvedValue(null);
+      userRepository.findByUuid.mockResolvedValue(null);
 
       await expect(
         setupAccountUseCase.sendAccountEmail(v4(), planName),
@@ -343,18 +300,14 @@ describe('Setup account use cases', () => {
 
     beforeEach(() => {
       preCreatedUser = newPreCreatedUser();
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUuid')
-        .mockResolvedValue(preCreatedUser);
-      jest
-        .spyOn(featureLimitService, 'getTier')
-        .mockResolvedValue(newTier({ id: preCreatedUser.tierId }));
+      preCreatedUsersRepository.findByUuid.mockResolvedValue(preCreatedUser);
+      featureLimitService.getTier.mockResolvedValue(
+        newTier({ id: preCreatedUser.tierId }),
+      );
     });
 
     test('When the pre-created user does not exist, then it is reported as not found', async () => {
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUuid')
-        .mockResolvedValue(null);
+      preCreatedUsersRepository.findByUuid.mockResolvedValue(null);
 
       await expect(
         setupAccountUseCase.update(v4(), {
@@ -367,7 +320,7 @@ describe('Setup account use cases', () => {
     });
 
     test('When the tier does not exist, then it is rejected as a bad request', async () => {
-      jest.spyOn(featureLimitService, 'getTier').mockResolvedValue(null);
+      featureLimitService.getTier.mockResolvedValue(null);
       const newTierId = v4();
 
       await expect(
@@ -381,9 +334,7 @@ describe('Setup account use cases', () => {
 
     test('When a new tier and status are given, then both are stored', async () => {
       const newTierId = v4();
-      jest
-        .spyOn(featureLimitService, 'getTier')
-        .mockResolvedValue(newTier({ id: newTierId }));
+      featureLimitService.getTier.mockResolvedValue(newTier({ id: newTierId }));
 
       await setupAccountUseCase.update(preCreatedUser.uuid, {
         newTierId,

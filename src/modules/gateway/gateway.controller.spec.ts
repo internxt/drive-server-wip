@@ -28,6 +28,14 @@ import { SetupCheckoutAccountUseCase } from '../user/setup-account.usecase';
 import { PreCreatedUserStatus } from '../user/pre-created-users.attributes';
 import { UserNotFoundException } from '../user/exception/user-not-found.exception';
 
+const toValidatedBody = async <T extends object>(
+  cls: new () => T,
+  rawBody: Record<string, unknown>,
+) => {
+  const dto = plainToInstance(cls, rawBody);
+  return { dto, errors: await validate(dto) };
+};
+
 describe('Gateway Controller', () => {
   let gatewayController: GatewayController;
   let gatewayUsecases: DeepMocked<GatewayUseCases>;
@@ -314,11 +322,6 @@ describe('Gateway Controller', () => {
   describe('Pre-creating the user of a new customer at checkout', () => {
     const body = { email: 'buyer@internxt.com' };
 
-    const toValidatedBody = async (rawBody: Record<string, unknown>) => {
-      const dto = plainToInstance(CreatePreCreatedUserDto, rawBody);
-      return { dto, errors: await validate(dto) };
-    };
-
     it('When the request is not signed with the gateway token, then it is rejected by the gateway guard', () => {
       const guards = Reflect.getMetadata(
         GUARDS_METADATA,
@@ -362,7 +365,7 @@ describe('Gateway Controller', () => {
     });
 
     it('When the email has uppercase letters, then it is received in lowercase', async () => {
-      const { dto, errors } = await toValidatedBody({
+      const { dto, errors } = await toValidatedBody(CreatePreCreatedUserDto, {
         email: 'Buyer@Internxt.COM',
       });
 
@@ -370,23 +373,20 @@ describe('Gateway Controller', () => {
       expect(dto.email).toBe('buyer@internxt.com');
     });
 
-    it('When the email is not valid, then the request is rejected', async () => {
-      const { errors } = await toValidatedBody({ email: 'not-an-email' });
+    it.each([
+      { case: 'is not valid', email: 'not-an-email' },
+      { case: 'is not text', email: 12345 },
+      { case: 'is missing', email: undefined },
+    ])(
+      'When the email $case, then the request is rejected',
+      async ({ email }) => {
+        const { errors } = await toValidatedBody(CreatePreCreatedUserDto, {
+          email,
+        });
 
-      expect(errors.map((error) => error.property)).toContain('email');
-    });
-
-    it('When the email is not text, then the request is rejected', async () => {
-      const { errors } = await toValidatedBody({ email: 12345 });
-
-      expect(errors.map((error) => error.property)).toContain('email');
-    });
-
-    it('When the email is missing, then the request is rejected', async () => {
-      const { errors } = await toValidatedBody({});
-
-      expect(errors.map((error) => error.property)).toContain('email');
-    });
+        expect(errors.map((error) => error.property)).toContain('email');
+      },
+    );
   });
 
   describe('Getting the pre-created user of a customer at checkout', () => {
@@ -435,13 +435,8 @@ describe('Gateway Controller', () => {
     });
 
     describe('Query validation', () => {
-      const toValidatedQuery = async (rawQuery: Record<string, unknown>) => {
-        const dto = plainToInstance(GetPreCreatedUserDto, rawQuery);
-        return { dto, errors: await validate(dto) };
-      };
-
       it('When the email has uppercase letters, then it is received in lowercase', async () => {
-        const { dto, errors } = await toValidatedQuery({
+        const { dto, errors } = await toValidatedBody(GetPreCreatedUserDto, {
           email: 'Buyer@Internxt.COM',
         });
 
@@ -449,17 +444,19 @@ describe('Gateway Controller', () => {
         expect(dto.email).toBe('buyer@internxt.com');
       });
 
-      it('When the email is not valid, then the request is rejected', async () => {
-        const { errors } = await toValidatedQuery({ email: 'not-an-email' });
+      it.each([
+        { case: 'is not valid', email: 'not-an-email' },
+        { case: 'is missing', email: undefined },
+      ])(
+        'When the email $case, then the request is rejected',
+        async ({ email }) => {
+          const { errors } = await toValidatedBody(GetPreCreatedUserDto, {
+            email,
+          });
 
-        expect(errors.map((error) => error.property)).toContain('email');
-      });
-
-      it('When the email is missing, then the request is rejected', async () => {
-        const { errors } = await toValidatedQuery({});
-
-        expect(errors.map((error) => error.property)).toContain('email');
-      });
+          expect(errors.map((error) => error.property)).toContain('email');
+        },
+      );
     });
   });
 
@@ -520,13 +517,8 @@ describe('Gateway Controller', () => {
     });
 
     describe('Body validation', () => {
-      const toValidatedBody = async (rawBody: Record<string, unknown>) => {
-        const dto = plainToInstance(UpdatePreCreatedUserDto, rawBody);
-        return { dto, errors: await validate(dto) };
-      };
-
       it('When only the status is sent along with the uuid, then the request is accepted', async () => {
-        const { errors } = await toValidatedBody({
+        const { errors } = await toValidatedBody(UpdatePreCreatedUserDto, {
           uuid,
           status: PreCreatedUserStatus.PendingSetup,
         });
@@ -534,20 +526,23 @@ describe('Gateway Controller', () => {
         expect(errors).toEqual([]);
       });
 
-      it('When the uuid is missing, then the request is rejected', async () => {
-        const { errors } = await toValidatedBody({ tierId });
+      it.each([
+        { case: 'is missing', uuid: undefined, tierId },
+        { case: 'is not a valid uuid', uuid: 'not-a-uuid', tierId: undefined },
+      ])(
+        'When the uuid $case, then the request is rejected',
+        async ({ uuid, tierId }) => {
+          const { errors } = await toValidatedBody(UpdatePreCreatedUserDto, {
+            uuid,
+            tierId,
+          });
 
-        expect(errors.map((error) => error.property)).toContain('uuid');
-      });
-
-      it('When the uuid is not a valid uuid, then the request is rejected', async () => {
-        const { errors } = await toValidatedBody({ uuid: 'not-a-uuid' });
-
-        expect(errors.map((error) => error.property)).toContain('uuid');
-      });
+          expect(errors.map((error) => error.property)).toContain('uuid');
+        },
+      );
 
       it('When the tier is not a valid uuid, then the request is rejected', async () => {
-        const { errors } = await toValidatedBody({
+        const { errors } = await toValidatedBody(UpdatePreCreatedUserDto, {
           uuid,
           tierId: 'not-a-uuid',
         });
@@ -556,7 +551,7 @@ describe('Gateway Controller', () => {
       });
 
       it('When the storage is sent as text, then it is received as a number', async () => {
-        const { dto, errors } = await toValidatedBody({
+        const { dto, errors } = await toValidatedBody(UpdatePreCreatedUserDto, {
           uuid,
           maxSpaceBytes: '3298534883328',
         });
@@ -566,7 +561,7 @@ describe('Gateway Controller', () => {
       });
 
       it('When the storage is not numeric, then the request is rejected', async () => {
-        const { errors } = await toValidatedBody({
+        const { errors } = await toValidatedBody(UpdatePreCreatedUserDto, {
           uuid,
           maxSpaceBytes: 'lots',
         });
@@ -577,7 +572,7 @@ describe('Gateway Controller', () => {
       });
 
       it('When the status is not a known one, then the request is rejected', async () => {
-        const { errors } = await toValidatedBody({
+        const { errors } = await toValidatedBody(UpdatePreCreatedUserDto, {
           uuid,
           status: 'unknown_status',
         });
@@ -590,11 +585,6 @@ describe('Gateway Controller', () => {
   describe('Sending the account setup email after the payment', () => {
     const uuid = v4();
     const body = { planName: 'Premium 2TB' };
-
-    const toValidatedBody = async (rawBody: Record<string, unknown>) => {
-      const dto = plainToInstance(SendAccountSetupEmailDto, rawBody);
-      return { dto, errors: await validate(dto) };
-    };
 
     it('When the request is not signed with the gateway token, then it is rejected by the gateway guard', () => {
       const guards = Reflect.getMetadata(
@@ -632,13 +622,15 @@ describe('Gateway Controller', () => {
     });
 
     it('When the plan name is omitted, then the request is accepted because it is optional', async () => {
-      const { errors } = await toValidatedBody({});
+      const { errors } = await toValidatedBody(SendAccountSetupEmailDto, {});
 
       expect(errors).toEqual([]);
     });
 
     it('When the plan name is not a string, then the request is rejected', async () => {
-      const { errors } = await toValidatedBody({ planName: 42 });
+      const { errors } = await toValidatedBody(SendAccountSetupEmailDto, {
+        planName: 42,
+      });
 
       expect(errors.map((error) => error.property)).toEqual(['planName']);
     });
