@@ -351,7 +351,7 @@ export class GatewayController {
   @ApiOperation({
     summary: 'Get a pre-created user',
     description:
-      'Get the pre-created user in payments so we can bu sure it exists',
+      'Get the pre-created user in payments so we can by sure it exists',
   })
   @ApiBearerAuth('gateway')
   @UseGuards(GatewayGuard)
