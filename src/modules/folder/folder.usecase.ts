@@ -327,14 +327,16 @@ export class FolderUseCases {
       folder.parentId,
     );
 
-    const folderWithSameNameExists = await this.folderRepository.findOne({
-      name: cryptoFileName,
-      parentUuid: folder.parentUuid,
-      deleted: false,
-      removed: false,
-    });
+    const foldersWithSameName = await this.folderRepository.findByParentUuid(
+      folder.parentUuid,
+      {
+        plainName: newFolderMetadata.plainName,
+        deleted: false,
+        removed: false,
+      },
+    );
 
-    if (folderWithSameNameExists) {
+    if (foldersWithSameName.length > 0) {
       throw new ConflictException(
         'A folder with this name already exists in this location',
       );
@@ -384,14 +386,16 @@ export class FolderUseCases {
       throw new BadRequestException('Invalid folder name');
     }
 
-    const nameAlreadyInUse = await this.folderRepository.findOne({
-      parentUuid: parentFolder.uuid,
-      plainName: newFolderDto.plainName,
-      deleted: false,
-      removed: false,
-    });
+    const foldersWithSameName = await this.folderRepository.findByParentUuid(
+      parentFolder.uuid,
+      {
+        plainName: newFolderDto.plainName,
+        deleted: false,
+        removed: false,
+      },
+    );
 
-    if (nameAlreadyInUse) {
+    if (foldersWithSameName.length > 0) {
       throw new ConflictException(
         'Folder with the same name already exists in this location',
       );
@@ -714,17 +718,7 @@ export class FolderUseCases {
     hasMore: boolean;
     nextCursor: string | null;
   }> {
-    const cursor = cursorToken
-      ? decodeCursor(FolderSyncCursorDto, cursorToken)
-      : undefined;
-
-    if (cursorToken && !cursor) {
-      throw new BadRequestException('Invalid cursor');
-    }
-
-    if (cursor && cursor.status !== status) {
-      throw new BadRequestException('Cursor does not match status filter');
-    }
+    const cursor = this.decodeFolderSyncCursor(cursorToken, status);
 
     const filter: Partial<FolderAttributes> = {
       userId,
@@ -739,17 +733,94 @@ export class FolderUseCases {
         cursor,
       });
 
-    const lastFolder = folders.at(-1);
-    const nextCursor =
-      hasMore && lastFolder && lastRowCursorUpdatedAt
-        ? encodeCursor({
-            updatedAt: lastRowCursorUpdatedAt,
-            uuid: lastFolder.uuid,
-            status,
-          })
-        : null;
+    return {
+      folders,
+      hasMore,
+      nextCursor: this.buildFolderSyncNextCursor(
+        folders,
+        hasMore,
+        lastRowCursorUpdatedAt,
+        status,
+      ),
+    };
+  }
 
-    return { folders, hasMore, nextCursor };
+  async getWorkspaceFoldersUpdatedAfterWithCursor(
+    networkUserId: UserAttributes['id'],
+    createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    status: FolderStatus | undefined,
+    updatedAfter: Date,
+    pageSize: number,
+    cursorToken: string | undefined,
+  ): Promise<{
+    folders: Folder[];
+    hasMore: boolean;
+    nextCursor: string | null;
+  }> {
+    const cursor = this.decodeFolderSyncCursor(cursorToken, status);
+
+    const { folders, hasMore, lastRowCursorUpdatedAt } =
+      await this.folderRepository.findWorkspaceFoldersWithCursorWhereUpdatedAfter(
+        {
+          networkUserId,
+          createdBy,
+          workspaceId,
+          where: status ? Folder.getFilterByStatus(status) : {},
+          updatedAfter,
+          pageSize,
+          cursor,
+        },
+      );
+
+    return {
+      folders,
+      hasMore,
+      nextCursor: this.buildFolderSyncNextCursor(
+        folders,
+        hasMore,
+        lastRowCursorUpdatedAt,
+        status,
+      ),
+    };
+  }
+
+  private decodeFolderSyncCursor(
+    cursorToken: string | undefined,
+    status: FolderStatus | undefined,
+  ): FolderSyncCursorDto | undefined {
+    const cursor = cursorToken
+      ? decodeCursor(FolderSyncCursorDto, cursorToken)
+      : undefined;
+
+    if (cursorToken && !cursor) {
+      throw new BadRequestException('Invalid cursor');
+    }
+
+    if (cursor && cursor.status !== status) {
+      throw new BadRequestException('Cursor does not match status filter');
+    }
+
+    return cursor;
+  }
+
+  private buildFolderSyncNextCursor(
+    folders: Folder[],
+    hasMore: boolean,
+    lastRowCursorUpdatedAt: string | null,
+    status: FolderStatus | undefined,
+  ): string | null {
+    const lastFolder = folders.at(-1);
+
+    if (!hasMore || !lastFolder || !lastRowCursorUpdatedAt) {
+      return null;
+    }
+
+    return encodeCursor({
+      updatedAt: lastRowCursorUpdatedAt,
+      uuid: lastFolder.uuid,
+      status,
+    });
   }
 
   getWorkspacesFoldersUpdatedAfter(

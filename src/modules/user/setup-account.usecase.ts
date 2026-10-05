@@ -8,10 +8,6 @@ import {
   PreCreatedUserStatus,
   type PreCreatedUserAttributes,
 } from './pre-created-users.attributes';
-import {
-  buildAccountSetupUrl,
-  signAccountSetupToken,
-} from './account-setup-token';
 import { UserUseCases } from './user.usecase';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
@@ -20,9 +16,11 @@ import { SequelizeUserRepository } from './user.repository';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PreCreateUserForCheckoutResponseDto } from '../gateway/dto/pre-create-user-for-checkout.dto';
 import { UserNotFoundException } from './exception/user-not-found.exception';
+import { signWithExpiry } from '../../middlewares/passport';
+import getEnv from '../../config/configuration';
 
 @Injectable()
-export class SetupAccountUseCase {
+export class SetupCheckoutAccountUseCase {
   constructor(
     private readonly userRepository: SequelizeUserRepository,
     private readonly preCreatedUserRepository: SequelizePreCreatedUsersRepository,
@@ -32,7 +30,7 @@ export class SetupAccountUseCase {
     private readonly featureLimitService: FeatureLimitService,
   ) {}
 
-  async createPreCreateUserForCheckout(
+  async create(
     rawEmail: PreCreatedUserAttributes['email'],
   ): Promise<PreCreateUserForCheckoutResponseDto> {
     const email = rawEmail.toLowerCase();
@@ -61,7 +59,7 @@ export class SetupAccountUseCase {
     };
   }
 
-  async getPreCreatedUser(
+  async get(
     rawEmail: PreCreatedUserAttributes['email'],
   ): Promise<PreCreateUserForCheckoutResponseDto> {
     const preCreatedUser = await this.preCreatedUserRepository.findByUsername(
@@ -78,7 +76,7 @@ export class SetupAccountUseCase {
     };
   }
 
-  async sendFirstAccountSetupEmail(
+  async sendAccountEmail(
     uuid: PreCreatedUserAttributes['uuid'],
     planName: string,
   ): Promise<void> {
@@ -99,7 +97,7 @@ export class SetupAccountUseCase {
     }
   }
 
-  async updatePreCreatedUserForCheckout(
+  async update(
     uuid: string,
     {
       newStorageSpaceBytes,
@@ -149,11 +147,18 @@ export class SetupAccountUseCase {
     planName: string,
   ): Promise<void> {
     const sentAt = new Date();
-    const token = signAccountSetupToken(uuid, sentAt);
+    const token = signWithExpiry(
+      {
+        payload: { uuid, action: 'complete-account-setup' },
+        iat: Math.floor(sentAt.getTime() / 1000),
+      },
+      getEnv().secrets.jwt,
+      { expiresIn: '5d' },
+    );
 
     await this.mailerService.sendAccountSetupEmail(email, {
       planName,
-      setupUrl: buildAccountSetupUrl(token),
+      setupUrl: `${process.env.HOST_DRIVE_WEB}/complete-account/${token}`,
     });
     await this.preCreatedUserRepository.updateByUuid(uuid, {
       setupEmailSentAt: sentAt,

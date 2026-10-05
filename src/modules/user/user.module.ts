@@ -3,7 +3,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { SequelizeUserRepository } from './user.repository';
 import { UserUseCases } from './user.usecase';
-import { SetupAccountUseCase } from './setup-account.usecase';
+import { SetupCheckoutAccountUseCase } from './setup-account.usecase';
 import { UserModel } from './user.model';
 import {
   FriendInvitationModel,
@@ -98,7 +98,7 @@ import { CaptchaService } from '../../externals/captcha/captcha.service';
     SequelizeAttemptChangeEmailRepository,
     SequelizeWorkspaceRepository,
     UserUseCases,
-    SetupAccountUseCase,
+    SetupCheckoutAccountUseCase,
     CryptoService,
     BridgeService,
     NotificationService,
@@ -110,7 +110,7 @@ import { CaptchaService } from '../../externals/captcha/captcha.service';
   ],
   exports: [
     UserUseCases,
-    SetupAccountUseCase,
+    SetupCheckoutAccountUseCase,
     SequelizeUserRepository,
     SequelizeUserReferralsRepository,
     SequelizeReferralRepository,

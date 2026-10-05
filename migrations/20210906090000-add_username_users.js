@@ -2,7 +2,11 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.addColumn('users', 'username', {
       type: Sequelize.STRING,
-      unique: true
+    });
+    await queryInterface.addConstraint('users', {
+      fields: ['username'],
+      type: 'unique',
+      name: 'users_username_key',
     });
   },
 

@@ -10,7 +10,7 @@ import {
 } from 'sequelize-typescript';
 import {
   type PreCreatedUserAttributes,
-  type PreCreatedUserStatus,
+  PreCreatedUserStatus,
 } from './pre-created-users.attributes';
 import { type KeyServerAttributes } from '../keyserver/key-server.domain';
 
@@ -77,6 +77,6 @@ export class PreCreatedUserModel
   tierId?: string | null;
 
   @AllowNull(true)
-  @Column(DataType.STRING)
+  @Column(DataType.ENUM(...Object.values(PreCreatedUserStatus)))
   status?: PreCreatedUserStatus | null;
 }

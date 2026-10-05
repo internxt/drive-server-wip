@@ -137,10 +137,10 @@ export class BackupUseCase {
       bucket = backupsBucket;
     }
 
-    // We do not have an index to cover this query, but it is not a frequent operation
     const folder = await this.folderRepository.findOne({
       bucket,
       plainName: deviceName,
+      parentId: null,
       deleted: false,
       removed: false,
       userId: user.id,
