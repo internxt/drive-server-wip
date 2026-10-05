@@ -63,6 +63,25 @@ describe('MailerService', () => {
       );
     });
 
+    it('When the plan name is unknown, then the email is sent without it', async () => {
+      await mailerService.sendAccountSetupEmail('buyer@internxt.com', {
+        setupUrl: 'https://drive.internxt.com/complete-account/token',
+      });
+
+      expect(sendgrid.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          personalizations: [
+            {
+              to: [{ email: 'buyer@internxt.com' }],
+              dynamic_template_data: {
+                setup_url: 'https://drive.internxt.com/complete-account/token',
+              },
+            },
+          ],
+        }),
+      );
+    });
+
     it('When the email provider fails, then the error reaches the caller', async () => {
       const providerError = new Error('SendGrid is down');
       jest.mocked(sendgrid.send).mockRejectedValueOnce(providerError);

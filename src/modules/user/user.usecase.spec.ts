@@ -15,6 +15,7 @@ import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { AccountTokenAction, ReferralKey, User } from './user.domain';
 import { PreCreatedUserStatus } from './pre-created-users.attributes';
+import { type PreCreatedUser } from './pre-created-user.domain';
 import { SequelizeUserRepository } from './user.repository';
 import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
 import { AvatarService } from '../../externals/avatar/avatar.service';
@@ -99,9 +100,6 @@ import { type PreCreateUserDto } from './dto/pre-create-user.dto';
 import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import * as bip39 from 'bip39';
 import getEnv from '../../config/configuration';
-import { type Transaction } from 'sequelize';
-import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
-import { ACCOUNT_SETUP_TOKEN_ACTION } from './user.usecase';
 
 const TEST_MNEMONIC =
   'album middle away ecology napkin quote buffalo method tooth mask laundry film add path suggest heart unaware project neck bird force heavy put latin';
@@ -485,7 +483,6 @@ describe('User use cases', () => {
             invitedUser: expect.stringContaining(newUserUuid),
           }),
         ),
-        undefined,
       );
     });
 
@@ -3116,19 +3113,16 @@ describe('User use cases', () => {
         preCreatedUser.uuid,
       );
 
-      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith(
-        [
-          expect.objectContaining({
-            encryptionKey: newSharingEncryptedEccKey,
-            sharedWith: newUserUuid,
-          }),
-          expect.objectContaining({
-            encryptionKey: newSharingEncryptedHybridKey,
-            sharedWith: newUserUuid,
-          }),
-        ],
-        undefined,
-      );
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([
+        expect.objectContaining({
+          encryptionKey: newSharingEncryptedEccKey,
+          sharedWith: newUserUuid,
+        }),
+        expect.objectContaining({
+          encryptionKey: newSharingEncryptedHybridKey,
+          sharedWith: newUserUuid,
+        }),
+      ]);
 
       expect(
         userUseCases.replacePreCreatedUserWorkspaceInvitations,
@@ -3137,11 +3131,9 @@ describe('User use cases', () => {
         newUserUuid,
         preCreatedUserDecryptedKey,
         newPublicKey,
-        undefined,
       );
       expect(preCreatedUsersRepository.deleteByUuid).toHaveBeenCalledWith(
         preCreatedUser.uuid,
-        undefined,
       );
     });
 
@@ -3188,11 +3180,8 @@ describe('User use cases', () => {
         newPublicKey,
       );
 
-      expect(sharingRepository.deleteInvite).toHaveBeenCalledWith(
-        invites[0],
-        undefined,
-      );
-      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([], undefined);
+      expect(sharingRepository.deleteInvite).toHaveBeenCalledWith(invites[0]);
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([]);
     });
 
     it('When invitation is hybrid and new generated public kyber key is provided but pre created user does not have kyber keys, then delete the invitation', async () => {
@@ -3243,11 +3232,8 @@ describe('User use cases', () => {
         newPublicKyberKey,
       );
 
-      expect(sharingRepository.deleteInvite).toHaveBeenCalledWith(
-        invites[0],
-        undefined,
-      );
-      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([], undefined);
+      expect(sharingRepository.deleteInvite).toHaveBeenCalledWith(invites[0]);
+      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith([]);
     });
 
     it('When pre created user is replaced, then sharing invitations encrypted keys should match original message if decrypted with new asymmetric keys', async () => {
@@ -3341,61 +3327,54 @@ describe('User use cases', () => {
       expect(newInviteHybridEncryptedKey).toEqual(sharingDecryptedKey);
       expect(newInviteEccEncryptedKey).toEqual(sharingDecryptedKey);
     }, 10000);
-
-    it('When a transaction is given, then the invitation changes and the pre-created user deletion are written inside it', async () => {
-      const preCreatedUser = newPreCreatedUser();
+    describe('When the pre-created user is replaced by the user who signed up', () => {
+      let preCreatedUser: PreCreatedUser;
       const newUserUuid = v4();
-      const transaction = createMock<Transaction>();
-      const sharingInvite = SharingInvite.build({
-        id: v4(),
-        type: 'OWNER',
-        roleId: v4(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        encryptionAlgorithm: 'ecc',
-        encryptionKey: 'encrypted-key',
-        sharedWith: preCreatedUser.uuid,
-        itemId: v4(),
-        itemType: 'file',
+
+      beforeEach(() => {
+        preCreatedUser = newPreCreatedUser();
+        jest
+          .spyOn(preCreatedUsersRepository, 'findByUsername')
+          .mockResolvedValueOnce(preCreatedUser);
+        jest.spyOn(aes, 'decrypt').mockReturnValue('decrypted-private-key');
+        jest
+          .spyOn(sharingRepository, 'getInvitesBySharedwith')
+          .mockResolvedValueOnce([]);
+        jest
+          .spyOn(workspaceRepository, 'findInvitesBy')
+          .mockResolvedValueOnce([]);
+        jest.spyOn(userRepository, 'updateBy').mockResolvedValue(undefined);
       });
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUsername')
-        .mockResolvedValueOnce(preCreatedUser);
-      jest.spyOn(aes, 'decrypt').mockReturnValue('decrypted-private-key');
-      jest
-        .spyOn(sharingRepository, 'getInvitesBySharedwith')
-        .mockResolvedValueOnce([sharingInvite]);
-      jest
-        .spyOn(workspaceRepository, 'findInvitesBy')
-        .mockResolvedValueOnce([
-          newWorkspaceInvite({ invitedUser: preCreatedUser.uuid }),
-        ]);
-      jest
-        .spyOn(asymmetricEncryptionService, 'reEncryptHybridCiphertext')
-        .mockResolvedValue('re-encrypted-key');
 
-      await userUseCases.replacePreCreatedUser(
-        preCreatedUser.email,
-        newUserUuid,
-        'new-public-key',
-        undefined,
-        transaction,
-      );
+      it('When it already had a paid tier, then the user keeps that tier', async () => {
+        preCreatedUser.tierId = v4();
 
-      expect(sharingRepository.bulkUpdate).toHaveBeenCalledWith(
-        [expect.objectContaining({ encryptionKey: 're-encrypted-key' })],
-        transaction,
-      );
-      expect(
-        workspaceRepository.bulkUpdateInvitesKeysAndUsers,
-      ).toHaveBeenCalledWith(
-        [expect.objectContaining({ encryptionKey: 're-encrypted-key' })],
-        transaction,
-      );
-      expect(preCreatedUsersRepository.deleteByUuid).toHaveBeenCalledWith(
-        preCreatedUser.uuid,
-        transaction,
-      );
+        await userUseCases.replacePreCreatedUser(
+          preCreatedUser.email,
+          newUserUuid,
+          'new-public-key',
+        );
+
+        expect(userRepository.updateBy).toHaveBeenCalledWith(
+          { uuid: newUserUuid },
+          { tierId: preCreatedUser.tierId },
+        );
+        expect(preCreatedUsersRepository.deleteByUuid).toHaveBeenCalledWith(
+          preCreatedUser.uuid,
+        );
+      });
+
+      it('When it had no tier, then the tier of the user is left as it is', async () => {
+        preCreatedUser.tierId = null;
+
+        await userUseCases.replacePreCreatedUser(
+          preCreatedUser.email,
+          newUserUuid,
+          'new-public-key',
+        );
+
+        expect(userRepository.updateBy).not.toHaveBeenCalled();
+      });
     });
   });
 
