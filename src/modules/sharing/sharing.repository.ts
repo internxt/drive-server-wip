@@ -22,7 +22,7 @@ import { User } from '../user/user.domain';
 import { Folder } from '../folder/folder.domain';
 import { FolderModel } from '../folder/folder.model';
 import { UserModel } from '../user/user.model';
-import sequelize, { Op, type Transaction, type WhereOptions } from 'sequelize';
+import sequelize, { Op, type WhereOptions } from 'sequelize';
 import { type GetInviteDto, type GetInvitesDto } from './dto/get-invites.dto';
 import { File, FileStatus } from '../file/file.domain';
 import { FileModel } from '../file/file.model';
@@ -452,10 +452,10 @@ export class SequelizeSharingRepository implements SharingRepository {
       },
       attributes: [
         [
-          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
+          sequelize.literal('MAX("SharingModel"."encryption_key")'),
           'encryptionKey',
         ],
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+        [sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
       ],
       group: ['folder.id', 'folder->user.id', 'SharingModel.item_id'],
       include: [
@@ -501,10 +501,10 @@ export class SequelizeSharingRepository implements SharingRepository {
       attributes: [
         'itemId',
         [
-          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
+          sequelize.literal('MAX("SharingModel"."encryption_key")'),
           'encryptionKey',
         ],
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+        [sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
       ],
       where: {
         [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
@@ -546,10 +546,10 @@ export class SequelizeSharingRepository implements SharingRepository {
       },
       attributes: [
         [
-          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
+          sequelize.literal('MAX("SharingModel"."encryption_key")'),
           'encryptionKey',
         ],
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+        [sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
       ],
       group: ['file.id', 'file->user.id', 'SharingModel.item_id'],
       include: [
@@ -601,7 +601,7 @@ export class SequelizeSharingRepository implements SharingRepository {
     if (options?.givePriorityToRole) {
       queryOrder.push([
         sequelize.literal(
-          `CASE WHEN "role->role"."name" = :priorityRole THEN 1 ELSE 2 END`,
+          'CASE WHEN "role->role"."name" = :priorityRole THEN 1 ELSE 2 END',
         ),
         'ASC',
       ]);
@@ -640,10 +640,10 @@ export class SequelizeSharingRepository implements SharingRepository {
       attributes: [
         'itemId',
         [
-          sequelize.literal(`MAX("SharingModel"."encryption_key")`),
+          sequelize.literal('MAX("SharingModel"."encryption_key")'),
           'encryptionKey',
         ],
-        [sequelize.literal(`MIN("SharingModel"."created_at")`), 'createdAt'],
+        [sequelize.literal('MIN("SharingModel"."created_at")'), 'createdAt'],
       ],
       where: {
         [Op.or]: [
@@ -710,7 +710,7 @@ export class SequelizeSharingRepository implements SharingRepository {
         ],
       },
       attributes: [
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+        [sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
       ],
       group: [
         'SharingModel.item_id',
@@ -782,7 +782,7 @@ export class SequelizeSharingRepository implements SharingRepository {
         ],
       },
       attributes: [
-        [sequelize.literal(`MAX("SharingModel"."created_at")`), 'createdAt'],
+        [sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
       ],
       group: [
         'SharingModel.item_id',
@@ -969,10 +969,7 @@ export class SequelizeSharingRepository implements SharingRepository {
     return invites.map((i) => SharingInvite.build(i.toJSON<SharingInvite>()));
   }
 
-  async bulkUpdate(
-    invites: Partial<SharingInvite>[],
-    transaction?: Transaction,
-  ): Promise<void> {
+  async bulkUpdate(invites: Partial<SharingInvite>[]): Promise<void> {
     const updatePromises = invites.map((invite) =>
       this.sharingInvites.update(
         {
@@ -983,7 +980,6 @@ export class SequelizeSharingRepository implements SharingRepository {
           where: {
             id: invite.id,
           },
-          transaction,
         },
       ),
     );
@@ -1120,15 +1116,11 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
-  async deleteInvite(
-    invite: SharingInvite,
-    transaction?: Transaction,
-  ): Promise<void> {
+  async deleteInvite(invite: SharingInvite): Promise<void> {
     await this.sharingInvites.destroy({
       where: {
         id: invite.id,
       },
-      transaction,
     });
   }
 

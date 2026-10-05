@@ -12,7 +12,6 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { type Transaction } from 'sequelize';
 import { v4, validate } from 'uuid';
 import { generateMnemonic } from 'bip39';
 import * as speakeasy from 'speakeasy';
@@ -123,15 +122,6 @@ export class UserAlreadyRegisteredError extends Error {
   }
 }
 
-export class PreCreatedUserUuidMismatchError extends Error {
-  constructor(preCreatedUuid: string, createdUuid: string) {
-    super(
-      `Pre-created user ${preCreatedUuid} was created with a different uuid ${createdUuid}`,
-    );
-    Object.setPrototypeOf(this, PreCreatedUserUuidMismatchError.prototype);
-  }
-}
-
 export class UserNotFoundError extends Error {
   constructor() {
     super('User not found');
@@ -222,16 +212,7 @@ export class UserUseCases {
     const preCreatedUser =
       await this.preCreatedUserRepository.findByUsername(email);
 
-    if (!preCreatedUser) return false;
-
-    if (preCreatedUser.status === PreCreatedUserStatus.PendingSetup) {
-      return true;
-    }
-
-    return (
-      preCreatedUser.status === PreCreatedUserStatus.AwaitingPayment &&
-      preCreatedUser.tierId != null
-    );
+    return preCreatedUser?.hasPendingAccountSetup() ?? false;
   }
 
   findByUuids(uuids: User['uuid'][]): Promise<User[]> {
@@ -673,6 +654,10 @@ export class UserUseCases {
       throw new ForbiddenException('Invalid token');
     }
 
+    if (preCreatedUser.status !== PreCreatedUserStatus.PendingSetup) {
+      throw new ForbiddenException('Invalid token');
+    }
+
     if (!preCreatedUser.setupEmailSentAt) {
       throw new ForbiddenException('Invalid token');
     }
@@ -702,67 +687,42 @@ export class UserUseCases {
       emailVerified: true,
     });
 
-    try {
-      if (createdUser.uuid !== preCreatedUser.uuid) {
-        throw new PreCreatedUserUuidMismatchError(
-          preCreatedUser.uuid,
-          createdUser.uuid,
-        );
-      }
+    const keys = await this.keyServerUseCases.addKeysToUser(
+      createdUser.user.id,
+      { ecc, kyber },
+    );
 
-      const keys = await this.saveKeysAndReplacePreCreatedUser(
-        createdUser.user.id,
-        preCreatedUser,
-        { ecc, kyber },
-      );
+    await this.movePreCreatedUserToCreatedUser(
+      preCreatedUser,
+      createdUser.uuid,
+      keys,
+    );
 
-      return { ...createdUser, keys };
-    } catch (err) {
-      const rootFolder = await this.folderUseCases.getFolderByIdNoDecryption(
-        createdUser.user.rootFolderId,
-      );
-      await this.rollbackCreatedUser(createdUser.user, rootFolder);
-
-      throw err;
-    }
+    return { ...createdUser, keys };
   }
 
-  private async saveKeysAndReplacePreCreatedUser(
-    userId: User['id'],
+  private async movePreCreatedUserToCreatedUser(
     preCreatedUser: PreCreatedUser,
-    newKeys: Parameters<KeyServerUseCases['addKeysToUser']>[1],
-  ) {
-    const transaction = await this.userRepository.createTransaction();
-    let keys: Awaited<ReturnType<KeyServerUseCases['addKeysToUser']>>;
-
-    try {
-      keys = await this.keyServerUseCases.addKeysToUser(
-        userId,
-        newKeys,
-        transaction,
-      );
-
-      if (!keys.ecc) {
-        throw new Error(
-          `Could not save the keys of user ${preCreatedUser.uuid}`,
+    createdUserUuid: User['uuid'],
+    keys: Awaited<ReturnType<KeyServerUseCases['addKeysToUser']>>,
+  ): Promise<void> {
+    if (keys.ecc) {
+      try {
+        await this.replacePreCreatedUser(
+          preCreatedUser.email,
+          createdUserUuid,
+          keys.ecc.publicKey,
+          keys.kyber?.publicKey,
+        );
+        return;
+      } catch (error) {
+        Logger.error(
+          `[ACCOUNT_SETUP/COMPLETE] Could not move the invitations of pre-created user ${preCreatedUser.uuid}: ${(error as Error).message}`,
         );
       }
-
-      await this.replacePreCreatedUser(
-        preCreatedUser.email,
-        preCreatedUser.uuid,
-        keys.ecc.publicKey,
-        keys.kyber?.publicKey,
-        transaction,
-      );
-    } catch (err) {
-      await transaction.rollback();
-      throw err;
     }
 
-    await transaction.commit();
-
-    return keys;
+    await this.preCreatedUserRepository.deleteByUuid(preCreatedUser.uuid);
   }
 
   async replacePreCreatedUser(
@@ -770,7 +730,6 @@ export class UserUseCases {
     newUserUuid: string,
     newPublicKey: string,
     newPublicKyberKey?: string,
-    transaction?: Transaction,
   ) {
     const preCreatedUser =
       await this.preCreatedUserRepository.findByUsername(email);
@@ -798,7 +757,7 @@ export class UserUseCases {
       const { encryptionKey } = invite;
 
       if (invite.isHybrid() && (!newPublicKyberKey || !privateKyberKey)) {
-        await this.sharingRepository.deleteInvite(invite, transaction);
+        await this.sharingRepository.deleteInvite(invite);
         continue;
       }
 
@@ -819,20 +778,23 @@ export class UserUseCases {
       invitesToUpdate.push(invite);
     }
 
-    await this.sharingRepository.bulkUpdate(invitesToUpdate, transaction);
+    await this.sharingRepository.bulkUpdate(invitesToUpdate);
 
     await this.replacePreCreatedUserWorkspaceInvitations(
       preCreatedUser.uuid,
       newUserUuid,
       privateKey,
       newPublicKey,
-      transaction,
     );
 
-    await this.preCreatedUserRepository.deleteByUuid(
-      preCreatedUser.uuid,
-      transaction,
-    );
+    if (preCreatedUser.tierId) {
+      await this.userRepository.updateBy(
+        { uuid: newUserUuid },
+        { tierId: preCreatedUser.tierId },
+      );
+    }
+
+    await this.preCreatedUserRepository.deleteByUuid(preCreatedUser.uuid);
   }
 
   async replacePreCreatedUserWorkspaceInvitations(
@@ -840,7 +802,6 @@ export class UserUseCases {
     newUserUuid: User['uuid'],
     privateKeyInBase64: string,
     newPublicKey: string,
-    transaction?: Transaction,
   ) {
     const invitations = await this.workspaceRepository.findInvitesBy({
       invitedUser: preCreatedUserUuid,
@@ -867,13 +828,13 @@ export class UserUseCases {
 
     await this.workspaceRepository.bulkUpdateInvitesKeysAndUsers(
       invitationsUpdated,
-      transaction,
     );
   }
 
   async preCreateUser(
     newUser: PreCreateUserDto,
     uuid: PreCreatedUserAttributes['uuid'] = v4(),
+    status?: PreCreatedUserStatus,
   ): Promise<
     [
       {
@@ -890,7 +851,6 @@ export class UserUseCases {
     ]
   > {
     const email = newUser.email.toLowerCase();
-    const status = newUser.status;
 
     const [existentUser, preCreatedUser] = await Promise.all([
       this.userRepository.findByUsername(email),

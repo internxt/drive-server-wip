@@ -1,3 +1,4 @@
+import { PreCreatedUserStatus } from './pre-created-users.attributes';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
 import { getModelToken } from '@nestjs/sequelize';
@@ -65,6 +66,41 @@ describe('SequelizePreCreatedUsersRepository', () => {
         { setupEmailSentAt },
         { where: { uuid } },
       );
+    });
+  });
+
+  describe('Updating a user only while it has the expected status', () => {
+    test('When the user still has the status, then it is updated and the caller knows it won', async () => {
+      const uuid = v4();
+      const update = { status: PreCreatedUserStatus.PendingSetup };
+      jest
+        .mocked(preCreatedUserModel.update)
+        .mockResolvedValueOnce([1] as never);
+
+      const result = await repository.updateByUuidAndStatus(
+        uuid,
+        PreCreatedUserStatus.AwaitingPayment,
+        update,
+      );
+
+      expect(result).toBe(true);
+      expect(preCreatedUserModel.update).toHaveBeenCalledWith(update, {
+        where: { uuid, status: PreCreatedUserStatus.AwaitingPayment },
+      });
+    });
+
+    test('When another request changed the status first, then nothing is updated and the caller knows it lost', async () => {
+      jest
+        .mocked(preCreatedUserModel.update)
+        .mockResolvedValueOnce([0] as never);
+
+      const result = await repository.updateByUuidAndStatus(
+        v4(),
+        PreCreatedUserStatus.AwaitingPayment,
+        { status: PreCreatedUserStatus.PendingSetup },
+      );
+
+      expect(result).toBe(false);
     });
   });
 });

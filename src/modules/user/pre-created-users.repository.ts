@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { PreCreatedUserModel } from './pre-created-users.model';
 import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
 import { PreCreatedUser } from './pre-created-user.domain';
-import { Op, type Transaction } from 'sequelize';
+import { Op } from 'sequelize';
 
 @Injectable()
 export class SequelizePreCreatedUsersRepository {
@@ -42,6 +42,18 @@ export class SequelizePreCreatedUsersRepository {
     await this.modelUser.update(update, { where: { uuid } });
   }
 
+  async updateByUuidAndStatus(
+    uuid: PreCreatedUserAttributes['uuid'],
+    status: PreCreatedUserAttributes['status'],
+    update: Partial<Omit<PreCreatedUserAttributes, 'id'>>,
+  ): Promise<boolean> {
+    const [updatedRows] = await this.modelUser.update(update, {
+      where: { uuid, status },
+    });
+
+    return updatedRows > 0;
+  }
+
   async create(
     user: Omit<PreCreatedUserAttributes, 'id'>,
   ): Promise<PreCreatedUser> {
@@ -50,13 +62,9 @@ export class SequelizePreCreatedUsersRepository {
     return this.toDomain(dbUser);
   }
 
-  async deleteByUuid(
-    uuid: PreCreatedUserAttributes['uuid'],
-    transaction?: Transaction,
-  ): Promise<void> {
+  async deleteByUuid(uuid: PreCreatedUserAttributes['uuid']): Promise<void> {
     await this.modelUser.destroy({
       where: { uuid },
-      transaction,
     });
   }
 

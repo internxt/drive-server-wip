@@ -294,10 +294,10 @@ export class MailerService {
 
   async sendAccountSetupEmail(
     email: string,
-    { planName, setupUrl }: { planName: string; setupUrl: string },
+    { planName, setupUrl }: { planName?: string; setupUrl: string },
   ): Promise<void> {
     const context = {
-      plan_name: planName,
+      ...(planName && { plan_name: planName }),
       setup_url: setupUrl,
     };
 

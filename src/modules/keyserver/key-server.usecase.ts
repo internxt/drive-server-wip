@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { type Transaction } from 'sequelize';
 import { type UserAttributes } from '../user/user.attributes';
 import {
   KeyServer,
@@ -28,7 +27,6 @@ export class KeyServerUseCases {
       kyber?: Omit<PartialKeys, 'encryptVersion'>;
       ecc?: Omit<PartialKeys, 'encryptVersion'>;
     },
-    transaction?: Transaction,
   ): Promise<{ kyber: KeyServer | null; ecc: KeyServer | null }> {
     const processKey = async (
       encryptVersion: UserKeysEncryptVersions,
@@ -37,16 +35,12 @@ export class KeyServerUseCases {
       if (!keyData) return null;
 
       try {
-        return await this.findOrCreateKeysForUser(
-          userId,
-          {
-            publicKey: keyData.publicKey,
-            privateKey: keyData.privateKey,
-            revocationKey: keyData.revocationKey,
-            encryptVersion,
-          },
-          transaction,
-        );
+        return await this.findOrCreateKeysForUser(userId, {
+          publicKey: keyData.publicKey,
+          privateKey: keyData.privateKey,
+          revocationKey: keyData.revocationKey,
+          encryptVersion,
+        });
       } catch (error) {
         Logger.error(
           `[KEYS/ADD_KEYS_TO_USER]: Error adding ${encryptVersion} key to user ${userId}, error: ${JSON.stringify(
@@ -68,7 +62,6 @@ export class KeyServerUseCases {
   async findOrCreateKeysForUser(
     userId: UserAttributes['id'],
     keys: PartialKeys,
-    transaction?: Transaction,
   ): Promise<KeyServer> {
     try {
       KeyServer.validate(keys.encryptVersion, keys);
@@ -76,17 +69,13 @@ export class KeyServerUseCases {
       throw new InvalidKeyServerException(error.message);
     }
 
-    const [createdKeys] = await this.repository.findUserKeysOrCreate(
+    const [createdKeys] = await this.repository.findUserKeysOrCreate(userId, {
       userId,
-      {
-        userId,
-        publicKey: keys.publicKey,
-        privateKey: keys.privateKey,
-        revocationKey: keys.revocationKey,
-        encryptVersion: keys.encryptVersion,
-      },
-      transaction,
-    );
+      publicKey: keys.publicKey,
+      privateKey: keys.privateKey,
+      revocationKey: keys.revocationKey,
+      encryptVersion: keys.encryptVersion,
+    });
 
     return createdKeys;
   }
