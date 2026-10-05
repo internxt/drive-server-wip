@@ -17,6 +17,7 @@ import { type UserAttributes } from '../user/user.attributes';
 import { SequelizeUserRepository } from '../user/user.repository';
 import {
   Folder,
+  FolderStatus,
   type FolderOptions,
   type SortableFolderAttributes,
 } from './folder.domain';
@@ -25,7 +26,7 @@ import { SequelizeFolderRepository } from './folder.repository';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
 import { type WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
-import { v4 } from 'uuid';
+import { v7 } from 'uuid';
 import { type UpdateFolderMetaDto } from './dto/update-folder-meta.dto';
 import { type FolderStatsDto } from './dto/responses/folder-stats.dto';
 import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
@@ -36,6 +37,13 @@ import { type MoveFolderDto } from './dto/move-folder.dto';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { FavoriteUseCases } from '../favorite/favorite.usecase';
 import { FavoriteItemType } from '../favorite/favorite.domain';
+import { SequelizeFavoriteRepository } from '../favorite/favorite.repository';
+import { decodeCursor, encodeCursor } from '../../common/utils/cursor.util';
+import {
+  type GetFolderContentFoldersCursorDto,
+  FolderFoldersCursorDto,
+} from './dto/get-folder-content-folders-cursor.dto';
+import { FolderSyncCursorDto } from './utils/folder-cursor.util';
 
 const invalidName = /[\\/]|^\s*$/;
 
@@ -53,6 +61,7 @@ export class FolderUseCases {
     private readonly fileRepository: SequelizeFileRepository,
     private readonly cryptoService: CryptoService,
     private readonly favoriteUsecases: FavoriteUseCases,
+    private readonly favoriteRepository: SequelizeFavoriteRepository,
   ) {}
 
   getFoldersByIds(user: User, folderIds: FolderAttributes['id'][]) {
@@ -318,14 +327,16 @@ export class FolderUseCases {
       folder.parentId,
     );
 
-    const folderWithSameNameExists = await this.folderRepository.findOne({
-      name: cryptoFileName,
-      parentUuid: folder.parentUuid,
-      deleted: false,
-      removed: false,
-    });
+    const foldersWithSameName = await this.folderRepository.findByParentUuid(
+      folder.parentUuid,
+      {
+        plainName: newFolderMetadata.plainName,
+        deleted: false,
+        removed: false,
+      },
+    );
 
-    if (folderWithSameNameExists) {
+    if (foldersWithSameName.length > 0) {
       throw new ConflictException(
         'A folder with this name already exists in this location',
       );
@@ -375,13 +386,16 @@ export class FolderUseCases {
       throw new BadRequestException('Invalid folder name');
     }
 
-    const nameAlreadyInUse = await this.folderRepository.findOne({
-      parentUuid: parentFolder.uuid,
-      plainName: newFolderDto.plainName,
-      deleted: false,
-    });
+    const foldersWithSameName = await this.folderRepository.findByParentUuid(
+      parentFolder.uuid,
+      {
+        plainName: newFolderDto.plainName,
+        deleted: false,
+        removed: false,
+      },
+    );
 
-    if (nameAlreadyInUse) {
+    if (foldersWithSameName.length > 0) {
       throw new ConflictException(
         'Folder with the same name already exists in this location',
       );
@@ -393,7 +407,7 @@ export class FolderUseCases {
     );
 
     const folder = await this.folderRepository.createWithAttributes({
-      uuid: v4(),
+      uuid: v7(),
       userId: user.id,
       name: encryptedFolderName,
       plainName: newFolderDto.plainName,
@@ -460,7 +474,7 @@ export class FolderUseCases {
 
     const now = new Date();
     const foldersToCreate = folders.map((item) => ({
-      uuid: v4(),
+      uuid: v7(),
       userId: user.id,
       name: this.cryptoService.encryptName(item.plainName, parentFolder.id),
       plainName: item.plainName,
@@ -693,6 +707,122 @@ export class FolderUseCases {
     );
   }
 
+  async getFoldersUpdatedAfterWithCursor(
+    userId: UserAttributes['id'],
+    status: FolderStatus | undefined,
+    updatedAfter: Date,
+    pageSize: number,
+    cursorToken: string | undefined,
+  ): Promise<{
+    folders: Folder[];
+    hasMore: boolean;
+    nextCursor: string | null;
+  }> {
+    const cursor = this.decodeFolderSyncCursor(cursorToken, status);
+
+    const filter: Partial<FolderAttributes> = {
+      userId,
+      ...(status ? Folder.getFilterByStatus(status) : {}),
+    };
+
+    const { folders, hasMore, lastRowCursorUpdatedAt } =
+      await this.folderRepository.findFoldersWithCursorWhereUpdatedAfter({
+        where: filter,
+        updatedAfter,
+        pageSize,
+        cursor,
+      });
+
+    return {
+      folders,
+      hasMore,
+      nextCursor: this.buildFolderSyncNextCursor(
+        folders,
+        hasMore,
+        lastRowCursorUpdatedAt,
+        status,
+      ),
+    };
+  }
+
+  async getWorkspaceFoldersUpdatedAfterWithCursor(
+    networkUserId: UserAttributes['id'],
+    createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    status: FolderStatus | undefined,
+    updatedAfter: Date,
+    pageSize: number,
+    cursorToken: string | undefined,
+  ): Promise<{
+    folders: Folder[];
+    hasMore: boolean;
+    nextCursor: string | null;
+  }> {
+    const cursor = this.decodeFolderSyncCursor(cursorToken, status);
+
+    const { folders, hasMore, lastRowCursorUpdatedAt } =
+      await this.folderRepository.findWorkspaceFoldersWithCursorWhereUpdatedAfter(
+        {
+          networkUserId,
+          createdBy,
+          workspaceId,
+          where: status ? Folder.getFilterByStatus(status) : {},
+          updatedAfter,
+          pageSize,
+          cursor,
+        },
+      );
+
+    return {
+      folders,
+      hasMore,
+      nextCursor: this.buildFolderSyncNextCursor(
+        folders,
+        hasMore,
+        lastRowCursorUpdatedAt,
+        status,
+      ),
+    };
+  }
+
+  private decodeFolderSyncCursor(
+    cursorToken: string | undefined,
+    status: FolderStatus | undefined,
+  ): FolderSyncCursorDto | undefined {
+    const cursor = cursorToken
+      ? decodeCursor(FolderSyncCursorDto, cursorToken)
+      : undefined;
+
+    if (cursorToken && !cursor) {
+      throw new BadRequestException('Invalid cursor');
+    }
+
+    if (cursor && cursor.status !== status) {
+      throw new BadRequestException('Cursor does not match status filter');
+    }
+
+    return cursor;
+  }
+
+  private buildFolderSyncNextCursor(
+    folders: Folder[],
+    hasMore: boolean,
+    lastRowCursorUpdatedAt: string | null,
+    status: FolderStatus | undefined,
+  ): string | null {
+    const lastFolder = folders.at(-1);
+
+    if (!hasMore || !lastFolder || !lastRowCursorUpdatedAt) {
+      return null;
+    }
+
+    return encodeCursor({
+      updatedAt: lastRowCursorUpdatedAt,
+      uuid: lastFolder.uuid,
+      status,
+    });
+  }
+
   getWorkspacesFoldersUpdatedAfter(
     createdBy: User['uuid'],
     workspaceId: WorkspaceAttributes['id'],
@@ -738,6 +868,71 @@ export class FolderUseCases {
     return foldersWithMaybePlainName.map((folder) =>
       folder.plainName ? folder : this.decryptFolderName(folder),
     );
+  }
+
+  async getFolderSubfoldersWithCursor(
+    user: User,
+    folderUuid: Folder['uuid'],
+    query: GetFolderContentFoldersCursorDto,
+  ): Promise<{ folders: Folder[]; nextCursor: string | null }> {
+    const { order, limit: pageSize } = query;
+
+    const cursor = query.cursor
+      ? decodeCursor(FolderFoldersCursorDto, query.cursor)
+      : undefined;
+
+    if (query.cursor && !cursor) {
+      throw new BadRequestException('Invalid cursor');
+    }
+
+    if (cursor && cursor.order !== order) {
+      throw new BadRequestException('Cursor does not match order filter');
+    }
+
+    const { folders, hasMore } =
+      await this.folderRepository.findFolderSubfoldersWithCursor({
+        parentUuid: folderUuid,
+        userId: user.id,
+        order,
+        pageSize,
+        cursor,
+        options: {
+          withSharings: query.withSharings,
+        },
+      });
+
+    const lastFolder = folders.at(-1);
+    const nextCursor =
+      hasMore && lastFolder
+        ? encodeCursor({
+            lastUuid: lastFolder.uuid,
+            order,
+            lastValue: lastFolder.plainName,
+          })
+        : null;
+
+    let foldersWithFavoriteMark = folders;
+    if (query.withFavorites) {
+      const favoritedUuids = await this.favoriteRepository.findFavoritedItemIds(
+        user.uuid,
+        folders.map((folder) => folder.uuid),
+        FavoriteItemType.Folder,
+      );
+      foldersWithFavoriteMark = folders.map(
+        (folder) =>
+          ({
+            ...folder,
+            isFavorite: favoritedUuids.has(folder.uuid),
+          }) as Folder,
+      );
+    }
+
+    return {
+      folders: foldersWithFavoriteMark.map((folder) =>
+        folder.plainName ? folder : this.decryptFolderName(folder),
+      ),
+      nextCursor,
+    };
   }
 
   async getTrashedFolders(
@@ -849,7 +1044,7 @@ export class FolderUseCases {
       Logger.error(
         `User with id: ${user.id} tried to delete a folder that does not own.`,
       );
-      throw new ForbiddenException(`You are not owner of this share`);
+      throw new ForbiddenException('You are not owner of this share');
     }
 
     await this.folderRepository.deleteById(folder.id);

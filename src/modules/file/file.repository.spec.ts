@@ -19,10 +19,16 @@ import { UserModel } from '../user/user.model';
 import { SharingModel } from '../sharing/models';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Time } from '../../lib/time';
+import { SortOrder } from '../../common/order.type';
 
 jest.mock('../../lib/query-timeout', () => ({
   withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
 }));
+
+// Attaches a Sequelize-model-like `get()` for the raw cursor timestamp
+// attribute, without losing the File instance's own methods (toJSON, etc).
+const withCursorTimestamp = (file: ReturnType<typeof newFile>, value: string) =>
+  Object.assign(file, { get: jest.fn().mockReturnValue(value) });
 
 describe('FileRepository', () => {
   let repository: FileRepository;
@@ -105,8 +111,13 @@ describe('FileRepository', () => {
       const folderUuids = [v4(), v4()];
       const updatedAfter = new Date();
       const file = newFile();
+      const cursorTimestamp = '2026-01-01T10:00:00.123456Z';
 
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([
+          withCursorTimestamp(file, cursorTimestamp),
+        ] as any);
 
       const result = await repository.getFilesByFolderUuidsWithCursor({
         folderUuids,
@@ -121,6 +132,7 @@ describe('FileRepository', () => {
           updatedAt: { [Op.gt]: updatedAfter },
           userId: user.id,
         },
+        attributes: { include: [expect.any(Array)] },
         include: [
           expect.objectContaining({ as: 'thumbnails', required: false }),
         ],
@@ -130,14 +142,20 @@ describe('FileRepository', () => {
         ],
         limit: 1001,
       });
-      expect(result).toEqual({ files: expect.any(Array), hasMore: false });
+      expect(result).toEqual({
+        files: expect.any(Array),
+        hasMore: false,
+        lastRowCursorUpdatedAt: cursorTimestamp,
+      });
       expect(result.files).toHaveLength(1);
     });
 
     it('When there is one more row than the page size, then hasMore is true and the extra row is dropped', async () => {
       const folderUuids = [v4()];
       const updatedAfter = new Date();
-      const files = [newFile(), newFile()];
+      const files = [newFile(), newFile()].map((file) =>
+        withCursorTimestamp(file, '2026-01-01T10:00:00.123456Z'),
+      );
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(files as any);
 
@@ -155,7 +173,7 @@ describe('FileRepository', () => {
     it('When a cursor is provided, then it filters by the cursor tuple and ignores updatedAfter', async () => {
       const folderUuids = [v4()];
       const updatedAfter = new Date();
-      const cursorUpdatedAt = new Date('2024-01-01T00:00:00.000Z');
+      const cursorUpdatedAt = '2024-01-01T00:00:00.123456Z';
       const cursorId = v4();
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
@@ -166,7 +184,7 @@ describe('FileRepository', () => {
         pageSize: 1000,
         userId: user.id,
         cursor: {
-          updatedAt: cursorUpdatedAt.toISOString(),
+          updatedAt: cursorUpdatedAt,
           uuid: cursorId,
         },
       });
@@ -177,11 +195,15 @@ describe('FileRepository', () => {
           userId: user.id,
           [Op.and]: [
             Sequelize.literal(
-              '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
+              '("updated_at", "uuid") > (:cursorTimestamp::timestamptz, :cursorTieBreaker)',
             ),
           ],
         },
-        replacements: { cursorUpdatedAt, cursorId },
+        attributes: { include: [expect.any(Array)] },
+        replacements: {
+          cursorTimestamp: cursorUpdatedAt,
+          cursorTieBreaker: cursorId,
+        },
         include: [
           expect.objectContaining({ as: 'thumbnails', required: false }),
         ],
@@ -199,8 +221,13 @@ describe('FileRepository', () => {
       const where = { userId: user.id, status: FileStatus.EXISTS };
       const updatedAfter = new Date();
       const file = newFile();
+      const cursorTimestamp = '2026-01-01T10:00:00.123456Z';
 
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([
+          withCursorTimestamp(file, cursorTimestamp),
+        ] as any);
 
       const result = await repository.findFilesWithCursorWhereUpdatedAfter({
         where,
@@ -213,6 +240,7 @@ describe('FileRepository', () => {
           ...where,
           updatedAt: { [Op.gt]: updatedAfter },
         },
+        attributes: { include: [expect.any(Array)] },
         replacements: undefined,
         order: [
           ['updatedAt', 'ASC'],
@@ -220,14 +248,20 @@ describe('FileRepository', () => {
         ],
         limit: 1001,
       });
-      expect(result).toEqual({ files: expect.any(Array), hasMore: false });
+      expect(result).toEqual({
+        files: expect.any(Array),
+        hasMore: false,
+        lastRowCursorUpdatedAt: cursorTimestamp,
+      });
       expect(result.files).toHaveLength(1);
     });
 
     it('When there is one more row than the page size, then hasMore is true and the extra row is dropped', async () => {
       const where = { userId: user.id };
       const updatedAfter = new Date();
-      const files = [newFile(), newFile()];
+      const files = [newFile(), newFile()].map((file) =>
+        withCursorTimestamp(file, '2026-01-01T10:00:00.123456Z'),
+      );
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(files as any);
 
@@ -244,7 +278,7 @@ describe('FileRepository', () => {
     it('When a cursor is provided, then it filters by the cursor tuple and ignores updatedAfter', async () => {
       const where = { userId: user.id };
       const updatedAfter = new Date();
-      const cursorUpdatedAt = new Date('2024-01-01T00:00:00.000Z');
+      const cursorUpdatedAt = '2024-01-01T00:00:00.123456Z';
       const cursorId = v4();
 
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
@@ -254,7 +288,7 @@ describe('FileRepository', () => {
         updatedAfter,
         pageSize: 1000,
         cursor: {
-          updatedAt: cursorUpdatedAt.toISOString(),
+          updatedAt: cursorUpdatedAt,
           uuid: cursorId,
         },
       });
@@ -264,11 +298,15 @@ describe('FileRepository', () => {
           ...where,
           [Op.and]: [
             Sequelize.literal(
-              '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
+              '("updated_at", "uuid") > (:cursorTimestamp::timestamptz, :cursorTieBreaker)',
             ),
           ],
         },
-        replacements: { cursorUpdatedAt, cursorId },
+        attributes: { include: [expect.any(Array)] },
+        replacements: {
+          cursorTimestamp: cursorUpdatedAt,
+          cursorTieBreaker: cursorId,
+        },
         order: [
           ['updatedAt', 'ASC'],
           ['uuid', 'ASC'],
@@ -278,8 +316,274 @@ describe('FileRepository', () => {
     });
   });
 
-  describe('findFilesInFolderByName', () => {
+  describe('findWorkspaceFilesWithCursorWhereUpdatedAfter', () => {
+    const networkUserId = 99;
+    const createdBy = v4();
+
+    it('When called without a cursor, then it filters by network user, updatedAfter and workspace item existence', async () => {
+      const updatedAfter = new Date();
+      const cursorTimestamp = '2026-01-01T10:00:00.123456Z';
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([
+          withCursorTimestamp(newFile(), cursorTimestamp),
+        ] as any);
+
+      const result =
+        await repository.findWorkspaceFilesWithCursorWhereUpdatedAfter({
+          networkUserId,
+          createdBy,
+          workspaceId: workspace.id,
+          where: { status: FileStatus.EXISTS },
+          updatedAfter,
+          pageSize: 1000,
+        });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: {
+          status: FileStatus.EXISTS,
+          userId: networkUserId,
+          [Op.and]: [
+            { updatedAt: { [Op.gt]: updatedAfter } },
+            expect.objectContaining({
+              val: expect.stringContaining('EXISTS'),
+            }),
+          ],
+        },
+        attributes: { include: [expect.any(Array)] },
+        replacements: {
+          itemType: 'file',
+          workspaceId: workspace.id,
+          createdBy,
+        },
+        order: [
+          ['updatedAt', 'ASC'],
+          ['uuid', 'ASC'],
+        ],
+        limit: 1001,
+      });
+      expect(result).toEqual({
+        files: expect.any(Array),
+        hasMore: false,
+        lastRowCursorUpdatedAt: cursorTimestamp,
+      });
+      expect(result.files).toHaveLength(1);
+    });
+
+    it('When a cursor is provided, then it filters by the cursor tuple and merges its replacements', async () => {
+      const cursorUpdatedAt = '2024-01-01T00:00:00.123456Z';
+      const cursorId = v4();
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findWorkspaceFilesWithCursorWhereUpdatedAfter({
+        networkUserId,
+        createdBy,
+        workspaceId: workspace.id,
+        where: {},
+        updatedAfter: new Date(),
+        pageSize: 1000,
+        cursor: { updatedAt: cursorUpdatedAt, uuid: cursorId },
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: networkUserId,
+            [Op.and]: [
+              {
+                [Op.and]: [
+                  Sequelize.literal(
+                    '("updated_at", "uuid") > (:cursorTimestamp::timestamptz, :cursorTieBreaker)',
+                  ),
+                ],
+              },
+              expect.objectContaining({
+                val: expect.stringContaining('EXISTS'),
+              }),
+            ],
+          },
+          replacements: {
+            cursorTimestamp: cursorUpdatedAt,
+            cursorTieBreaker: cursorId,
+            itemType: 'file',
+            workspaceId: workspace.id,
+            createdBy,
+          },
+        }),
+      );
+    });
+
+    it('When there is one more row than the page size, then hasMore is true and the extra row is dropped', async () => {
+      const files = [newFile(), newFile()].map((file) =>
+        withCursorTimestamp(file, '2026-01-01T10:00:00.123456Z'),
+      );
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(files as any);
+
+      const result =
+        await repository.findWorkspaceFilesWithCursorWhereUpdatedAfter({
+          networkUserId,
+          createdBy,
+          workspaceId: workspace.id,
+          where: {},
+          updatedAfter: new Date(),
+          pageSize: 1,
+        });
+
+      expect(result.hasMore).toBe(true);
+      expect(result.files).toHaveLength(1);
+    });
+  });
+
+  describe('findFolderFilesWithCursor', () => {
+    const folderUuid = newFolder().uuid;
+
+    it('When called without a cursor sorted by plainName ASC, then it filters by folder/user/status and orders with collation', async () => {
+      const file = newFile();
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
+
+      const result = await repository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        order: SortOrder.ASC,
+        pageSize: 1000,
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { folderUuid, userId: user.id, status: FileStatus.EXISTS },
+          replacements: undefined,
+          include: [],
+          subQuery: false,
+          order: [
+            Sequelize.literal(
+              '"FileModel"."plain_name" COLLATE "custom_numeric" ASC',
+            ),
+            ['uuid', 'ASC'],
+          ],
+          limit: 1001,
+        }),
+      );
+      expect(result).toEqual({ files: expect.any(Array), hasMore: false });
+    });
+
+    it('When thumbnails are not requested, then it does not include them', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        order: SortOrder.ASC,
+        pageSize: 1000,
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ include: [] }),
+      );
+    });
+
+    it('When thumbnails are requested, then it includes them', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        order: SortOrder.ASC,
+        pageSize: 1000,
+        options: { withThumbnails: true },
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: [expect.objectContaining({ separate: true })],
+        }),
+      );
+    });
+
+    it('When sharings are requested, then it includes them', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        order: SortOrder.ASC,
+        pageSize: 1000,
+        options: { withThumbnails: false, withSharings: true },
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: [
+            expect.objectContaining({
+              model: SharingModel,
+              attributes: ['type', 'id'],
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('When there is one more row than the page size, then hasMore is true and the extra row is dropped', async () => {
+      const files = [newFile(), newFile()];
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce(files as any);
+
+      const result = await repository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        order: SortOrder.ASC,
+        pageSize: 1,
+      });
+
+      expect(result.hasMore).toBe(true);
+      expect(result.files).toHaveLength(1);
+    });
+
+    it('When a plainName cursor is provided, then it filters by the collated tuple comparator', async () => {
+      const cursorUuid = v4();
+
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        order: SortOrder.ASC,
+        pageSize: 1000,
+        cursor: {
+          lastUuid: cursorUuid,
+          order: SortOrder.ASC,
+          lastValue: 'file-b',
+        },
+      });
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            folderUuid,
+            userId: user.id,
+            status: FileStatus.EXISTS,
+            [Op.and]: [
+              Sequelize.literal(
+                '("FileModel"."plain_name" COLLATE "custom_numeric", "FileModel"."uuid") > (:cursorValue, :cursorUuid)',
+              ),
+            ],
+          },
+          replacements: { cursorValue: 'file-b', cursorUuid },
+          order: [
+            Sequelize.literal(
+              '"FileModel"."plain_name" COLLATE "custom_numeric" ASC',
+            ),
+            ['uuid', 'ASC'],
+          ],
+          limit: 1001,
+        }),
+      );
+    });
+  });
+
+  describe('findUserFilesInFolderByName', () => {
     const folderUuid = v4();
+    const userId = 1;
 
     it('When multiple files are searched, it should handle an array of search filters', async () => {
       const searchCriteria = [
@@ -287,21 +591,30 @@ describe('FileRepository', () => {
         { plainName: 'Summary', type: 'doc' },
       ];
 
-      await repository.findFilesInFolderByName(folderUuid, searchCriteria);
+      await repository.findUserFilesInFolderByName(
+        userId,
+        folderUuid,
+        searchCriteria,
+      );
 
       expect(fileModel.findAll).toHaveBeenCalledWith({
         where: expect.objectContaining({
           folderUuid,
+          userId,
           status: FileStatus.EXISTS,
           [Op.or]: [
-            {
-              plainName: 'Report',
+            expect.objectContaining({
+              [Op.and]: expect.objectContaining({
+                val: expect.stringContaining('COLLATE "custom_numeric"'),
+              }),
               type: 'pdf',
-            },
-            {
-              plainName: 'Summary',
+            }),
+            expect.objectContaining({
+              [Op.and]: expect.objectContaining({
+                val: expect.stringContaining('COLLATE "custom_numeric"'),
+              }),
               type: 'doc',
-            },
+            }),
           ],
         }),
       });
@@ -310,16 +623,23 @@ describe('FileRepository', () => {
     it('When a file is searched with only plainName, it should handle the missing type', async () => {
       const searchCriteria = [{ plainName: 'Report' }];
 
-      await repository.findFilesInFolderByName(folderUuid, searchCriteria);
+      await repository.findUserFilesInFolderByName(
+        userId,
+        folderUuid,
+        searchCriteria,
+      );
 
       expect(fileModel.findAll).toHaveBeenCalledWith({
         where: expect.objectContaining({
           folderUuid,
+          userId,
           status: FileStatus.EXISTS,
           [Op.or]: [
-            {
-              plainName: 'Report',
-            },
+            expect.objectContaining({
+              [Op.and]: expect.objectContaining({
+                val: expect.stringContaining('COLLATE "custom_numeric"'),
+              }),
+            }),
           ],
         }),
       });
@@ -343,18 +663,21 @@ describe('FileRepository', () => {
         mockFile.userId,
         mockFile.plainName,
         mockFile.type,
-        mockFile.folderId,
+        mockFile.folderUuid,
         mockFile.status,
       );
 
       expect(fileModel.findOne).toHaveBeenCalledWith({
         where: expect.objectContaining({
           userId: { [Op.eq]: mockFile.userId },
-          plainName: { [Op.eq]: mockFile.plainName },
+          [Op.and]: expect.objectContaining({
+            val: expect.stringContaining('COLLATE "custom_numeric"'),
+          }),
           type: { [Op.or]: [{ [Op.is]: null }, { [Op.eq]: '' }] },
-          folderId: { [Op.eq]: mockFile.folderId },
+          folderUuid: { [Op.eq]: mockFile.folderUuid },
           status: { [Op.eq]: mockFile.status },
         }),
+        replacements: { plainName: mockFile.plainName },
       });
     });
 
@@ -374,18 +697,21 @@ describe('FileRepository', () => {
         mockFile.userId,
         mockFile.plainName,
         mockFile.type,
-        mockFile.folderId,
+        mockFile.folderUuid,
         mockFile.status,
       );
 
       expect(fileModel.findOne).toHaveBeenCalledWith({
         where: expect.objectContaining({
           userId: { [Op.eq]: mockFile.userId },
-          plainName: { [Op.eq]: mockFile.plainName },
+          [Op.and]: expect.objectContaining({
+            val: expect.stringContaining('COLLATE "custom_numeric"'),
+          }),
           type: { [Op.or]: [{ [Op.is]: null }, { [Op.eq]: '' }] },
-          folderId: { [Op.eq]: mockFile.folderId },
+          folderUuid: { [Op.eq]: mockFile.folderUuid },
           status: { [Op.eq]: mockFile.status },
         }),
+        replacements: { plainName: mockFile.plainName },
       });
     });
 
@@ -405,18 +731,21 @@ describe('FileRepository', () => {
         mockFile.userId,
         mockFile.plainName,
         mockFile.type,
-        mockFile.folderId,
+        mockFile.folderUuid,
         mockFile.status,
       );
 
       expect(fileModel.findOne).toHaveBeenCalledWith({
         where: expect.objectContaining({
           userId: { [Op.eq]: mockFile.userId },
-          plainName: { [Op.eq]: mockFile.plainName },
+          [Op.and]: expect.objectContaining({
+            val: expect.stringContaining('COLLATE "custom_numeric"'),
+          }),
           type: { [Op.eq]: mockFile.type },
-          folderId: { [Op.eq]: mockFile.folderId },
+          folderUuid: { [Op.eq]: mockFile.folderUuid },
           status: { [Op.eq]: mockFile.status },
         }),
+        replacements: { plainName: mockFile.plainName },
       });
     });
   });
@@ -1592,89 +1921,6 @@ describe('FileRepository', () => {
         },
       });
       expect(result).toBe(count);
-    });
-  });
-
-  describe('deleteFilesByUuid', () => {
-    it('When file UUIDs are provided, then it should mark them as removed and deleted', async () => {
-      const fileUuids = [v4(), v4(), v4()];
-      const updatedCount = 3;
-
-      jest
-        .spyOn(fileModel, 'update')
-        .mockResolvedValueOnce([updatedCount] as any);
-
-      const result = await repository.deleteFilesByUuid(fileUuids);
-
-      expect(fileModel.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          removed: true,
-          status: FileStatus.DELETED,
-        }),
-        expect.objectContaining({
-          where: {
-            uuid: { [Op.in]: fileUuids },
-            status: { [Op.not]: FileStatus.DELETED },
-          },
-        }),
-      );
-      expect(result).toBe(updatedCount);
-    });
-
-    it('When single file UUID is provided, then it should process it', async () => {
-      const fileUuid = v4();
-      const updatedCount = 1;
-
-      jest
-        .spyOn(fileModel, 'update')
-        .mockResolvedValueOnce([updatedCount] as any);
-
-      const result = await repository.deleteFilesByUuid([fileUuid]);
-
-      expect(fileModel.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          removed: true,
-          status: FileStatus.DELETED,
-        }),
-        expect.objectContaining({
-          where: {
-            uuid: { [Op.in]: [fileUuid] },
-            status: { [Op.not]: FileStatus.DELETED },
-          },
-        }),
-      );
-      expect(result).toBe(1);
-    });
-
-    it('When no files match the UUIDs, then it should return zero', async () => {
-      const fileUuids = [v4(), v4()];
-      const updatedCount = 0;
-
-      jest
-        .spyOn(fileModel, 'update')
-        .mockResolvedValueOnce([updatedCount] as any);
-
-      const result = await repository.deleteFilesByUuid(fileUuids);
-
-      expect(result).toBe(0);
-    });
-
-    it('When files already deleted, then it should not update them', async () => {
-      const fileUuids = [v4(), v4()];
-
-      jest.spyOn(fileModel, 'update').mockResolvedValueOnce([0] as any);
-
-      const result = await repository.deleteFilesByUuid(fileUuids);
-
-      expect(fileModel.update).toHaveBeenCalledWith(
-        expect.any(Object),
-        expect.objectContaining({
-          where: expect.objectContaining({
-            status: { [Op.not]: FileStatus.DELETED },
-          }),
-        }),
-      );
-      expect(result).toBe(0);
     });
   });
 

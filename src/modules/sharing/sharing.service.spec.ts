@@ -417,6 +417,31 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(PasswordNeededError);
     });
 
+    it('When the shared file is empty, then it does not request bridge', async () => {
+      const emptyFile = newFile({
+        owner,
+        attributes: { size: BigInt(0), plainName: 'empty' },
+      });
+      const sharing = newSharing({
+        owner,
+        item: emptyFile,
+        sharingType: SharingType.Public,
+      });
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      fileUsecases.getByUuid.mockResolvedValue(emptyFile);
+
+      const publicSharing = await sharingService.getPublicSharingById(
+        sharing.id,
+        'code',
+      );
+
+      expect(bridgeService.createNetworkEnvironment).not.toHaveBeenCalled();
+      expect(fileUsecases.getEncryptionKeyFromFile).not.toHaveBeenCalled();
+      expect(publicSharing.encryptionKey).toBeNull();
+      expect(publicSharing['itemToken']).toBeNull();
+    });
+
     it('When user tries to access to a non existing sharing, then it fails', async () => {
       sharingRepository.findOneSharing.mockResolvedValue(null);
 
@@ -3318,8 +3343,45 @@ describe('Sharing Use Cases', () => {
         perPage,
       );
 
+      expect(fileUsecases.getFiles).toHaveBeenCalledWith(
+        owner.id,
+        { folderUuid: folder.uuid, status: FileStatus.EXISTS },
+        { limit: perPage, offset: page * perPage },
+      );
       expect(result.items).toHaveLength(1);
       expect(result.role).toBe('NONE');
+    });
+
+    it('When folder contains empty files, then it skips bridge for them', async () => {
+      const file = newFile({ owner, attributes: { size: BigInt(10) } });
+      const emptyFile = newFile({ owner, attributes: { size: BigInt(0) } });
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      fileUsecases.getFiles.mockResolvedValue([file, emptyFile]);
+      folderUseCases.getFolderByUserId.mockResolvedValue(
+        newFolder({ owner, attributes: { bucket: 'test-bucket' } }),
+      );
+      fileUsecases.getEncryptionKeyFromFile.mockResolvedValue('encrypted-key');
+
+      const result = await sharingService.getFilesFromPublicFolder(
+        folder.uuid,
+        null,
+        code,
+        page,
+        perPage,
+      );
+
+      expect(fileUsecases.getEncryptionKeyFromFile).toHaveBeenCalledTimes(1);
+      expect(fileUsecases.getEncryptionKeyFromFile).toHaveBeenCalledWith(
+        expect.objectContaining({ uuid: file.uuid }),
+        sharing.encryptionKey,
+        code,
+        expect.anything(),
+        expect.any(Boolean),
+      );
+      expect(result.items).toHaveLength(2);
     });
 
     it('When folder is trashed, then it throws', async () => {

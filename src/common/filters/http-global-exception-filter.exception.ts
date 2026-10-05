@@ -4,6 +4,7 @@ import {
   type ArgumentsHost,
   HttpStatus,
   Logger,
+  RequestTimeoutException,
 } from '@nestjs/common';
 import { BaseError as SequelizeError } from 'sequelize';
 import { AxiosError } from 'axios';
@@ -28,6 +29,20 @@ export class HttpGlobalExceptionFilter extends BaseExceptionFilter {
 
       //  Errors thrown intentionally by the application
       if (exception instanceof HttpException) {
+        if (exception instanceof RequestTimeoutException) {
+          this.logger.warn(
+            {
+              requestId,
+              path: request.url,
+              method: request.method,
+              errorType: 'REQUEST_TIMEOUT',
+              user: { uuid: request?.user?.uuid },
+              error: { message: exception.message },
+            },
+            'REQUEST_TIMEOUT',
+          );
+        }
+
         const status = exception.getStatus
           ? exception.getStatus()
           : HttpStatus.INTERNAL_SERVER_ERROR;

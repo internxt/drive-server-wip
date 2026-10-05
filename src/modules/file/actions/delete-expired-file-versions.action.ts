@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { SequelizeFileVersionRepository } from '../file-version.repository';
+import {
+  type ExpiredVersionsCursor,
+  SequelizeFileVersionRepository,
+} from '../file-version.repository';
 import { FileVersionStatus } from '../file-version.domain';
 
 @Injectable()
@@ -37,19 +40,24 @@ export class DeleteExpiredFileVersionsAction {
   }
 
   private async *yieldExpiredVersionIds(batchSize: number) {
-    let resultCount = 0;
+    let cursor: ExpiredVersionsCursor | undefined;
+    let hasMore = false;
 
     do {
-      const versionIds =
+      const versions =
         await this.fileVersionRepository.findExpiredVersionIdsByTierLimits(
-          batchSize,
+          batchSize + 1,
+          cursor,
         );
 
-      resultCount = versionIds.length;
+      hasMore = versions.length > batchSize;
+      const batch = versions.slice(0, batchSize);
 
-      if (resultCount > 0) {
-        yield versionIds;
+      if (batch.length > 0) {
+        const last = batch.at(-1);
+        cursor = { userId: last.userId, createdAt: last.createdAt };
+        yield batch.map((version) => version.id);
       }
-    } while (resultCount === batchSize);
+    } while (hasMore);
   }
 }

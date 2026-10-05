@@ -14,13 +14,11 @@ import {
 } from '@nestjs/common';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { BridgeService } from '../../externals/bridge/bridge.service';
-import { type FolderAttributes } from '../folder/folder.attributes';
 import { type User } from '../user/user.domain';
 import { type UserAttributes } from '../user/user.attributes';
 import {
   File,
   type FileAttributes,
-  type FileOptions,
   FileStatus,
   type SortableFileAttributes,
 } from './file.domain';
@@ -30,7 +28,7 @@ import { type ReplaceFileDto } from './dto/replace-file.dto';
 import { type FileDto } from './dto/file.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
-import { v4 } from 'uuid';
+import { v7 } from 'uuid';
 import { type CreateFileDto } from './dto/create-file.dto';
 import { type UpdateFileMetaDto } from './dto/update-file-meta.dto';
 import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
@@ -41,11 +39,12 @@ import { type FileModel } from './file.model';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
+import { FileSyncCursorDto } from './utils/file-cursor.util';
+import { decodeCursor, encodeCursor } from '../../common/utils/cursor.util';
 import {
-  decodeCursor,
-  encodeCursor,
-  FileSyncCursorDto,
-} from './utils/file-cursor.util';
+  FolderFilesCursorDto,
+  GetFolderContentFilesCursorDto,
+} from '../folder/dto/get-folder-content-files-cursor.dto';
 import { type MoveFileDto } from './dto/move-file.dto';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
@@ -70,6 +69,7 @@ import {
 import { type Workspace } from '../workspaces/domains/workspaces.domain';
 import { FavoriteUseCases } from '../favorite/favorite.usecase';
 import { FavoriteItemType } from '../favorite/favorite.domain';
+import { SequelizeFavoriteRepository } from '../favorite/favorite.repository';
 
 export enum VersionableFileExtension {
   PDF = 'pdf',
@@ -110,6 +110,7 @@ export class FileUseCases {
     private readonly restoreFileVersionAction: RestoreFileVersionAction,
     private readonly undoFileVersioningAction: UndoFileVersioningAction,
     private readonly favoriteUsecases: FavoriteUseCases,
+    private readonly favoriteRepository: SequelizeFavoriteRepository,
   ) {}
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
@@ -329,7 +330,7 @@ export class FileUseCases {
       user.id,
       newFileDto.plainName,
       newFileDto.type,
-      folder.id,
+      folder.uuid,
       FileStatus.EXISTS,
     );
     if (exists) {
@@ -357,7 +358,7 @@ export class FileUseCases {
     const newFileId = isFileEmpty ? null : newFileDto.fileId;
 
     const newFile = await this.fileRepository.create({
-      uuid: v4(),
+      uuid: v7(),
       name: cryptoFileName,
       plainName: newFileDto.plainName,
       type: newFileDto.type,
@@ -406,7 +407,8 @@ export class FileUseCases {
     folder: Folder,
     searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]> {
-    return this.fileRepository.findFilesInFolderByName(
+    return this.fileRepository.findUserFilesInFolderByName(
+      folder.userId,
       folder.uuid,
       searchFilter,
     );
@@ -486,7 +488,7 @@ export class FileUseCases {
       updatedFile.userId,
       updatedFile.plainName,
       updatedFile.type,
-      updatedFile.folderId,
+      updatedFile.folderUuid,
     );
     if (fileWithSameNameExists) {
       throw new ConflictException(
@@ -611,6 +613,72 @@ export class FileUseCases {
     pageSize: number,
     cursorToken: string | undefined,
   ): Promise<{ files: File[]; hasMore: boolean; nextCursor: string | null }> {
+    const cursor = this.decodeFileSyncCursor(cursorToken, status);
+
+    const filter: Partial<FileAttributes> = { userId };
+
+    if (status) {
+      filter.status = status;
+    }
+
+    const { files, hasMore, lastRowCursorUpdatedAt } =
+      await this.fileRepository.findFilesWithCursorWhereUpdatedAfter({
+        where: filter,
+        updatedAfter,
+        pageSize,
+        cursor,
+      });
+
+    return {
+      files: files.map((file) => file.toJSON()) as File[],
+      hasMore,
+      nextCursor: this.buildFileSyncNextCursor(
+        files,
+        hasMore,
+        lastRowCursorUpdatedAt,
+        status,
+      ),
+    };
+  }
+
+  async getWorkspaceFilesUpdatedAfterWithCursor(
+    networkUserId: UserAttributes['id'],
+    createdBy: UserAttributes['uuid'],
+    workspaceId: WorkspaceAttributes['id'],
+    status: FileStatus | undefined,
+    updatedAfter: Date,
+    pageSize: number,
+    cursorToken: string | undefined,
+  ): Promise<{ files: File[]; hasMore: boolean; nextCursor: string | null }> {
+    const cursor = this.decodeFileSyncCursor(cursorToken, status);
+
+    const { files, hasMore, lastRowCursorUpdatedAt } =
+      await this.fileRepository.findWorkspaceFilesWithCursorWhereUpdatedAfter({
+        networkUserId,
+        createdBy,
+        workspaceId,
+        where: status ? { status } : {},
+        updatedAfter,
+        pageSize,
+        cursor,
+      });
+
+    return {
+      files: files.map((file) => file.toJSON()) as File[],
+      hasMore,
+      nextCursor: this.buildFileSyncNextCursor(
+        files,
+        hasMore,
+        lastRowCursorUpdatedAt,
+        status,
+      ),
+    };
+  }
+
+  private decodeFileSyncCursor(
+    cursorToken: string | undefined,
+    status: FileStatus | undefined,
+  ): FileSyncCursorDto | undefined {
     const cursor = cursorToken
       ? decodeCursor(FileSyncCursorDto, cursorToken)
       : undefined;
@@ -623,33 +691,91 @@ export class FileUseCases {
       throw new BadRequestException('Cursor does not match status filter');
     }
 
-    const filter: Partial<FileAttributes> = { userId };
+    return cursor;
+  }
 
-    if (status) {
-      filter.status = status;
+  private buildFileSyncNextCursor(
+    files: File[],
+    hasMore: boolean,
+    lastRowCursorUpdatedAt: string | null,
+    status: FileStatus | undefined,
+  ): string | null {
+    const lastFile = files.at(-1);
+
+    if (!hasMore || !lastFile || !lastRowCursorUpdatedAt) {
+      return null;
+    }
+
+    return encodeCursor({
+      updatedAt: lastRowCursorUpdatedAt,
+      uuid: lastFile.uuid,
+      status,
+    });
+  }
+
+  async getFolderFilesWithCursor(
+    user: User,
+    folderUuid: Folder['uuid'],
+    query: GetFolderContentFilesCursorDto,
+  ): Promise<{ files: File[]; nextCursor: string | null }> {
+    const { order, limit: pageSize } = query;
+
+    const cursor = query.cursor
+      ? decodeCursor(FolderFilesCursorDto, query.cursor)
+      : undefined;
+
+    if (query.cursor && !cursor) {
+      throw new BadRequestException('Invalid cursor');
+    }
+
+    if (cursor && cursor.order !== order) {
+      throw new BadRequestException('Cursor does not match order filter');
     }
 
     const { files, hasMore } =
-      await this.fileRepository.findFilesWithCursorWhereUpdatedAfter({
-        where: filter,
-        updatedAfter,
+      await this.fileRepository.findFolderFilesWithCursor({
+        folderUuid,
+        userId: user.id,
+        order,
         pageSize,
         cursor,
+        options: {
+          withThumbnails: query.withThumbnails,
+          withSharings: query.withSharings,
+        },
       });
 
     const lastFile = files.at(-1);
     const nextCursor =
       hasMore && lastFile
         ? encodeCursor({
-            updatedAt: lastFile.updatedAt.toISOString(),
-            uuid: lastFile.uuid,
-            status,
+            lastUuid: lastFile.uuid,
+            order,
+            lastValue: lastFile.plainName,
           })
         : null;
 
+    let filesWithFavoriteMark = files;
+    if (query.withFavorites) {
+      const favoritedUuids = await this.favoriteRepository.findFavoritedItemIds(
+        user.uuid,
+        files.map((file) => file.uuid),
+        FavoriteItemType.File,
+      );
+
+      filesWithFavoriteMark = files.map(
+        (file) =>
+          ({
+            ...file,
+            isFavorite: favoritedUuids.has(file.uuid),
+          }) as File,
+      );
+    }
+
     return {
-      files: files.map((file) => file.toJSON()) as File[],
-      hasMore,
+      files: filesWithFavoriteMark.map((file) =>
+        file.plainName ? file : this.decrypFileName(file),
+      ),
       nextCursor,
     };
   }
@@ -904,20 +1030,6 @@ export class FileUseCases {
     return files.map((file) => file.toJSON());
   }
 
-  async getByFolderAndUser(
-    folderId: FolderAttributes['id'],
-    userId: FolderAttributes['userId'],
-    options: FileOptions,
-  ) {
-    const files = await this.fileRepository.findAllByFolderIdAndUserId(
-      folderId,
-      userId,
-      options,
-    );
-
-    return files.map((file) => file.toJSON());
-  }
-
   async moveFilesToTrash(
     user: User,
     ids: FileAttributes['id'][],
@@ -1007,7 +1119,7 @@ export class FileUseCases {
       throw new BadRequestException(`${file.status} files can not be replaced`);
     }
 
-    const isFileEmpty = newFileData.size === BigInt(0);
+    const isFileEmpty = BigInt(newFileData.size) === BigInt(0);
 
     if (isFileEmpty) {
       if (!workspaceOptions) {
@@ -1027,11 +1139,22 @@ export class FileUseCases {
 
     const newFileId = isFileEmpty ? null : newFileData.fileId;
 
-    const { versionable: shouldVersion } = await this.isFileVersionable(
+    const { fileId: oldFileId, bucket } = file;
+
+    if (newFileId && newFileId === oldFileId) {
+      throw new BadRequestException(
+        'New file ID is the same as the old file ID',
+      );
+    }
+
+    const { versionable } = await this.isFileVersionable(
       user.uuid,
       file.type as VersionableFileExtension,
       file.size,
     );
+
+    // Empty files have no network content to keep as a version
+    const shouldVersion = versionable && !!oldFileId;
 
     if (shouldVersion) {
       const { size, modificationTime } = newFileData;
@@ -1051,7 +1174,6 @@ export class FileUseCases {
       };
     }
 
-    const { fileId: oldFileId, bucket } = file;
     const { size, modificationTime } = newFileData;
 
     await this.fileRepository.updateByUuidAndUserId(fileUuid, user.id, {
@@ -1171,7 +1293,7 @@ export class FileUseCases {
       file.userId,
       file.plainName,
       file.type,
-      destinationFolder.id,
+      destinationFolder.uuid,
       FileStatus.EXISTS,
     );
 
@@ -1228,7 +1350,7 @@ export class FileUseCases {
   }
 
   addOldAttributes(file: File): any {
-    const thumbnails = file.thumbnails;
+    const thumbnails = file.thumbnails ?? [];
 
     const thumbnailsWithOldAttributers = thumbnails.map((thumbnail) => ({
       ...thumbnail,
@@ -1269,13 +1391,13 @@ export class FileUseCases {
     userId: FileAttributes['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderId: FileAttributes['folderId'],
+    folderUuid: FileAttributes['folderUuid'],
   ): Promise<File | null> {
     return this.fileRepository.findByPlainNameAndFolderId(
       userId,
       plainName,
       type,
-      folderId,
+      folderUuid,
       FileStatus.EXISTS,
     );
   }
@@ -1298,7 +1420,7 @@ export class FileUseCases {
       user.id,
       path.fileName,
       path.fileType,
-      folder.id,
+      folder.uuid,
     );
     return file;
   }

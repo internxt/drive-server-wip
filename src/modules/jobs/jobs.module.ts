@@ -36,28 +36,17 @@ import {
 } from './tasks/cleanup-deleted-files-table/cleanup-deleted-files-table.scheduler';
 import { CleanupDeletedFilesTableProcessor } from './tasks/cleanup-deleted-files-table/cleanup-deleted-files-table.processor';
 import { SequelizeDeletedFilesRepository } from './repositories/deleted-files.repository';
+import { buildBullConnectionOptions } from '../../lib/bull-connection';
+
 @Module({
   imports: [
     SequelizeModule.forFeature([JobExecutionModel]),
     ScheduleModule.forRoot(),
     BullModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const url = new URL(
-          configService.get<string>('cache.redisJobsConnection'),
-        );
-        return {
-          connection: {
-            host: url.hostname,
-            port: Number(url.port) || 6379,
-            password: url.password || undefined,
-            username: url.username || undefined,
-            maxRetriesPerRequest: null,
-            enableOfflineQueue: false,
-            tls: {},
-          },
-        };
-      },
+      useFactory: (configService: ConfigService) => ({
+        connection: buildBullConnectionOptions(configService),
+      }),
     }),
     BullModule.registerQueue({ name: TRASH_CLEANUP_QUEUE }),
     BullModule.registerQueue({ name: HARD_DELETE_OLD_FILES_QUEUE }),

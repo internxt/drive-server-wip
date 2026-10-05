@@ -50,6 +50,8 @@ import { Client } from '../../common/decorators/client.decorator';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
+import { GetFoldersSyncDto } from './dto/get-folders-sync.dto';
+import { GetFoldersSyncResponseDto } from './dto/responses/get-folders-sync.dto';
 import { Requester } from '../auth/decorators/requester.decorator';
 import {
   type CreateBulkFoldersResponseDto,
@@ -70,6 +72,10 @@ import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { GetFilesInFoldersDto } from './dto/get-files-in-folder.dto';
 import { GetFoldersInFoldersDto } from './dto/get-folders-in-folder.dto';
 import { GetFoldersQueryDto } from './dto/get-folders.dto';
+import { GetFolderContentFilesCursorDto } from './dto/get-folder-content-files-cursor.dto';
+import { GetFolderContentFilesV2ResponseDto } from './dto/responses/get-folder-content-files-v2.dto';
+import { GetFolderContentFoldersCursorDto } from './dto/get-folder-content-folders-cursor.dto';
+import { GetFolderContentFoldersV2ResponseDto } from './dto/responses/get-folder-content-folders-v2.dto';
 
 class BadRequestWrongFolderIdException extends BadRequestException {
   constructor() {
@@ -187,6 +193,7 @@ export class FolderController {
   }
 
   @Get('/content/:uuid/files')
+  @ApiOperation({ deprecated: true })
   @ApiOkResponse({ type: FilesDto })
   async getFolderContentFiles(
     @UserDecorator() user: User,
@@ -208,6 +215,22 @@ export class FolderController {
     );
 
     return { files };
+  }
+
+  @Get('/v2/content/:uuid/files')
+  @ApiOperation({
+    summary: 'Get files in a folder with cursor based pagination',
+  })
+  @ApiOkResponse({ type: GetFolderContentFilesV2ResponseDto })
+  async getFolderContentFilesV2(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
+    @Query() query: GetFolderContentFilesCursorDto,
+  ): Promise<GetFolderContentFilesV2ResponseDto> {
+    const { files, nextCursor } =
+      await this.fileUseCases.getFolderFilesWithCursor(user, folderUuid, query);
+
+    return { files, nextCursor };
   }
 
   @Get(':id/files')
@@ -276,6 +299,7 @@ export class FolderController {
   }
 
   @Get('/content/:uuid/folders')
+  @ApiOperation({ deprecated: true })
   @ApiOkResponse({ type: FoldersDto })
   async getFolderContentFolders(
     @UserDecorator() user: User,
@@ -302,6 +326,26 @@ export class FolderController {
         return { ...f, status: f.getFolderStatus() };
       }),
     };
+  }
+
+  @Get('/v2/content/:uuid/folders')
+  @ApiOperation({
+    summary: 'Get folders in a folder with cursor based pagination',
+  })
+  @ApiOkResponse({ type: GetFolderContentFoldersV2ResponseDto })
+  async getFolderContentFoldersV2(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
+    @Query() query: GetFolderContentFoldersCursorDto,
+  ): Promise<GetFolderContentFoldersV2ResponseDto> {
+    const { folders, nextCursor } =
+      await this.folderUseCases.getFolderSubfoldersWithCursor(
+        user,
+        folderUuid,
+        query,
+      );
+
+    return { folders, nextCursor };
   }
 
   @Get('/content/:uuid/folders/existence')
@@ -563,6 +607,38 @@ export class FolderController {
 
       throw err;
     }
+  }
+
+  @Get('/sync')
+  @ApiOperation({
+    summary: 'Get delta of folders since a date',
+  })
+  @ApiOkResponse({ type: GetFoldersSyncResponseDto })
+  async getFoldersSync(
+    @UserDecorator() user: User,
+    @Query() queryParams: GetFoldersSyncDto,
+  ): Promise<GetFoldersSyncResponseDto> {
+    const { status, updatedAt, cursor, limit } = queryParams;
+
+    const { folders, nextCursor } =
+      await this.folderUseCases.getFoldersUpdatedAfterWithCursor(
+        user.id,
+        status,
+        new Date(updatedAt || 1),
+        limit ?? 1000,
+        cursor,
+      );
+
+    folders.forEach((f) => {
+      delete f.deletedAt;
+      delete f.removedAt;
+
+      if (!f.plainName) {
+        f.plainName = this.folderUseCases.decryptFolderName(f).plainName;
+      }
+    });
+
+    return { folders, nextCursor };
   }
 
   @Get('/:uuid/meta')
@@ -847,5 +923,4 @@ export class FolderController {
       clientId,
     });
   }
-
 }

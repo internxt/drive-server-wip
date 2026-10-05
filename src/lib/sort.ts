@@ -25,6 +25,7 @@ export function applyCollateAndTiebreakerToSort<Field extends string>(
 
   if (isPlainNameSort) {
     const [, orderDirection] = order[plainNameIndex];
+    // NOTE: collate needed to use the plain_name numeric-collation index
     newOrder[plainNameIndex] = Sequelize.literal(
       `"${model.name}"."plain_name" COLLATE "custom_numeric" ${
         orderDirection === 'ASC' ? 'ASC' : 'DESC'

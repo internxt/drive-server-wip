@@ -1,4 +1,5 @@
 import { type NestExpressApplication } from '@nestjs/platform-express';
+import { BadRequestException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/sequelize';
 import { v4 } from 'uuid';
 import { Op } from 'sequelize';
@@ -364,6 +365,163 @@ describe('File module', () => {
           expect(Number(usages[0].delta)).toBe(fileSize);
         });
       });
+    });
+  });
+
+  // GET /files/sync
+  describe('Cursor sync', () => {
+    let createdFiles: File[];
+
+    beforeEach(async () => {
+      createdFiles = [];
+    });
+
+    afterEach(async () => {
+      if (createdFiles.length > 0) {
+        await fileModel.destroy({
+          where: { id: { [Op.in]: createdFiles.map((f) => f.id) } },
+        });
+        createdFiles = [];
+      }
+    });
+
+    const createTestFile = async () => {
+      const fileAttributes = newFile({
+        attributes: {
+          folderId: testUser.rootFolder?.id,
+          folderUuid: testUser.rootFolder?.uuid,
+          userId: testUser.user.id,
+          status: FileStatus.EXISTS,
+        },
+      });
+      const file = await fileRepository.create(fileAttributes);
+      createdFiles.push(file);
+      return file;
+    };
+
+    const setUpdatedAt = (uuid: string, isoWithMicroseconds: string) =>
+      fileModel.sequelize.query(
+        'UPDATE files SET updated_at = :updatedAt WHERE uuid = :uuid',
+        { replacements: { updatedAt: isoWithMicroseconds, uuid } },
+      );
+
+    const collectAllPages = async (
+      getPage: (cursorToken?: string) => Promise<{
+        files: File[];
+        hasMore: boolean;
+        nextCursor: string | null;
+      }>,
+    ) => {
+      const seenUuids: string[] = [];
+      let cursorToken: string | undefined;
+      let hasMore = true;
+
+      while (hasMore) {
+        const page = await getPage(cursorToken);
+        seenUuids.push(...page.files.map((f) => f.uuid));
+        hasMore = page.hasMore;
+        cursorToken = page.nextCursor ?? undefined;
+      }
+
+      return seenUuids;
+    };
+
+    it('When paginating by cursor, then it should not repeat or skip rows', async () => {
+      const fileA = await createTestFile();
+      const fileB = await createTestFile();
+      const fileC = await createTestFile();
+      await setUpdatedAt(fileA.uuid, '2026-01-01T10:00:00.123456Z');
+      await setUpdatedAt(fileB.uuid, '2026-01-01T10:00:00.123999Z');
+      await setUpdatedAt(fileC.uuid, '2026-01-01T10:00:00.123001Z');
+
+      const seenUuids = await collectAllPages((cursorToken) =>
+        fileUseCases.getFilesUpdatedAfterWithCursor(
+          testUser.user.id,
+          undefined,
+          new Date(0),
+          1,
+          cursorToken,
+        ),
+      );
+
+      expect(seenUuids).toHaveLength(3);
+      expect(new Set(seenUuids)).toEqual(
+        new Set([fileA.uuid, fileB.uuid, fileC.uuid]),
+      );
+    });
+
+    it('When status filter is applied, then only files matching that status should be returned', async () => {
+      const existsFile = await createTestFile();
+      const trashedFile = await createTestFile();
+      await fileRepository.updateByUuidAndUserId(
+        trashedFile.uuid,
+        testUser.user.id,
+        { status: FileStatus.TRASHED },
+      );
+
+      const page = await fileUseCases.getFilesUpdatedAfterWithCursor(
+        testUser.user.id,
+        FileStatus.EXISTS,
+        new Date(0),
+        10,
+        undefined,
+      );
+
+      const returnedUuids = page.files.map((f) => f.uuid);
+      expect(returnedUuids).toContain(existsFile.uuid);
+      expect(returnedUuids).not.toContain(trashedFile.uuid);
+    });
+
+    it('When cursorToken is invalid, then it should throw', async () => {
+      await expect(
+        fileUseCases.getFilesUpdatedAfterWithCursor(
+          testUser.user.id,
+          undefined,
+          new Date(0),
+          10,
+          'not-a-valid-cursor',
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When cursor status does not match the requested status, then it should throw', async () => {
+      await createTestFile();
+      await createTestFile();
+      const firstPage = await fileUseCases.getFilesUpdatedAfterWithCursor(
+        testUser.user.id,
+        FileStatus.EXISTS,
+        new Date(0),
+        1,
+        undefined,
+      );
+      const cursorToken = firstPage.nextCursor;
+      expect(cursorToken).not.toBeNull();
+
+      await expect(
+        fileUseCases.getFilesUpdatedAfterWithCursor(
+          testUser.user.id,
+          FileStatus.TRASHED,
+          new Date(0),
+          10,
+          cursorToken,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When there are no files updated after the given date, then it should return an empty page', async () => {
+      const futureDate = new Date(Date.now() + 60_000);
+
+      const page = await fileUseCases.getFilesUpdatedAfterWithCursor(
+        testUser.user.id,
+        undefined,
+        futureDate,
+        10,
+        undefined,
+      );
+
+      expect(page.files).toHaveLength(0);
+      expect(page.hasMore).toBe(false);
+      expect(page.nextCursor).toBeNull();
     });
   });
 });

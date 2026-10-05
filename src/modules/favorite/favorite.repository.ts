@@ -30,6 +30,11 @@ interface FavoriteRepository {
     userId: Favorite['userId'],
     folderUuids: string[],
   ): Promise<void>;
+  findFavoritedItemIds(
+    userId: Favorite['userId'],
+    itemIds: Favorite['itemId'][],
+    itemType: Favorite['itemType'],
+  ): Promise<Set<string>>;
 }
 
 @Injectable()
@@ -152,6 +157,23 @@ export class SequelizeFavoriteRepository implements FavoriteRepository {
         type: QueryTypes.DELETE,
       },
     );
+  }
+
+  async findFavoritedItemIds(
+    userId: Favorite['userId'],
+    itemIds: Favorite['itemId'][],
+    itemType: Favorite['itemType'],
+  ): Promise<Set<string>> {
+    if (!itemIds.length) {
+      return new Set();
+    }
+
+    const favorites = await this.favoriteModel.findAll({
+      where: { userId, itemType, itemId: { [Op.in]: itemIds } },
+      attributes: ['itemId'],
+    });
+
+    return new Set(favorites.map((favorite) => favorite.itemId));
   }
 
   private toDomain(model: FavoriteModel): Favorite {

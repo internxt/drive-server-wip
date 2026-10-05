@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
-import { Time } from '../../lib/time';
-import { type FileUpdatedAtIdCursorDto } from './utils/file-cursor.util';
-import { InjectModel } from '@nestjs/sequelize';
 import {
-  File,
-  type FileAttributes,
-  type FileOptions,
-  FileStatus,
-} from './file.domain';
+  cursorTimestampTupleFilter,
+  cursorUpdatedAtAttribute,
+} from '../../common/utils/cursor-sql.util';
+import { type FileUpdatedAtIdCursorDto } from './utils/file-cursor.util';
+import { type FolderFilesCursorDto } from '../folder/dto/get-folder-content-files-cursor.dto';
+import { SortOrder } from '../../common/order.type';
+import { InjectModel } from '@nestjs/sequelize';
+import { File, type FileAttributes, FileStatus } from './file.domain';
 import {
   type FindOptions,
   type Includeable,
@@ -23,7 +23,6 @@ import { User } from '../user/user.domain';
 import { UserModel } from './../user/user.model';
 import { Folder } from '../folder/folder.domain';
 import { FolderModel } from '../folder/folder.model';
-import { Pagination } from '../../lib/pagination';
 import { ThumbnailModel } from '../thumbnail/thumbnail.model';
 import { FileModel } from './file.model';
 import { SharingModel } from '../sharing/models';
@@ -45,11 +44,6 @@ export interface FileRepository {
   deleteFilesByUser(user: User, files: File[]): Promise<void>;
   destroyFile(where: Partial<FileModel>): Promise<void>;
   findAll(): Promise<Array<File> | []>;
-  findAllByFolderIdAndUserId(
-    folderId: FileAttributes['folderId'],
-    userId: FileAttributes['userId'],
-    options: FileOptions,
-  ): Promise<Array<File> | []>;
   findAllCursor(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -110,7 +104,8 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     where: FindOptions<FileAttributes>,
   ): Promise<File | null>;
-  findFilesInFolderByName(
+  findUserFilesInFolderByName(
+    userId: File['userId'],
     folderId: Folder['uuid'],
     searchBy: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]>;
@@ -118,7 +113,7 @@ export interface FileRepository {
     userId: File['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderId: FileAttributes['folderId'],
+    folderUuid: FileAttributes['folderUuid'],
     status: FileAttributes['status'],
   ): Promise<File | null>;
   getSumSizeOfFilesInWorkspaceByStatuses(
@@ -152,12 +147,44 @@ export interface FileRepository {
     pageSize: number;
     userId: User['id'];
     cursor?: FileUpdatedAtIdCursorDto;
-  }): Promise<{ files: File[]; hasMore: boolean }>;
+  }): Promise<{
+    files: File[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }>;
   findFilesWithCursorWhereUpdatedAfter(params: {
     where: Partial<FileAttributes>;
     updatedAfter: Date;
     pageSize: number;
     cursor?: FileUpdatedAtIdCursorDto;
+  }): Promise<{
+    files: File[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }>;
+  findWorkspaceFilesWithCursorWhereUpdatedAfter(params: {
+    networkUserId: FileAttributes['userId'];
+    createdBy: WorkspaceItemUserAttributes['createdBy'];
+    workspaceId: WorkspaceAttributes['id'];
+    where: Partial<FileAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FileUpdatedAtIdCursorDto;
+  }): Promise<{
+    files: File[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }>;
+  findFolderFilesWithCursor(params: {
+    folderUuid: Folder['uuid'];
+    userId: User['id'];
+    order: SortOrder;
+    pageSize: number;
+    cursor?: FolderFilesCursorDto;
+    options?: {
+      withThumbnails?: boolean;
+      withSharings?: boolean;
+    };
   }): Promise<{ files: File[]; hasMore: boolean }>;
   getFilesWithUserByUuuid(
     fileUuids: string[],
@@ -168,7 +195,6 @@ export interface FileRepository {
     order?: [keyof FileModel, 'ASC' | 'DESC'][],
   ): Promise<File[]>;
   deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
-  deleteFilesByUuid(fileUuids: string[]): Promise<number>;
   deleteExpiredTrashFilesByTier(
     tierId: string,
     cutoffDate: Date,
@@ -345,7 +371,7 @@ export class SequelizeFileRepository implements FileRepository {
     userId: FileAttributes['userId'],
     plainName: FileAttributes['plainName'],
     type: FileAttributes['type'],
-    folderId: FileAttributes['folderId'],
+    folderUuid: FileAttributes['folderUuid'],
     status: FileAttributes['status'],
   ): Promise<File | null> {
     const typeCondition =
@@ -356,11 +382,15 @@ export class SequelizeFileRepository implements FileRepository {
     const file = await this.fileModel.findOne({
       where: {
         userId: { [Op.eq]: userId },
-        plainName: { [Op.eq]: plainName },
+        // NOTE: collate needed to use the plain_name numeric-collation index
+        [Op.and]: Sequelize.literal(
+          '"FileModel"."plain_name" COLLATE "custom_numeric" = :plainName COLLATE "custom_numeric"',
+        ),
         type: typeCondition,
-        folderId: { [Op.eq]: folderId },
+        folderUuid: { [Op.eq]: folderUuid },
         status: { [Op.eq]: status },
       },
+      replacements: { plainName },
     });
     return file ? this.toDomain(file) : null;
   }
@@ -403,30 +433,193 @@ export class SequelizeFileRepository implements FileRepository {
     updatedAfter: Date;
     pageSize: number;
     cursor?: FileUpdatedAtIdCursorDto;
-  }): Promise<{ files: File[]; hasMore: boolean }> {
-    const cursorUpdatedAt = cursor ? Time.now(cursor.updatedAt) : null;
+  }): Promise<{
+    files: File[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }> {
+    const cursorFilter = cursor
+      ? cursorTimestampTupleFilter(cursor.updatedAt, cursor.uuid)
+      : null;
 
     const whereCondition: WhereOptions<FileAttributes> = {
       ...where,
-      ...(cursor
-        ? {
-            [Op.and]: [
-              Sequelize.literal(
-                '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
-              ),
-            ],
-          }
+      ...(cursorFilter
+        ? cursorFilter.where
         : { updatedAt: { [Op.gt]: updatedAfter } }),
     };
 
     const rows = await this.fileModel.findAll({
       where: whereCondition,
-      replacements: cursor
-        ? { cursorUpdatedAt, cursorId: cursor.uuid }
-        : undefined,
+      attributes: { include: [cursorUpdatedAtAttribute()] },
+      replacements: cursorFilter?.replacements,
       order: [
         ['updatedAt', 'ASC'],
         ['uuid', 'ASC'],
+      ],
+      limit: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+    const lastRow = page.at(-1);
+
+    return {
+      files: page.map(this.toDomain.bind(this)),
+      hasMore,
+      lastRowCursorUpdatedAt: lastRow
+        ? (lastRow.get('updatedAtCursor') as string)
+        : null,
+    };
+  }
+
+  async findWorkspaceFilesWithCursorWhereUpdatedAfter({
+    networkUserId,
+    createdBy,
+    workspaceId,
+    where,
+    updatedAfter,
+    pageSize,
+    cursor,
+  }: {
+    networkUserId: FileAttributes['userId'];
+    createdBy: WorkspaceItemUserAttributes['createdBy'];
+    workspaceId: WorkspaceAttributes['id'];
+    where: Partial<FileAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FileUpdatedAtIdCursorDto;
+  }): Promise<{
+    files: File[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }> {
+    const cursorFilter = cursor
+      ? cursorTimestampTupleFilter(cursor.updatedAt, cursor.uuid)
+      : null;
+
+    const createdInWorkspaceByUser = Sequelize.literal(
+      `EXISTS (
+        SELECT 1 FROM workspace_items_users wiu
+        WHERE wiu.item_id = "FileModel"."uuid"
+          AND wiu.item_type = :itemType
+          AND wiu.workspace_id = :workspaceId
+          AND wiu.created_by = :createdBy
+      )`,
+    );
+
+    const whereCondition: WhereOptions<FileAttributes> = {
+      ...where,
+      userId: networkUserId,
+      [Op.and]: [
+        cursorFilter
+          ? cursorFilter.where
+          : { updatedAt: { [Op.gt]: updatedAfter } },
+        createdInWorkspaceByUser,
+      ],
+    };
+
+    const rows = await this.fileModel.findAll({
+      where: whereCondition,
+      attributes: { include: [cursorUpdatedAtAttribute()] },
+      replacements: {
+        ...cursorFilter?.replacements,
+        itemType: WorkspaceItemType.File,
+        workspaceId,
+        createdBy,
+      },
+      order: [
+        ['updatedAt', 'ASC'],
+        ['uuid', 'ASC'],
+      ],
+      limit: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+    const lastRow = page.at(-1);
+
+    return {
+      files: page.map(this.toDomain.bind(this)),
+      hasMore,
+      lastRowCursorUpdatedAt: lastRow
+        ? (lastRow.get('updatedAtCursor') as string)
+        : null,
+    };
+  }
+
+  async findFolderFilesWithCursor({
+    folderUuid,
+    userId,
+    order,
+    pageSize,
+    cursor,
+    options,
+  }: {
+    folderUuid: Folder['uuid'];
+    userId: User['id'];
+    order: SortOrder;
+    pageSize: number;
+    cursor?: FolderFilesCursorDto;
+    options?: {
+      withThumbnails?: boolean;
+      withSharings?: boolean;
+    };
+  }): Promise<{ files: File[]; hasMore: boolean }> {
+    const sortColumn = '"FileModel"."plain_name" COLLATE "custom_numeric"';
+    const comparator = order === SortOrder.DESC ? '<' : '>';
+    const orderDirection = order === SortOrder.DESC ? 'DESC' : 'ASC';
+
+    const whereCondition: WhereOptions<FileAttributes> = {
+      folderUuid,
+      userId,
+      status: FileStatus.EXISTS,
+      ...(cursor
+        ? {
+            [Op.and]: [
+              Sequelize.literal(
+                `(${sortColumn}, "FileModel"."uuid") ${comparator} (:cursorValue, :cursorUuid)`,
+              ),
+            ],
+          }
+        : null),
+    };
+
+    const rows = await this.fileModel.findAll({
+      where: whereCondition,
+      replacements: cursor
+        ? {
+            cursorValue: cursor.lastValue,
+            cursorUuid: cursor.lastUuid,
+          }
+        : undefined,
+      include: [
+        ...(options?.withThumbnails
+          ? [
+              {
+                separate: true,
+                model: this.thumbnailModel,
+                required: false,
+              },
+            ]
+          : []),
+        ...(options?.withSharings
+          ? [
+              {
+                separate: true,
+                model: SharingModel,
+                attributes: ['type', 'id'],
+                required: false,
+              },
+            ]
+          : []),
+      ],
+      subQuery: false,
+      order: [
+        Sequelize.literal(
+          `"FileModel"."plain_name" COLLATE "custom_numeric" ${orderDirection}`,
+        ),
+        ['uuid', orderDirection],
       ],
       limit: pageSize + 1,
     });
@@ -871,14 +1064,6 @@ export class SequelizeFileRepository implements FileRepository {
     return files.map(this.toDomain.bind(this));
   }
 
-  async findByUuidNotDeleted(uuid: FileAttributes['uuid']): Promise<File> {
-    const file = await this.fileModel.findOne({
-      where: { uuid, deleted: false },
-    });
-
-    return file ? this.toDomain(file) : null;
-  }
-
   async findByIds(
     userId: FileAttributes['userId'],
     ids: FileAttributes['id'][],
@@ -888,26 +1073,6 @@ export class SequelizeFileRepository implements FileRepository {
     });
 
     return files.map(this.toDomain.bind(this));
-  }
-
-  async findAllByFolderIdAndUserId(
-    folderId: FileAttributes['folderId'],
-    userId: FileAttributes['userId'],
-    { deleted, page, perPage }: FileOptions,
-  ): Promise<Array<File> | []> {
-    const { offset, limit } = Pagination.calculatePagination(page, perPage);
-    const query: FindOptions = {
-      where: { folderId, userId, deleted },
-      order: [['id', 'ASC']],
-    };
-    if (page && perPage) {
-      query.offset = offset;
-      query.limit = limit;
-    }
-    const files = await this.fileModel.findAll(query);
-    return files.map((file) => {
-      return this.toDomain(file);
-    });
   }
 
   async getFilesByFolderUuid(
@@ -943,28 +1108,27 @@ export class SequelizeFileRepository implements FileRepository {
     pageSize: number;
     userId: User['id'];
     cursor?: FileUpdatedAtIdCursorDto;
-  }): Promise<{ files: File[]; hasMore: boolean }> {
-    const cursorUpdatedAt = cursor ? Time.now(cursor.updatedAt) : null;
+  }): Promise<{
+    files: File[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }> {
+    const cursorFilter = cursor
+      ? cursorTimestampTupleFilter(cursor.updatedAt, cursor.uuid)
+      : null;
 
     const where: WhereOptions<FileAttributes> = {
       folderUuid: { [Op.in]: folderUuids },
       userId,
-      ...(cursor
-        ? {
-            [Op.and]: [
-              Sequelize.literal(
-                '("updated_at", "uuid") > (:cursorUpdatedAt, :cursorId)',
-              ),
-            ],
-          }
+      ...(cursorFilter
+        ? cursorFilter.where
         : { updatedAt: { [Op.gt]: updatedAfter } }),
     };
 
     const rows = await this.fileModel.findAll({
       where,
-      replacements: cursor
-        ? { cursorUpdatedAt, cursorId: cursor.uuid }
-        : undefined,
+      attributes: { include: [cursorUpdatedAtAttribute()] },
+      replacements: cursorFilter?.replacements,
       include: [
         {
           model: this.thumbnailModel,
@@ -981,28 +1145,15 @@ export class SequelizeFileRepository implements FileRepository {
 
     const hasMore = rows.length > pageSize;
     const page = hasMore ? rows.slice(0, pageSize) : rows;
+    const lastRow = page.at(-1);
 
-    return { files: page.map(this.toDomain.bind(this)), hasMore };
-  }
-
-  async findAllByUserIdExceptFolderIds(
-    userId: FileAttributes['userId'],
-    exceptFolderIds: FileAttributes['folderId'][],
-    { deleted, page, perPage }: FileOptions,
-  ): Promise<Array<File> | []> {
-    const { offset, limit } = Pagination.calculatePagination(page, perPage);
-    const query: FindOptions = {
-      where: { userId, deleted, folderId: { [Op.notIn]: exceptFolderIds } },
-      order: [['id', 'ASC']],
+    return {
+      files: page.map(this.toDomain.bind(this)),
+      hasMore,
+      lastRowCursorUpdatedAt: lastRow
+        ? (lastRow.get('updatedAtCursor') as string)
+        : null,
     };
-    if (page && perPage) {
-      query.offset = offset;
-      query.limit = limit;
-    }
-    const files = await this.fileModel.findAll(query);
-    return files.map((file) => {
-      return this.toDomain(file);
-    });
   }
 
   async findOneBy(where: Partial<FileAttributes>): Promise<File | null> {
@@ -1012,18 +1163,25 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
-  async findFilesInFolderByName(
+  async findUserFilesInFolderByName(
+    userId: File['userId'],
     folderId: Folder['uuid'],
     searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]> {
     const where: WhereOptions<File> = {
       folderUuid: folderId,
+      userId,
       status: FileStatus.EXISTS,
     };
 
     if (searchFilter.length) {
       where[Op.or] = searchFilter.map((criteria) => ({
-        plainName: criteria.plainName,
+        // NOTE: collate needed to use the plain_name numeric-collation index
+        [Op.and]: Sequelize.literal(
+          `"FileModel"."plain_name" COLLATE "custom_numeric" = ${this.fileModel.sequelize.escape(
+            criteria.plainName,
+          )} COLLATE "custom_numeric"`,
+        ),
         ...(criteria.type ? { type: criteria.type } : {}),
       }));
     }
@@ -1182,26 +1340,6 @@ export class SequelizeFileRepository implements FileRepository {
     );
 
     return { updatedCount };
-  }
-
-  async deleteFilesByUuid(fileUuids: string[]): Promise<number> {
-    const deletedDate = new Date();
-    const [updatedCount] = await this.fileModel.update(
-      {
-        removed: true,
-        removedAt: deletedDate,
-        status: FileStatus.DELETED,
-        updatedAt: deletedDate,
-      },
-      {
-        where: {
-          uuid: { [Op.in]: fileUuids },
-          status: { [Op.not]: FileStatus.DELETED },
-        },
-      },
-    );
-
-    return updatedCount;
   }
 
   async deleteExpiredTrashFilesByTier(

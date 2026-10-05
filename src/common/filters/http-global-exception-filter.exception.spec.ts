@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   type Logger,
+  RequestTimeoutException,
 } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { BaseExceptionFilter, HttpAdapterHost } from '@nestjs/core';
@@ -66,6 +67,44 @@ describe('HttpGlobalExceptionFilter', () => {
         message: exceptionMessage,
       },
       HttpStatus.BAD_REQUEST,
+    );
+    expect(loggerMock.error).not.toHaveBeenCalled();
+  });
+
+  it('When RequestTimeoutException is sent, it should log a warning and respond with 408', () => {
+    const mockUser = newUser();
+    const requestId = v4();
+    const mockException = new RequestTimeoutException(
+      'Folder metadata search timed out',
+    );
+    const mockHost = createMockArgumentsHost(
+      '/folders/meta?path=/a/b',
+      'GET',
+      mockUser,
+      {},
+      requestId,
+    );
+
+    filter.catch(mockException, mockHost);
+
+    expect(loggerMock.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId,
+        path: '/folders/meta?path=/a/b',
+        method: 'GET',
+        errorType: 'REQUEST_TIMEOUT',
+        user: { uuid: mockUser.uuid },
+      }),
+      'REQUEST_TIMEOUT',
+      HttpGlobalExceptionFilter.name,
+    );
+    expect(mockHttpAdapter.reply).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        statusCode: HttpStatus.REQUEST_TIMEOUT,
+        message: 'Folder metadata search timed out',
+      }),
+      HttpStatus.REQUEST_TIMEOUT,
     );
     expect(loggerMock.error).not.toHaveBeenCalled();
   });

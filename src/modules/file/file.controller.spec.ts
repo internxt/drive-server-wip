@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
   type Logger,
   NotFoundException,
+  RequestTimeoutException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
 import {
@@ -176,27 +177,52 @@ describe('FileController', () => {
       const filePath = '/test/file.png';
       jest.spyOn(fileUseCases, 'getFileMetadataByPath').mockResolvedValue(null);
 
-      expect(
+      await expect(
         fileController.getFileMetaByPath(userMocked, filePath),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When get file metadata by path is requested with an invalid path, then it should throw an error', () => {
-      expect(
+    it('When get file metadata by path is requested with an invalid path, then it should throw an error', async () => {
+      await expect(
         fileController.getFileMetaByPath(userMocked, 'invalidpath'),
       ).rejects.toThrow(BadRequestException);
 
-      expect(fileController.getFileMetaByPath(userMocked, '')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        fileController.getFileMetaByPath(userMocked, ''),
+      ).rejects.toThrow(BadRequestException);
     });
 
-    it('When get file metadata by path is requested with a path length > 1024, then it should throw an error', () => {
+    it('When get file metadata by path is requested with a path length > 1024, then it should throw an error', async () => {
       const longPath = '/' + 'a'.repeat(1025);
 
-      expect(
+      await expect(
         fileController.getFileMetaByPath(userMocked, longPath),
       ).rejects.toThrow('Path is too deep');
+    });
+
+    it('When the folder path lookup times out, then it should throw a request timeout error', async () => {
+      const filePath = '/test/file.png';
+      jest
+        .spyOn(fileUseCases, 'getFileMetadataByPath')
+        .mockRejectedValue(
+          new RequestTimeoutException('Folder metadata search timed out'),
+        );
+
+      await expect(
+        fileController.getFileMetaByPath(userMocked, filePath),
+      ).rejects.toThrow(RequestTimeoutException);
+    });
+
+    it('When an unexpected error occurs, then it should throw the error', async () => {
+      const filePath = '/test/file.png';
+      const error = new Error('Unexpected database error');
+      jest
+        .spyOn(fileUseCases, 'getFileMetadataByPath')
+        .mockRejectedValue(error);
+
+      await expect(
+        fileController.getFileMetaByPath(userMocked, filePath),
+      ).rejects.toThrow(error);
     });
   });
 
@@ -812,9 +838,7 @@ describe('FileController', () => {
 
       await fileController.getFilesSync(userMocked, query as any);
 
-      expect(
-        fileUseCases.getFilesUpdatedAfterWithCursor,
-      ).toHaveBeenCalledWith(
+      expect(fileUseCases.getFilesUpdatedAfterWithCursor).toHaveBeenCalledWith(
         userMocked.id,
         query.status,
         new Date(query.updatedAt),
@@ -835,9 +859,7 @@ describe('FileController', () => {
 
       await fileController.getFilesSync(userMocked, query as any);
 
-      expect(
-        fileUseCases.getFilesUpdatedAfterWithCursor,
-      ).toHaveBeenCalledWith(
+      expect(fileUseCases.getFilesUpdatedAfterWithCursor).toHaveBeenCalledWith(
         userMocked.id,
         query.status,
         new Date(1),
@@ -858,9 +880,7 @@ describe('FileController', () => {
 
       await fileController.getFilesSync(userMocked, query as any);
 
-      expect(
-        fileUseCases.getFilesUpdatedAfterWithCursor,
-      ).toHaveBeenCalledWith(
+      expect(fileUseCases.getFilesUpdatedAfterWithCursor).toHaveBeenCalledWith(
         userMocked.id,
         query.status,
         expect.any(Date),

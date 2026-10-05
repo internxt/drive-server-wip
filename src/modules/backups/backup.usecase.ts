@@ -23,11 +23,8 @@ import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { SequelizeFileRepository } from '../file/file.repository';
 import { FileStatus } from '../file/file.domain';
 import { type File } from '../file/file.domain';
-import {
-  decodeCursor,
-  encodeCursor,
-  FileUpdatedAtIdCursorDto,
-} from '../file/utils/file-cursor.util';
+import { FileUpdatedAtIdCursorDto } from '../file/utils/file-cursor.util';
+import { decodeCursor, encodeCursor } from '../../common/utils/cursor.util';
 
 @Injectable()
 export class BackupUseCase {
@@ -140,10 +137,10 @@ export class BackupUseCase {
       bucket = backupsBucket;
     }
 
-    // We do not have an index to cover this query, but it is not a frequent operation
     const folder = await this.folderRepository.findOne({
       bucket,
       plainName: deviceName,
+      parentId: null,
       deleted: false,
       removed: false,
       userId: user.id,
