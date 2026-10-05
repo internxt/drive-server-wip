@@ -151,10 +151,11 @@ describe('Setup account use cases', () => {
       },
     );
 
-    test('When the user cancelled the plan and buys again, then the checkout starts again awaiting the payment', async () => {
+    test('When the user cancelled the plan and buys again, then the checkout starts again awaiting the payment without the tier left by the cancellation', async () => {
       const cancelledUser = newPreCreatedUser();
       cancelledUser.uuid = networkUuid;
       cancelledUser.status = PreCreatedUserStatus.Cancelled;
+      cancelledUser.tierId = v4();
       preCreatedUsersRepository.findByUsername.mockResolvedValue(cancelledUser);
 
       const result = await setupAccountUseCase.getOrCreate(email);
@@ -167,7 +168,7 @@ describe('Setup account use cases', () => {
       expect(sharingRepository.updateAllUserSharedWith).not.toHaveBeenCalled();
       expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
         networkUuid,
-        { status: PreCreatedUserStatus.AwaitingPayment },
+        { status: PreCreatedUserStatus.AwaitingPayment, tierId: null },
       );
     });
 
@@ -233,7 +234,7 @@ describe('Setup account use cases', () => {
         expect(userUseCases.preCreateUser).not.toHaveBeenCalled();
         expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
           networkUuid,
-          { status: PreCreatedUserStatus.AwaitingPayment },
+          { status: PreCreatedUserStatus.AwaitingPayment, tierId: null },
         );
       });
 
@@ -285,7 +286,7 @@ describe('Setup account use cases', () => {
         expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledTimes(1);
         expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
           networkUuid,
-          { status: PreCreatedUserStatus.AwaitingPayment },
+          { status: PreCreatedUserStatus.AwaitingPayment, tierId: null },
         );
       });
     });
