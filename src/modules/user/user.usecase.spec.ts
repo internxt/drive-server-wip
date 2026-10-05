@@ -13,6 +13,7 @@ import {
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { AccountTokenAction, ReferralKey, User } from './user.domain';
+import { PreCreatedUserStatus } from './pre-created-users.attributes';
 import { SequelizeUserRepository } from './user.repository';
 import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
 import { AvatarService } from '../../externals/avatar/avatar.service';
