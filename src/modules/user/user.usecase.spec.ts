@@ -6079,8 +6079,9 @@ describe('User use cases', () => {
     };
 
     const storedUpdate = () => {
-      const [, update] = jest.mocked(preCreatedUsersRepository.updateByUuid)
-        .mock.calls[0];
+      const [, , update] = jest.mocked(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).mock.calls[0];
       return update;
     };
 
@@ -6094,6 +6095,9 @@ describe('User use cases', () => {
 
     beforeEach(() => {
       jest.useFakeTimers({ now });
+      jest
+        .spyOn(preCreatedUsersRepository, 'updateByUuidAndStatus')
+        .mockResolvedValue(true);
     });
 
     afterEach(() => {
@@ -6110,7 +6114,6 @@ describe('User use cases', () => {
       expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledWith(
         preCreatedUser.email,
         {
-          planName: '',
           setupUrl: expect.stringContaining('/complete-account/'),
         },
       );
@@ -6169,10 +6172,13 @@ describe('User use cases', () => {
 
       await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
 
-      expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledTimes(1);
-      expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+      expect(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).toHaveBeenCalledWith(
         preCreatedUser.uuid,
+        PreCreatedUserStatus.PendingSetup,
         {
+          status: PreCreatedUserStatus.PendingSetup,
           setupEmailSentAt: now,
           setupEmailResendCount: 3,
           setupEmailResendDate: todayInUtc,
@@ -6205,11 +6211,13 @@ describe('User use cases', () => {
       ).resolves.toBeUndefined();
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
-      expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
+      expect(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).not.toHaveBeenCalled();
     });
 
     it('When the email cannot be sent, then the current link keeps working and the resend is not counted', async () => {
-      const preCreatedUser = pendingSetupUser();
+      const preCreatedUser = pendingSetupUser({ count: 1, date: todayInUtc });
       givenEmailBelongsTo({ preCreatedUser });
       jest
         .spyOn(mailerService, 'sendAccountSetupEmail')
@@ -6219,7 +6227,59 @@ describe('User use cases', () => {
         userUseCases.resendAccountSetupEmail(preCreatedUser.email),
       ).rejects.toThrow('Email provider unavailable');
 
-      expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
+      expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+        {
+          status: PreCreatedUserStatus.PendingSetup,
+          setupEmailSentAt: oneHourAgo,
+          setupEmailResendCount: 1,
+          setupEmailResendDate: todayInUtc,
+        },
+      );
+    });
+
+    it('When the buyer paid but the first setup email failed, then it is sent and the account becomes pending setup so the new link completes it', async () => {
+      const preCreatedUser = pendingSetupUser();
+      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
+      preCreatedUser.tierId = v4();
+      givenEmailBelongsTo({ preCreatedUser });
+
+      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+
+      expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledTimes(1);
+      expect(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+        PreCreatedUserStatus.AwaitingPayment,
+        expect.objectContaining({ status: PreCreatedUserStatus.PendingSetup }),
+      );
+    });
+
+    it('When the buyer started a checkout but has not paid, then no setup email is sent', async () => {
+      const preCreatedUser = pendingSetupUser();
+      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
+      preCreatedUser.tierId = null;
+      givenEmailBelongsTo({ preCreatedUser });
+
+      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+
+      expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
+      expect(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When the status changes at the same time, for example to cancelled, then nothing is sent', async () => {
+      const preCreatedUser = pendingSetupUser();
+      givenEmailBelongsTo({ preCreatedUser });
+      jest
+        .spyOn(preCreatedUsersRepository, 'updateByUuidAndStatus')
+        .mockResolvedValue(false);
+
+      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+
+      expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
     });
 
     it('When the email belongs to a registered user, then no setup email is sent', async () => {
@@ -6265,7 +6325,9 @@ describe('User use cases', () => {
       ).resolves.toBeUndefined();
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
-      expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
+      expect(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).not.toHaveBeenCalled();
     });
   });
 });

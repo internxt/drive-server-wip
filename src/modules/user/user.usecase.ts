@@ -296,8 +296,9 @@ export class UserUseCases {
       return;
     }
 
-    const preCreatedUser = await this.findPreCreatedUserWithPendingSetup(email);
-    if (!preCreatedUser) {
+    const preCreatedUser =
+      await this.preCreatedUserRepository.findByUsername(email);
+    if (!preCreatedUser?.hasPendingAccountSetup()) {
       return;
     }
 
@@ -315,28 +316,37 @@ export class UserUseCases {
       return;
     }
 
+    const isClaimed = await this.preCreatedUserRepository.updateByUuidAndStatus(
+      preCreatedUser.uuid,
+      preCreatedUser.status,
+      {
+        status: PreCreatedUserStatus.PendingSetup,
+        setupEmailSentAt: sentAt,
+        setupEmailResendCount: resendsToday + 1,
+        setupEmailResendDate: todayInUtc,
+      },
+    );
+
+    if (!isClaimed) {
+      return;
+    }
+
     const { setupUrl } = buildAccountSetupUrl(preCreatedUser.uuid, sentAt);
 
-    await this.mailerService.sendAccountSetupEmail(preCreatedUser.email, {
-      planName: '',
-      setupUrl,
-    });
+    try {
+      await this.mailerService.sendAccountSetupEmail(preCreatedUser.email, {
+        setupUrl,
+      });
+    } catch (error) {
+      await this.preCreatedUserRepository.updateByUuid(preCreatedUser.uuid, {
+        status: preCreatedUser.status,
+        setupEmailSentAt: preCreatedUser.setupEmailSentAt,
+        setupEmailResendCount: preCreatedUser.setupEmailResendCount,
+        setupEmailResendDate: preCreatedUser.setupEmailResendDate,
+      });
 
-    await this.preCreatedUserRepository.updateByUuid(preCreatedUser.uuid, {
-      setupEmailSentAt: sentAt,
-      setupEmailResendCount: resendsToday + 1,
-      setupEmailResendDate: todayInUtc,
-    });
-  }
-
-  private async findPreCreatedUserWithPendingSetup(
-    email: PreCreatedUserAttributes['email'],
-  ): Promise<PreCreatedUser | null> {
-    const preCreatedUser =
-      await this.preCreatedUserRepository.findByUsername(email);
-    return preCreatedUser?.status === PreCreatedUserStatus.PendingSetup
-      ? preCreatedUser
-      : null;
+      throw error;
+    }
   }
 
   getWorkspaceMembersByBrigeUser(bridgeUser: string) {

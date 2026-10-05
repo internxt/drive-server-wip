@@ -137,8 +137,7 @@ export class AuthController {
     type: LoginAccessResponseDto,
   })
   @ApiForbiddenResponse({
-    description:
-      'The account is blocked, or the email has a paid account whose setup is pending (code AccountSetupPending)',
+    description: 'The account is blocked',
   })
   @Public()
   @WorkspaceLogAction(WorkspaceLogType.Login)
