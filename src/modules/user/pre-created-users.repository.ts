@@ -42,6 +42,18 @@ export class SequelizePreCreatedUsersRepository {
     await this.modelUser.update(update, { where: { uuid } });
   }
 
+  async updateByUuidAndStatus(
+    uuid: PreCreatedUserAttributes['uuid'],
+    status: PreCreatedUserAttributes['status'],
+    update: Partial<Omit<PreCreatedUserAttributes, 'id'>>,
+  ): Promise<boolean> {
+    const [updatedRows] = await this.modelUser.update(update, {
+      where: { uuid, status },
+    });
+
+    return updatedRows > 0;
+  }
+
   async create(
     user: Omit<PreCreatedUserAttributes, 'id'>,
   ): Promise<PreCreatedUser> {

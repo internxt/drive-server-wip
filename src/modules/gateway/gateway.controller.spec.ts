@@ -345,17 +345,17 @@ describe('Gateway Controller', () => {
         uuid: v4(),
         status: PreCreatedUserStatus.AwaitingPayment,
       };
-      setupAccountUseCase.create.mockResolvedValueOnce(response);
+      setupAccountUseCase.getOrCreate.mockResolvedValueOnce(response);
 
       const result =
         await gatewayController.createPreCreateUserForCheckout(body);
 
       expect(result).toEqual(response);
-      expect(setupAccountUseCase.create).toHaveBeenCalledWith(body.email);
+      expect(setupAccountUseCase.getOrCreate).toHaveBeenCalledWith(body.email);
     });
 
     it('When the email already belongs to a registered user, then a conflict is returned', async () => {
-      setupAccountUseCase.create.mockRejectedValueOnce(
+      setupAccountUseCase.getOrCreate.mockRejectedValueOnce(
         new ConflictException('User already registered'),
       );
 

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { UniqueConstraintError } from 'sequelize';
 import { v4 } from 'uuid';
 import { signWithExpiry } from '../../middlewares/passport';
 import getEnv from '../../config/configuration';
@@ -19,6 +20,8 @@ import { UserUseCases } from './user.usecase';
 import { type PreCreatedUser } from './pre-created-user.domain';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { UserNotFoundException } from './exception/user-not-found.exception';
+import { SequelizeSharingRepository } from '../sharing/sharing.repository';
+import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 
 jest.mock('../../middlewares/passport', () => ({
   __esModule: true,
@@ -34,6 +37,8 @@ describe('Setup account use cases', () => {
   let mailerService: DeepMocked<MailerService>;
   let userUseCases: DeepMocked<UserUseCases>;
   let featureLimitService: DeepMocked<FeatureLimitService>;
+  let sharingRepository: DeepMocked<SequelizeSharingRepository>;
+  let workspaceRepository: DeepMocked<SequelizeWorkspaceRepository>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -51,6 +56,8 @@ describe('Setup account use cases', () => {
     mailerService = moduleRef.get(MailerService);
     userUseCases = moduleRef.get(UserUseCases);
     featureLimitService = moduleRef.get(FeatureLimitService);
+    sharingRepository = moduleRef.get(SequelizeSharingRepository);
+    workspaceRepository = moduleRef.get(SequelizeWorkspaceRepository);
   });
 
   afterEach(() => {
@@ -86,7 +93,8 @@ describe('Setup account use cases', () => {
     });
 
     test('When the email is new, then the user is pre-created with the network user uuid, awaiting the payment', async () => {
-      const result = await setupAccountUseCase.create('Buyer@Internxt.com');
+      const result =
+        await setupAccountUseCase.getOrCreate('Buyer@Internxt.com');
 
       expect(result).toEqual({
         uuid: networkUuid,
@@ -100,7 +108,7 @@ describe('Setup account use cases', () => {
     });
 
     test('When the user is pre-created, then no setup email is sent', async () => {
-      await setupAccountUseCase.create(email);
+      await setupAccountUseCase.getOrCreate(email);
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
     });
@@ -110,7 +118,7 @@ describe('Setup account use cases', () => {
         newUser({ attributes: { email } }),
       );
 
-      await expect(setupAccountUseCase.create(email)).rejects.toThrow(
+      await expect(setupAccountUseCase.getOrCreate(email)).rejects.toThrow(
         ConflictException,
       );
 
@@ -118,17 +126,167 @@ describe('Setup account use cases', () => {
       expect(userUseCases.preCreateUser).not.toHaveBeenCalled();
     });
 
-    test('When the email is already pre-created, then it is rejected as a conflict without touching the network', async () => {
-      preCreatedUsersRepository.findByUsername.mockResolvedValue(
-        newPreCreatedUser(),
-      );
+    test.each([
+      PreCreatedUserStatus.AwaitingPayment,
+      PreCreatedUserStatus.PendingSetup,
+    ])(
+      'When the email is already pre-created for a checkout and its status is %s, then it is returned as it is without touching the network',
+      async (status) => {
+        const preCreatedUser = newPreCreatedUser();
+        preCreatedUser.status = status;
+        preCreatedUsersRepository.findByUsername.mockResolvedValue(
+          preCreatedUser,
+        );
 
-      await expect(setupAccountUseCase.create(email)).rejects.toThrow(
-        ConflictException,
-      );
+        const result = await setupAccountUseCase.getOrCreate(email);
 
-      expect(bridgeService.createUser).not.toHaveBeenCalled();
+        expect(result).toEqual({ uuid: preCreatedUser.uuid, status });
+        expect(bridgeService.createUser).not.toHaveBeenCalled();
+        expect(userUseCases.preCreateUser).not.toHaveBeenCalled();
+        expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
+        expect(
+          sharingRepository.updateAllUserSharedWith,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    test('When the user cancelled the plan and buys again, then the checkout starts again awaiting the payment', async () => {
+      const cancelledUser = newPreCreatedUser();
+      cancelledUser.uuid = networkUuid;
+      cancelledUser.status = PreCreatedUserStatus.Cancelled;
+      preCreatedUsersRepository.findByUsername.mockResolvedValue(cancelledUser);
+
+      const result = await setupAccountUseCase.getOrCreate(email);
+
+      expect(result).toEqual({
+        uuid: networkUuid,
+        status: PreCreatedUserStatus.AwaitingPayment,
+      });
       expect(userUseCases.preCreateUser).not.toHaveBeenCalled();
+      expect(sharingRepository.updateAllUserSharedWith).not.toHaveBeenCalled();
+      expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+        networkUuid,
+        { status: PreCreatedUserStatus.AwaitingPayment },
+      );
+    });
+
+    describe('When two requests with the same email arrive at once', () => {
+      test('Then the one that loses the creation gets the user the other one created', async () => {
+        const createdByTheOther = newPreCreatedUser();
+        createdByTheOther.uuid = networkUuid;
+        createdByTheOther.status = PreCreatedUserStatus.AwaitingPayment;
+        userUseCases.preCreateUser.mockRejectedValueOnce(
+          new UniqueConstraintError({}),
+        );
+        preCreatedUsersRepository.findByUsername
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(createdByTheOther);
+
+        const result = await setupAccountUseCase.getOrCreate(email);
+
+        expect(result).toEqual({
+          uuid: networkUuid,
+          status: PreCreatedUserStatus.AwaitingPayment,
+        });
+      });
+
+      test('When the duplicated user cannot be found afterwards, then the original error is thrown', async () => {
+        const duplicatedError = new UniqueConstraintError({});
+        userUseCases.preCreateUser.mockRejectedValueOnce(duplicatedError);
+
+        await expect(setupAccountUseCase.getOrCreate(email)).rejects.toThrow(
+          duplicatedError,
+        );
+      });
+    });
+
+    test('When the user cannot be pre-created for any other reason, then the error is not hidden', async () => {
+      userUseCases.preCreateUser.mockRejectedValueOnce(
+        new Error('database error'),
+      );
+
+      await expect(setupAccountUseCase.getOrCreate(email)).rejects.toThrow(
+        'database error',
+      );
+    });
+
+    describe('When the email was pre-created by a share invitation', () => {
+      const invitationUuid = v4();
+      let invitedUser: PreCreatedUser;
+
+      beforeEach(() => {
+        invitedUser = newPreCreatedUser();
+        invitedUser.uuid = invitationUuid;
+        invitedUser.status = null;
+        preCreatedUsersRepository.findByUsername.mockResolvedValue(invitedUser);
+      });
+
+      test('Then the checkout starts with the network user uuid, awaiting the payment, without creating another pre-created user', async () => {
+        const result = await setupAccountUseCase.getOrCreate(email);
+
+        expect(result).toEqual({
+          uuid: networkUuid,
+          status: PreCreatedUserStatus.AwaitingPayment,
+        });
+        expect(bridgeService.createUser).toHaveBeenCalledWith(email);
+        expect(userUseCases.preCreateUser).not.toHaveBeenCalled();
+        expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+          networkUuid,
+          { status: PreCreatedUserStatus.AwaitingPayment },
+        );
+      });
+
+      test('Then the shared items and workspace invitations follow the user to the network user uuid', async () => {
+        await setupAccountUseCase.getOrCreate(email);
+
+        expect(sharingRepository.updateAllUserSharedWith).toHaveBeenCalledWith(
+          invitationUuid,
+          { sharedWith: networkUuid },
+        );
+        expect(workspaceRepository.updateInvitesBy).toHaveBeenCalledWith(
+          { invitedUser: invitationUuid },
+          { invitedUser: networkUuid },
+        );
+        expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+          invitationUuid,
+          { uuid: networkUuid },
+        );
+      });
+
+      test('Then the own uuid of the pre-created user is replaced last, so a retry after a failure repeats the pending steps', async () => {
+        workspaceRepository.updateInvitesBy.mockRejectedValueOnce(
+          new Error('database error'),
+        );
+
+        await expect(setupAccountUseCase.getOrCreate(email)).rejects.toThrow(
+          'database error',
+        );
+
+        expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalledWith(
+          invitationUuid,
+          { uuid: networkUuid },
+        );
+        expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalledWith(
+          networkUuid,
+          expect.anything(),
+        );
+      });
+
+      test('When it already has the network user uuid, then nothing is reassigned and only the status is updated', async () => {
+        invitedUser.uuid = networkUuid;
+
+        await setupAccountUseCase.getOrCreate(email);
+
+        expect(
+          sharingRepository.updateAllUserSharedWith,
+        ).not.toHaveBeenCalled();
+        expect(workspaceRepository.updateInvitesBy).not.toHaveBeenCalled();
+        expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledTimes(1);
+        expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+          networkUuid,
+          { status: PreCreatedUserStatus.AwaitingPayment },
+        );
+      });
     });
   });
 
@@ -197,10 +355,12 @@ describe('Setup account use cases', () => {
       process.env.HOST_DRIVE_WEB = hostDriveWeb;
       preCreatedUser = newPreCreatedUser();
       preCreatedUser.setupEmailSentAt = null;
+      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
       preCreatedUsersRepository.findByUuid.mockResolvedValue(preCreatedUser);
+      preCreatedUsersRepository.updateByUuidAndStatus.mockResolvedValue(true);
     });
 
-    test('When the pre-created user has not received it yet, then the email is sent with the plan name and a single-purpose link that expires in 5 days', async () => {
+    test('When the pre-created user is awaiting the payment, then the email is sent with the plan name and a single-purpose link that expires in 5 days', async () => {
       await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName);
 
       expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledWith(
@@ -222,14 +382,19 @@ describe('Setup account use cases', () => {
     test('When the email is sent, then the moment it was sent is stored and matches the link token', async () => {
       await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName);
 
-      const [[, { setupEmailSentAt }]] = jest.mocked(
-        preCreatedUsersRepository.updateByUuid,
-      ).mock.calls;
+      const [[, , { setupEmailSentAt }]] = jest.mocked(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).mock.calls as unknown as [
+        [string, unknown, { setupEmailSentAt: Date }],
+      ];
       const [[{ iat }]] = jest.mocked(signWithExpiry).mock.calls as unknown as [
         [{ iat: number }],
       ];
-      expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+      expect(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).toHaveBeenCalledWith(
         preCreatedUser.uuid,
+        PreCreatedUserStatus.AwaitingPayment,
         {
           setupEmailSentAt: expect.any(Date),
           status: PreCreatedUserStatus.PendingSetup,
@@ -238,7 +403,17 @@ describe('Setup account use cases', () => {
       expect(iat).toBe(Math.floor(setupEmailSentAt.getTime() / 1000));
     });
 
-    test('When the email cannot be sent, then it is not marked as sent so a retry sends it', async () => {
+    test('When the same payment is notified twice at once and another request already took it, then the email is not sent again', async () => {
+      preCreatedUsersRepository.updateByUuidAndStatus.mockResolvedValue(false);
+
+      await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName);
+
+      expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
+      expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
+    });
+
+    test('When the email cannot be sent, then it is released so a retry sends it', async () => {
+      preCreatedUser.setupEmailSentAt = new Date('2026-09-20T10:00:00Z');
       mailerService.sendAccountSetupEmail.mockRejectedValueOnce(
         new Error('SendGrid is down'),
       );
@@ -247,19 +422,12 @@ describe('Setup account use cases', () => {
         setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName),
       ).rejects.toThrow('SendGrid is down');
 
-      expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
-    });
-
-    test('When the user cancelled and paid again, then a new setup email is sent', async () => {
-      preCreatedUser.setupEmailSentAt = new Date('2026-09-20T10:00:00Z');
-      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
-
-      await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName);
-
-      expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledTimes(1);
       expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
         preCreatedUser.uuid,
-        expect.objectContaining({ status: PreCreatedUserStatus.PendingSetup }),
+        {
+          status: PreCreatedUserStatus.AwaitingPayment,
+          setupEmailSentAt: new Date('2026-09-20T10:00:00Z'),
+        },
       );
     });
 
@@ -270,8 +438,27 @@ describe('Setup account use cases', () => {
       await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName);
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
-      expect(preCreatedUsersRepository.updateByUuid).not.toHaveBeenCalled();
+      expect(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).not.toHaveBeenCalled();
     });
+
+    test.each([PreCreatedUserStatus.Cancelled, null])(
+      'When the status of the pre-created user is %s, then no email is sent because there is no confirmed payment',
+      async (status) => {
+        preCreatedUser.status = status;
+
+        await setupAccountUseCase.sendAccountEmail(
+          preCreatedUser.uuid,
+          planName,
+        );
+
+        expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
+        expect(
+          preCreatedUsersRepository.updateByUuidAndStatus,
+        ).not.toHaveBeenCalled();
+      },
+    );
 
     test('When the uuid belongs to a registered user, then nothing is sent', async () => {
       const registeredUser = newUser();

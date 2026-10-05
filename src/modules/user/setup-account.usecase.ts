@@ -15,6 +15,10 @@ import { SequelizePreCreatedUsersRepository } from './pre-created-users.reposito
 import { SequelizeUserRepository } from './user.repository';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PreCreateUserForCheckoutResponseDto } from '../gateway/dto/pre-create-user-for-checkout.dto';
+import { type PreCreatedUser } from './pre-created-user.domain';
+import { UniqueConstraintError } from 'sequelize';
+import { SequelizeSharingRepository } from '../sharing/sharing.repository';
+import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { UserNotFoundException } from './exception/user-not-found.exception';
 import { signWithExpiry } from '../../middlewares/passport';
 import getEnv from '../../config/configuration';
@@ -28,9 +32,11 @@ export class SetupCheckoutAccountUseCase {
     private readonly networkService: BridgeService,
     private readonly userUseCases: UserUseCases,
     private readonly featureLimitService: FeatureLimitService,
+    private readonly sharingRepository: SequelizeSharingRepository,
+    private readonly workspaceRepository: SequelizeWorkspaceRepository,
   ) {}
 
-  async create(
+  async getOrCreate(
     rawEmail: PreCreatedUserAttributes['email'],
   ): Promise<PreCreateUserForCheckoutResponseDto> {
     const email = rawEmail.toLowerCase();
@@ -43,20 +49,22 @@ export class SetupCheckoutAccountUseCase {
     const existentPreCreatedUser =
       await this.preCreatedUserRepository.findByUsername(email);
 
-    if (existentPreCreatedUser) {
-      throw new ConflictException('User already registered');
+    if (this.hasCheckoutAlreadyStarted(existentPreCreatedUser)) {
+      return {
+        uuid: existentPreCreatedUser.uuid,
+        status: existentPreCreatedUser.status,
+      };
     }
 
     const { uuid } = await this.networkService.createUser(email);
-    const preCreatedUser = await this.userUseCases.preCreateUser(
-      { email, status: PreCreatedUserStatus.AwaitingPayment },
-      uuid,
-    );
 
-    return {
-      uuid,
-      status: preCreatedUser[0].status,
-    };
+    if (existentPreCreatedUser) {
+      await this.adoptPreCreatedUserForCheckout(existentPreCreatedUser, uuid);
+
+      return { uuid, status: PreCreatedUserStatus.AwaitingPayment };
+    }
+
+    return this.preCreateUserForCheckout(email, uuid);
   }
 
   async get(
@@ -90,11 +98,11 @@ export class SetupCheckoutAccountUseCase {
       return;
     }
 
-    const isSetupEmailAlreadySent =
-      preCreatedUser.status === PreCreatedUserStatus.PendingSetup;
-    if (!isSetupEmailAlreadySent) {
-      await this.sendAccountSetupEmail(preCreatedUser.email, uuid, planName);
+    if (preCreatedUser.status !== PreCreatedUserStatus.AwaitingPayment) {
+      return;
     }
+
+    await this.sendAccountSetupEmail(preCreatedUser, planName);
   }
 
   async update(
@@ -141,12 +149,94 @@ export class SetupCheckoutAccountUseCase {
     );
   }
 
-  private async sendAccountSetupEmail(
+  private hasCheckoutAlreadyStarted(
+    preCreatedUser: PreCreatedUser | null,
+  ): preCreatedUser is PreCreatedUser & {
+    status:
+      PreCreatedUserStatus.AwaitingPayment | PreCreatedUserStatus.PendingSetup;
+  } {
+    return (
+      preCreatedUser?.status === PreCreatedUserStatus.AwaitingPayment ||
+      preCreatedUser?.status === PreCreatedUserStatus.PendingSetup
+    );
+  }
+
+  private async preCreateUserForCheckout(
     email: PreCreatedUserAttributes['email'],
     uuid: PreCreatedUserAttributes['uuid'],
+  ): Promise<PreCreateUserForCheckoutResponseDto> {
+    try {
+      const [preCreatedUser] = await this.userUseCases.preCreateUser(
+        { email, status: PreCreatedUserStatus.AwaitingPayment },
+        uuid,
+      );
+
+      return { uuid, status: preCreatedUser.status };
+    } catch (error) {
+      if (!(error instanceof UniqueConstraintError)) {
+        throw error;
+      }
+
+      const concurrentPreCreatedUser =
+        await this.preCreatedUserRepository.findByUsername(email);
+
+      if (!concurrentPreCreatedUser) {
+        throw error;
+      }
+
+      return {
+        uuid: concurrentPreCreatedUser.uuid,
+        status: concurrentPreCreatedUser.status,
+      };
+    }
+  }
+
+  private async adoptPreCreatedUserForCheckout(
+    preCreatedUser: PreCreatedUser,
+    networkUuid: PreCreatedUserAttributes['uuid'],
+  ): Promise<void> {
+    if (preCreatedUser.uuid !== networkUuid) {
+      await this.reassignPreCreatedUserUuid(preCreatedUser.uuid, networkUuid);
+    }
+
+    await this.preCreatedUserRepository.updateByUuid(networkUuid, {
+      status: PreCreatedUserStatus.AwaitingPayment,
+    });
+  }
+
+  private async reassignPreCreatedUserUuid(
+    currentUuid: PreCreatedUserAttributes['uuid'],
+    newUuid: PreCreatedUserAttributes['uuid'],
+  ): Promise<void> {
+    await this.sharingRepository.updateAllUserSharedWith(currentUuid, {
+      sharedWith: newUuid,
+    });
+    await this.workspaceRepository.updateInvitesBy(
+      { invitedUser: currentUuid },
+      { invitedUser: newUuid },
+    );
+    await this.preCreatedUserRepository.updateByUuid(currentUuid, {
+      uuid: newUuid,
+    });
+  }
+
+  private async sendAccountSetupEmail(
+    preCreatedUser: PreCreatedUser,
     planName: string,
   ): Promise<void> {
+    const { uuid, email } = preCreatedUser;
     const sentAt = new Date();
+
+    const isClaimed = await this.preCreatedUserRepository.updateByUuidAndStatus(
+      uuid,
+      PreCreatedUserStatus.AwaitingPayment,
+      { status: PreCreatedUserStatus.PendingSetup, setupEmailSentAt: sentAt },
+    );
+
+    if (!isClaimed) {
+      return;
+    }
+
     const token = signWithExpiry(
       {
         payload: { uuid, action: 'complete-account-setup' },
@@ -156,13 +246,18 @@ export class SetupCheckoutAccountUseCase {
       { expiresIn: '5d' },
     );
 
-    await this.mailerService.sendAccountSetupEmail(email, {
-      planName,
-      setupUrl: `${process.env.HOST_DRIVE_WEB}/complete-account/${token}`,
-    });
-    await this.preCreatedUserRepository.updateByUuid(uuid, {
-      setupEmailSentAt: sentAt,
-      status: PreCreatedUserStatus.PendingSetup,
-    });
+    try {
+      await this.mailerService.sendAccountSetupEmail(email, {
+        planName,
+        setupUrl: `${process.env.HOST_DRIVE_WEB}/complete-account/${token}`,
+      });
+    } catch (error) {
+      await this.preCreatedUserRepository.updateByUuid(uuid, {
+        status: PreCreatedUserStatus.AwaitingPayment,
+        setupEmailSentAt: preCreatedUser.setupEmailSentAt,
+      });
+
+      throw error;
+    }
   }
 }

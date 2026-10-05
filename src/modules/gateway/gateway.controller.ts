@@ -320,7 +320,7 @@ export class GatewayController {
   @ApiOperation({
     summary: 'Get or pre-create the user of a new customer starting a checkout',
     description:
-      'Pre-creates the user with the network user uuid, or returns the existing pre-created user. It does not send any email',
+      'Pre-creates the user with the network user uuid, or returns the existing pre-created user, so it can be repeated. A user pre-created by a share invitation or with a cancelled plan starts the checkout again. It does not send any email',
   })
   @ApiBearerAuth('gateway')
   @UseGuards(GatewayGuard)
@@ -336,7 +336,7 @@ export class GatewayController {
   async createPreCreateUserForCheckout(
     @Body() dto: CreatePreCreatedUserDto,
   ): Promise<PreCreateUserForCheckoutResponseDto> {
-    const response = await this.setupAccountUseCases.create(dto.email);
+    const response = await this.setupAccountUseCases.getOrCreate(dto.email);
 
     this.logger.log(
       { ...response, category: 'PRE_CREATE_USER' },
@@ -351,7 +351,7 @@ export class GatewayController {
   @ApiOperation({
     summary: 'Get a pre-created user',
     description:
-      'Get the pre-created user in payments so we can by sure it exists',
+      'Get the pre-created user in payments so we can be sure it exists',
   })
   @ApiBearerAuth('gateway')
   @UseGuards(GatewayGuard)
@@ -372,7 +372,7 @@ export class GatewayController {
   @ApiOperation({
     summary: 'Send the account setup email once the payment is confirmed',
     description:
-      'Sends the email only if the pre-created user has not received it yet. It does nothing for registered users',
+      'Sends the email only once, while the pre-created user is awaiting the payment. It does nothing if it was already sent, if the plan was cancelled or for registered users',
   })
   @ApiParam({
     name: 'uuid',
