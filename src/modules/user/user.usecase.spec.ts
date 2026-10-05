@@ -101,7 +101,7 @@ import * as bip39 from 'bip39';
 import getEnv from '../../config/configuration';
 import { type Transaction } from 'sequelize';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
-import { ACCOUNT_SETUP_TOKEN_ACTION } from './account-setup-token';
+import { ACCOUNT_SETUP_TOKEN_ACTION } from './user.usecase';
 
 const TEST_MNEMONIC =
   'album middle away ecology napkin quote buffalo method tooth mask laundry film add path suggest heart unaware project neck bird force heavy put latin';
@@ -2536,6 +2536,65 @@ describe('User use cases', () => {
       await expect(
         userUseCases.completeAccountSetup(setupRequest(token)),
       ).rejects.toThrow(new ForbiddenException('Token expired'));
+      expect(userRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('When the token was issued in the same second as the setup email, then it is accepted', async () => {
+      const token = signSetupToken(
+        preCreatedUser.uuid,
+        preCreatedUser.setupEmailSentAt,
+      );
+
+      const result = await userUseCases.completeAccountSetup(
+        setupRequest(token),
+      );
+
+      expect(result.uuid).toBe(preCreatedUser.uuid);
+    });
+
+    it('When the token has an invalid signature, then it is rejected as invalid', async () => {
+      const token = signSetupToken(
+        preCreatedUser.uuid,
+        preCreatedUser.setupEmailSentAt,
+      );
+      const tamperedToken = `${token}tampered`;
+
+      await expect(
+        userUseCases.completeAccountSetup(setupRequest(tamperedToken)),
+      ).rejects.toThrow(new ForbiddenException('Invalid token'));
+      expect(userRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('When the token is garbage, then it is rejected as invalid', async () => {
+      await expect(
+        userUseCases.completeAccountSetup(setupRequest('not-a-jwt')),
+      ).rejects.toThrow(new ForbiddenException('Invalid token'));
+      expect(userRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('When the token was issued for a different action, then it is rejected as invalid', async () => {
+      const token = signJwt(
+        {
+          payload: { uuid: preCreatedUser.uuid, action: 'recover-account' },
+          iat: Math.floor(preCreatedUser.setupEmailSentAt.getTime() / 1000),
+        },
+        jwtSecret,
+        { expiresIn: '5d' } as any,
+      );
+
+      await expect(
+        userUseCases.completeAccountSetup(setupRequest(token)),
+      ).rejects.toThrow(new ForbiddenException('Invalid token'));
+      expect(userRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('When the pre-created user never received a setup email, then the token is rejected as invalid', async () => {
+      preCreatedUser.setupEmailSentAt = null;
+      const token = signSetupToken(preCreatedUser.uuid, new Date());
+
+      await expect(
+        userUseCases.completeAccountSetup(setupRequest(token)),
+      ).rejects.toThrow(new ForbiddenException('Invalid token'));
       expect(userRepository.create).not.toHaveBeenCalled();
     });
 

@@ -65,7 +65,11 @@ import { AttemptChangeEmailHasExpiredException } from './exception/attempt-chang
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 import { UserNotFoundException } from './exception/user-not-found.exception';
-import { getTokenDefaultIat, verifyToken } from '../../lib/jwt';
+import {
+  getTokenDefaultIat,
+  verifyToken,
+  verifyWithDefaultSecret,
+} from '../../lib/jwt';
 import getEnv from '../../config/configuration';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
@@ -92,10 +96,8 @@ import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import { type GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
 import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import { type UserResponseDto } from './dto/responses/user-credentials.dto';
-import {
-  decodeAccountSetupToken,
-  isCurrentAccountSetupToken,
-} from './account-setup-token';
+
+export const ACCOUNT_SETUP_TOKEN_ACTION = 'complete-account-setup';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -575,17 +577,56 @@ export class UserUseCases {
     }
   }
 
+  private decodeAccountSetupToken(token: string): {
+    uuid: string;
+    issuedAt: number;
+  } {
+    try {
+      const decoded = verifyWithDefaultSecret(token) as {
+        payload?: { uuid?: string; action?: string };
+        iat?: number;
+      };
+
+      if (
+        typeof decoded === 'string' ||
+        !decoded?.iat ||
+        !decoded.payload?.uuid ||
+        decoded.payload.action !== ACCOUNT_SETUP_TOKEN_ACTION
+      ) {
+        throw new ForbiddenException('Invalid token');
+      }
+
+      return { uuid: decoded.payload.uuid, issuedAt: decoded.iat };
+    } catch (error) {
+      if (error instanceof JsonWebTokenError) {
+        const isTokenExpired = error instanceof TokenExpiredError;
+
+        throw new ForbiddenException(
+          isTokenExpired ? 'Token expired' : 'Invalid token',
+        );
+      }
+
+      throw error;
+    }
+  }
+
   async completeAccountSetup({ token, ...setup }: CompleteAccountSetupDto) {
-    const { uuid, issuedAt } = decodeAccountSetupToken(token);
+    const { uuid, issuedAt } = this.decodeAccountSetupToken(token);
     const preCreatedUser = await this.preCreatedUserRepository.findByUuid(uuid);
 
     if (!preCreatedUser) {
       throw new ForbiddenException('Invalid token');
     }
 
-    if (
-      !isCurrentAccountSetupToken(issuedAt, preCreatedUser.setupEmailSentAt)
-    ) {
+    if (!preCreatedUser.setupEmailSentAt) {
+      throw new ForbiddenException('Invalid token');
+    }
+
+    const lastSentAt = Math.floor(
+      preCreatedUser.setupEmailSentAt.getTime() / 1000,
+    );
+
+    if (issuedAt < lastSentAt) {
       throw new ForbiddenException('Token expired');
     }
 

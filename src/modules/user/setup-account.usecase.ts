@@ -8,7 +8,7 @@ import {
   PreCreatedUserStatus,
   type PreCreatedUserAttributes,
 } from './pre-created-users.attributes';
-import { UserUseCases } from './user.usecase';
+import { ACCOUNT_SETUP_TOKEN_ACTION, UserUseCases } from './user.usecase';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
@@ -149,7 +149,7 @@ export class SetupCheckoutAccountUseCase {
     const sentAt = new Date();
     const token = signWithExpiry(
       {
-        payload: { uuid, action: 'complete-account-setup' },
+        payload: { uuid, action: ACCOUNT_SETUP_TOKEN_ACTION },
         iat: Math.floor(sentAt.getTime() / 1000),
       },
       getEnv().secrets.jwt,
