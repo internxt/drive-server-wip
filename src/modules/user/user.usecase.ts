@@ -193,6 +193,15 @@ export class UserUseCases {
     return this.preCreatedUserRepository.findByUsername(email);
   }
 
+  async hasPendingAccountSetup(
+    email: PreCreatedUserAttributes['email'],
+  ): Promise<boolean> {
+    const preCreatedUser =
+      await this.preCreatedUserRepository.findByUsername(email);
+
+    return preCreatedUser?.hasPendingAccountSetup() ?? false;
+  }
+
   findByUuids(uuids: User['uuid'][]): Promise<User[]> {
     return this.userRepository.findByUuids(uuids);
   }
@@ -595,6 +604,13 @@ export class UserUseCases {
       privateKey,
       newPublicKey,
     );
+
+    if (preCreatedUser.tierId) {
+      await this.userRepository.updateBy(
+        { uuid: newUserUuid },
+        { tierId: preCreatedUser.tierId },
+      );
+    }
 
     await this.preCreatedUserRepository.deleteByUuid(preCreatedUser.uuid);
   }

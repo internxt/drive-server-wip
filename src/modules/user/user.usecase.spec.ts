@@ -13,6 +13,8 @@ import {
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
 import { AccountTokenAction, ReferralKey, User } from './user.domain';
+import { PreCreatedUserStatus } from './pre-created-users.attributes';
+import { type PreCreatedUser } from './pre-created-user.domain';
 import { SequelizeUserRepository } from './user.repository';
 import { SequelizeSharedWorkspaceRepository } from '../../shared-workspace/shared-workspace.repository';
 import { AvatarService } from '../../externals/avatar/avatar.service';
@@ -2276,6 +2278,92 @@ describe('User use cases', () => {
     });
   });
 
+  describe('Checking whether an email has a paid account pending setup', () => {
+    it('When the email belongs to a paid pre-created user whose setup email was sent, then the setup is pending', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      preCreatedUser.setupEmailSentAt = new Date();
+      preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(preCreatedUser);
+
+      const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
+        preCreatedUser.email,
+      );
+
+      expect(hasPendingSetup).toBe(true);
+    });
+
+    it('When the pre-created user started a checkout but has not paid yet, then no setup is pending', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(preCreatedUser);
+
+      const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
+        preCreatedUser.email,
+      );
+
+      expect(hasPendingSetup).toBe(false);
+    });
+
+    it('When the checkout paid and the tier was already applied but the setup email has not been sent yet, then the setup is pending', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
+      preCreatedUser.tierId = 'fake-tier-id';
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(preCreatedUser);
+
+      const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
+        preCreatedUser.email,
+      );
+
+      expect(hasPendingSetup).toBe(true);
+    });
+
+    it('When the subscription was cancelled before completing the setup, then no setup is pending even if the email was sent', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      preCreatedUser.setupEmailSentAt = new Date();
+      preCreatedUser.status = PreCreatedUserStatus.Cancelled;
+      preCreatedUser.tierId = 'fake-tier-id';
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(preCreatedUser);
+
+      const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
+        preCreatedUser.email,
+      );
+
+      expect(hasPendingSetup).toBe(false);
+    });
+
+    it('When the email belongs to a user pre-created by an invitation, then no setup is pending', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(preCreatedUser);
+
+      const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
+        preCreatedUser.email,
+      );
+
+      expect(hasPendingSetup).toBe(false);
+    });
+
+    it('When the email is not pre-created, then no setup is pending', async () => {
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(null);
+
+      const hasPendingSetup =
+        await userUseCases.hasPendingAccountSetup('new@internxt.com');
+
+      expect(hasPendingSetup).toBe(false);
+    });
+  });
+
   describe('getUserUsage', () => {
     const mailUsage = 512;
     const defaultDriveUsage = 1024;
@@ -2833,6 +2921,55 @@ describe('User use cases', () => {
       expect(newInviteHybridEncryptedKey).toEqual(sharingDecryptedKey);
       expect(newInviteEccEncryptedKey).toEqual(sharingDecryptedKey);
     }, 10000);
+    describe('When the pre-created user is replaced by the user who signed up', () => {
+      let preCreatedUser: PreCreatedUser;
+      const newUserUuid = v4();
+
+      beforeEach(() => {
+        preCreatedUser = newPreCreatedUser();
+        jest
+          .spyOn(preCreatedUsersRepository, 'findByUsername')
+          .mockResolvedValueOnce(preCreatedUser);
+        jest.spyOn(aes, 'decrypt').mockReturnValue('decrypted-private-key');
+        jest
+          .spyOn(sharingRepository, 'getInvitesBySharedwith')
+          .mockResolvedValueOnce([]);
+        jest
+          .spyOn(workspaceRepository, 'findInvitesBy')
+          .mockResolvedValueOnce([]);
+        jest.spyOn(userRepository, 'updateBy').mockResolvedValue(undefined);
+      });
+
+      it('When it already had a paid tier, then the user keeps that tier', async () => {
+        preCreatedUser.tierId = v4();
+
+        await userUseCases.replacePreCreatedUser(
+          preCreatedUser.email,
+          newUserUuid,
+          'new-public-key',
+        );
+
+        expect(userRepository.updateBy).toHaveBeenCalledWith(
+          { uuid: newUserUuid },
+          { tierId: preCreatedUser.tierId },
+        );
+        expect(preCreatedUsersRepository.deleteByUuid).toHaveBeenCalledWith(
+          preCreatedUser.uuid,
+        );
+      });
+
+      it('When it had no tier, then the tier of the user is left as it is', async () => {
+        preCreatedUser.tierId = null;
+
+        await userUseCases.replacePreCreatedUser(
+          preCreatedUser.email,
+          newUserUuid,
+          'new-public-key',
+        );
+
+        expect(userRepository.updateBy).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('updateCredentials', () => {
