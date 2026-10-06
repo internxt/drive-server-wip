@@ -51,7 +51,10 @@ import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { type PreCreateUserDto } from './dto/pre-create-user.dto';
 import { aes } from '@internxt/lib';
-import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
+import {
+  PreCreatedUserStatus,
+  type PreCreatedUserAttributes,
+} from './pre-created-users.attributes';
 import { type PreCreatedUser } from './pre-created-user.domain';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
@@ -630,7 +633,11 @@ export class UserUseCases {
     );
   }
 
-  async preCreateUser(newUser: PreCreateUserDto): Promise<
+  async preCreateUser(
+    newUser: PreCreateUserDto,
+    uuid: PreCreatedUserAttributes['uuid'] = v4(),
+    status?: PreCreatedUserStatus,
+  ): Promise<
     [
       {
         id: number;
@@ -640,6 +647,7 @@ export class UserUseCases {
         publicKyberKey: string;
         publicKey: string;
         password: string;
+        status?: PreCreatedUserStatus;
       },
       boolean,
     ]
@@ -694,7 +702,7 @@ export class UserUseCases {
 
     const user = await this.preCreatedUserRepository.create({
       email,
-      uuid: v4(),
+      uuid,
       password: hashObj.hash,
       hKey: Buffer.from(hashObj.salt),
       username: email,
@@ -705,6 +713,7 @@ export class UserUseCases {
       publicKyberKey: publicKyberKeyBase64,
       revocationKey: revocationCertificate,
       encryptVersion: UserKeysEncryptVersions.Ecc,
+      status,
     });
 
     return [
@@ -713,6 +722,7 @@ export class UserUseCases {
         publicKyberKey: user.publicKyberKey.toString(),
         publicKey: user.publicKey.toString(),
         password: user.password.toString(),
+        status: user.status,
       },
       true,
     ];

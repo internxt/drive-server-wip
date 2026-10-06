@@ -1,5 +1,8 @@
 import { type UserKeysEncryptVersions } from '../keyserver/key-server.domain';
-import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
+import {
+  PreCreatedUserStatus,
+  type PreCreatedUserAttributes,
+} from './pre-created-users.attributes';
 
 export class PreCreatedUser implements PreCreatedUserAttributes {
   id: number;
@@ -15,6 +18,9 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
   encryptVersion: UserKeysEncryptVersions;
   publicKyberKey?: string;
   privateKyberKey?: string;
+  setupEmailSentAt?: Date | null;
+  tierId?: string | null;
+  status?: PreCreatedUserStatus | null;
   constructor({
     id,
     email,
@@ -29,6 +35,9 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
     encryptVersion,
     publicKyberKey,
     privateKyberKey,
+    setupEmailSentAt,
+    tierId,
+    status,
   }: PreCreatedUserAttributes) {
     this.id = id;
     this.uuid = uuid;
@@ -43,10 +52,17 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
     this.password = password;
     this.mnemonic = mnemonic;
     this.hKey = hKey;
+    this.setupEmailSentAt = setupEmailSentAt ?? null;
+    this.tierId = tierId ?? null;
+    this.status = status ?? null;
   }
 
   static build(user: PreCreatedUserAttributes): PreCreatedUser {
     return new PreCreatedUser(user);
+  }
+
+  isPendingSetup(): boolean {
+    return this.status === PreCreatedUserStatus.PendingSetup;
   }
 
   toJSON() {

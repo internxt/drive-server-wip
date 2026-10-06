@@ -4107,6 +4107,7 @@ describe('User use cases', () => {
         publicKyberKey: createdUser.publicKyberKey.toString(),
         publicKey: createdUser.publicKey.toString(),
         password: createdUser.password.toString(),
+        status: null,
       });
       expect(isPreCreated).toBe(true);
     });

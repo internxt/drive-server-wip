@@ -3,8 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Logger,
-  NotFoundException,
   Param,
   Patch,
   Post,
@@ -14,6 +14,9 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
+  ApiNoContentResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -42,6 +45,12 @@ import {
   AuditPerformerType,
 } from '../../common/audit-logs/audit-logs.attributes';
 import { OverrideUserLimitDto } from './dto/override-user-limit.dto';
+import { PreCreateUserForCheckoutResponseDto } from './dto/pre-create-user-for-checkout.dto';
+import { CreatePreCreatedUserDto } from './dto/create-pre-created-user.dto';
+import { GetPreCreatedUserDto } from './dto/get-pre-created-user.dto';
+import { UpdatePreCreatedUserDto } from './dto/update-pre-created-user.dto';
+import { SendAccountSetupEmailDto } from './dto/send-account-setup-email.dto';
+import { SetupCheckoutAccountUseCase } from '../user/setup-account.usecase';
 
 @ApiTags('Gateway')
 @Controller('gateway')
@@ -51,6 +60,7 @@ export class GatewayController {
 
   constructor(
     private readonly gatewayUseCases: GatewayUseCases,
+    private readonly setupAccountUseCases: SetupCheckoutAccountUseCase,
     private readonly storageNotificationsService: StorageNotificationService,
   ) {}
 
@@ -217,10 +227,39 @@ export class GatewayController {
     );
   }
 
+  @Patch('/users/pre-create')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Update the pre-created user',
+    description:
+      'Update the pre-created user with the network user uuid. It does not send any email',
+  })
+  @ApiBearerAuth('gateway')
+  @UseGuards(GatewayGuard)
+  @ApiNotFoundResponse({ description: 'User not found' })
+  async updatePreCreatedUserForCheckout(
+    @Body() dto: UpdatePreCreatedUserDto,
+  ): Promise<void> {
+    const { uuid, maxSpaceBytes, tierId, status } = dto;
+
+    await this.setupAccountUseCases.update(uuid, {
+      newStorageSpaceBytes: maxSpaceBytes,
+      newTierId: tierId,
+      status,
+    });
+
+    this.logger.log(
+      { userUuid: uuid, category: 'UPDATE_USER' },
+      'Updated pre-created user successfully',
+    );
+  }
+
   @Patch('/users/:uuid')
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Update user plan and storage',
+    description:
+      'Updates a registered user, or a pre-created one while it has not completed the account setup',
   })
   @ApiParam({
     name: 'uuid',
@@ -243,7 +282,16 @@ export class GatewayController {
     try {
       const user = await this.gatewayUseCases.getUserByUuid(userUuid);
       if (!user) {
-        throw new NotFoundException('User not found');
+        await this.setupAccountUseCases.update(userUuid, {
+          newStorageSpaceBytes: maxSpaceBytes,
+          newTierId: tierId,
+        });
+
+        this.logger.log(
+          { body, userUuid, category: 'UPDATE_USER' },
+          'Updated pre-created user successfully',
+        );
+        return;
       }
 
       await this.gatewayUseCases.updateUser(user, {
@@ -273,6 +321,81 @@ export class GatewayController {
       );
       throw error;
     }
+  }
+
+  @Post('/users/pre-create')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get or pre-create the user of a new customer starting a checkout',
+    description:
+      'Pre-creates the user with the network user uuid, or returns the existing pre-created user, so it can be repeated. A user pre-created by a share invitation or with a cancelled plan starts the checkout again. It does not send any email',
+  })
+  @ApiBearerAuth('gateway')
+  @UseGuards(GatewayGuard)
+  @ApiOkResponse({
+    description:
+      'UUID of the pre-created user and whether its setup is pending',
+    type: PreCreateUserForCheckoutResponseDto,
+  })
+  @ApiConflictResponse({ description: 'The user is already registered' })
+  async createPreCreateUserForCheckout(
+    @Body() dto: CreatePreCreatedUserDto,
+  ): Promise<PreCreateUserForCheckoutResponseDto> {
+    const response = await this.setupAccountUseCases.getOrCreate(dto.email);
+
+    this.logger.log(
+      { ...response, category: 'PRE_CREATE_USER' },
+      'Got or pre-created user for checkout',
+    );
+
+    return response;
+  }
+
+  @Get('/users/pre-create')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get a pre-created user',
+    description:
+      'Get the pre-created user in payments so we can be sure it exists',
+  })
+  @ApiBearerAuth('gateway')
+  @UseGuards(GatewayGuard)
+  @ApiOkResponse({
+    description:
+      'UUID of the pre-created user and whether its setup is pending',
+    type: PreCreateUserForCheckoutResponseDto,
+  })
+  @ApiNotFoundResponse({ description: 'User not found' })
+  async getPreCreatedUserForCheckout(
+    @Query() dto: GetPreCreatedUserDto,
+  ): Promise<PreCreateUserForCheckoutResponseDto> {
+    return this.setupAccountUseCases.get(dto.email);
+  }
+
+  @Post('/users/:uuid/setup-email')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Send the account setup email once the payment is confirmed',
+    description:
+      'Sends the email only once, while the pre-created user is awaiting the payment. It does nothing if it was already sent, if the plan was cancelled or for registered users',
+  })
+  @ApiParam({
+    name: 'uuid',
+    type: String,
+    required: true,
+    description: 'User UUID',
+  })
+  @ApiBearerAuth('gateway')
+  @UseGuards(GatewayGuard)
+  @ApiNoContentResponse({
+    description: 'The setup email is sent or not needed',
+  })
+  @ApiNotFoundResponse({ description: 'User not found' })
+  async sendAccountSetupEmail(
+    @Param('uuid', ValidateUUIDPipe) uuid: string,
+    @Body() dto: SendAccountSetupEmailDto,
+  ): Promise<void> {
+    await this.setupAccountUseCases.sendAccountEmail(uuid, dto.planName);
   }
 
   @Post('/users/failed-payment')
