@@ -31,6 +31,7 @@ import {
   FavoriteItemType,
   type FavoriteAttributes,
 } from '../favorite/favorite.domain';
+import { applyCollateAndTiebreakerToSort } from '../../lib/sort';
 import { SortOrder } from '../../common/order.type';
 import { type FolderFoldersCursorDto } from './dto/get-folder-content-folders-cursor.dto';
 import { type FolderUpdatedAtIdCursorDto } from './utils/folder-cursor.util';
@@ -228,25 +229,7 @@ export class SequelizeFolderRepository implements FolderRepository {
   private applyCollateToPlainNameSort(
     order: Array<[keyof FolderModel, string]>,
   ): Array<[keyof FolderModel, string] | Literal> {
-    const plainNameIndex = order.findIndex(
-      ([field, _]) => field === 'plainName',
-    );
-    const isPlainNameSort = plainNameIndex !== -1;
-
-    if (!isPlainNameSort) {
-      return order;
-    }
-
-    const newOrder: Array<[keyof FolderModel, string] | Literal> =
-      structuredClone(order);
-    const [, orderDirection] = order[plainNameIndex];
-    newOrder[plainNameIndex] = Sequelize.literal(
-      `"FolderModel"."plain_name" COLLATE "custom_numeric" ${
-        orderDirection === 'ASC' ? 'ASC' : 'DESC'
-      }`,
-    );
-
-    return newOrder;
+    return applyCollateAndTiebreakerToSort(FolderModel, order);
   }
 
   async findByParentUuid(
