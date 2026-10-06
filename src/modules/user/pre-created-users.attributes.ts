@@ -24,6 +24,5 @@ export interface PreCreatedUserAttributes {
   setupEmailSentAt?: Date | null;
   tierId?: string | null;
   setupEmailResendCount?: number;
-  setupEmailResendDate?: string | null;
   status?: PreCreatedUserStatus | null;
 }

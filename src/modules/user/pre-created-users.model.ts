@@ -81,10 +81,6 @@ export class PreCreatedUserModel
   setupEmailResendCount: number;
 
   @AllowNull(true)
-  @Column(DataType.DATEONLY)
-  setupEmailResendDate?: string | null;
-
-  @AllowNull(true)
   @Column(DataType.ENUM(...Object.values(PreCreatedUserStatus)))
   status?: PreCreatedUserStatus | null;
 }

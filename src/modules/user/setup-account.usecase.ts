@@ -232,7 +232,11 @@ export class SetupCheckoutAccountUseCase {
     const isClaimed = await this.preCreatedUserRepository.updateByUuidAndStatus(
       uuid,
       PreCreatedUserStatus.AwaitingPayment,
-      { status: PreCreatedUserStatus.PendingSetup, setupEmailSentAt: sentAt },
+      {
+        status: PreCreatedUserStatus.PendingSetup,
+        setupEmailSentAt: sentAt,
+        setupEmailResendCount: 0,
+      },
     );
 
     if (!isClaimed) {
@@ -260,6 +264,7 @@ export class SetupCheckoutAccountUseCase {
       await this.preCreatedUserRepository.updateByUuid(preCreatedUser.uuid, {
         status: PreCreatedUserStatus.AwaitingPayment,
         setupEmailSentAt: preCreatedUser.setupEmailSentAt,
+        setupEmailResendCount: preCreatedUser.setupEmailResendCount,
       });
     } catch (releaseError) {
       Logger.error(

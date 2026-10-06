@@ -6043,16 +6043,17 @@ describe('User use cases', () => {
     const jwtSecret = 'account-setup-resend-test-secret';
     const originalJwtSecret = process.env.JWT_SECRET;
     const now = new Date('2026-09-25T12:00:00.000Z');
-    const todayInUtc = '2026-09-25';
-    const yesterdayInUtc = '2026-09-24';
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const yesterday = new Date('2026-09-24T23:30:00.000Z');
 
-    const pendingSetupUser = (resends?: { count: number; date: string }) => {
+    const pendingSetupUser = (resends?: {
+      count: number;
+      lastSentAt: Date;
+    }) => {
       const preCreatedUser = newPreCreatedUser();
-      preCreatedUser.setupEmailSentAt = oneHourAgo;
+      preCreatedUser.setupEmailSentAt = resends?.lastSentAt ?? oneHourAgo;
       preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
       preCreatedUser.setupEmailResendCount = resends?.count ?? 0;
-      preCreatedUser.setupEmailResendDate = resends?.date ?? null;
       return preCreatedUser;
     };
 
@@ -6167,7 +6168,10 @@ describe('User use cases', () => {
     });
 
     it('When the setup email is resent, then it counts towards today\'s limit together with the new link', async () => {
-      const preCreatedUser = pendingSetupUser({ count: 2, date: todayInUtc });
+      const preCreatedUser = pendingSetupUser({
+        count: 2,
+        lastSentAt: oneHourAgo,
+      });
       givenEmailBelongsTo({ preCreatedUser });
 
       await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
@@ -6181,15 +6185,14 @@ describe('User use cases', () => {
           status: PreCreatedUserStatus.PendingSetup,
           setupEmailSentAt: now,
           setupEmailResendCount: 3,
-          setupEmailResendDate: todayInUtc,
         },
       );
     });
 
-    it('When the last resends happened on a previous day, then the daily count starts again', async () => {
+    it('When the last email was sent on a previous day, then the daily count starts again', async () => {
       const preCreatedUser = pendingSetupUser({
         count: 5,
-        date: yesterdayInUtc,
+        lastSentAt: yesterday,
       });
       givenEmailBelongsTo({ preCreatedUser });
 
@@ -6198,12 +6201,14 @@ describe('User use cases', () => {
       expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledTimes(1);
       expect(storedUpdate()).toMatchObject({
         setupEmailResendCount: 1,
-        setupEmailResendDate: todayInUtc,
       });
     });
 
     it('When the daily limit of resends is reached, then no email is sent and the current link keeps working', async () => {
-      const preCreatedUser = pendingSetupUser({ count: 5, date: todayInUtc });
+      const preCreatedUser = pendingSetupUser({
+        count: 5,
+        lastSentAt: oneHourAgo,
+      });
       givenEmailBelongsTo({ preCreatedUser });
 
       await expect(
@@ -6217,7 +6222,10 @@ describe('User use cases', () => {
     });
 
     it('When the email cannot be sent, then the current link keeps working and the resend is not counted', async () => {
-      const preCreatedUser = pendingSetupUser({ count: 1, date: todayInUtc });
+      const preCreatedUser = pendingSetupUser({
+        count: 1,
+        lastSentAt: oneHourAgo,
+      });
       givenEmailBelongsTo({ preCreatedUser });
       jest
         .spyOn(mailerService, 'sendAccountSetupEmail')
@@ -6233,7 +6241,6 @@ describe('User use cases', () => {
           status: PreCreatedUserStatus.PendingSetup,
           setupEmailSentAt: oneHourAgo,
           setupEmailResendCount: 1,
-          setupEmailResendDate: todayInUtc,
         },
       );
     });

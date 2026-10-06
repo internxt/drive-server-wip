@@ -303,9 +303,9 @@ export class UserUseCases {
     }
 
     const sentAt = new Date();
-    const todayInUtc = sentAt.toISOString().slice(0, 10);
+    const lastSentAt = preCreatedUser.setupEmailSentAt;
     const resendsToday =
-      preCreatedUser.setupEmailResendDate === todayInUtc
+      lastSentAt && Time.isToday(lastSentAt)
         ? preCreatedUser.setupEmailResendCount
         : 0;
 
@@ -323,7 +323,6 @@ export class UserUseCases {
         status: PreCreatedUserStatus.PendingSetup,
         setupEmailSentAt: sentAt,
         setupEmailResendCount: resendsToday + 1,
-        setupEmailResendDate: todayInUtc,
       },
     );
 
@@ -342,7 +341,6 @@ export class UserUseCases {
         status: preCreatedUser.status,
         setupEmailSentAt: preCreatedUser.setupEmailSentAt,
         setupEmailResendCount: preCreatedUser.setupEmailResendCount,
-        setupEmailResendDate: preCreatedUser.setupEmailResendDate,
       });
 
       throw error;

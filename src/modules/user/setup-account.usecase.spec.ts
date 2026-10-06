@@ -402,12 +402,27 @@ describe('Setup account use cases', () => {
       ).toHaveBeenCalledWith(
         preCreatedUser.uuid,
         PreCreatedUserStatus.AwaitingPayment,
-        {
+        expect.objectContaining({
           setupEmailSentAt: expect.any(Date),
           status: PreCreatedUserStatus.PendingSetup,
-        },
+        }),
       );
       expect(iat).toBe(Math.floor(setupEmailSentAt.getTime() / 1000));
+    });
+
+    test('When the buyer pays again on the same day after a cancelled purchase, then the resends of the previous purchase do not count towards the daily limit', async () => {
+      preCreatedUser.setupEmailSentAt = new Date();
+      preCreatedUser.setupEmailResendCount = 5;
+
+      await setupAccountUseCase.sendAccountEmail(preCreatedUser.uuid, planName);
+
+      expect(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+        PreCreatedUserStatus.AwaitingPayment,
+        expect.objectContaining({ setupEmailResendCount: 0 }),
+      );
     });
 
     test('When the same payment is notified twice at once and another request already took it, then the email is not sent again', async () => {
@@ -421,6 +436,7 @@ describe('Setup account use cases', () => {
 
     test('When the email cannot be sent, then it is released so a retry sends it', async () => {
       preCreatedUser.setupEmailSentAt = new Date('2026-09-20T10:00:00Z');
+      preCreatedUser.setupEmailResendCount = 2;
       mailerService.sendAccountSetupEmail.mockRejectedValueOnce(
         new Error('SendGrid is down'),
       );
@@ -434,6 +450,7 @@ describe('Setup account use cases', () => {
         {
           status: PreCreatedUserStatus.AwaitingPayment,
           setupEmailSentAt: new Date('2026-09-20T10:00:00Z'),
+          setupEmailResendCount: 2,
         },
       );
     });
