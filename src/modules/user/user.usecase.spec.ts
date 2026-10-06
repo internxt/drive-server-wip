@@ -9,8 +9,8 @@ import {
   UserUseCases,
   ReferralsNotAvailableError,
   UserAlreadyRegisteredError,
-  ACCOUNT_SETUP_TOKEN_ACTION,
 } from './user.usecase';
+import { ACCOUNT_SETUP_TOKEN_ACTION } from './account-setup-link';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { FileUseCases } from '../file/file.usecase';
@@ -1096,10 +1096,29 @@ describe('User use cases', () => {
         ...keys,
       };
       jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(null);
 
       await expect(userUseCases.loginAccess(loginAccessDto)).rejects.toThrow(
-        UnauthorizedException,
+        new UnauthorizedException('Wrong login credentials'),
       );
+    });
+
+    it('When the email was only invited to a shared item or workspace, then the response is the same as for an unknown email', async () => {
+      jest.spyOn(userRepository, 'findByUsername').mockResolvedValue(null);
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(newPreCreatedUser());
+
+      await expect(
+        userUseCases.loginAccess({
+          email: 'invited@internxt.com',
+          password: v4(),
+          tfa: '',
+          ...keys,
+        }),
+      ).rejects.toThrow(new UnauthorizedException('Wrong login credentials'));
     });
 
     it('When login attempts limit is reached, then it should throw', async () => {
@@ -6017,6 +6036,305 @@ describe('User use cases', () => {
       const result = await userUseCases.getBetaUserFromRoom('room-1');
 
       expect(result).toEqual(user);
+    });
+  });
+
+  describe('Resending the account setup email', () => {
+    const jwtSecret = 'account-setup-resend-test-secret';
+    const originalJwtSecret = process.env.JWT_SECRET;
+    const now = new Date('2026-09-25T12:00:00.000Z');
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const yesterday = new Date('2026-09-24T23:30:00.000Z');
+
+    const pendingSetupUser = (resends?: {
+      count: number;
+      lastSentAt: Date;
+    }) => {
+      const preCreatedUser = newPreCreatedUser();
+      preCreatedUser.setupEmailSentAt = resends?.lastSentAt ?? oneHourAgo;
+      preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
+      preCreatedUser.setupEmailResendCount = resends?.count ?? 0;
+      return preCreatedUser;
+    };
+
+    const givenEmailBelongsTo = ({
+      registeredUser = null,
+      preCreatedUser = null,
+    }: {
+      registeredUser?: User | null;
+      preCreatedUser?: ReturnType<typeof newPreCreatedUser> | null;
+    }) => {
+      jest
+        .spyOn(userRepository, 'findByUsername')
+        .mockResolvedValue(registeredUser);
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValue(preCreatedUser);
+    };
+
+    const sentSetupToken = (): string => {
+      const [[, { setupUrl }]] = jest.mocked(
+        mailerService.sendAccountSetupEmail,
+      ).mock.calls;
+      return setupUrl.split('/complete-account/')[1];
+    };
+
+    const storedUpdate = () => {
+      const [, , update] = jest.mocked(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).mock.calls[0];
+      return update;
+    };
+
+    beforeAll(() => {
+      process.env.JWT_SECRET = jwtSecret;
+    });
+
+    afterAll(() => {
+      process.env.JWT_SECRET = originalJwtSecret;
+    });
+
+    beforeEach(() => {
+      jest.useFakeTimers({ now });
+      jest
+        .spyOn(preCreatedUsersRepository, 'updateByUuidAndStatus')
+        .mockResolvedValue(true);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('When the email has a paid account pending setup, then a new setup link is emailed with a token issued at the resend', async () => {
+      const preCreatedUser = pendingSetupUser();
+      givenEmailBelongsTo({ preCreatedUser });
+
+      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+
+      const { setupEmailSentAt } = storedUpdate();
+      expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledWith(
+        preCreatedUser.email,
+        {
+          setupUrl: expect.stringContaining('/complete-account/'),
+        },
+      );
+      const decoded = jwtLibrary.verifyWithDefaultSecret(sentSetupToken()) as {
+        payload: { uuid: string; action: string };
+        iat: number;
+      };
+      expect(decoded.payload).toEqual({
+        uuid: preCreatedUser.uuid,
+        action: ACCOUNT_SETUP_TOKEN_ACTION,
+      });
+      expect(decoded.iat).toBe(Math.floor(setupEmailSentAt.getTime() / 1000));
+    });
+
+    it('When a token from the resend is used to complete the setup, then it is accepted, and the previous link is rejected as expired', async () => {
+      const preCreatedUser = pendingSetupUser();
+      givenEmailBelongsTo({ preCreatedUser });
+      const previousToken = signJwt(
+        {
+          payload: {
+            uuid: preCreatedUser.uuid,
+            action: ACCOUNT_SETUP_TOKEN_ACTION,
+          },
+          iat: Math.floor(oneHourAgo.getTime() / 1000),
+        },
+        jwtSecret,
+        { expiresIn: '5d' } as any,
+      );
+
+      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+      const newToken = sentSetupToken();
+      const { setupEmailSentAt } = storedUpdate();
+      preCreatedUser.setupEmailSentAt = setupEmailSentAt;
+
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUuid')
+        .mockResolvedValue(preCreatedUser);
+      jest
+        .spyOn(keyServerUseCases, 'parseKeysInput')
+        .mockReturnValue({ ecc: null, kyber: null });
+
+      await expect(
+        userUseCases.completeAccountSetup({
+          token: previousToken,
+        } as any),
+      ).rejects.toThrow(new ForbiddenException('Token expired'));
+
+      await expect(
+        userUseCases.completeAccountSetup({ token: newToken } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When the setup email is resent, then it counts towards today\'s limit together with the new link', async () => {
+      const preCreatedUser = pendingSetupUser({
+        count: 2,
+        lastSentAt: oneHourAgo,
+      });
+      givenEmailBelongsTo({ preCreatedUser });
+
+      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+
+      expect(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+        PreCreatedUserStatus.PendingSetup,
+        {
+          status: PreCreatedUserStatus.PendingSetup,
+          setupEmailSentAt: now,
+          setupEmailResendCount: 3,
+        },
+      );
+    });
+
+    it('When the last email was sent on a previous day, then the daily count starts again', async () => {
+      const preCreatedUser = pendingSetupUser({
+        count: 5,
+        lastSentAt: yesterday,
+      });
+      givenEmailBelongsTo({ preCreatedUser });
+
+      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+
+      expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledTimes(1);
+      expect(storedUpdate()).toMatchObject({
+        setupEmailResendCount: 1,
+      });
+    });
+
+    it('When the daily limit of resends is reached, then no email is sent and the current link keeps working', async () => {
+      const preCreatedUser = pendingSetupUser({
+        count: 5,
+        lastSentAt: oneHourAgo,
+      });
+      givenEmailBelongsTo({ preCreatedUser });
+
+      await expect(
+        userUseCases.resendAccountSetupEmail(preCreatedUser.email),
+      ).resolves.toBeUndefined();
+
+      expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
+      expect(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When the email cannot be sent, then the current link keeps working and the resend is not counted', async () => {
+      const preCreatedUser = pendingSetupUser({
+        count: 1,
+        lastSentAt: oneHourAgo,
+      });
+      givenEmailBelongsTo({ preCreatedUser });
+      jest
+        .spyOn(mailerService, 'sendAccountSetupEmail')
+        .mockRejectedValue(new Error('Email provider unavailable'));
+
+      await expect(
+        userUseCases.resendAccountSetupEmail(preCreatedUser.email),
+      ).rejects.toThrow('Email provider unavailable');
+
+      expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+        {
+          status: PreCreatedUserStatus.PendingSetup,
+          setupEmailSentAt: oneHourAgo,
+          setupEmailResendCount: 1,
+        },
+      );
+    });
+
+    it('When the buyer paid but the first setup email failed, then it is sent and the account becomes pending setup so the new link completes it', async () => {
+      const preCreatedUser = pendingSetupUser();
+      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
+      preCreatedUser.tierId = v4();
+      givenEmailBelongsTo({ preCreatedUser });
+
+      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+
+      expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledTimes(1);
+      expect(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).toHaveBeenCalledWith(
+        preCreatedUser.uuid,
+        PreCreatedUserStatus.AwaitingPayment,
+        expect.objectContaining({ status: PreCreatedUserStatus.PendingSetup }),
+      );
+    });
+
+    it('When the buyer started a checkout but has not paid, then no setup email is sent', async () => {
+      const preCreatedUser = pendingSetupUser();
+      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
+      preCreatedUser.tierId = null;
+      givenEmailBelongsTo({ preCreatedUser });
+
+      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+
+      expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
+      expect(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When the status changes at the same time, for example to cancelled, then nothing is sent', async () => {
+      const preCreatedUser = pendingSetupUser();
+      givenEmailBelongsTo({ preCreatedUser });
+      jest
+        .spyOn(preCreatedUsersRepository, 'updateByUuidAndStatus')
+        .mockResolvedValue(false);
+
+      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+
+      expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
+    });
+
+    it('When the email belongs to a registered user, then no setup email is sent', async () => {
+      givenEmailBelongsTo({
+        registeredUser: newUser(),
+        preCreatedUser: pendingSetupUser(),
+      });
+
+      await expect(
+        userUseCases.resendAccountSetupEmail('registered@internxt.com'),
+      ).resolves.toBeUndefined();
+
+      expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
+    });
+
+    it('When the email is unknown, then no setup email is sent', async () => {
+      givenEmailBelongsTo({});
+
+      await expect(
+        userUseCases.resendAccountSetupEmail('unknown@internxt.com'),
+      ).resolves.toBeUndefined();
+
+      expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
+    });
+
+    it('When the email was only invited to a shared item or workspace, then no setup email is sent', async () => {
+      givenEmailBelongsTo({ preCreatedUser: newPreCreatedUser() });
+
+      await expect(
+        userUseCases.resendAccountSetupEmail('invited@internxt.com'),
+      ).resolves.toBeUndefined();
+
+      expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
+    });
+
+    it('When the subscription was cancelled before completing the setup, then no setup email is sent', async () => {
+      const cancelledUser = pendingSetupUser();
+      cancelledUser.status = PreCreatedUserStatus.Cancelled;
+      givenEmailBelongsTo({ preCreatedUser: cancelledUser });
+
+      await expect(
+        userUseCases.resendAccountSetupEmail(cancelledUser.email),
+      ).resolves.toBeUndefined();
+
+      expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
+      expect(
+        preCreatedUsersRepository.updateByUuidAndStatus,
+      ).not.toHaveBeenCalled();
     });
   });
 });

@@ -20,6 +20,7 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
   privateKyberKey?: string;
   setupEmailSentAt?: Date | null;
   tierId?: string | null;
+  setupEmailResendCount: number;
   status?: PreCreatedUserStatus | null;
   constructor({
     id,
@@ -37,6 +38,7 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
     privateKyberKey,
     setupEmailSentAt,
     tierId,
+    setupEmailResendCount,
     status,
   }: PreCreatedUserAttributes) {
     this.id = id;
@@ -54,6 +56,7 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
     this.hKey = hKey;
     this.setupEmailSentAt = setupEmailSentAt ?? null;
     this.tierId = tierId ?? null;
+    this.setupEmailResendCount = setupEmailResendCount ?? 0;
     this.status = status ?? null;
   }
 

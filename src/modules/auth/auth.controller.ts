@@ -5,7 +5,6 @@ import {
   Post,
   Logger,
   NotFoundException,
-  UseGuards,
   Get,
   HttpStatus,
   ConflictException,
@@ -17,6 +16,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
   ApiPaymentRequiredResponse,
@@ -135,6 +135,9 @@ export class AuthController {
   @ApiOkResponse({
     description: 'User  successfully accessed their account',
     type: LoginAccessResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'The account is blocked',
   })
   @Public()
   @WorkspaceLogAction(WorkspaceLogType.Login)

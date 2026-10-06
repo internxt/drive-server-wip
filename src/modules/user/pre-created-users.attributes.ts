@@ -23,5 +23,6 @@ export interface PreCreatedUserAttributes {
   privateKyberKey?: KeyServerAttributes['privateKey'];
   setupEmailSentAt?: Date | null;
   tierId?: string | null;
+  setupEmailResendCount?: number;
   status?: PreCreatedUserStatus | null;
 }

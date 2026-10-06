@@ -76,6 +76,10 @@ export class PreCreatedUserModel
   @Column(DataType.UUID)
   tierId?: string | null;
 
+  @AllowNull(false)
+  @Column({ type: DataType.INTEGER, defaultValue: 0 })
+  setupEmailResendCount: number;
+
   @AllowNull(true)
   @Column(DataType.ENUM(...Object.values(PreCreatedUserStatus)))
   status?: PreCreatedUserStatus | null;

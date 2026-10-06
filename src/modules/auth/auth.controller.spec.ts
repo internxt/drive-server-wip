@@ -10,6 +10,7 @@ import {
   ConflictException,
   type Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import { v4 } from 'uuid';
@@ -113,6 +114,7 @@ describe('AuthController', () => {
       const loginDto = new LoginDto();
       loginDto.email = 'test@example.com';
       jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(null);
+      userUseCases.hasPendingAccountSetup.mockResolvedValueOnce(false);
 
       await authController.login(loginDto);
 
@@ -129,6 +131,49 @@ describe('AuthController', () => {
       expect(cryptoService.fakeSaltFor).toHaveBeenCalledWith(
         'test@example.com',
       );
+    });
+
+    it('When the email has a paid account pending setup, then login responds exactly like for an unknown email so emails cannot be enumerated', async () => {
+      const fakeSalt = 'a'.repeat(32);
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValue(null);
+      jest.spyOn(cryptoService, 'fakeSaltFor').mockReturnValue(fakeSalt);
+      jest
+        .spyOn(cryptoService, 'encryptText')
+        .mockReturnValue('encryptedFakeSalt');
+      userUseCases.hasPendingAccountSetup.mockResolvedValueOnce(true);
+
+      const pendingSetupResult = await authController.login({
+        email: 'Buyer@Internxt.com',
+      });
+
+      userUseCases.hasPendingAccountSetup.mockResolvedValueOnce(false);
+      const unknownEmailResult = await authController.login({
+        email: 'unknown@internxt.com',
+      });
+
+      expect(pendingSetupResult).toEqual(unknownEmailResult);
+      expect(pendingSetupResult).toEqual({
+        hasKeys: true,
+        sKey: 'encryptedFakeSalt',
+        tfa: false,
+        hasKyberKeys: true,
+        hasEccKeys: true,
+      });
+    });
+
+    it('When the email belongs to a registered user, then the pending setup check does not apply', async () => {
+      const user = newUser();
+      user.hKey = 'hKey';
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(user);
+      jest.spyOn(keyServerUseCases, 'findUserKeys').mockResolvedValueOnce({
+        ecc: newKeyServer({ userId: user.id }),
+        kyber: null,
+      });
+
+      await expect(
+        authController.login({ email: user.email }),
+      ).resolves.toMatchObject({ hasKeys: true });
+      expect(userUseCases.hasPendingAccountSetup).not.toHaveBeenCalled();
     });
 
     it('When an email in uppercase is provided, then it should be transformed to lowercase', async () => {
@@ -218,6 +263,16 @@ describe('AuthController', () => {
     loginAccessDto.privateKey = 'privateKey';
     loginAccessDto.publicKey = 'publicKey';
     loginAccessDto.revocateKey = 'revocateKey';
+
+    it('When the email has no registered user, then the generic wrong credentials error reaches the caller', async () => {
+      userUseCases.loginAccess.mockRejectedValueOnce(
+        new UnauthorizedException('Wrong login credentials'),
+      );
+
+      await expect(authController.loginAccess(loginAccessDto)).rejects.toThrow(
+        new UnauthorizedException('Wrong login credentials'),
+      );
+    });
 
     it('When valid login access details are provided, then it should return the result of loginAccess', async () => {
       const eccKey = newKeyServer({ ...loginAccessDto });

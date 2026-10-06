@@ -95,8 +95,10 @@ import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import { type GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
 import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import { type UserResponseDto } from './dto/responses/user-credentials.dto';
-
-export const ACCOUNT_SETUP_TOKEN_ACTION = 'complete-account-setup';
+import {
+  ACCOUNT_SETUP_TOKEN_ACTION,
+  buildAccountSetupUrl,
+} from './account-setup-link';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -132,6 +134,8 @@ export class MailLimitReachedException extends HttpException {
     super(customMessage ?? 'Mail Limit reached', HttpStatus.TOO_MANY_REQUESTS);
   }
 }
+
+const ACCOUNT_SETUP_EMAIL_RESENDS_PER_DAY = 5;
 
 type NewUser = Pick<
   UserAttributes,
@@ -282,6 +286,65 @@ export class UserUseCases {
       publicKey: preCreatedUser.publicKey,
       publicKyberKey: preCreatedUser.publicKyberKey,
     };
+  }
+
+  async resendAccountSetupEmail(
+    email: PreCreatedUserAttributes['email'],
+  ): Promise<void> {
+    const registeredUser = await this.userRepository.findByUsername(email);
+    if (registeredUser) {
+      return;
+    }
+
+    const preCreatedUser =
+      await this.preCreatedUserRepository.findByUsername(email);
+    if (!preCreatedUser?.hasPendingAccountSetup()) {
+      return;
+    }
+
+    const sentAt = new Date();
+    const lastSentAt = preCreatedUser.setupEmailSentAt;
+    const resendsToday =
+      lastSentAt && Time.isToday(lastSentAt)
+        ? preCreatedUser.setupEmailResendCount
+        : 0;
+
+    if (resendsToday >= ACCOUNT_SETUP_EMAIL_RESENDS_PER_DAY) {
+      Logger.warn(
+        `[ACCOUNT_SETUP/RESEND] Daily limit reached for pre-created user ${preCreatedUser.uuid}`,
+      );
+      return;
+    }
+
+    const isClaimed = await this.preCreatedUserRepository.updateByUuidAndStatus(
+      preCreatedUser.uuid,
+      preCreatedUser.status,
+      {
+        status: PreCreatedUserStatus.PendingSetup,
+        setupEmailSentAt: sentAt,
+        setupEmailResendCount: resendsToday + 1,
+      },
+    );
+
+    if (!isClaimed) {
+      return;
+    }
+
+    const { setupUrl } = buildAccountSetupUrl(preCreatedUser.uuid, sentAt);
+
+    try {
+      await this.mailerService.sendAccountSetupEmail(preCreatedUser.email, {
+        setupUrl,
+      });
+    } catch (error) {
+      await this.preCreatedUserRepository.updateByUuid(preCreatedUser.uuid, {
+        status: preCreatedUser.status,
+        setupEmailSentAt: preCreatedUser.setupEmailSentAt,
+        setupEmailResendCount: preCreatedUser.setupEmailResendCount,
+      });
+
+      throw error;
+    }
   }
 
   getWorkspaceMembersByBrigeUser(bridgeUser: string) {
@@ -1737,7 +1800,8 @@ export class UserUseCases {
   ) {
     const MAX_LOGIN_FAIL_ATTEMPTS = 10;
 
-    const userData = await this.findByEmail(loginAccessDto.email.toLowerCase());
+    const email = loginAccessDto.email.toLowerCase();
+    const userData = await this.findByEmail(email);
 
     if (!userData) {
       throw new UnauthorizedException('Wrong login credentials');
