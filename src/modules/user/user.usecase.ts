@@ -50,6 +50,7 @@ import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { type PreCreateUserDto } from './dto/pre-create-user.dto';
+import { type CompleteAccountSetupDto } from './dto/complete-account-setup.dto';
 import { aes } from '@internxt/lib';
 import {
   PreCreatedUserStatus,
@@ -63,7 +64,11 @@ import { AttemptChangeEmailHasExpiredException } from './exception/attempt-chang
 import { AttemptChangeEmailNotFoundException } from './exception/attempt-change-email-not-found.exception';
 import { UserEmailAlreadyInUseException } from './exception/user-email-already-in-use.exception';
 import { UserNotFoundException } from './exception/user-not-found.exception';
-import { getTokenDefaultIat, verifyToken } from '../../lib/jwt';
+import {
+  getTokenDefaultIat,
+  verifyToken,
+  verifyWithDefaultSecret,
+} from '../../lib/jwt';
 import getEnv from '../../config/configuration';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeMailLimitRepository } from '../security/mail-limit/mail-limit.repository';
@@ -90,6 +95,8 @@ import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import { type GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publickeys.dto';
 import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import { type UserResponseDto } from './dto/responses/user-credentials.dto';
+
+export const ACCOUNT_SETUP_TOKEN_ACTION = 'complete-account-setup';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -133,6 +140,8 @@ type NewUser = Pick<
   salt: string;
   referrer?: UserAttributes['referrer'];
   registerCompleted?: UserAttributes['registerCompleted'];
+  tierId?: UserAttributes['tierId'];
+  emailVerified?: UserAttributes['emailVerified'];
 };
 
 @Injectable()
@@ -456,7 +465,8 @@ export class UserUseCases {
         new SignUpErrorEvent({ email, uuid: userUuid }, err),
       );
 
-    const freeTier = await this.featureLimitRepository.getFreeTier();
+    const tierId =
+      newUser.tierId ?? (await this.featureLimitRepository.getFreeTier())?.id;
 
     const user = await this.userRepository.create({
       email,
@@ -474,7 +484,8 @@ export class UserUseCases {
       username: email,
       bridgeUser: email,
       mnemonic: newUser.mnemonic,
-      tierId: freeTier?.id,
+      tierId,
+      emailVerified: newUser.emailVerified ?? false,
     });
 
     let rootFolder: Folder;
@@ -530,17 +541,133 @@ export class UserUseCases {
       notifySignUpError(err);
 
       if (user) {
-        Logger.warn(
-          `[SIGNUP/USER]: Rolling back user created ${user.uuid}, email: ${user.email}`,
-        );
-        await this.userRepository.deleteBy({ uuid: user.uuid });
-        if (rootFolder) {
-          await this.folderUseCases.deleteFolderPermanently(rootFolder, user);
-        }
+        await this.rollbackCreatedUser(user, rootFolder);
       }
 
       throw err;
     }
+  }
+
+  private async rollbackCreatedUser(user: User, rootFolder?: Folder) {
+    Logger.warn(
+      `[SIGNUP/USER]: Rolling back user created ${user.uuid}, email: ${user.email}`,
+    );
+    await this.userRepository.deleteBy({ uuid: user.uuid });
+    if (rootFolder) {
+      await this.folderUseCases.deleteFolderPermanently(rootFolder, user);
+    }
+  }
+
+  private decodeAccountSetupToken(token: string): {
+    uuid: string;
+    issuedAt: number;
+  } {
+    try {
+      const decoded = verifyWithDefaultSecret(token) as {
+        payload?: { uuid?: string; action?: string };
+        iat?: number;
+      };
+
+      if (
+        typeof decoded === 'string' ||
+        !decoded?.iat ||
+        !decoded.payload?.uuid ||
+        decoded.payload.action !== ACCOUNT_SETUP_TOKEN_ACTION
+      ) {
+        throw new ForbiddenException('Invalid token');
+      }
+
+      return { uuid: decoded.payload.uuid, issuedAt: decoded.iat };
+    } catch (error) {
+      if (error instanceof JsonWebTokenError) {
+        const isTokenExpired = error instanceof TokenExpiredError;
+
+        throw new ForbiddenException(
+          isTokenExpired ? 'Token expired' : 'Invalid token',
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  async completeAccountSetup({ token, ...setup }: CompleteAccountSetupDto) {
+    const { uuid, issuedAt } = this.decodeAccountSetupToken(token);
+    const preCreatedUser = await this.preCreatedUserRepository.findByUuid(uuid);
+
+    if (!preCreatedUser) {
+      throw new ForbiddenException('Invalid token');
+    }
+
+    if (preCreatedUser.status !== PreCreatedUserStatus.PendingSetup) {
+      throw new ForbiddenException('Invalid token');
+    }
+
+    if (!preCreatedUser.setupEmailSentAt) {
+      throw new ForbiddenException('Invalid token');
+    }
+
+    const lastSentAt = Math.floor(
+      preCreatedUser.setupEmailSentAt.getTime() / 1000,
+    );
+
+    if (issuedAt < lastSentAt) {
+      throw new ForbiddenException('Token expired');
+    }
+
+    const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(setup.keys, {
+      privateKey: setup.privateKey,
+      publicKey: setup.publicKey,
+      revocationKey: setup.revocationKey,
+    });
+
+    if (!ecc) {
+      throw new BadRequestException('Encryption keys are required');
+    }
+
+    const createdUser = await this.createUser({
+      ...setup,
+      email: preCreatedUser.email,
+      tierId: preCreatedUser.tierId ?? undefined,
+      emailVerified: true,
+    });
+
+    const keys = await this.keyServerUseCases.addKeysToUser(
+      createdUser.user.id,
+      { ecc, kyber },
+    );
+
+    await this.movePreCreatedUserToCreatedUser(
+      preCreatedUser,
+      createdUser.uuid,
+      keys,
+    );
+
+    return { ...createdUser, keys };
+  }
+
+  private async movePreCreatedUserToCreatedUser(
+    preCreatedUser: PreCreatedUser,
+    createdUserUuid: User['uuid'],
+    keys: Awaited<ReturnType<KeyServerUseCases['addKeysToUser']>>,
+  ): Promise<void> {
+    if (keys.ecc) {
+      try {
+        await this.replacePreCreatedUser(
+          preCreatedUser.email,
+          createdUserUuid,
+          keys.ecc.publicKey,
+          keys.kyber?.publicKey,
+        );
+        return;
+      } catch (error) {
+        Logger.error(
+          `[ACCOUNT_SETUP/COMPLETE] Could not move the invitations of pre-created user ${preCreatedUser.uuid}: ${(error as Error).message}`,
+        );
+      }
+    }
+
+    await this.preCreatedUserRepository.deleteByUuid(preCreatedUser.uuid);
   }
 
   async replacePreCreatedUser(
