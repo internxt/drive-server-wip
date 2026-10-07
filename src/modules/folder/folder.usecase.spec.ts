@@ -1190,6 +1190,10 @@ describe('FolderUseCases', () => {
         modificationTime: new Date('2024-09-12T12:00:00Z'),
       });
 
+      expect(folderRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ uuid: parentFolder.uuid }),
+        { useMaster: true },
+      );
       expect(folderRepository.findByParentUuid).toHaveBeenCalledWith(
         parentFolder.uuid,
         { plainName: folderName, deleted: false, removed: false },
@@ -1307,6 +1311,10 @@ describe('FolderUseCases', () => {
         folders: [{ plainName: 'Folder A' }, { plainName: 'Folder B' }],
       });
 
+      expect(folderRepository.findOne).toHaveBeenCalledWith(
+        { uuid: parentFolder.uuid, userId: userMocked.id, removed: false },
+        { useMaster: true },
+      );
       expect(result).toEqual(createdFolders);
       expect(folderRepository.bulkCreate).toHaveBeenCalledTimes(1);
     });
@@ -2295,6 +2303,7 @@ describe('FolderUseCases', () => {
       expect(folderRepository.findByUuid).toHaveBeenCalledWith(
         folderUuid,
         false,
+        undefined,
       );
       expect(cryptoService.decryptName).toHaveBeenCalledWith(
         folder.name,
@@ -2316,9 +2325,26 @@ describe('FolderUseCases', () => {
       expect(folderRepository.findByUuid).toHaveBeenCalledWith(
         folderUuid,
         false,
+        undefined,
       );
       expect(decryptSpy).not.toHaveBeenCalled();
       expect(result.plainName).toBe('plain name');
+    });
+
+    it('When reading from master is requested, then it should forward the option to the repository', async () => {
+      const folder = newFolder({
+        attributes: { uuid: folderUuid, plainName: 'plain name' },
+      });
+
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(folder);
+
+      await service.getByUuid(folderUuid, { useMaster: true });
+
+      expect(folderRepository.findByUuid).toHaveBeenCalledWith(
+        folderUuid,
+        false,
+        { useMaster: true },
+      );
     });
 
     it('When folder does not exist, then it should throw NotFoundException', async () => {

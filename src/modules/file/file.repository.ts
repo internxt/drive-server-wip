@@ -98,7 +98,10 @@ export interface FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]>,
   ): Promise<Array<File> | []>;
-  findOneBy(where: Partial<FileAttributes>): Promise<File | null>;
+  findOneBy(
+    where: Partial<FileAttributes>,
+    opts?: { useMaster: boolean },
+  ): Promise<File | null>;
   findByUuid(
     fileUuid: FileAttributes['uuid'],
     userId: FileAttributes['userId'],
@@ -1156,9 +1159,13 @@ export class SequelizeFileRepository implements FileRepository {
     };
   }
 
-  async findOneBy(where: Partial<FileAttributes>): Promise<File | null> {
+  async findOneBy(
+    where: Partial<FileAttributes>,
+    opts?: { useMaster: boolean },
+  ): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where,
+      useMaster: opts?.useMaster,
     });
     return file ? this.toDomain(file) : null;
   }

@@ -308,7 +308,7 @@ export class FileUseCases {
   ) {
     const [hadFilesBeforeUpload, folder] = await Promise.all([
       this.hasUploadedFiles(user),
-      this.folderUsecases.getByUuid(newFileDto.folderUuid),
+      this.folderUsecases.getByUuid(newFileDto.folderUuid, { useMaster: true }),
     ]);
 
     if (!folder) {

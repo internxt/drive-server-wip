@@ -71,6 +71,10 @@ describe('ThumbnailUseCases', () => {
         createThumbnailDto,
       );
 
+      expect(fileRepository.findOneBy).toHaveBeenCalledWith(
+        { uuid: fileUuid },
+        { useMaster: true },
+      );
       expect(thumbnailRepository.findByFileUuid).toHaveBeenCalledWith(fileUuid);
       expect(thumbnailRepository.create).toHaveBeenCalledWith({
         ...createThumbnailDto,

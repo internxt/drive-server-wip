@@ -1986,6 +1986,20 @@ describe('FileRepository', () => {
     });
   });
 
+  describe('findOneBy', () => {
+    it('When reading from master is requested, then it should query the primary', async () => {
+      const where = { uuid: v4() };
+      jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(null);
+
+      await repository.findOneBy(where, { useMaster: true });
+
+      expect(fileModel.findOne).toHaveBeenCalledWith({
+        where,
+        useMaster: true,
+      });
+    });
+  });
+
   describe('findDeletedFilesUpdatedBefore', () => {
     const cutoffDate = Time.now('2025-09-01T00:00:00Z');
     const limit = 100;

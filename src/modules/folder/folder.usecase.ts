@@ -68,8 +68,11 @@ export class FolderUseCases {
     return this.folderRepository.findByIds(user, folderIds);
   }
 
-  async getByUuid(uuid: Folder['uuid']): Promise<Folder> {
-    const folder = await this.folderRepository.findByUuid(uuid, false);
+  async getByUuid(
+    uuid: Folder['uuid'],
+    opts?: { useMaster: boolean },
+  ): Promise<Folder> {
+    const folder = await this.folderRepository.findByUuid(uuid, false, opts);
 
     if (!folder) {
       throw new NotFoundException('Folder not found');
@@ -370,10 +373,13 @@ export class FolderUseCases {
       user = await this.userRepository.findByUsername(creator.bridgeUser);
     }
 
-    const parentFolder = await this.folderRepository.findOne({
-      uuid: newFolderDto.parentFolderUuid,
-      userId: user.id,
-    });
+    const parentFolder = await this.folderRepository.findOne(
+      {
+        uuid: newFolderDto.parentFolderUuid,
+        userId: user.id,
+      },
+      { useMaster: true },
+    );
 
     if (!parentFolder) {
       throw new NotFoundException('Parent folder does not exist');
@@ -431,11 +437,14 @@ export class FolderUseCases {
   async createBulkFolders(user: User, dto: CreateFolderDto): Promise<Folder[]> {
     const folders = dto.folders;
 
-    const parentFolder = await this.folderRepository.findOne({
-      uuid: dto.parentFolderUuid,
-      userId: user.id,
-      removed: false,
-    });
+    const parentFolder = await this.folderRepository.findOne(
+      {
+        uuid: dto.parentFolderUuid,
+        userId: user.id,
+        removed: false,
+      },
+      { useMaster: true },
+    );
 
     if (!parentFolder) {
       throw new NotFoundException('Parent folder does not exist');

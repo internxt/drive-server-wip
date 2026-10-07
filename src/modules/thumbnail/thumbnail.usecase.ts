@@ -25,7 +25,9 @@ export class ThumbnailUseCases {
         ? { uuid: thumbnail.fileUuid }
         : { id: thumbnail.fileId };
 
-    const file = await this.fileRepository.findOneBy(searchCondition);
+    const file = await this.fileRepository.findOneBy(searchCondition, {
+      useMaster: true,
+    });
     if (!file) {
       throw new NotFoundException('File not found');
     }

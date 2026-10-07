@@ -887,6 +887,10 @@ describe('FileUseCases', () => {
 
       const result = await service.createFile(userMocked, newFileDto);
 
+      expect(folderUseCases.getByUuid).toHaveBeenCalledWith(
+        newFileDto.folderUuid,
+        { useMaster: true },
+      );
       expect(result).toEqual(createdFile);
       expect(expireUsageSpy).toHaveBeenCalledWith(userMocked.uuid);
     });
