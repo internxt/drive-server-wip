@@ -37,6 +37,7 @@ export interface FolderWithSharedInfo extends Folder {
   sharedWithMe: boolean | null;
   sharingId?: Sharing['id'];
   sharingType?: Sharing['type'];
+  linkExpirationDate?: Sharing['expirationAt'];
   credentials: {
     networkPass: User['userId'];
     networkUser: User['bridgeUser'];
@@ -50,6 +51,7 @@ export interface FileWithSharedInfo extends File {
   sharedWithMe: boolean | null;
   sharingId?: Sharing['id'];
   sharingType?: Sharing['type'];
+  linkExpirationDate?: Sharing['expirationAt'];
   credentials: {
     networkPass: User['userId'];
     networkUser: User['bridgeUser'];

@@ -27,6 +27,7 @@ import { FileStatus } from '../file/file.domain';
 import { FileModel } from '../file/file.model';
 import { UserModel } from '../user/user.model';
 import { FolderModel } from '../folder/folder.model';
+import { Time } from '../../lib/time';
 
 describe('SharingRepository', () => {
   let repository: SequelizeSharingRepository;
@@ -620,7 +621,7 @@ describe('SharingRepository', () => {
             [
               {
                 val: expect.stringContaining(
-                  `CASE WHEN "role->role"."name" = :priorityRole THEN 1 ELSE 2 END`,
+                  'CASE WHEN "role->role"."name" = :priorityRole THEN 1 ELSE 2 END',
                 ),
               },
               'ASC',
@@ -1422,7 +1423,43 @@ describe('SharingRepository', () => {
     });
   });
 
+  describe('findByOwnerAndSharedWithMe', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('When getting the shared folders, then expired sharings are filtered out', async () => {
+      const userId = v4();
+      const now = new Date();
+
+      jest.spyOn(Time, 'now').mockReturnValue(now);
+      jest.spyOn(sharingModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findByOwnerAndSharedWithMe(userId, 0, 10);
+
+      expect(sharingModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            [Op.and]: [
+              { [Op.or]: [{ ownerId: userId }, { sharedWith: userId }] },
+              {
+                [Op.or]: [
+                  { expirationAt: null },
+                  { expirationAt: { [Op.gt]: now } },
+                ],
+              },
+            ],
+          },
+        }),
+      );
+    });
+  });
+
   describe('getUserRelatedSharedFilesInfo', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     it('When getting user related shared files info, then it returns data', async () => {
       const userId = v4();
       const offset = 0;
@@ -1433,17 +1470,23 @@ describe('SharingRepository', () => {
       const encryptionKey2 = 'encryption-key-2';
       const createdAt1 = new Date();
       const createdAt2 = new Date();
+      const expirationAt1 = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const now = new Date();
+
+      jest.spyOn(Time, 'now').mockReturnValue(now);
 
       const mockResults = [
         {
           itemId: itemId1,
           encryptionKey: encryptionKey1,
           createdAt: createdAt1,
+          expirationAt: expirationAt1,
         },
         {
           itemId: itemId2,
           encryptionKey: encryptionKey2,
           createdAt: createdAt2,
+          expirationAt: null,
         },
       ];
 
@@ -1460,11 +1503,13 @@ describe('SharingRepository', () => {
         itemId: itemId1,
         encryptionKey: encryptionKey1,
         createdAt: createdAt1,
+        expirationAt: expirationAt1,
       });
       expect(result[1]).toEqual({
         itemId: itemId2,
         encryptionKey: encryptionKey2,
         createdAt: createdAt2,
+        expirationAt: null,
       });
       expect(sharingModel.findAll).toHaveBeenCalledWith({
         attributes: [
@@ -1474,9 +1519,23 @@ describe('SharingRepository', () => {
             'encryptionKey',
           ],
           [Sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
+          [
+            Sequelize.literal(
+              'MAX(CASE WHEN "SharingModel"."type" = \'public\' THEN "SharingModel"."expiration_at" END)',
+            ),
+            'expirationAt',
+          ],
         ],
         where: {
-          [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+          [Op.and]: [
+            { [Op.or]: [{ ownerId: userId }, { sharedWith: userId }] },
+            {
+              [Op.or]: [
+                { expirationAt: null },
+                { expirationAt: { [Op.gt]: now } },
+              ],
+            },
+          ],
         },
         group: ['itemId'],
         include: [
