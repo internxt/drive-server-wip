@@ -2,6 +2,7 @@ import type { File } from '../file/file.domain';
 import type { Folder } from '../folder/folder.domain';
 import type { User } from '../user/user.domain';
 import type { WorkspaceTeam } from '../workspaces/domains/workspace-team.domain';
+import { Time } from '../../lib/time';
 
 export const HYBRID_ALGORITHM = 'hybrid';
 export const HYBRID_ALGORITHM_WITH_BUCKET_KEY = 'hybrid-v2';
@@ -156,7 +157,7 @@ export class Sharing implements SharingAttributes {
     return this.encryptedPassword !== null;
   }
 
-  isExpired(now = new Date()): boolean {
+  isExpired(now = Time.now()): boolean {
     return !!this.expirationAt && this.expirationAt.getTime() <= now.getTime();
   }
 }

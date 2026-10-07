@@ -31,6 +31,7 @@ import { type WorkspaceTeamAttributes } from '../workspaces/attributes/workspace
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { type WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
 import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { Time } from '../../lib/time';
 
 interface SharingRepository {
   getInvitesByItem(
@@ -448,7 +449,10 @@ export class SequelizeSharingRepository implements SharingRepository {
   ): Promise<Sharing[]> {
     const sharedFolders = await this.sharings.findAll({
       where: {
-        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+        [Op.and]: [
+          { [Op.or]: [{ ownerId: userId }, { sharedWith: userId }] },
+          this.notExpiredCondition(),
+        ],
       },
       attributes: [
         [
@@ -521,7 +525,10 @@ export class SequelizeSharingRepository implements SharingRepository {
         ],
       ],
       where: {
-        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+        [Op.and]: [
+          { [Op.or]: [{ ownerId: userId }, { sharedWith: userId }] },
+          this.notExpiredCondition(),
+        ],
       },
       group: ['itemId'],
       include: [
@@ -1145,23 +1152,12 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
-  async findExpiredSharingIds(limit: number): Promise<Sharing['id'][]> {
-    const expiredSharings = await this.sharings.findAll({
-      attributes: ['id'],
-      where: {
-        expirationAt: { [Op.lte]: new Date() },
-      },
-      limit,
-    });
-
-    return expiredSharings.map((sharing) => sharing.id);
-  }
-
-  async deleteSharingsByIds(ids: Sharing['id'][]): Promise<void> {
-    await this.sharings.destroy({
-      where: {
-        id: { [Op.in]: ids },
-      },
-    });
+  private notExpiredCondition(): WhereOptions<SharingModel> {
+    return {
+      [Op.or]: [
+        { expirationAt: null },
+        { expirationAt: { [Op.gt]: Time.now() } },
+      ],
+    };
   }
 }
