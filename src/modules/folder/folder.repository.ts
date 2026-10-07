@@ -66,6 +66,7 @@ interface FolderRepository {
   findByUuid(
     folderUuid: FolderAttributes['uuid'],
     deleted: FolderAttributes['deleted'],
+    opts?: { useMaster: boolean },
   ): Promise<Folder | null>;
   findByUuidAndUser(
     folderUuid: FolderAttributes['uuid'],
@@ -85,7 +86,10 @@ interface FolderRepository {
     parentUuid: FolderAttributes['parentUuid'],
     deleted: FolderAttributes['deleted'],
   ): Promise<Folder | null>;
-  findOne(where: Partial<FolderAttributes>): Promise<Folder | null>;
+  findOne(
+    where: Partial<FolderAttributes>,
+    opts?: { useMaster: boolean },
+  ): Promise<Folder | null>;
   findAllByParentUuid(
     parentUuid: Folder['parentUuid'],
     deleted?: boolean,
@@ -629,9 +633,11 @@ export class SequelizeFolderRepository implements FolderRepository {
   async findByUuid(
     uuid: FolderAttributes['uuid'],
     deleted: FolderAttributes['deleted'] = false,
+    opts?: { useMaster: boolean },
   ): Promise<Folder> {
     const folder = await this.folderModel.findOne({
       where: { uuid, deleted, removed: false },
+      useMaster: opts?.useMaster,
     });
     return folder ? this.toDomain(folder) : null;
   }
@@ -689,8 +695,14 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map(this.toDomain.bind(this));
   }
 
-  async findOne(where: Partial<FolderAttributes>): Promise<Folder | null> {
-    const folder = await this.folderModel.findOne({ where });
+  async findOne(
+    where: Partial<FolderAttributes>,
+    opts?: { useMaster: boolean },
+  ): Promise<Folder | null> {
+    const folder = await this.folderModel.findOne({
+      where,
+      useMaster: opts?.useMaster,
+    });
 
     return folder ? this.toDomain(folder) : null;
   }

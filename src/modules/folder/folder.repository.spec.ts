@@ -677,6 +677,17 @@ describe('SequelizeFolderRepository', () => {
       expect(result).toBeInstanceOf(Folder);
       expect(result.uuid).toBe(folderUuid);
     });
+
+    it('When reading from master is requested, then it should query the primary', async () => {
+      jest.spyOn(folderModel, 'findOne').mockResolvedValueOnce(null);
+
+      await repository.findByUuid(folderUuid, false, { useMaster: true });
+
+      expect(folderModel.findOne).toHaveBeenCalledWith({
+        where: { uuid: folderUuid, deleted: false, removed: false },
+        useMaster: true,
+      });
+    });
   });
 
   describe('findOne', () => {
@@ -701,6 +712,18 @@ describe('SequelizeFolderRepository', () => {
       const result = await repository.findOne(whereConditions);
 
       expect(result).toBeNull();
+    });
+
+    it('When reading from master is requested, then it should query the primary', async () => {
+      const whereConditions = { uuid: v4(), userId: 1 };
+      jest.spyOn(folderModel, 'findOne').mockResolvedValueOnce(null);
+
+      await repository.findOne(whereConditions, { useMaster: true });
+
+      expect(folderModel.findOne).toHaveBeenCalledWith({
+        where: whereConditions,
+        useMaster: true,
+      });
     });
   });
 
