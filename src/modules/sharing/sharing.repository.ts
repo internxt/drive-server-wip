@@ -449,7 +449,10 @@ export class SequelizeSharingRepository implements SharingRepository {
   ): Promise<Sharing[]> {
     const sharedFolders = await this.sharings.findAll({
       where: {
-        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+        [Op.and]: [
+          { [Op.or]: [{ ownerId: userId }, { sharedWith: userId }] },
+          this.notExpiredCondition(),
+        ],
       },
       attributes: [
         [
@@ -522,7 +525,10 @@ export class SequelizeSharingRepository implements SharingRepository {
         ],
       ],
       where: {
-        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+        [Op.and]: [
+          { [Op.or]: [{ ownerId: userId }, { sharedWith: userId }] },
+          this.notExpiredCondition(),
+        ],
       },
       group: ['itemId'],
       include: [
@@ -1164,5 +1170,12 @@ export class SequelizeSharingRepository implements SharingRepository {
         id: { [Op.in]: ids },
       },
     });
+  private notExpiredCondition(): WhereOptions<SharingModel> {
+    return {
+      [Op.or]: [
+        { expirationAt: null },
+        { expirationAt: { [Op.gt]: Time.now() } },
+      ],
+    };
   }
 }

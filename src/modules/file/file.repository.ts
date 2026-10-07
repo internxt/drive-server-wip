@@ -37,6 +37,7 @@ import {
   FavoriteItemType,
   type FavoriteAttributes,
 } from '../favorite/favorite.domain';
+import { applyCollateAndTiebreakerToSort } from '../../lib/sort';
 
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
@@ -103,7 +104,8 @@ export interface FileRepository {
     userId: FileAttributes['userId'],
     where: FindOptions<FileAttributes>,
   ): Promise<File | null>;
-  findFilesInFolderByName(
+  findUserFilesInFolderByName(
+    userId: File['userId'],
     folderId: Folder['uuid'],
     searchBy: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]>;
@@ -151,6 +153,19 @@ export interface FileRepository {
     lastRowCursorUpdatedAt: string | null;
   }>;
   findFilesWithCursorWhereUpdatedAfter(params: {
+    where: Partial<FileAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FileUpdatedAtIdCursorDto;
+  }): Promise<{
+    files: File[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }>;
+  findWorkspaceFilesWithCursorWhereUpdatedAfter(params: {
+    networkUserId: FileAttributes['userId'];
+    createdBy: WorkspaceItemUserAttributes['createdBy'];
+    workspaceId: WorkspaceAttributes['id'];
     where: Partial<FileAttributes>;
     updatedAfter: Date;
     pageSize: number;
@@ -458,6 +473,81 @@ export class SequelizeFileRepository implements FileRepository {
     };
   }
 
+  async findWorkspaceFilesWithCursorWhereUpdatedAfter({
+    networkUserId,
+    createdBy,
+    workspaceId,
+    where,
+    updatedAfter,
+    pageSize,
+    cursor,
+  }: {
+    networkUserId: FileAttributes['userId'];
+    createdBy: WorkspaceItemUserAttributes['createdBy'];
+    workspaceId: WorkspaceAttributes['id'];
+    where: Partial<FileAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FileUpdatedAtIdCursorDto;
+  }): Promise<{
+    files: File[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }> {
+    const cursorFilter = cursor
+      ? cursorTimestampTupleFilter(cursor.updatedAt, cursor.uuid)
+      : null;
+
+    const createdInWorkspaceByUser = Sequelize.literal(
+      `EXISTS (
+        SELECT 1 FROM workspace_items_users wiu
+        WHERE wiu.item_id = "FileModel"."uuid"
+          AND wiu.item_type = :itemType
+          AND wiu.workspace_id = :workspaceId
+          AND wiu.created_by = :createdBy
+      )`,
+    );
+
+    const whereCondition: WhereOptions<FileAttributes> = {
+      ...where,
+      userId: networkUserId,
+      [Op.and]: [
+        cursorFilter
+          ? cursorFilter.where
+          : { updatedAt: { [Op.gt]: updatedAfter } },
+        createdInWorkspaceByUser,
+      ],
+    };
+
+    const rows = await this.fileModel.findAll({
+      where: whereCondition,
+      attributes: { include: [cursorUpdatedAtAttribute()] },
+      replacements: {
+        ...cursorFilter?.replacements,
+        itemType: WorkspaceItemType.File,
+        workspaceId,
+        createdBy,
+      },
+      order: [
+        ['updatedAt', 'ASC'],
+        ['uuid', 'ASC'],
+      ],
+      limit: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+    const lastRow = page.at(-1);
+
+    return {
+      files: page.map(this.toDomain.bind(this)),
+      hasMore,
+      lastRowCursorUpdatedAt: lastRow
+        ? (lastRow.get('updatedAtCursor') as string)
+        : null,
+    };
+  }
+
   async findFolderFilesWithCursor({
     folderUuid,
     userId,
@@ -478,6 +568,7 @@ export class SequelizeFileRepository implements FileRepository {
   }): Promise<{ files: File[]; hasMore: boolean }> {
     const sortColumn = '"FileModel"."plain_name" COLLATE "custom_numeric"';
     const comparator = order === SortOrder.DESC ? '<' : '>';
+    const orderDirection = order === SortOrder.DESC ? 'DESC' : 'ASC';
 
     const whereCondition: WhereOptions<FileAttributes> = {
       folderUuid,
@@ -526,9 +617,9 @@ export class SequelizeFileRepository implements FileRepository {
       subQuery: false,
       order: [
         Sequelize.literal(
-          `"FileModel"."plain_name" COLLATE "custom_numeric" ${order}`,
+          `"FileModel"."plain_name" COLLATE "custom_numeric" ${orderDirection}`,
         ),
-        ['uuid', order],
+        ['uuid', orderDirection],
       ],
       limit: pageSize + 1,
     });
@@ -563,26 +654,7 @@ export class SequelizeFileRepository implements FileRepository {
   private applyCollateToPlainNameSort(
     order: Array<[keyof FileModel, string]>,
   ): Array<[keyof FileModel, string] | Literal> {
-    const plainNameIndex = order.findIndex(
-      ([field, _]) => field === 'plainName',
-    );
-    const isPlainNameSort = plainNameIndex !== -1;
-
-    if (!isPlainNameSort) {
-      return order;
-    }
-
-    const newOrder: Array<[keyof FileModel, string] | Literal> =
-      structuredClone(order);
-    const [, orderDirection] = order[plainNameIndex];
-    // NOTE: collate needed to use the plain_name numeric-collation index
-    newOrder[plainNameIndex] = Sequelize.literal(
-      `"FileModel"."plain_name" COLLATE "custom_numeric" ${
-        orderDirection === 'ASC' ? 'ASC' : 'DESC'
-      }`,
-    );
-
-    return newOrder;
+    return applyCollateAndTiebreakerToSort(FileModel, order);
   }
 
   async findAllCursor(
@@ -1091,12 +1163,14 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
-  async findFilesInFolderByName(
+  async findUserFilesInFolderByName(
+    userId: File['userId'],
     folderId: Folder['uuid'],
     searchFilter: { plainName: File['plainName']; type?: File['type'] }[],
   ): Promise<File[]> {
     const where: WhereOptions<File> = {
       folderUuid: folderId,
+      userId,
       status: FileStatus.EXISTS,
     };
 

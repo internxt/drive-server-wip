@@ -27,6 +27,7 @@ import { FileStatus } from '../file/file.domain';
 import { FileModel } from '../file/file.model';
 import { UserModel } from '../user/user.model';
 import { FolderModel } from '../folder/folder.model';
+import { Time } from '../../lib/time';
 
 describe('SharingRepository', () => {
   let repository: SequelizeSharingRepository;
@@ -1422,7 +1423,43 @@ describe('SharingRepository', () => {
     });
   });
 
+  describe('findByOwnerAndSharedWithMe', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('When getting the shared folders, then expired sharings are filtered out', async () => {
+      const userId = v4();
+      const now = new Date();
+
+      jest.spyOn(Time, 'now').mockReturnValue(now);
+      jest.spyOn(sharingModel, 'findAll').mockResolvedValue([]);
+
+      await repository.findByOwnerAndSharedWithMe(userId, 0, 10);
+
+      expect(sharingModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            [Op.and]: [
+              { [Op.or]: [{ ownerId: userId }, { sharedWith: userId }] },
+              {
+                [Op.or]: [
+                  { expirationAt: null },
+                  { expirationAt: { [Op.gt]: now } },
+                ],
+              },
+            ],
+          },
+        }),
+      );
+    });
+  });
+
   describe('getUserRelatedSharedFilesInfo', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     it('When getting user related shared files info, then it returns data', async () => {
       const userId = v4();
       const offset = 0;
@@ -1434,6 +1471,9 @@ describe('SharingRepository', () => {
       const createdAt1 = new Date();
       const createdAt2 = new Date();
       const expirationAt1 = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const now = new Date();
+
+      jest.spyOn(Time, 'now').mockReturnValue(now);
 
       const mockResults = [
         {
@@ -1487,7 +1527,15 @@ describe('SharingRepository', () => {
           ],
         ],
         where: {
-          [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+          [Op.and]: [
+            { [Op.or]: [{ ownerId: userId }, { sharedWith: userId }] },
+            {
+              [Op.or]: [
+                { expirationAt: null },
+                { expirationAt: { [Op.gt]: now } },
+              ],
+            },
+          ],
         },
         group: ['itemId'],
         include: [

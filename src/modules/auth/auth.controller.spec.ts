@@ -87,15 +87,93 @@ describe('AuthController', () => {
       });
     });
 
-    it('When user is not found, then it should throw UnauthorizedException', async () => {
+    it('When user is not found, then it should return a fake salt response with the same shape as a real user', async () => {
       const loginDto = new LoginDto();
       loginDto.email = 'test@example.com';
+      const fakeSalt = 'a'.repeat(32);
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(null);
+      jest.spyOn(cryptoService, 'fakeSaltFor').mockReturnValueOnce(fakeSalt);
+      jest
+        .spyOn(cryptoService, 'encryptText')
+        .mockReturnValueOnce('encryptedFakeSalt');
 
+      const result = await authController.login(loginDto);
+
+      expect(cryptoService.fakeSaltFor).toHaveBeenCalledWith(loginDto.email);
+      expect(cryptoService.encryptText).toHaveBeenCalledWith(fakeSalt);
+      expect(result).toEqual({
+        hasKeys: true,
+        sKey: 'encryptedFakeSalt',
+        tfa: false,
+        hasKyberKeys: true,
+        hasEccKeys: true,
+      });
+    });
+
+    it('When user is not found, then it should not look up user keys', async () => {
+      const loginDto = new LoginDto();
+      loginDto.email = 'test@example.com';
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(null);
+      userUseCases.hasPendingAccountSetup.mockResolvedValueOnce(false);
+
+      await authController.login(loginDto);
+
+      expect(keyServerUseCases.findUserKeys).not.toHaveBeenCalled();
+    });
+
+    it('When user is not found and email has uppercase, then the fake salt should be derived from the lowercased email', async () => {
+      const loginDto = new LoginDto();
+      loginDto.email = 'TEST@EXAMPLE.COM';
       jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(null);
 
-      await expect(authController.login(loginDto)).rejects.toThrow(
-        new UnauthorizedException('Wrong login credentials'),
+      await authController.login(loginDto);
+
+      expect(cryptoService.fakeSaltFor).toHaveBeenCalledWith(
+        'test@example.com',
       );
+    });
+
+    it('When the email has a paid account pending setup, then login responds exactly like for an unknown email so emails cannot be enumerated', async () => {
+      const fakeSalt = 'a'.repeat(32);
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValue(null);
+      jest.spyOn(cryptoService, 'fakeSaltFor').mockReturnValue(fakeSalt);
+      jest
+        .spyOn(cryptoService, 'encryptText')
+        .mockReturnValue('encryptedFakeSalt');
+      userUseCases.hasPendingAccountSetup.mockResolvedValueOnce(true);
+
+      const pendingSetupResult = await authController.login({
+        email: 'Buyer@Internxt.com',
+      });
+
+      userUseCases.hasPendingAccountSetup.mockResolvedValueOnce(false);
+      const unknownEmailResult = await authController.login({
+        email: 'unknown@internxt.com',
+      });
+
+      expect(pendingSetupResult).toEqual(unknownEmailResult);
+      expect(pendingSetupResult).toEqual({
+        hasKeys: true,
+        sKey: 'encryptedFakeSalt',
+        tfa: false,
+        hasKyberKeys: true,
+        hasEccKeys: true,
+      });
+    });
+
+    it('When the email belongs to a registered user, then the pending setup check does not apply', async () => {
+      const user = newUser();
+      user.hKey = 'hKey';
+      jest.spyOn(userUseCases, 'findByEmail').mockResolvedValueOnce(user);
+      jest.spyOn(keyServerUseCases, 'findUserKeys').mockResolvedValueOnce({
+        ecc: newKeyServer({ userId: user.id }),
+        kyber: null,
+      });
+
+      await expect(
+        authController.login({ email: user.email }),
+      ).resolves.toMatchObject({ hasKeys: true });
+      expect(userUseCases.hasPendingAccountSetup).not.toHaveBeenCalled();
     });
 
     it('When an email in uppercase is provided, then it should be transformed to lowercase', async () => {
@@ -185,6 +263,16 @@ describe('AuthController', () => {
     loginAccessDto.privateKey = 'privateKey';
     loginAccessDto.publicKey = 'publicKey';
     loginAccessDto.revocateKey = 'revocateKey';
+
+    it('When the email has no registered user, then the generic wrong credentials error reaches the caller', async () => {
+      userUseCases.loginAccess.mockRejectedValueOnce(
+        new UnauthorizedException('Wrong login credentials'),
+      );
+
+      await expect(authController.loginAccess(loginAccessDto)).rejects.toThrow(
+        new UnauthorizedException('Wrong login credentials'),
+      );
+    });
 
     it('When valid login access details are provided, then it should return the result of loginAccess', async () => {
       const eccKey = newKeyServer({ ...loginAccessDto });

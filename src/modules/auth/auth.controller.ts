@@ -5,19 +5,18 @@ import {
   Post,
   Logger,
   NotFoundException,
-  UseGuards,
   Get,
   HttpStatus,
   ConflictException,
   BadRequestException,
   Delete,
   Put,
-  UnauthorizedException,
   HttpException,
   Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
   ApiPaymentRequiredResponse,
@@ -89,7 +88,15 @@ export class AuthController {
     const user = await this.userUseCases.findByEmail(email);
 
     if (!user) {
-      throw new UnauthorizedException('Wrong login credentials');
+      return {
+        hasKeys: true,
+        sKey: this.cryptoService.encryptText(
+          this.cryptoService.fakeSaltFor(email),
+        ),
+        tfa: false,
+        hasKyberKeys: true,
+        hasEccKeys: true,
+      };
     }
 
     try {
@@ -128,6 +135,9 @@ export class AuthController {
   @ApiOkResponse({
     description: 'User  successfully accessed their account',
     type: LoginAccessResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'The account is blocked',
   })
   @Public()
   @WorkspaceLogAction(WorkspaceLogType.Login)

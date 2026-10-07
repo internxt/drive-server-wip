@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { QueryTypes, Sequelize } from 'sequelize';
+import { v7 } from 'uuid';
 import { FileVersionModel } from './file-version.model';
 import {
   FileVersion,
   type FileVersionAttributes,
   FileVersionStatus,
 } from './file-version.domain';
+import { LimitLabels } from '../feature-limit/limits.enum';
 
 export type CreateFileVersionData = Omit<
   FileVersionAttributes,
@@ -30,7 +32,21 @@ interface FileVersionRepository {
     limit: number,
   ): Promise<number>;
   sumExistingSizesByUser(userId: string): Promise<number>;
-  findExpiredVersionIdsByTierLimits(limit: number): Promise<string[]>;
+  findExpiredVersionIdsByTierLimits(
+    limit: number,
+    cursor?: ExpiredVersionsCursor,
+  ): Promise<ExpiredVersion[]>;
+}
+
+export interface ExpiredVersionsCursor {
+  userId: string;
+  createdAt: string;
+}
+
+export interface ExpiredVersion {
+  id: string;
+  userId: string;
+  createdAt: string;
 }
 
 @Injectable()
@@ -42,6 +58,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
 
   async create(version: CreateFileVersionData): Promise<FileVersion> {
     const createdVersion = await this.model.create({
+      id: v7(),
       fileId: version.fileId,
       userId: version.userId,
       networkFileId: version.networkFileId,
@@ -56,6 +73,7 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
   async upsert(version: CreateFileVersionData): Promise<FileVersion> {
     const [instance] = await this.model.upsert(
       {
+        id: v7(),
         fileId: version.fileId,
         userId: version.userId,
         networkFileId: version.networkFileId,
@@ -66,6 +84,16 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
       },
       {
         conflictFields: ['file_id', 'network_file_id'],
+        // Excludes id
+        fields: [
+          'fileId',
+          'userId',
+          'networkFileId',
+          'size',
+          'status',
+          'modificationTime',
+          'updatedAt',
+        ],
       },
     );
 
@@ -222,45 +250,82 @@ export class SequelizeFileVersionRepository implements FileVersionRepository {
     return Number(result[0]?.['total']) || 0;
   }
 
-  async findExpiredVersionIdsByTierLimits(limit: number): Promise<string[]> {
+  async findExpiredVersionIdsByTierLimits(
+    limit: number,
+    cursor?: ExpiredVersionsCursor,
+  ): Promise<ExpiredVersion[]> {
     const query = `
-      WITH retention_config AS (
+      -- 1. Distinct users with versions, starting at the cursor user.
+      WITH RECURSIVE users_with_versions AS (
+        (SELECT user_id
+         FROM file_versions
+         WHERE status = :existsStatus AND user_id >= :fromUserId
+         ORDER BY user_id
+         LIMIT 1)
+        UNION ALL
+        SELECT (SELECT fv.user_id
+                FROM file_versions fv
+                WHERE fv.status = :existsStatus AND fv.user_id > uv.user_id
+                ORDER BY fv.user_id
+                LIMIT 1)
+        FROM users_with_versions uv
+        WHERE uv.user_id IS NOT NULL
+      ),
+      -- 2. Retention days per user: user overridden limit wins over tier limit.
+      users_retention AS (
         SELECT
-          fv.id as version_id,
-          fv.user_id,
-          fv.created_at,
+          u.uuid AS user_id,
           COALESCE(
             (SELECT l.value::integer
              FROM user_overridden_limits uol
-             JOIN limits l ON uol.limit_id = l.id
-             WHERE uol.user_id = u.uuid AND l.label = 'file-version-retention-days'),
+             JOIN limits l ON l.id = uol.limit_id
+             WHERE uol.user_id = u.uuid AND l.label = :retentionLabel),
             (SELECT l.value::integer
              FROM tiers_limits tl
-             JOIN limits l ON tl.limit_id = l.id
-             WHERE tl.tier_id = u.tier_id AND l.label = 'file-version-retention-days'),
-            0
-          ) as retention_days
-        FROM file_versions fv
-        JOIN users u ON fv.user_id = u.uuid
-        WHERE fv.status = 'EXISTS'
+             JOIN limits l ON l.id = tl.limit_id
+             WHERE tl.tier_id = u.tier_id AND l.label = :retentionLabel)
+          ) AS retention_days
+        FROM users_with_versions uv
+        JOIN users u ON u.uuid = uv.user_id
       )
-      SELECT version_id
-      FROM retention_config
-      WHERE
-        retention_days > 0
-        AND created_at < NOW() - (retention_days || ' days')::INTERVAL
-      ORDER BY version_id ASC
+      -- 3. Expired versions per user.
+      SELECT fv.id, fv.user_id, fv.created_at::text AS created_at
+      FROM users_retention ur
+      -- LATERAL runs once per user: requires index on (user_id, created_at)
+      CROSS JOIN LATERAL (
+        SELECT id, user_id, created_at
+        FROM file_versions
+        WHERE user_id = ur.user_id
+          AND status = :existsStatus
+          AND created_at < NOW() - make_interval(days => ur.retention_days)
+          AND (user_id, created_at) >= (:fromUserId, CAST(:fromCreatedAt AS timestamptz))
+        ORDER BY created_at
+        LIMIT :limit
+      ) fv
+      -- Skip users without a retention limit configured.
+      WHERE ur.retention_days IS NOT NULL
       LIMIT :limit
     `;
 
-    const results = await this.model.sequelize.query<{ version_id: string }>(
-      query,
-      {
-        replacements: { limit },
-        type: QueryTypes.SELECT,
+    const results = await this.model.sequelize.query<{
+      id: string;
+      user_id: string;
+      created_at: string;
+    }>(query, {
+      replacements: {
+        limit,
+        fromUserId: cursor?.userId ?? '',
+        fromCreatedAt: cursor?.createdAt ?? '-infinity',
+        existsStatus: FileVersionStatus.EXISTS,
+        retentionLabel: LimitLabels.FileVersionRetentionDays,
       },
-    );
+      type: QueryTypes.SELECT,
+    });
 
-    return results.map((r) => r.version_id);
+    return results.map((r) => ({
+      id: r.id,
+      userId: r.user_id,
+      createdAt: r.created_at,
+    }));
   }
 }

@@ -3,6 +3,9 @@ import { SequelizeFileVersionRepository } from './file-version.repository';
 import { type FileVersionModel } from './file-version.model';
 import { FileVersion, FileVersionStatus } from './file-version.domain';
 import { newFileVersion } from '../../../test/fixtures';
+import { v4, v7, version as uuidVersion } from 'uuid';
+import { QueryTypes } from 'sequelize';
+import { LimitLabels } from '../feature-limit/limits.enum';
 
 describe('SequelizeFileVersionRepository', () => {
   let repository: SequelizeFileVersionRepository;
@@ -38,6 +41,7 @@ describe('SequelizeFileVersionRepository', () => {
 
       expect(result).toBeInstanceOf(FileVersion);
       expect(fileVersionModel.create).toHaveBeenCalledWith({
+        id: expect.any(String),
         fileId: version.fileId,
         userId: version.userId,
         networkFileId: version.networkFileId,
@@ -205,6 +209,23 @@ describe('SequelizeFileVersionRepository', () => {
         }),
       );
     });
+    it('When creating a version, then it should generate a UUIDv7 id', async () => {
+      const version = newFileVersion();
+      jest
+        .spyOn(fileVersionModel, 'create')
+        .mockResolvedValue(createMockModel(version) as any);
+
+      await repository.create({
+        fileId: version.fileId,
+        userId: version.userId,
+        networkFileId: version.networkFileId,
+        size: version.size,
+        modificationTime: version.modificationTime,
+      } as any);
+
+      const [values] = (fileVersionModel.create as jest.Mock).mock.calls[0];
+      expect(uuidVersion(values.id)).toBe(7);
+    });
   });
 
   describe('upsert', () => {
@@ -234,7 +255,9 @@ describe('SequelizeFileVersionRepository', () => {
           size: version.size,
           status: version.status,
         }),
-        { conflictFields: ['file_id', 'network_file_id'] },
+        expect.objectContaining({
+          conflictFields: ['file_id', 'network_file_id'],
+        }),
       );
     });
 
@@ -257,8 +280,29 @@ describe('SequelizeFileVersionRepository', () => {
         expect.objectContaining({
           status: FileVersionStatus.EXISTS,
         }),
-        { conflictFields: ['file_id', 'network_file_id'] },
+        expect.objectContaining({
+          conflictFields: ['file_id', 'network_file_id'],
+        }),
       );
+    });
+    it('When upserting a version, then it should insert a UUIDv7 id but never update the existing one', async () => {
+      const version = newFileVersion();
+      jest
+        .spyOn(fileVersionModel, 'upsert')
+        .mockResolvedValue([createMockModel(version) as any, true]);
+
+      await repository.upsert({
+        fileId: version.fileId,
+        userId: version.userId,
+        networkFileId: version.networkFileId,
+        size: version.size,
+        modificationTime: version.modificationTime,
+      } as any);
+
+      const [values, options] = (fileVersionModel.upsert as jest.Mock).mock
+        .calls[0];
+      expect(uuidVersion(values.id)).toBe(7);
+      expect(options.fields).not.toContain('id');
     });
   });
 
@@ -475,6 +519,90 @@ describe('SequelizeFileVersionRepository', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             status: FileVersionStatus.EXISTS,
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('findExpiredVersionIdsByTierLimits', () => {
+    it('When expired versions are found, then it maps rows to expired versions', async () => {
+      const rows = [
+        {
+          id: v7(),
+          user_id: v4(),
+          created_at: '2026-01-01 00:00:00.123456+00',
+        },
+        {
+          id: v7(),
+          user_id: v4(),
+          created_at: '2026-01-02 00:00:00.654321+00',
+        },
+      ];
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValue(rows as any);
+
+      const result = await repository.findExpiredVersionIdsByTierLimits(100);
+
+      expect(result).toEqual(
+        rows.map((row) => ({
+          id: row.id,
+          userId: row.user_id,
+          createdAt: row.created_at,
+        })),
+      );
+    });
+
+    it('When no expired versions are found, then it returns an empty array', async () => {
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValue([] as any);
+
+      const result = await repository.findExpiredVersionIdsByTierLimits(100);
+
+      expect(result).toEqual([]);
+    });
+
+    it('When no cursor is provided, then it starts from the beginning', async () => {
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValue([] as any);
+
+      await repository.findExpiredVersionIdsByTierLimits(101);
+
+      expect(fileVersionModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        {
+          replacements: {
+            limit: 101,
+            fromUserId: '',
+            fromCreatedAt: '-infinity',
+            existsStatus: FileVersionStatus.EXISTS,
+            retentionLabel: LimitLabels.FileVersionRetentionDays,
+          },
+          type: QueryTypes.SELECT,
+        },
+      );
+    });
+
+    it('When a cursor is provided, then it resumes from the cursor user and created at', async () => {
+      const cursor = {
+        userId: v4(),
+        createdAt: '2026-01-01 00:00:00.123456+00',
+      };
+      jest
+        .spyOn(fileVersionModel.sequelize, 'query')
+        .mockResolvedValue([] as any);
+
+      await repository.findExpiredVersionIdsByTierLimits(101, cursor);
+
+      expect(fileVersionModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: expect.objectContaining({
+            fromUserId: cursor.userId,
+            fromCreatedAt: cursor.createdAt,
           }),
         }),
       );

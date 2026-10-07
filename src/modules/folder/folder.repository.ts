@@ -31,6 +31,9 @@ import {
   FavoriteItemType,
   type FavoriteAttributes,
 } from '../favorite/favorite.domain';
+import { applyCollateAndTiebreakerToSort } from '../../lib/sort';
+import { SortOrder } from '../../common/order.type';
+import { type FolderFoldersCursorDto } from './dto/get-folder-content-folders-cursor.dto';
 import { type FolderUpdatedAtIdCursorDto } from './utils/folder-cursor.util';
 import {
   cursorTimestampTupleFilter,
@@ -71,7 +74,7 @@ interface FolderRepository {
   findByParentUuid(
     parentUuid: Folder['parentUuid'],
     searchBy: {
-      plainName: Folder['plainName'][];
+      plainName: Folder['plainName'] | Folder['plainName'][];
       deleted: boolean;
       removed: boolean;
     },
@@ -119,6 +122,19 @@ interface FolderRepository {
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
   ): Promise<Array<Folder> | []>;
   findFoldersWithCursorWhereUpdatedAfter(params: {
+    where: Partial<FolderAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FolderUpdatedAtIdCursorDto;
+  }): Promise<{
+    folders: Folder[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }>;
+  findWorkspaceFoldersWithCursorWhereUpdatedAfter(params: {
+    networkUserId: FolderAttributes['userId'];
+    createdBy: WorkspaceItemUserAttributes['createdBy'];
+    workspaceId: WorkspaceAttributes['id'];
     where: Partial<FolderAttributes>;
     updatedAfter: Date;
     pageSize: number;
@@ -191,6 +207,16 @@ interface FolderRepository {
     offset: number,
     order?: Array<[keyof FolderModel, 'ASC' | 'DESC']>,
   ): Promise<Folder[]>;
+  findFolderSubfoldersWithCursor(params: {
+    parentUuid: Folder['parentUuid'];
+    userId: User['id'];
+    order: SortOrder;
+    pageSize: number;
+    cursor?: FolderFoldersCursorDto;
+    options?: {
+      withSharings?: boolean;
+    };
+  }): Promise<{ folders: Folder[]; hasMore: boolean }>;
 }
 
 @Injectable()
@@ -203,31 +229,13 @@ export class SequelizeFolderRepository implements FolderRepository {
   private applyCollateToPlainNameSort(
     order: Array<[keyof FolderModel, string]>,
   ): Array<[keyof FolderModel, string] | Literal> {
-    const plainNameIndex = order.findIndex(
-      ([field, _]) => field === 'plainName',
-    );
-    const isPlainNameSort = plainNameIndex !== -1;
-
-    if (!isPlainNameSort) {
-      return order;
-    }
-
-    const newOrder: Array<[keyof FolderModel, string] | Literal> =
-      structuredClone(order);
-    const [, orderDirection] = order[plainNameIndex];
-    newOrder[plainNameIndex] = Sequelize.literal(
-      `"FolderModel"."plain_name" COLLATE "custom_numeric" ${
-        orderDirection === 'ASC' ? 'ASC' : 'DESC'
-      }`,
-    );
-
-    return newOrder;
+    return applyCollateAndTiebreakerToSort(FolderModel, order);
   }
 
   async findByParentUuid(
     parentUuid: Folder['parentUuid'],
     searchBy: {
-      plainName: Folder['plainName'][];
+      plainName: Folder['plainName'] | Folder['plainName'][];
       deleted: boolean;
       removed: boolean;
     },
@@ -238,12 +246,24 @@ export class SequelizeFolderRepository implements FolderRepository {
       deleted: searchBy.deleted,
     };
 
-    if (searchBy && searchBy.plainName.length > 0) {
-      where.plainName = { [Op.in]: searchBy.plainName };
-    }
+    const plainNames = [searchBy.plainName].flat();
+
+    // COLLATE "custom_numeric" needed to hit folders_parentuuid_plainname_numeric_unique
+    const plainNameCondition =
+      plainNames.length > 0
+        ? [
+            Sequelize.literal(
+              '"FolderModel"."plain_name" COLLATE "custom_numeric" IN (:plainNames)',
+            ),
+          ]
+        : [];
 
     const folders = await this.folderModel.findAll({
-      where,
+      where: {
+        ...where,
+        ...(plainNameCondition.length && { [Op.and]: plainNameCondition }),
+      },
+      replacements: plainNameCondition.length ? { plainNames } : undefined,
     });
 
     return folders.map(this.toDomain.bind(this));
@@ -276,6 +296,80 @@ export class SequelizeFolderRepository implements FolderRepository {
     });
 
     return folders.map(this.toDomain.bind(this));
+  }
+
+  async findFolderSubfoldersWithCursor({
+    parentUuid,
+    userId,
+    order,
+    pageSize,
+    cursor,
+    options,
+  }: {
+    parentUuid: Folder['parentUuid'];
+    userId: User['id'];
+    order: SortOrder;
+    pageSize: number;
+    cursor?: FolderFoldersCursorDto;
+    options?: {
+      withSharings?: boolean;
+    };
+  }): Promise<{ folders: Folder[]; hasMore: boolean }> {
+    // COLLATE "custom_numeric" needed to hit folders_parentuuid_plainname_numeric_unique
+    const sortColumn = '"FolderModel"."plain_name" COLLATE "custom_numeric"';
+    const comparator = order === SortOrder.DESC ? '<' : '>';
+    const orderDirection = order === SortOrder.DESC ? 'DESC' : 'ASC';
+
+    const whereCondition: WhereOptions<FolderAttributes> = {
+      parentUuid,
+      userId,
+      deleted: false,
+      removed: false,
+      ...(cursor
+        ? {
+            [Op.and]: [
+              Sequelize.literal(
+                `(${sortColumn}, "FolderModel"."uuid") ${comparator} (:cursorValue, :cursorUuid)`,
+              ),
+            ],
+          }
+        : null),
+    };
+
+    const rows = await this.folderModel.findAll({
+      where: whereCondition,
+      replacements: cursor
+        ? {
+            cursorValue: cursor.lastValue,
+            cursorUuid: cursor.lastUuid,
+          }
+        : undefined,
+      include: [
+        ...(options?.withSharings
+          ? [
+              {
+                separate: true,
+                model: SharingModel,
+                attributes: ['type', 'id'],
+                required: false,
+              },
+            ]
+          : []),
+      ],
+      subQuery: false,
+      order: [
+        Sequelize.literal(
+          `"FolderModel"."plain_name" COLLATE "custom_numeric" ${orderDirection}`,
+        ),
+        ['uuid', orderDirection],
+      ],
+      limit: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+
+    return { folders: page.map(this.toDomain.bind(this)), hasMore };
   }
 
   async findTrashedNotExpired(
@@ -562,11 +656,16 @@ export class SequelizeFolderRepository implements FolderRepository {
       where: {
         [Op.or]: [
           { name: { [Op.eq]: name } },
-          { plainName: { [Op.eq]: plainName } },
+          // COLLATE "custom_numeric" needed to hit folders_parentuuid_plainname_numeric_unique
+          Sequelize.literal(
+            '"FolderModel"."plain_name" COLLATE "custom_numeric" = :plainName',
+          ),
         ],
         parentUuid: { [Op.eq]: parentUuid },
         deleted: { [Op.eq]: deleted },
+        removed: { [Op.eq]: false },
       },
+      replacements: { plainName },
     });
     return folder ? this.toDomain(folder) : null;
   }
@@ -994,6 +1093,82 @@ export class SequelizeFolderRepository implements FolderRepository {
       where: whereCondition,
       attributes: { include: [cursorUpdatedAtAttribute()] },
       replacements: cursorFilter?.replacements,
+      order: [
+        ['updatedAt', 'ASC'],
+        ['uuid', 'ASC'],
+      ],
+      limit: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+    const lastRow = page.at(-1);
+
+    return {
+      folders: page.map((f) => this.toDomain(f)),
+      hasMore,
+      lastRowCursorUpdatedAt: lastRow
+        ? (lastRow.get('updatedAtCursor') as string)
+        : null,
+    };
+  }
+
+  async findWorkspaceFoldersWithCursorWhereUpdatedAfter({
+    networkUserId,
+    createdBy,
+    workspaceId,
+    where,
+    updatedAfter,
+    pageSize,
+    cursor,
+  }: {
+    networkUserId: FolderAttributes['userId'];
+    createdBy: WorkspaceItemUserAttributes['createdBy'];
+    workspaceId: WorkspaceAttributes['id'];
+    where: Partial<FolderAttributes>;
+    updatedAfter: Date;
+    pageSize: number;
+    cursor?: FolderUpdatedAtIdCursorDto;
+  }): Promise<{
+    folders: Folder[];
+    hasMore: boolean;
+    lastRowCursorUpdatedAt: string | null;
+  }> {
+    const cursorFilter = cursor
+      ? cursorTimestampTupleFilter(cursor.updatedAt, cursor.uuid)
+      : null;
+
+    const createdInWorkspaceByUser = Sequelize.literal(
+      `EXISTS (
+        SELECT 1 FROM workspace_items_users wiu
+        WHERE wiu.item_id = "FolderModel"."uuid"
+          AND wiu.item_type = :itemType
+          AND wiu.workspace_id = :workspaceId
+          AND wiu.created_by = :createdBy
+      )`,
+    );
+
+    const whereCondition: WhereOptions<FolderAttributes> = {
+      ...where,
+      userId: networkUserId,
+      parentUuid: { [Op.not]: null },
+      [Op.and]: [
+        cursorFilter
+          ? cursorFilter.where
+          : { updatedAt: { [Op.gt]: updatedAfter } },
+        createdInWorkspaceByUser,
+      ],
+    };
+
+    const rows = await this.folderModel.findAll({
+      where: whereCondition,
+      attributes: { include: [cursorUpdatedAtAttribute()] },
+      replacements: {
+        ...cursorFilter?.replacements,
+        itemType: WorkspaceItemType.Folder,
+        workspaceId,
+        createdBy,
+      },
       order: [
         ['updatedAt', 'ASC'],
         ['uuid', 'ASC'],

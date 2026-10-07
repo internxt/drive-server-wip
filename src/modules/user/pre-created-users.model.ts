@@ -8,7 +8,10 @@ import {
   AllowNull,
   Unique,
 } from 'sequelize-typescript';
-import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
+import {
+  type PreCreatedUserAttributes,
+  PreCreatedUserStatus,
+} from './pre-created-users.attributes';
 import { type KeyServerAttributes } from '../keyserver/key-server.domain';
 
 @Table({
@@ -64,4 +67,20 @@ export class PreCreatedUserModel
 
   @Column
   hKey: Buffer;
+
+  @AllowNull(true)
+  @Column(DataType.DATE)
+  setupEmailSentAt?: Date | null;
+
+  @AllowNull(true)
+  @Column(DataType.UUID)
+  tierId?: string | null;
+
+  @AllowNull(false)
+  @Column({ type: DataType.INTEGER, defaultValue: 0 })
+  setupEmailResendCount: number;
+
+  @AllowNull(true)
+  @Column(DataType.ENUM(...Object.values(PreCreatedUserStatus)))
+  status?: PreCreatedUserStatus | null;
 }

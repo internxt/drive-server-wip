@@ -49,6 +49,7 @@ export default () => ({
     notifications: {
       url: process.env.NOTIFICATIONS_URL,
       key: process.env.NOTIFICATIONS_API_KEY,
+      enabled: process.env.NOTIFICATIONS_API_ENABLED === 'true',
     },
     storage: {
       url: process.env.STORAGE_API_URL,
@@ -126,6 +127,7 @@ export default () => ({
       incompleteCheckout:
         process.env.SENDGRID_TEMPLATE_DRIVE_INCOMPLETE_CHECKOUT || '',
       fullStorage: process.env.SENDGRID_TEMPLATE_DRIVE_FULL_STORAGE_USERS || '',
+      accountSetup: process.env.SENDGRID_TEMPLATE_DRIVE_ACCOUNT_SETUP || '',
     },
   },
   newsletter: {

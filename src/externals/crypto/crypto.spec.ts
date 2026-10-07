@@ -35,6 +35,35 @@ describe('Crypto', () => {
     });
   });
 
+  describe('fakeSaltFor', () => {
+    it('When called, then it should return a 32 chars hex string like a real salt', () => {
+      const email = 'nonexistent@test.com';
+
+      const result = cryptoService.fakeSaltFor(email);
+
+      expect(result).toMatch(/^[0-9a-f]{32}$/);
+    });
+
+    it('When called twice with the same email, then it should return the same salt', () => {
+      const email = 'nonexistent@test.com';
+
+      const first = cryptoService.fakeSaltFor(email);
+      const second = cryptoService.fakeSaltFor(email);
+
+      expect(first).toBe(second);
+    });
+
+    it('When called with different emails, then it should return different salts', () => {
+      const emailA = 'a@test.com';
+      const emailB = 'b@test.com';
+
+      const saltA = cryptoService.fakeSaltFor(emailA);
+      const saltB = cryptoService.fakeSaltFor(emailB);
+
+      expect(saltA).not.toBe(saltB);
+    });
+  });
+
   describe('hashSha256', () => {
     it('should hash correctly', () => {
       const result = cryptoService.hashSha256('Azboodo');

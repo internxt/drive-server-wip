@@ -7,6 +7,7 @@ import { GatewayController } from './gateway.controller';
 import { type DeepMocked, createMock } from '@golevelup/ts-jest';
 import {
   BadRequestException,
+  ConflictException,
   type Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -15,12 +16,31 @@ import { v4 } from 'uuid';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Test } from '@nestjs/testing';
 import { UserLimitResponseDto } from './dto/user-limit-response.dto';
+import { GUARDS_METADATA, HTTP_CODE_METADATA } from '@nestjs/common/constants';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+import { GatewayGuard } from '../auth/gateway.guard';
+import { CreatePreCreatedUserDto } from './dto/create-pre-created-user.dto';
+import { GetPreCreatedUserDto } from './dto/get-pre-created-user.dto';
+import { UpdatePreCreatedUserDto } from './dto/update-pre-created-user.dto';
+import { SendAccountSetupEmailDto } from './dto/send-account-setup-email.dto';
+import { SetupCheckoutAccountUseCase } from '../user/setup-account.usecase';
+import { PreCreatedUserStatus } from '../user/pre-created-users.attributes';
+
+const toValidatedBody = async <T extends object>(
+  cls: new () => T,
+  rawBody: Record<string, unknown>,
+) => {
+  const dto = plainToInstance(cls, rawBody);
+  return { dto, errors: await validate(dto) };
+};
 
 describe('Gateway Controller', () => {
   let gatewayController: GatewayController;
   let gatewayUsecases: DeepMocked<GatewayUseCases>;
   let storageNotificationsService: DeepMocked<StorageNotificationService>;
   let loggerMock: DeepMocked<Logger>;
+  let setupAccountUseCase: DeepMocked<SetupCheckoutAccountUseCase>;
 
   beforeEach(async () => {
     loggerMock = createMock<Logger>();
@@ -36,6 +56,7 @@ describe('Gateway Controller', () => {
     gatewayController = moduleRef.get(GatewayController);
     gatewayUsecases = moduleRef.get(GatewayUseCases);
     storageNotificationsService = moduleRef.get(StorageNotificationService);
+    setupAccountUseCase = moduleRef.get(SetupCheckoutAccountUseCase);
   });
 
   it('should be defined', () => {
@@ -244,8 +265,24 @@ describe('Gateway Controller', () => {
       });
     });
 
-    it('When user is not found, then it should throw.', async () => {
+    it('When the uuid belongs to a pre-created user, then its plan is updated without notifying a registered user', async () => {
       jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(null);
+
+      await gatewayController.updateUser(user.uuid, updateUserWithTierDto);
+
+      expect(setupAccountUseCase.update).toHaveBeenCalledWith(user.uuid, {
+        newStorageSpaceBytes: updateUserWithTierDto.maxSpaceBytes,
+        newTierId: updateUserWithTierDto.tierId,
+      });
+      expect(gatewayUsecases.updateUser).not.toHaveBeenCalled();
+      expect(storageNotificationsService.planUpdated).not.toHaveBeenCalled();
+    });
+
+    it('When the uuid belongs to neither a registered nor a pre-created user, then it should throw not found', async () => {
+      jest.spyOn(gatewayUsecases, 'getUserByUuid').mockResolvedValueOnce(null);
+      setupAccountUseCase.update.mockRejectedValueOnce(
+        new NotFoundException('Pre-created user not found'),
+      );
 
       await expect(
         gatewayController.updateUser(user.uuid, updateUserDto),
@@ -294,6 +331,323 @@ describe('Gateway Controller', () => {
         user,
         clientId: 'gateway',
       });
+    });
+  });
+
+  describe('Pre-creating the user of a new customer at checkout', () => {
+    const body = { email: 'buyer@internxt.com' };
+
+    it('When the request is not signed with the gateway token, then it is rejected by the gateway guard', () => {
+      const guards = Reflect.getMetadata(
+        GUARDS_METADATA,
+        GatewayController.prototype.createPreCreateUserForCheckout,
+      );
+
+      expect(guards).toEqual([GatewayGuard]);
+    });
+
+    it('When the user is pre-created, then it answers with 200', () => {
+      const statusCode = Reflect.getMetadata(
+        HTTP_CODE_METADATA,
+        GatewayController.prototype.createPreCreateUserForCheckout,
+      );
+
+      expect(statusCode).toBe(200);
+    });
+
+    it('When the user is pre-created, then its uuid and status are returned', async () => {
+      const response = {
+        uuid: v4(),
+        status: PreCreatedUserStatus.AwaitingPayment,
+      };
+      setupAccountUseCase.getOrCreate.mockResolvedValueOnce(response);
+
+      const result =
+        await gatewayController.createPreCreateUserForCheckout(body);
+
+      expect(result).toEqual(response);
+      expect(setupAccountUseCase.getOrCreate).toHaveBeenCalledWith(body.email);
+    });
+
+    it('When the email already belongs to a registered user, then a conflict is returned', async () => {
+      setupAccountUseCase.getOrCreate.mockRejectedValueOnce(
+        new ConflictException('User already registered'),
+      );
+
+      await expect(
+        gatewayController.createPreCreateUserForCheckout(body),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When the email has uppercase letters, then it is received in lowercase', async () => {
+      const { dto, errors } = await toValidatedBody(CreatePreCreatedUserDto, {
+        email: 'Buyer@Internxt.COM',
+      });
+
+      expect(errors.map((error) => error.property)).toEqual([]);
+      expect(dto.email).toBe('buyer@internxt.com');
+    });
+
+    it.each([
+      { case: 'is not valid', email: 'not-an-email' },
+      { case: 'is not text', email: 12345 },
+      { case: 'is missing', email: undefined },
+    ])(
+      'When the email $case, then the request is rejected',
+      async ({ email }) => {
+        const { errors } = await toValidatedBody(CreatePreCreatedUserDto, {
+          email,
+        });
+
+        expect(errors.map((error) => error.property)).toContain('email');
+      },
+    );
+  });
+
+  describe('Getting the pre-created user of a customer at checkout', () => {
+    const query = { email: 'buyer@internxt.com' };
+
+    it('When the request is not signed with the gateway token, then it is rejected by the gateway guard', () => {
+      const guards = Reflect.getMetadata(
+        GUARDS_METADATA,
+        GatewayController.prototype.getPreCreatedUserForCheckout,
+      );
+
+      expect(guards).toEqual([GatewayGuard]);
+    });
+
+    it('When the user is found, then it answers with 200', () => {
+      const statusCode = Reflect.getMetadata(
+        HTTP_CODE_METADATA,
+        GatewayController.prototype.getPreCreatedUserForCheckout,
+      );
+
+      expect(statusCode).toBe(200);
+    });
+
+    it('When the email is pre-created, then its uuid and status are returned', async () => {
+      const response = {
+        uuid: v4(),
+        status: PreCreatedUserStatus.PendingSetup,
+      };
+      setupAccountUseCase.get.mockResolvedValueOnce(response);
+
+      const result =
+        await gatewayController.getPreCreatedUserForCheckout(query);
+
+      expect(result).toEqual(response);
+      expect(setupAccountUseCase.get).toHaveBeenCalledWith(query.email);
+    });
+
+    it('When the email is not pre-created, then not found is returned', async () => {
+      setupAccountUseCase.get.mockRejectedValueOnce(
+        new NotFoundException('Pre-created user not found'),
+      );
+
+      await expect(
+        gatewayController.getPreCreatedUserForCheckout(query),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    describe('Query validation', () => {
+      it('When the email has uppercase letters, then it is received in lowercase', async () => {
+        const { dto, errors } = await toValidatedBody(GetPreCreatedUserDto, {
+          email: 'Buyer@Internxt.COM',
+        });
+
+        expect(errors).toEqual([]);
+        expect(dto.email).toBe('buyer@internxt.com');
+      });
+
+      it.each([
+        { case: 'is not valid', email: 'not-an-email' },
+        { case: 'is missing', email: undefined },
+      ])(
+        'When the email $case, then the request is rejected',
+        async ({ email }) => {
+          const { errors } = await toValidatedBody(GetPreCreatedUserDto, {
+            email,
+          });
+
+          expect(errors.map((error) => error.property)).toContain('email');
+        },
+      );
+    });
+  });
+
+  describe('Updating the pre-created user of a customer at checkout', () => {
+    const uuid = v4();
+    const tierId = v4();
+    const maxSpaceBytes = 3298534883328;
+
+    it('When the request is not signed with the gateway token, then it is rejected by the gateway guard', () => {
+      const guards = Reflect.getMetadata(
+        GUARDS_METADATA,
+        GatewayController.prototype.updatePreCreatedUserForCheckout,
+      );
+
+      expect(guards).toEqual([GatewayGuard]);
+    });
+
+    it('When the user is updated, then it answers with 200', () => {
+      const statusCode = Reflect.getMetadata(
+        HTTP_CODE_METADATA,
+        GatewayController.prototype.updatePreCreatedUserForCheckout,
+      );
+
+      expect(statusCode).toBe(200);
+    });
+
+    it('When the update is requested, then the storage and the tier are forwarded to the use case', async () => {
+      await gatewayController.updatePreCreatedUserForCheckout({
+        uuid,
+        tierId,
+        maxSpaceBytes,
+      });
+
+      expect(setupAccountUseCase.update).toHaveBeenCalledWith(uuid, {
+        newStorageSpaceBytes: maxSpaceBytes,
+        newTierId: tierId,
+      });
+    });
+
+    it('When the pre-created user does not exist, then not found is returned', async () => {
+      setupAccountUseCase.update.mockRejectedValueOnce(
+        new NotFoundException('Pre-created user not found'),
+      );
+
+      await expect(
+        gatewayController.updatePreCreatedUserForCheckout({ uuid, tierId }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When the tier does not exist, then a bad request is returned', async () => {
+      setupAccountUseCase.update.mockRejectedValueOnce(
+        new BadRequestException(`Tier with ID ${tierId} not found`),
+      );
+
+      await expect(
+        gatewayController.updatePreCreatedUserForCheckout({ uuid, tierId }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    describe('Body validation', () => {
+      it('When only the status is sent along with the uuid, then the request is accepted', async () => {
+        const { errors } = await toValidatedBody(UpdatePreCreatedUserDto, {
+          uuid,
+          status: PreCreatedUserStatus.PendingSetup,
+        });
+
+        expect(errors).toEqual([]);
+      });
+
+      it.each([
+        { case: 'is missing', uuid: undefined, tierId },
+        { case: 'is not a valid uuid', uuid: 'not-a-uuid', tierId: undefined },
+      ])(
+        'When the uuid $case, then the request is rejected',
+        async ({ uuid, tierId }) => {
+          const { errors } = await toValidatedBody(UpdatePreCreatedUserDto, {
+            uuid,
+            tierId,
+          });
+
+          expect(errors.map((error) => error.property)).toContain('uuid');
+        },
+      );
+
+      it('When the tier is not a valid uuid, then the request is rejected', async () => {
+        const { errors } = await toValidatedBody(UpdatePreCreatedUserDto, {
+          uuid,
+          tierId: 'not-a-uuid',
+        });
+
+        expect(errors.map((error) => error.property)).toContain('tierId');
+      });
+
+      it('When the storage is sent as text, then it is received as a number', async () => {
+        const { dto, errors } = await toValidatedBody(UpdatePreCreatedUserDto, {
+          uuid,
+          maxSpaceBytes: '3298534883328',
+        });
+
+        expect(errors).toEqual([]);
+        expect(dto.maxSpaceBytes).toBe(3298534883328);
+      });
+
+      it('When the storage is not numeric, then the request is rejected', async () => {
+        const { errors } = await toValidatedBody(UpdatePreCreatedUserDto, {
+          uuid,
+          maxSpaceBytes: 'lots',
+        });
+
+        expect(errors.map((error) => error.property)).toContain(
+          'maxSpaceBytes',
+        );
+      });
+
+      it('When the status is not a known one, then the request is rejected', async () => {
+        const { errors } = await toValidatedBody(UpdatePreCreatedUserDto, {
+          uuid,
+          status: 'unknown_status',
+        });
+
+        expect(errors.map((error) => error.property)).toContain('status');
+      });
+    });
+  });
+
+  describe('Sending the account setup email after the payment', () => {
+    const uuid = v4();
+    const body = { planName: 'Premium 2TB' };
+
+    it('When the request is not signed with the gateway token, then it is rejected by the gateway guard', () => {
+      const guards = Reflect.getMetadata(
+        GUARDS_METADATA,
+        GatewayController.prototype.sendAccountSetupEmail,
+      );
+
+      expect(guards).toEqual([GatewayGuard]);
+    });
+
+    it('When the email is handled, then it answers with 204 and no content', async () => {
+      const statusCode = Reflect.getMetadata(
+        HTTP_CODE_METADATA,
+        GatewayController.prototype.sendAccountSetupEmail,
+      );
+
+      const result = await gatewayController.sendAccountSetupEmail(uuid, body);
+
+      expect(statusCode).toBe(204);
+      expect(result).toBeUndefined();
+      expect(setupAccountUseCase.sendAccountEmail).toHaveBeenCalledWith(
+        uuid,
+        body.planName,
+      );
+    });
+
+    it('When the user does not exist, then not found is returned', async () => {
+      setupAccountUseCase.sendAccountEmail.mockRejectedValueOnce(
+        new NotFoundException('User not found'),
+      );
+
+      await expect(
+        gatewayController.sendAccountSetupEmail(uuid, body),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When the plan name is omitted, then the request is accepted because it is optional', async () => {
+      const { errors } = await toValidatedBody(SendAccountSetupEmailDto, {});
+
+      expect(errors).toEqual([]);
+    });
+
+    it('When the plan name is not a string, then the request is rejected', async () => {
+      const { errors } = await toValidatedBody(SendAccountSetupEmailDto, {
+        planName: 42,
+      });
+
+      expect(errors.map((error) => error.property)).toEqual(['planName']);
     });
   });
 
