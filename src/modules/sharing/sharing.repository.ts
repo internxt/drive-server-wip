@@ -1152,6 +1152,26 @@ export class SequelizeSharingRepository implements SharingRepository {
     });
   }
 
+  async findExpiredSharingIds(limit: number): Promise<Sharing['id'][]> {
+    const expiredSharings = await this.sharings.findAll({
+      attributes: ['id'],
+      where: {
+        expirationAt: { [Op.lte]: Time.now() },
+      },
+      limit,
+    });
+
+    return expiredSharings.map((sharing) => sharing.id);
+  }
+
+  async deleteSharingsByIds(ids: Sharing['id'][]): Promise<void> {
+    await this.sharings.destroy({
+      where: {
+        id: { [Op.in]: ids },
+      },
+    });
+  }
+
   private notExpiredCondition(): WhereOptions<SharingModel> {
     return {
       [Op.or]: [

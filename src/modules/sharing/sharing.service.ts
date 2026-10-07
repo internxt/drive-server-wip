@@ -375,6 +375,52 @@ export class SharingService {
     return sharing;
   }
 
+  async setSharingExpiration(
+    user: User,
+    id: Sharing['id'],
+    linkExpirationDate: string,
+  ): Promise<Sharing> {
+    const sharing = await this.getOwnedPublicSharing(user, id);
+
+    sharing.expirationAt = this.getValidExpirationDate(linkExpirationDate);
+    await this.sharingRepository.updateSharing({ id: sharing.id }, sharing);
+
+    return sharing;
+  }
+
+  async removeSharingExpiration(
+    user: User,
+    id: Sharing['id'],
+  ): Promise<Sharing> {
+    const sharing = await this.getOwnedPublicSharing(user, id);
+
+    sharing.expirationAt = null;
+    await this.sharingRepository.updateSharing({ id: sharing.id }, sharing);
+
+    return sharing;
+  }
+
+  private async getOwnedPublicSharing(
+    user: User,
+    id: Sharing['id'],
+  ): Promise<Sharing> {
+    const sharing = await this.sharingRepository.findOneSharing({
+      id,
+    });
+
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
+    if (!sharing.isPublic() || !sharing.isOwnedBy(user)) {
+      throw new BadRequestException();
+    }
+
+    this.assertSharingIsNotExpired(sharing);
+
+    return sharing;
+  }
+
   async getInvites(
     user: User,
     itemType: Sharing['itemType'],
@@ -1323,6 +1369,17 @@ export class SharingService {
       });
 
     return sharingCreated;
+  }
+
+  async deleteExpiredSharings(limit: number): Promise<number> {
+    const expiredSharingIds =
+      await this.sharingRepository.findExpiredSharingIds(limit);
+
+    if (expiredSharingIds.length > 0) {
+      await this.sharingRepository.deleteSharingsByIds(expiredSharingIds);
+    }
+
+    return expiredSharingIds.length;
   }
 
   private getValidExpirationDate(

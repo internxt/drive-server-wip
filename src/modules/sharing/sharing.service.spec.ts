@@ -356,6 +356,195 @@ describe('Sharing Use Cases', () => {
     });
   });
 
+  describe('Set public sharing expiration', () => {
+    const owner = newUser();
+    const otherUser = publicUser();
+    const folder = newFolder({ owner });
+
+    it('When owner sets an expiration date to a public sharing, then it is updated', async () => {
+      const sharing = newSharing({
+        owner,
+        item: folder,
+        sharedWith: otherUser,
+        sharingType: SharingType.Public,
+      });
+      const linkExpirationDate = getFutureDate().toISOString();
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      sharingRepository.updateSharing.mockResolvedValue();
+
+      const sharingUpdated = await sharingService.setSharingExpiration(
+        owner,
+        sharing.id,
+        linkExpirationDate,
+      );
+
+      expect(sharingRepository.updateSharing).toHaveBeenCalledWith(
+        { id: sharing.id },
+        sharing,
+      );
+      expect(sharingUpdated.expirationAt).toEqual(new Date(linkExpirationDate));
+    });
+
+    it('When the expiration date is in the past, then it fails', async () => {
+      const sharing = newSharing({
+        owner,
+        item: folder,
+        sharedWith: otherUser,
+        sharingType: SharingType.Public,
+      });
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+
+      await expect(
+        sharingService.setSharingExpiration(
+          owner,
+          sharing.id,
+          getPastDate().toISOString(),
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(sharingRepository.updateSharing).not.toHaveBeenCalled();
+    });
+
+    it('When the expiration date is more than one year from now, then it fails', async () => {
+      const sharing = newSharing({
+        owner,
+        item: folder,
+        sharedWith: otherUser,
+        sharingType: SharingType.Public,
+      });
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+
+      await expect(
+        sharingService.setSharingExpiration(
+          owner,
+          sharing.id,
+          getDateAfterMaxExpiration().toISOString(),
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(sharingRepository.updateSharing).not.toHaveBeenCalled();
+    });
+
+    it('When not owner tries to set an expiration date, then it fails', async () => {
+      const sharing = newSharing({
+        owner,
+        item: folder,
+        sharedWith: otherUser,
+        sharingType: SharingType.Public,
+      });
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+
+      await expect(
+        sharingService.setSharingExpiration(
+          otherUser,
+          sharing.id,
+          getFutureDate().toISOString(),
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When owner tries to set an expiration date to a private sharing, then it fails', async () => {
+      const sharing = newSharing({
+        owner,
+        item: folder,
+        sharedWith: otherUser,
+        sharingType: SharingType.Private,
+      });
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+
+      await expect(
+        sharingService.setSharingExpiration(
+          owner,
+          sharing.id,
+          getFutureDate().toISOString(),
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('When the sharing does not exist, then it fails', async () => {
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+
+      await expect(
+        sharingService.setSharingExpiration(
+          owner,
+          '',
+          getFutureDate().toISOString(),
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When the sharing has already expired, then it fails', async () => {
+      const sharing = newSharing({
+        owner,
+        item: folder,
+        sharedWith: otherUser,
+        sharingType: SharingType.Public,
+        expirationAt: getPastDate(),
+      });
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+
+      await expect(
+        sharingService.setSharingExpiration(
+          owner,
+          sharing.id,
+          getFutureDate().toISOString(),
+        ),
+      ).rejects.toThrow(NotFoundException);
+      expect(sharingRepository.deleteSharing).not.toHaveBeenCalled();
+      expect(sharingRepository.updateSharing).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Remove public sharing expiration', () => {
+    const owner = newUser();
+    const otherUser = publicUser();
+    const folder = newFolder({ owner });
+
+    it('When owner removes the expiration date of a public sharing, then it never expires', async () => {
+      const sharing = newSharing({
+        owner,
+        item: folder,
+        sharedWith: otherUser,
+        sharingType: SharingType.Public,
+        expirationAt: getFutureDate(),
+      });
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      sharingRepository.updateSharing.mockResolvedValue();
+
+      const sharingUpdated = await sharingService.removeSharingExpiration(
+        owner,
+        sharing.id,
+      );
+
+      expect(sharingRepository.updateSharing).toHaveBeenCalledWith(
+        { id: sharing.id },
+        sharing,
+      );
+      expect(sharingUpdated.expirationAt).toBeNull();
+    });
+
+    it('When not owner tries to remove the expiration date, then it fails', async () => {
+      const sharing = newSharing({
+        owner,
+        item: folder,
+        sharedWith: otherUser,
+        sharingType: SharingType.Public,
+        expirationAt: getFutureDate(),
+      });
+
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+
+      await expect(
+        sharingService.removeSharingExpiration(otherUser, sharing.id),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
   describe('Access to public sharing meta', () => {
     const owner = newUser();
     const otherUser = publicUser();
@@ -3707,6 +3896,33 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(NotFoundException);
       expect(sharingRepository.deleteSharing).not.toHaveBeenCalled();
       expect(fileUsecases.getFiles).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteExpiredSharings', () => {
+    it('When there are expired sharings, then a batch of them is deleted', async () => {
+      sharingRepository.findExpiredSharingIds.mockResolvedValueOnce([
+        'sharing-1',
+        'sharing-2',
+      ]);
+
+      const result = await sharingService.deleteExpiredSharings(2);
+
+      expect(sharingRepository.findExpiredSharingIds).toHaveBeenCalledWith(2);
+      expect(sharingRepository.deleteSharingsByIds).toHaveBeenCalledWith([
+        'sharing-1',
+        'sharing-2',
+      ]);
+      expect(result).toBe(2);
+    });
+
+    it('When there are no expired sharings, then nothing is deleted', async () => {
+      sharingRepository.findExpiredSharingIds.mockResolvedValueOnce([]);
+
+      const result = await sharingService.deleteExpiredSharings(2);
+
+      expect(sharingRepository.deleteSharingsByIds).not.toHaveBeenCalled();
+      expect(result).toBe(0);
     });
   });
 

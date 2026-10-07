@@ -5,6 +5,7 @@ export enum JobName {
   EXPIRED_TRASH_ITEMS_CLEANUP = 'expired-trash-items-cleanup',
   HARD_DELETE_OLD_DELETED_FILES = 'hard-delete-old-deleted-files',
   CLEANUP_DELETED_FILES_TABLE = 'cleanup-deleted-files-table',
+  EXPIRED_SHARINGS_CLEANUP = 'expired-sharings-cleanup',
 }
 
 export enum JobStatus {

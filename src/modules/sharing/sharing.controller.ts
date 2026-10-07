@@ -54,6 +54,7 @@ import { Public } from '../auth/decorators/public.decorator';
 import { CreateSharingDto } from './dto/create-sharing.dto';
 import { ChangeSharingType } from './dto/change-sharing-type.dto';
 import { SetSharingPasswordDto } from './dto/set-sharing-password.dto';
+import { SetSharingExpirationDto } from './dto/set-sharing-expiration.dto';
 import { UuidDto } from '../../common/dto/uuid.dto';
 import { WorkspaceResourcesAction } from '../workspaces/guards/workspaces-resources-in-behalf.types';
 import { WorkspacesInBehalfGuard } from '../workspaces/guards/workspaces-resources-in-behalf.decorator';
@@ -164,6 +165,52 @@ export class SharingController {
     @Param('sharingId') sharingId: Sharing['id'],
   ) {
     return this.sharingService.removeSharingPassword(user, sharingId);
+  }
+
+  @Patch('/:sharingId/expiration')
+  @ApiOperation({
+    summary: 'Set expiration date for public sharing',
+  })
+  @ApiParam({
+    name: 'sharingId',
+    description: 'Id of the sharing',
+    type: String,
+  })
+  @GetDataFromRequest([{ sourceKey: 'params', fieldName: 'sharingId' }])
+  @WorkspacesInBehalfGuard(WorkspaceResourcesAction.ModifySharingById)
+  @ApiOkResponse({
+    description: 'Sets/edit expiration date for public sharings',
+  })
+  async setPublicSharingExpiration(
+    @UserDecorator() user: User,
+    @Param('sharingId', ValidateUUIDPipe) sharingId: Sharing['id'],
+    @Body() sharingExpirationDto: SetSharingExpirationDto,
+  ) {
+    const { linkExpirationDate } = sharingExpirationDto;
+    return this.sharingService.setSharingExpiration(
+      user,
+      sharingId,
+      linkExpirationDate,
+    );
+  }
+
+  @Delete('/:sharingId/expiration')
+  @ApiOperation({
+    summary: 'Remove expiration date from public sharing',
+  })
+  @ApiParam({
+    name: 'sharingId',
+    description: 'Id of the sharing',
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Remove expiration date' })
+  @GetDataFromRequest([{ sourceKey: 'params', fieldName: 'sharingId' }])
+  @WorkspacesInBehalfGuard(WorkspaceResourcesAction.ModifySharingById)
+  async removePublicSharingExpiration(
+    @UserDecorator() user: User,
+    @Param('sharingId', ValidateUUIDPipe) sharingId: Sharing['id'],
+  ) {
+    return this.sharingService.removeSharingExpiration(user, sharingId);
   }
 
   @Get('/:itemType/:itemId/invites')
