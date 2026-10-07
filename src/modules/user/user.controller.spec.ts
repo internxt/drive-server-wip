@@ -34,6 +34,9 @@ import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 import { type UpdatePasswordDto } from './dto/update-password.dto';
 import { type CreateUserDto } from './dto/create-user.dto';
 import { type RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
+import { type CompleteAccountSetupDto } from './dto/complete-account-setup.dto';
+import { AccountSetupPendingException } from './exception/account-setup-pending.exception';
+import { SignUpSuccessEvent } from '../../externals/notifications/events/sign-up-success.event';
 import { type Request } from 'express';
 import { DeactivationRequestEvent } from '../../externals/notifications/events/deactivation-request.event';
 import { Test } from '@nestjs/testing';
@@ -53,6 +56,9 @@ import {
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { CaptchaGuard } from '../auth/captcha.guard';
+import { TIMING_CONSISTENCY_KEY } from '../auth/decorators/timing-consistency.decorator';
 
 jest.mock('../../config/configuration', () => {
   return {
@@ -113,10 +119,57 @@ describe('User Controller', () => {
     auditLogService = moduleRef.get(AuditLogService);
     klaviyoService = moduleRef.get(KlaviyoTrackingService);
     featureLimitService = moduleRef.get(FeatureLimitService);
+    userUseCases.hasPendingAccountSetup.mockResolvedValue(false);
   });
 
   it('should be defined', () => {
     expect(userController).toBeDefined();
+  });
+
+  describe('Resending the account setup email', () => {
+    const resendHandler = UserController.prototype.resendAccountSetupEmail;
+
+    it('When the email has a paid account pending setup or is unknown, then the response is the same', async () => {
+      userUseCases.resendAccountSetupEmail.mockResolvedValue(undefined);
+
+      const pendingSetupResponse = await userController.resendAccountSetupEmail(
+        { email: 'buyer@internxt.com' },
+      );
+      const unknownEmailResponse = await userController.resendAccountSetupEmail(
+        { email: 'unknown@internxt.com' },
+      );
+
+      expect(pendingSetupResponse).toBeUndefined();
+      expect(unknownEmailResponse).toEqual(pendingSetupResponse);
+    });
+
+    it('When the setup email cannot be sent, then the response is the same as when it is sent', async () => {
+      userUseCases.resendAccountSetupEmail.mockRejectedValueOnce(
+        new Error('Email provider unavailable'),
+      );
+
+      await expect(
+        userController.resendAccountSetupEmail({ email: 'buyer@internxt.com' }),
+      ).resolves.toBeUndefined();
+    });
+
+    it('When the email is typed with capital letters, then the setup email is requested for the lowercase email', async () => {
+      await userController.resendAccountSetupEmail({
+        email: 'Buyer@Internxt.COM',
+      });
+
+      expect(userUseCases.resendAccountSetupEmail).toHaveBeenCalledWith(
+        'buyer@internxt.com',
+      );
+    });
+
+    it('When the setup email is requested, then a captcha is required and the response time does not depend on the email', () => {
+      const guards = Reflect.getMetadata(GUARDS_METADATA, resendHandler);
+      const timing = Reflect.getMetadata(TIMING_CONSISTENCY_KEY, resendHandler);
+
+      expect(guards).toContain(CaptchaGuard);
+      expect(timing).toEqual({ minimumResponseTimeMs: 900 });
+    });
   });
 
   describe('POST /unblock-account', () => {
@@ -585,6 +638,145 @@ describe('User Controller', () => {
     });
   });
 
+  describe('POST /pre-created-users/complete-setup', () => {
+    const req = createMock<Request>();
+    const preCreatedUser = newPreCreatedUser();
+    const mockUser = newUser({
+      attributes: {
+        uuid: preCreatedUser.uuid,
+        email: preCreatedUser.email,
+        emailVerified: true,
+      },
+    });
+    const eccKey = newKeyServer({ userId: mockUser.id });
+    const kyberKey = newKeyServer({
+      userId: mockUser.id,
+      encryptVersion: UserKeysEncryptVersions.Kyber,
+    });
+    const createdUser = {
+      user: { ...mockUser, rootFolderUuid: v4() } as unknown as User & {
+        rootFolderUuid: string;
+      },
+      token: 'mock-token',
+      newToken: 'new token',
+      uuid: preCreatedUser.uuid,
+    };
+    const completeSetupDto: CompleteAccountSetupDto = {
+      token: 'account-setup-token',
+      name: 'My',
+      lastname: 'Internxt',
+      password: 'hashed password',
+      mnemonic: 'mnemonic',
+      salt: 'salt',
+      keys: {
+        ecc: {
+          publicKey: eccKey.publicKey,
+          privateKey: eccKey.privateKey,
+          revocationKey: eccKey.revocationKey,
+        },
+      },
+    };
+
+    it('When the setup is completed from drive web, then the response has the same shape as a regular sign up', async () => {
+      const keys = { ecc: eccKey, kyber: kyberKey };
+      userUseCases.completeAccountSetup.mockResolvedValueOnce({
+        ...createdUser,
+        keys,
+      });
+      userUseCases.createUser.mockResolvedValueOnce(createdUser);
+      keyServerUseCases.addKeysToUser.mockResolvedValueOnce(keys);
+      const regularSignUpResponse = await userController.createUser(
+        { ...completeSetupDto, email: preCreatedUser.email },
+        req,
+        ClientEnum.Web,
+      );
+
+      const result = await userController.completeAccountSetup(
+        completeSetupDto,
+        req,
+        ClientEnum.Web,
+      );
+
+      expect(result).toEqual(regularSignUpResponse);
+      expect(result).toMatchObject({
+        token: createdUser.token,
+        newToken: createdUser.newToken,
+        uuid: preCreatedUser.uuid,
+        user: {
+          uuid: preCreatedUser.uuid,
+          emailVerified: true,
+          rootFolderId: createdUser.user.rootFolderUuid,
+          root_folder_id: mockUser.rootFolderId,
+          publicKey: eccKey.publicKey,
+          privateKey: eccKey.privateKey,
+          revocationKey: eccKey.revocationKey,
+          keys,
+        },
+      });
+    });
+
+    it('When the setup is completed, then the sign up is notified and no verification email is sent', async () => {
+      userUseCases.completeAccountSetup.mockResolvedValueOnce({
+        ...createdUser,
+        keys: { ecc: eccKey, kyber: null },
+      });
+
+      await userController.completeAccountSetup(
+        completeSetupDto,
+        req,
+        ClientEnum.Web,
+      );
+
+      expect(notificationService.add).toHaveBeenCalledWith(
+        expect.any(SignUpSuccessEvent),
+      );
+      expect(userUseCases.sendWelcomeVerifyEmailEmail).not.toHaveBeenCalled();
+    });
+
+    it('When the token is invalid, expired or already used, then access is forbidden with the reason', async () => {
+      userUseCases.completeAccountSetup.mockRejectedValueOnce(
+        new ForbiddenException('Token expired'),
+      );
+
+      await expect(
+        userController.completeAccountSetup(
+          completeSetupDto,
+          req,
+          ClientEnum.Web,
+        ),
+      ).rejects.toThrow(new ForbiddenException('Token expired'));
+      expect(notificationService.add).not.toHaveBeenCalled();
+    });
+
+    it('When a user with that email already exists, then it fails with a conflict', async () => {
+      userUseCases.completeAccountSetup.mockRejectedValueOnce(
+        new UserAlreadyRegisteredError(preCreatedUser.email),
+      );
+
+      await expect(
+        userController.completeAccountSetup(
+          completeSetupDto,
+          req,
+          ClientEnum.Web,
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('When an unexpected error occurs, then it fails with an internal error', async () => {
+      userUseCases.completeAccountSetup.mockRejectedValueOnce(
+        new Error('unexpected'),
+      );
+
+      await expect(
+        userController.completeAccountSetup(
+          completeSetupDto,
+          req,
+          ClientEnum.Web,
+        ),
+      ).rejects.toThrow(InternalServerErrorException);
+    });
+  });
+
   describe('GET /public-key/:email', () => {
     const mockUser = newUser();
 
@@ -874,6 +1066,26 @@ describe('User Controller', () => {
         userController.createUser(createDto, req, clientId),
       ).rejects.toThrow(InternalServerErrorException);
     });
+
+    it('When the email belongs to a paid account pending its setup, then sign up is forbidden and nothing is created', async () => {
+      const createDto: CreateUserDto = {
+        name: 'Test',
+        lastname: 'User',
+        email: 'Paid@Internxt.com',
+        password: v4(),
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+      };
+      userUseCases.hasPendingAccountSetup.mockResolvedValueOnce(true);
+
+      await expect(
+        userController.createUser(createDto, req, clientId),
+      ).rejects.toThrow(AccountSetupPendingException);
+      expect(userUseCases.hasPendingAccountSetup).toHaveBeenCalledWith(
+        'paid@internxt.com',
+      );
+      expect(userUseCases.createUser).not.toHaveBeenCalled();
+    });
   });
 
   describe('POST /pre-created-users/register', () => {
@@ -1023,6 +1235,49 @@ describe('User Controller', () => {
       await expect(
         userController.registerPreCreatedUser(dto, req),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('When the pre-created user is a paid account pending its setup, then registration is forbidden and nothing is created', async () => {
+      const dto: RegisterPreCreatedUserDto = {
+        name: 'Test',
+        lastname: 'User',
+        email: preCreatedUser.email,
+        password: v4(),
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+        invitationId: v4(),
+      };
+      userUseCases.findPreCreatedByEmail.mockResolvedValueOnce(preCreatedUser);
+      userUseCases.hasPendingAccountSetup.mockResolvedValueOnce(true);
+
+      await expect(
+        userController.registerPreCreatedUser(dto, req),
+      ).rejects.toThrow(AccountSetupPendingException);
+      expect(userUseCases.createUser).not.toHaveBeenCalled();
+    });
+
+    it('When the pre-created user comes from an invitation, then registration creates the user as before', async () => {
+      const dto: RegisterPreCreatedUserDto = {
+        name: 'Test',
+        lastname: 'User',
+        email: preCreatedUser.email,
+        password: v4(),
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+        invitationId: v4(),
+      };
+      userUseCases.findPreCreatedByEmail.mockResolvedValueOnce(preCreatedUser);
+      userUseCases.hasPendingAccountSetup.mockResolvedValueOnce(false);
+      userUseCases.createUser.mockResolvedValueOnce(mockCreateUserResponse);
+      keyServerUseCases.addKeysToUser.mockResolvedValueOnce({
+        kyber: null,
+        ecc: null,
+      });
+
+      const result = await userController.registerPreCreatedUser(dto, req);
+
+      expect(userUseCases.createUser).toHaveBeenCalled();
+      expect(result.uuid).toBe(mockCreateUserResponse.uuid);
     });
   });
 

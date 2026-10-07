@@ -1147,11 +1147,14 @@ export class FileUseCases {
       );
     }
 
-    const { versionable: shouldVersion } = await this.isFileVersionable(
+    const { versionable } = await this.isFileVersionable(
       user.uuid,
       file.type as VersionableFileExtension,
       file.size,
     );
+
+    // Empty files have no network content to keep as a version
+    const shouldVersion = versionable && !!oldFileId;
 
     if (shouldVersion) {
       const { size, modificationTime } = newFileData;

@@ -13,7 +13,6 @@ import { CacheManagerService } from '../cache-manager/cache-manager.service';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
-import { ConfigService } from '@nestjs/config';
 import { JWT_1DAY_EXPIRATION } from '../auth/constants';
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { type Workspace } from '../workspaces/domains/workspaces.domain';
@@ -33,7 +32,6 @@ export class GatewayUseCases {
     private readonly featureLimitService: FeatureLimitService,
     private readonly fileUseCases: FileUseCases,
     private readonly mailerService: MailerService,
-    private readonly configService: ConfigService,
     private readonly folderRepository: SequelizeFolderRepository,
     private readonly limitsRepository: SequelizeFeatureLimitsRepository,
   ) {}
@@ -303,10 +301,7 @@ export class GatewayUseCases {
     }: { newStorageSpaceBytes?: number; newTierId?: string },
   ) {
     if (newTierId) {
-      const tier = await this.featureLimitService.getTier(newTierId);
-      if (!tier) {
-        throw new BadRequestException(`Tier with ID ${newTierId} not found`);
-      }
+      await this.assertTierExists(newTierId);
     }
 
     if (newTierId && newTierId !== user.tierId) {
@@ -371,6 +366,13 @@ export class GatewayUseCases {
           `[GATEWAY/UPDATE_TIER] Deleted ${deletedCount} file versions (full cleanup) for user ${user.uuid} due to tier change`,
         );
       }
+    }
+  }
+
+  private async assertTierExists(tierId: string) {
+    const tier = await this.featureLimitService.getTier(tierId);
+    if (!tier) {
+      throw new BadRequestException(`Tier with ID ${tierId} not found`);
     }
   }
 

@@ -23,7 +23,6 @@ import {
   HttpException,
   UseInterceptors,
   ConflictException,
-  ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -62,9 +61,12 @@ import { v4, validate } from 'uuid';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
+import { CompleteAccountSetupDto } from './dto/complete-account-setup.dto';
+import { AccountSetupPendingException } from './exception/account-setup-pending.exception';
 import { SharingService } from '../sharing/sharing.service';
 import { CreateAttemptChangeEmailDto } from './dto/create-attempt-change-email.dto';
 import { RequestAccountUnblock } from './dto/account-unblock.dto';
+import { ResendAccountSetupEmailDto } from './dto/resend-account-setup-email.dto';
 import { RegisterNotificationTokenDto } from './dto/register-notification-token.dto';
 import { getFutureIAT } from '../../middlewares/passport';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
@@ -103,6 +105,9 @@ import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
 import { CaptchaGuard } from '../auth/captcha.guard';
 
+type CreatedUser = Awaited<ReturnType<UserUseCases['createUser']>>;
+type CreatedUserKeys = Awaited<ReturnType<KeyServerUseCases['addKeysToUser']>>;
+
 @ApiTags('User')
 @Controller('users')
 export class UserController {
@@ -135,6 +140,8 @@ export class UserController {
     const isDriveWeb = clientId === ClientEnum.Web;
 
     try {
+      await this.rejectPendingAccountSetup(createUserDto.email);
+
       const response = await this.userUseCases.createUser(createUserDto);
 
       const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
@@ -180,25 +187,11 @@ export class UserController {
           );
         });
 
-      return {
-        ...response,
-        user: {
-          ...response.user,
-          root_folder_id: response.user.rootFolderId,
-          ...(isDriveWeb
-            ? { rootFolderId: response.user.rootFolderUuid }
-            : null),
-          publicKey: keys.ecc?.publicKey,
-          privateKey: keys.ecc?.privateKey,
-          revocationKey: keys.ecc?.revocationKey,
-          keys: { ...keys },
-        },
-        token: response.token,
-        newToken: response.newToken,
-        uuid: response.uuid,
-      };
+      return this.toSignUpResponse(response, keys, isDriveWeb);
     } catch (err) {
-      if (err instanceof InvalidReferralCodeError) {
+      if (err instanceof AccountSetupPendingException) {
+        throw err;
+      } else if (err instanceof InvalidReferralCodeError) {
         throw new BadRequestException(err.message);
       } else if (err instanceof UserAlreadyRegisteredError) {
         throw new ConflictException(err.message);
@@ -264,6 +257,32 @@ export class UserController {
     }
   }
 
+  @Post('/pre-created-users/setup-email')
+  @UseGuards(CaptchaGuard)
+  @UseInterceptors(TimingConsistencyInterceptor)
+  @TimingConsistency({ minimumResponseTimeMs: 900 })
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Resend the account setup email of a paid, pending account',
+    description:
+      'Responds the same way whether or not the email has a pending account setup',
+  })
+  @ApiOkResponse({ description: 'Request accepted' })
+  @Public()
+  async resendAccountSetupEmail(
+    @Body() body: ResendAccountSetupEmailDto,
+  ): Promise<void> {
+    try {
+      await this.userUseCases.resendAccountSetupEmail(body.email.toLowerCase());
+    } catch (err) {
+      this.logger.error(
+        `[ACCOUNT_SETUP/RESEND] ERROR: ${(err as Error).message}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+    }
+  }
+
   @UseGuards(CaptchaGuard)
   @Post('/pre-created-users/register')
   @HttpCode(201)
@@ -287,6 +306,8 @@ export class UserController {
       if (!preCreatedUser) {
         throw new NotFoundException('PRE_CREATED_USER_NOT_FOUND');
       }
+
+      await this.rejectPendingAccountSetup(email);
 
       const userCreated = await this.userUseCases.createUser(createUserDto);
 
@@ -347,24 +368,13 @@ export class UserController {
           );
         });
 
-      return {
-        ...userCreated,
-        user: {
-          ...userCreated.user,
-          root_folder_id: userCreated.user.rootFolderId,
-          publicKey: keys.ecc?.publicKey,
-          privateKey: keys.ecc?.privateKey,
-          revocationKey: keys.ecc?.revocationKey,
-          keys: { ...keys },
-        },
-        token: userCreated.token,
-        newToken: userCreated.newToken,
-        uuid: userCreated.uuid,
-      };
+      return this.toSignUpResponse(userCreated, keys, false);
     } catch (err) {
       const errorMessage = err.message;
 
-      if (err instanceof InvalidReferralCodeError) {
+      if (err instanceof AccountSetupPendingException) {
+        throw err;
+      } else if (err instanceof InvalidReferralCodeError) {
         throw new BadRequestException(errorMessage);
       } else if (err instanceof UserAlreadyRegisteredError) {
         throw new ConflictException(errorMessage);
@@ -384,6 +394,91 @@ export class UserController {
     }
   }
 
+  @UseGuards(CaptchaGuard)
+  @Post('/pre-created-users/complete-setup')
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Complete the account setup of a pre-created user',
+  })
+  @ApiOkResponse({
+    description: 'Creates the user keeping the pre-created uuid and plan',
+  })
+  @ApiBadRequestResponse({ description: 'Missing required fields' })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'The token is invalid, expired or already used',
+  })
+  @Public()
+  async completeAccountSetup(
+    @Body() completeAccountSetupDto: CompleteAccountSetupDto,
+    @Req() req: Request,
+    @Client() clientId: string,
+  ) {
+    try {
+      const { keys, ...createdUser } =
+        await this.userUseCases.completeAccountSetup(completeAccountSetupDto);
+
+      this.notificationsService.add(
+        new SignUpSuccessEvent(createdUser.user, req),
+      );
+
+      return this.toSignUpResponse(
+        createdUser,
+        keys,
+        clientId === ClientEnum.Web,
+      );
+    } catch (err) {
+      if (err instanceof HttpException) {
+        throw err;
+      } else if (err instanceof InvalidReferralCodeError) {
+        throw new BadRequestException(err.message);
+      } else if (err instanceof UserAlreadyRegisteredError) {
+        throw new ConflictException(err.message);
+      }
+
+      this.logger.error(
+        `[AUTH/COMPLETE-ACCOUNT-SETUP] ERROR: ${(err as Error).message}, STACK: ${
+          (err as Error).stack
+        }`,
+      );
+
+      throw new InternalServerErrorException();
+    }
+  }
+
+  private async rejectPendingAccountSetup(email: string) {
+    const hasPendingAccountSetup =
+      await this.userUseCases.hasPendingAccountSetup(email.toLowerCase());
+
+    if (hasPendingAccountSetup) {
+      throw new AccountSetupPendingException();
+    }
+  }
+
+  private toSignUpResponse(
+    createdUser: CreatedUser,
+    keys: CreatedUserKeys,
+    isDriveWeb: boolean,
+  ) {
+    return {
+      ...createdUser,
+      user: {
+        ...createdUser.user,
+        root_folder_id: createdUser.user.rootFolderId,
+        ...(isDriveWeb
+          ? { rootFolderId: createdUser.user.rootFolderUuid }
+          : null),
+        publicKey: keys.ecc?.publicKey,
+        privateKey: keys.ecc?.privateKey,
+        revocationKey: keys.ecc?.revocationKey,
+        keys: { ...keys },
+      },
+      token: createdUser.token,
+      newToken: createdUser.newToken,
+      uuid: createdUser.uuid,
+    };
+  }
+
   @Post('/pre-create')
   @HttpCode(201)
   @ApiOperation({
@@ -392,7 +487,9 @@ export class UserController {
   @ApiOkResponse({ description: 'Pre creates a user' })
   @ApiBadRequestResponse({ description: 'Missing required fields' })
   async preCreateUser(@Body() createUserDto: PreCreateUserDto) {
-    const [user] = await this.userUseCases.preCreateUser(createUserDto);
+    const [user] = await this.userUseCases.preCreateUser({
+      email: createUserDto.email,
+    });
 
     return {
       user: {
