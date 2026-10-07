@@ -1170,6 +1170,8 @@ export class SequelizeSharingRepository implements SharingRepository {
         id: { [Op.in]: ids },
       },
     });
+  }
+
   private notExpiredCondition(): WhereOptions<SharingModel> {
     return {
       [Op.or]: [

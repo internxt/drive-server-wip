@@ -416,7 +416,7 @@ export class SharingService {
       throw new BadRequestException();
     }
 
-    await this.assertSharingIsNotExpired(sharing);
+    this.assertSharingIsNotExpired(sharing);
 
     return sharing;
   }

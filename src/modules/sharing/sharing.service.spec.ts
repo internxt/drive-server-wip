@@ -476,7 +476,7 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('When the sharing has already expired, then it is deleted and it fails', async () => {
+    it('When the sharing has already expired, then it fails', async () => {
       const sharing = newSharing({
         owner,
         item: folder,
@@ -494,7 +494,7 @@ describe('Sharing Use Cases', () => {
           getFutureDate().toISOString(),
         ),
       ).rejects.toThrow(NotFoundException);
-      expect(sharingRepository.deleteSharing).toHaveBeenCalledWith(sharing.id);
+      expect(sharingRepository.deleteSharing).not.toHaveBeenCalled();
       expect(sharingRepository.updateSharing).not.toHaveBeenCalled();
     });
   });
