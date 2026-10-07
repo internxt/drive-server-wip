@@ -6,6 +6,8 @@ import { ConfigService } from '@nestjs/config';
 import { SharingService } from '../../sharing/sharing.service';
 import { SequelizeJobExecutionRepository } from '../repositories/job-execution.repository';
 
+const BATCH_SIZE = 100;
+
 @Injectable()
 export class DeleteExpiredSharingsTask {
   private readonly logger = new Logger(DeleteExpiredSharingsTask.name);
@@ -40,23 +42,17 @@ export class DeleteExpiredSharingsTask {
 
       if (!acquired) {
         this.logger.log(
-          'Lock already acquired by another instance, skipping...',
+          { lockKey: this.lockKey },
+          'Expired sharings cleanup lock already acquired by another instance, skipping.',
         );
         return;
       }
 
-      this.logger.log('Lock acquired! Starting expired sharings cleanup job');
       await this.startJob();
     } catch (error) {
       this.logger.error(
-        `Expired sharings cleanup job could not be setup. error: ${JSON.stringify(
-          {
-            timestamp: new Date().toISOString(),
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-          },
-        )}`,
+        { error },
+        'Expired sharings cleanup job could not be set up.',
       );
     }
   }
@@ -66,34 +62,46 @@ export class DeleteExpiredSharingsTask {
       await this.initializeJobExecution();
 
     const jobId = startedJob.id;
-    const lastRun = lastCompletedJob
-      ? `(last completed: ${lastCompletedJob.completedAt})`
-      : '(first run)';
 
     this.logger.log(
-      `[${jobId}] Starting expired sharings cleanup job ${lastRun}`,
+      { jobId, lastCompletedAt: lastCompletedJob?.completedAt ?? null },
+      'Expired sharings cleanup started.',
     );
 
     try {
-      const result = await this.sharingService.deleteExpiredSharings();
+      let totalDeleted = 0;
+      let batchNumber = 0;
+      let deletedInBatch: number;
+
+      do {
+        deletedInBatch =
+          await this.sharingService.deleteExpiredSharings(BATCH_SIZE);
+        totalDeleted += deletedInBatch;
+        batchNumber++;
+
+        this.logger.log(
+          { jobId, batchNumber, deletedInBatch, totalDeleted },
+          'Expired sharings cleanup progress.',
+        );
+      } while (deletedInBatch === BATCH_SIZE);
 
       const completedJob = await this.jobExecutionRepository.markAsCompleted(
-        startedJob.id,
-        {
-          deletedCount: result.deletedCount,
-        },
+        jobId,
+        { deletedCount: totalDeleted },
       );
 
       this.logger.log(
-        `[${jobId}] Cleanup completed at ${completedJob?.completedAt}: ${result.deletedCount} sharings deleted`,
+        {
+          jobId,
+          deletedCount: totalDeleted,
+          completedAt: completedJob?.completedAt,
+        },
+        'Expired sharings cleanup completed.',
       );
     } catch (error) {
-      const errorMessage = error.message;
-      this.logger.error(
-        `[${jobId}] Error while executing expired sharings cleanup: ${errorMessage}`,
-      );
-      await this.jobExecutionRepository.markAsFailed(startedJob.id, {
-        errorMessage,
+      this.logger.error({ jobId, error }, 'Expired sharings cleanup failed.');
+      await this.jobExecutionRepository.markAsFailed(jobId, {
+        errorMessage: error.message,
       });
       throw error;
     }

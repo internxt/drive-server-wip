@@ -397,7 +397,11 @@ describe('Sharing Use Cases', () => {
       sharingRepository.findOneSharing.mockResolvedValue(sharing);
 
       await expect(
-        sharingService.setSharingExpiration(owner, sharing.id, getPastDate()),
+        sharingService.setSharingExpiration(
+          owner,
+          sharing.id,
+          getPastDate().toISOString(),
+        ),
       ).rejects.toThrow(BadRequestException);
       expect(sharingRepository.updateSharing).not.toHaveBeenCalled();
     });
@@ -416,7 +420,7 @@ describe('Sharing Use Cases', () => {
         sharingService.setSharingExpiration(
           owner,
           sharing.id,
-          getDateAfterMaxExpiration(),
+          getDateAfterMaxExpiration().toISOString(),
         ),
       ).rejects.toThrow(BadRequestException);
       expect(sharingRepository.updateSharing).not.toHaveBeenCalled();
@@ -436,7 +440,7 @@ describe('Sharing Use Cases', () => {
         sharingService.setSharingExpiration(
           otherUser,
           sharing.id,
-          getFutureDate(),
+          getFutureDate().toISOString(),
         ),
       ).rejects.toThrow(BadRequestException);
     });
@@ -452,7 +456,11 @@ describe('Sharing Use Cases', () => {
       sharingRepository.findOneSharing.mockResolvedValue(sharing);
 
       await expect(
-        sharingService.setSharingExpiration(owner, sharing.id, getFutureDate()),
+        sharingService.setSharingExpiration(
+          owner,
+          sharing.id,
+          getFutureDate().toISOString(),
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -460,7 +468,11 @@ describe('Sharing Use Cases', () => {
       sharingRepository.findOneSharing.mockResolvedValue(null);
 
       await expect(
-        sharingService.setSharingExpiration(owner, '', getFutureDate()),
+        sharingService.setSharingExpiration(
+          owner,
+          '',
+          getFutureDate().toISOString(),
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -476,7 +488,11 @@ describe('Sharing Use Cases', () => {
       sharingRepository.findOneSharing.mockResolvedValue(sharing);
 
       await expect(
-        sharingService.setSharingExpiration(owner, sharing.id, getFutureDate()),
+        sharingService.setSharingExpiration(
+          owner,
+          sharing.id,
+          getFutureDate().toISOString(),
+        ),
       ).rejects.toThrow(NotFoundException);
       expect(sharingRepository.deleteSharing).toHaveBeenCalledWith(sharing.id);
       expect(sharingRepository.updateSharing).not.toHaveBeenCalled();
@@ -3868,21 +3884,20 @@ describe('Sharing Use Cases', () => {
   });
 
   describe('deleteExpiredSharings', () => {
-    it('When there are expired sharings, then they are deleted in batches', async () => {
-      sharingRepository.findExpiredSharingIds
-        .mockResolvedValueOnce(['sharing-1', 'sharing-2'])
-        .mockResolvedValueOnce(['sharing-3']);
-
-      const result = await sharingService.deleteExpiredSharings(2);
-
-      expect(sharingRepository.deleteSharingsByIds).toHaveBeenNthCalledWith(1, [
+    it('When there are expired sharings, then a batch of them is deleted', async () => {
+      sharingRepository.findExpiredSharingIds.mockResolvedValueOnce([
         'sharing-1',
         'sharing-2',
       ]);
-      expect(sharingRepository.deleteSharingsByIds).toHaveBeenNthCalledWith(2, [
-        'sharing-3',
+
+      const result = await sharingService.deleteExpiredSharings(2);
+
+      expect(sharingRepository.findExpiredSharingIds).toHaveBeenCalledWith(2);
+      expect(sharingRepository.deleteSharingsByIds).toHaveBeenCalledWith([
+        'sharing-1',
+        'sharing-2',
       ]);
-      expect(result).toEqual({ deletedCount: 3 });
+      expect(result).toBe(2);
     });
 
     it('When there are no expired sharings, then nothing is deleted', async () => {
@@ -3891,7 +3906,7 @@ describe('Sharing Use Cases', () => {
       const result = await sharingService.deleteExpiredSharings(2);
 
       expect(sharingRepository.deleteSharingsByIds).not.toHaveBeenCalled();
-      expect(result).toEqual({ deletedCount: 0 });
+      expect(result).toBe(0);
     });
   });
 

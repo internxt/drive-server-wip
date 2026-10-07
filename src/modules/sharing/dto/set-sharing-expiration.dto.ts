@@ -8,5 +8,5 @@ export class SetSharingExpirationDto {
   })
   @IsNotEmpty()
   @IsDateString()
-  linkExpirationDate: Date;
+  linkExpirationDate: string;
 }

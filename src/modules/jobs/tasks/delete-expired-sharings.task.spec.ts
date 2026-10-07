@@ -1,6 +1,6 @@
 import { createMock, type DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
-import { type Logger } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DeleteExpiredSharingsTask } from './delete-expired-sharings.task';
 import { RedisService } from '../../../externals/redis/redis.service';
@@ -90,36 +90,71 @@ describe('DeleteExpiredSharingsTask', () => {
       });
     });
 
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     it('When no expired sharings exist, then it should complete with zero deletions', async () => {
-      sharingService.deleteExpiredSharings.mockResolvedValue({
-        deletedCount: 0,
-      });
+      sharingService.deleteExpiredSharings.mockResolvedValue(0);
       jobExecutionRepository.markAsCompleted.mockResolvedValue(
         mockCompletedJob,
       );
 
       await task.startJob();
 
-      expect(sharingService.deleteExpiredSharings).toHaveBeenCalledWith();
+      expect(sharingService.deleteExpiredSharings).toHaveBeenCalledTimes(1);
+      expect(sharingService.deleteExpiredSharings).toHaveBeenCalledWith(100);
       expect(jobExecutionRepository.markAsCompleted).toHaveBeenCalledWith(
         mockStartedJob.id,
         { deletedCount: 0 },
       );
     });
 
-    it('When expired sharings exist, then it should delete them and save the count', async () => {
-      sharingService.deleteExpiredSharings.mockResolvedValue({
-        deletedCount: 42,
-      });
+    it('When expired sharings exist, then it should delete them in batches and save the count', async () => {
+      sharingService.deleteExpiredSharings
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(42);
       jobExecutionRepository.markAsCompleted.mockResolvedValue(
         mockCompletedJob,
       );
 
       await task.startJob();
 
+      expect(sharingService.deleteExpiredSharings).toHaveBeenCalledTimes(2);
       expect(jobExecutionRepository.markAsCompleted).toHaveBeenCalledWith(
         mockStartedJob.id,
-        { deletedCount: 42 },
+        { deletedCount: 142 },
+      );
+    });
+
+    it('When a batch is deleted, then the progress is logged', async () => {
+      const logSpy = jest.spyOn(Logger.prototype, 'log');
+      sharingService.deleteExpiredSharings
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(42);
+      jobExecutionRepository.markAsCompleted.mockResolvedValue(
+        mockCompletedJob,
+      );
+
+      await task.startJob();
+
+      expect(logSpy).toHaveBeenCalledWith(
+        {
+          jobId: mockStartedJob.id,
+          batchNumber: 1,
+          deletedInBatch: 100,
+          totalDeleted: 100,
+        },
+        'Expired sharings cleanup progress.',
+      );
+      expect(logSpy).toHaveBeenCalledWith(
+        {
+          jobId: mockStartedJob.id,
+          batchNumber: 2,
+          deletedInBatch: 42,
+          totalDeleted: 142,
+        },
+        'Expired sharings cleanup progress.',
       );
     });
 

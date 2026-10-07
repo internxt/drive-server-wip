@@ -372,7 +372,7 @@ export class SharingService {
   async setSharingExpiration(
     user: User,
     id: Sharing['id'],
-    linkExpirationDate: Date | string,
+    linkExpirationDate: string,
   ): Promise<Sharing> {
     const sharing = await this.getOwnedPublicSharing(user, id);
 
@@ -1375,23 +1375,15 @@ export class SharingService {
     return sharingCreated;
   }
 
-  async deleteExpiredSharings(
-    batchSize = 100,
-  ): Promise<{ deletedCount: number }> {
-    let deletedCount = 0;
-    let expiredSharingIds: Sharing['id'][];
+  async deleteExpiredSharings(limit: number): Promise<number> {
+    const expiredSharingIds =
+      await this.sharingRepository.findExpiredSharingIds(limit);
 
-    do {
-      expiredSharingIds =
-        await this.sharingRepository.findExpiredSharingIds(batchSize);
+    if (expiredSharingIds.length > 0) {
+      await this.sharingRepository.deleteSharingsByIds(expiredSharingIds);
+    }
 
-      if (expiredSharingIds.length > 0) {
-        await this.sharingRepository.deleteSharingsByIds(expiredSharingIds);
-        deletedCount += expiredSharingIds.length;
-      }
-    } while (expiredSharingIds.length === batchSize);
-
-    return { deletedCount };
+    return expiredSharingIds.length;
   }
 
   private getValidExpirationDate(

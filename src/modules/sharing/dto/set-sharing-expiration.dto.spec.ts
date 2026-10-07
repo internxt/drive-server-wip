@@ -10,7 +10,7 @@ describe('SetSharingExpirationDto Validation', () => {
 
     const errors = await validate(dto);
 
-    expect(errors.length).toHaveLength(0);
+    expect(errors).toHaveLength(0);
   });
 
   it('When the expiration date is missing, then it fails', async () => {

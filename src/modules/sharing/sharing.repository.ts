@@ -31,6 +31,7 @@ import { type WorkspaceTeamAttributes } from '../workspaces/attributes/workspace
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { type WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
 import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { Time } from '../../lib/time';
 
 interface SharingRepository {
   getInvitesByItem(
@@ -1149,7 +1150,7 @@ export class SequelizeSharingRepository implements SharingRepository {
     const expiredSharings = await this.sharings.findAll({
       attributes: ['id'],
       where: {
-        expirationAt: { [Op.lte]: new Date() },
+        expirationAt: { [Op.lte]: Time.now() },
       },
       limit,
     });

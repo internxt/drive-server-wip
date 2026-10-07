@@ -183,7 +183,7 @@ export class SharingController {
   })
   async setPublicSharingExpiration(
     @UserDecorator() user: User,
-    @Param('sharingId') sharingId: Sharing['id'],
+    @Param('sharingId', ValidateUUIDPipe) sharingId: Sharing['id'],
     @Body() sharingExpirationDto: SetSharingExpirationDto,
   ) {
     const { linkExpirationDate } = sharingExpirationDto;
@@ -208,7 +208,7 @@ export class SharingController {
   @WorkspacesInBehalfGuard(WorkspaceResourcesAction.ModifySharingById)
   async removePublicSharingExpiration(
     @UserDecorator() user: User,
-    @Param('sharingId') sharingId: Sharing['id'],
+    @Param('sharingId', ValidateUUIDPipe) sharingId: Sharing['id'],
   ) {
     return this.sharingService.removeSharingExpiration(user, sharingId);
   }

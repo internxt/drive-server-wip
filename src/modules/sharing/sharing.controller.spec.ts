@@ -192,7 +192,7 @@ describe('SharingController', () => {
   describe('setPublicSharingExpiration', () => {
     it('When setting public sharing expiration, then it calls service with correct parameters', async () => {
       const sharingId = sharing.id;
-      const linkExpirationDate = new Date('2026-10-31T22:59:59.999Z');
+      const linkExpirationDate = '2026-10-31T22:59:59.999Z';
       const sharingExpirationDto: SetSharingExpirationDto = {
         linkExpirationDate,
       };
