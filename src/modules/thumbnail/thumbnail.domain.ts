@@ -2,6 +2,7 @@ import { type ThumbnailAttributes } from './thumbnail.attributes';
 
 export class Thumbnail implements ThumbnailAttributes {
   id: number;
+  fileId: number;
   fileUuid: string;
   type: string;
   size: number;
@@ -17,6 +18,7 @@ export class Thumbnail implements ThumbnailAttributes {
 
   constructor(attributes: ThumbnailAttributes) {
     this.id = attributes.id;
+    this.fileId = attributes.fileId;
     this.fileUuid = attributes.fileUuid;
     this.type = attributes.type;
     this.size = attributes.size;

@@ -299,6 +299,7 @@ describe('FileController', () => {
     };
     const thumbnailDto: ThumbnailDto = {
       id: 1,
+      fileId: 0,
       ...createThumbnailDto,
       createdAt: new Date(),
       updatedAt: new Date(),

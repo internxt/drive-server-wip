@@ -3,6 +3,8 @@ import { ApiProperty } from '@nestjs/swagger';
 export class ThumbnailDto {
   @ApiProperty()
   id: number;
+  @ApiProperty({ deprecated: true, description: 'Always 0. Use fileUuid' })
+  fileId: number;
   @ApiProperty()
   fileUuid: string;
   @ApiProperty()
