@@ -1058,7 +1058,7 @@ export class SequelizeFolderRepository implements FolderRepository {
   ): Promise<Array<Folder>> {
     const folders = await withQueryTimeout(
       this.folderModel.sequelize,
-      120000,
+      110000,
       (transaction) =>
         this.folderModel.findAll({
           where: {

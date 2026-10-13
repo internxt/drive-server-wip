@@ -419,7 +419,7 @@ export class SequelizeFileRepository implements FileRepository {
     }
     const files = await withQueryTimeout(
       this.fileModel.sequelize,
-      120000,
+      110000,
       (transaction) =>
         this.findAllCursor(
           whereCondition,
