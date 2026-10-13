@@ -15,7 +15,6 @@ import {
   Op,
   QueryTypes,
   Sequelize,
-  type Transaction,
   type WhereOptions,
 } from 'sequelize';
 import { type Literal } from 'sequelize/types/utils';
@@ -417,18 +416,11 @@ export class SequelizeFileRepository implements FileRepository {
         uuid: { [Op.gt]: lastId },
       };
     }
-    const files = await withQueryTimeout(
-      this.fileModel.sequelize,
-      115000,
-      (transaction) =>
-        this.findAllCursor(
-          whereCondition,
-          limit,
-          lastId ? 0 : offset,
-          additionalOrders,
-          undefined,
-          transaction,
-        ),
+    const files = await this.findAllCursor(
+      whereCondition,
+      limit,
+      lastId ? 0 : offset,
+      additionalOrders,
     );
 
     return files.map(this.toDomain.bind(this));
@@ -674,7 +666,6 @@ export class SequelizeFileRepository implements FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]> = [],
     favoriteUserUuid?: FavoriteAttributes['userId'],
-    transaction?: Transaction,
   ): Promise<Array<File> | []> {
     const appliedOrder = this.applyCollateToPlainNameSort(order);
 
@@ -685,7 +676,6 @@ export class SequelizeFileRepository implements FileRepository {
       include: this.favoriteInclude(favoriteUserUuid),
       subQuery: false,
       order: appliedOrder,
-      transaction,
     });
 
     return files.map(this.toDomain.bind(this));

@@ -15,7 +15,6 @@ import { v4 } from 'uuid';
 import { randomInt } from 'crypto';
 import { Time } from '../../lib/time';
 import { SortOrder } from '../../common/order.type';
-import { withQueryTimeout } from '../../lib/query-timeout';
 
 jest.mock('../../lib/query-timeout', () => ({
   withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
@@ -1434,13 +1433,7 @@ describe('SequelizeFolderRepository', () => {
         order,
         limit,
         offset,
-        transaction: {},
       });
-      expect(withQueryTimeout).toHaveBeenCalledWith(
-        folderModel.sequelize,
-        115000,
-        expect.any(Function),
-      );
       expect(result).toHaveLength(1);
     });
   });
