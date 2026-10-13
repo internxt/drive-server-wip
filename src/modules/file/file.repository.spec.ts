@@ -836,7 +836,7 @@ describe('FileRepository', () => {
       );
     });
 
-    it('When files are fetched, then it should apply a 110s query timeout', async () => {
+    it('When files are fetched, then it should apply a 115s query timeout', async () => {
       jest.spyOn(repository, 'findAllCursor').mockResolvedValueOnce([]);
 
       await repository.findAllCursorWhereUpdatedAfter(
@@ -849,7 +849,7 @@ describe('FileRepository', () => {
 
       expect(withQueryTimeout).toHaveBeenCalledWith(
         fileModel.sequelize,
-        110000,
+        115000,
         expect.any(Function),
       );
     });

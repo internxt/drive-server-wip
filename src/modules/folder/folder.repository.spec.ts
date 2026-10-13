@@ -1438,7 +1438,7 @@ describe('SequelizeFolderRepository', () => {
       });
       expect(withQueryTimeout).toHaveBeenCalledWith(
         folderModel.sequelize,
-        110000,
+        115000,
         expect.any(Function),
       );
       expect(result).toHaveLength(1);
