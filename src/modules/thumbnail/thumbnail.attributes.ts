@@ -1,6 +1,5 @@
 export interface ThumbnailAttributes {
   id: number;
-  fileId: number;
   fileUuid: string;
   type: string;
   size: number;

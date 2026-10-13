@@ -288,7 +288,6 @@ describe('FileController', () => {
 
   describe('createThumbnail', () => {
     const createThumbnailDto: CreateThumbnailDto = {
-      fileId: 1882,
       fileUuid: v4(),
       maxWidth: 300,
       maxHeight: 300,
@@ -311,8 +310,6 @@ describe('FileController', () => {
       const result = await fileController.createThumbnail(
         userMocked,
         createThumbnailDto,
-        'drive-web',
-        '1.0.0',
       );
       expect(result).toEqual(thumbnailDto);
       expect(thumbnailUseCases.createThumbnail).toHaveBeenCalledWith(
@@ -326,12 +323,7 @@ describe('FileController', () => {
         .spyOn(thumbnailUseCases, 'createThumbnail')
         .mockRejectedValue(new InternalServerErrorException());
       await expect(
-        fileController.createThumbnail(
-          userMocked,
-          createThumbnailDto,
-          'drive-web',
-          '1.0.0',
-        ),
+        fileController.createThumbnail(userMocked, createThumbnailDto),
       ).rejects.toThrow(InternalServerErrorException);
     });
   });

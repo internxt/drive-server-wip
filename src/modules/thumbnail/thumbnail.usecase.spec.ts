@@ -25,7 +25,6 @@ describe('ThumbnailUseCases', () => {
 
   const existingThumbnail = {
     id: 1,
-    fileId: 123456,
     fileUuid: fileUuid,
     bucketFile: 'existingBucketFile',
   } as any;
@@ -78,7 +77,6 @@ describe('ThumbnailUseCases', () => {
       expect(thumbnailRepository.findByFileUuid).toHaveBeenCalledWith(fileUuid);
       expect(thumbnailRepository.create).toHaveBeenCalledWith({
         ...createThumbnailDto,
-        fileId: 123456,
         fileUuid: fileUuid,
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
@@ -197,7 +195,6 @@ describe('ThumbnailUseCases', () => {
 
       expect(thumbnailRepository.create).toHaveBeenCalledWith({
         ...createThumbnailDto,
-        fileId: 123456,
         fileUuid: fileUuid,
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),

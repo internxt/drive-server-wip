@@ -71,7 +71,6 @@ export class SequelizeThumbnailRepository implements ThumbnailRepository {
   private toDomain(model: ThumbnailModel): Thumbnail {
     return {
       id: model.id,
-      fileId: model.fileId,
       fileUuid: model.fileUuid,
       type: model.type,
       size: model.size,
@@ -88,7 +87,6 @@ export class SequelizeThumbnailRepository implements ThumbnailRepository {
   private toModel(thumbnail: Thumbnail): Partial<ThumbnailModel> {
     return {
       id: thumbnail.id,
-      fileId: thumbnail.fileId,
       fileUuid: thumbnail.fileUuid,
       type: thumbnail.type,
       size: thumbnail.size,
