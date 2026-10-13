@@ -20,6 +20,7 @@ import { SharingModel } from '../sharing/models';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Time } from '../../lib/time';
 import { SortOrder } from '../../common/order.type';
+import { withQueryTimeout } from '../../lib/query-timeout';
 
 jest.mock('../../lib/query-timeout', () => ({
   withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
@@ -778,6 +779,8 @@ describe('FileRepository', () => {
         limit,
         offset,
         [],
+        undefined,
+        {},
       );
     });
 
@@ -800,6 +803,8 @@ describe('FileRepository', () => {
         limit,
         offset,
         additionalOrders,
+        undefined,
+        {},
       );
     });
 
@@ -826,6 +831,26 @@ describe('FileRepository', () => {
         limit,
         0,
         additionalOrders,
+        undefined,
+        {},
+      );
+    });
+
+    it('When files are fetched, then it should apply a 115s query timeout', async () => {
+      jest.spyOn(repository, 'findAllCursor').mockResolvedValueOnce([]);
+
+      await repository.findAllCursorWhereUpdatedAfter(
+        whereClause,
+        updatedAtAfter,
+        limit,
+        offset,
+        [],
+      );
+
+      expect(withQueryTimeout).toHaveBeenCalledWith(
+        fileModel.sequelize,
+        115000,
+        expect.any(Function),
       );
     });
   });

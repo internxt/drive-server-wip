@@ -1056,20 +1056,26 @@ export class SequelizeFolderRepository implements FolderRepository {
     offset: number,
     additionalOrders: Array<[keyof FolderAttributes, string]> = [],
   ): Promise<Array<Folder>> {
-    const folders = await this.folderModel.findAll({
-      where: {
-        ...where,
-        updatedAt: {
-          [Op.gt]: updatedAfter,
-        },
-        parentUuid: {
-          [Op.not]: null,
-        },
-      },
-      order: additionalOrders,
-      limit,
-      offset,
-    });
+    const folders = await withQueryTimeout(
+      this.folderModel.sequelize,
+      115000,
+      (transaction) =>
+        this.folderModel.findAll({
+          where: {
+            ...where,
+            updatedAt: {
+              [Op.gt]: updatedAfter,
+            },
+            parentUuid: {
+              [Op.not]: null,
+            },
+          },
+          order: additionalOrders,
+          limit,
+          offset,
+          transaction,
+        }),
+    );
 
     return folders.map((folder) => this.toDomain(folder));
   }
