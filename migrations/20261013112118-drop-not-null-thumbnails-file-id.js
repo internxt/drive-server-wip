@@ -12,7 +12,7 @@ module.exports = {
   },
 
   async down(queryInterface) {
-    // Validated CHECK lets SET NOT NULL skip the full scan under ACCESS EXCLUSIVE lock
+    // Avoids full table scan on SET NOT NULL
     await queryInterface.sequelize.query(
       `ALTER TABLE thumbnails ADD CONSTRAINT ${constraintName} CHECK (file_id IS NOT NULL) NOT VALID;`,
     );
