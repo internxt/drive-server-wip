@@ -28,7 +28,6 @@ describe('SequelizeThumbnailRepository', () => {
     it('When id exists then return the corresponding thumbnail', async () => {
       const mockThumbnail = {
         id: 1,
-        fileId: 2,
         fileUuid: v4(),
       };
       jest
@@ -40,7 +39,6 @@ describe('SequelizeThumbnailRepository', () => {
       expect(result).toEqual(
         expect.objectContaining({
           id: 1,
-          fileId: 2,
           fileUuid: mockThumbnail.fileUuid,
         }),
       );
@@ -61,7 +59,6 @@ describe('SequelizeThumbnailRepository', () => {
     it('When fileUuid exists then return the corresponding thumbnail', async () => {
       const mockThumbnail = {
         id: 1,
-        fileId: 2,
         fileUuid: 'test-uuid',
       } as ThumbnailModel;
       jest.spyOn(thumbnailModel, 'findOne').mockResolvedValue(mockThumbnail);
@@ -69,7 +66,7 @@ describe('SequelizeThumbnailRepository', () => {
       const result = await repository.findByFileUuid('test-uuid');
 
       expect(result).toEqual(
-        expect.objectContaining({ id: 1, fileId: 2, fileUuid: 'test-uuid' }),
+        expect.objectContaining({ id: 1, fileUuid: 'test-uuid' }),
       );
       expect(thumbnailModel.findOne).toHaveBeenCalledWith({
         where: { file_uuid: 'test-uuid' },
@@ -90,13 +87,15 @@ describe('SequelizeThumbnailRepository', () => {
 
   describe('create', () => {
     it('When valid data is provided then create and return the thumbnail', async () => {
-      const newThumbnail = { fileId: 2, type: 'image' } as any;
+      const newThumbnail = { fileUuid: 'test-uuid', type: 'image' } as any;
       const mockThumbnail = { id: 1, ...newThumbnail } as ThumbnailModel;
       jest.spyOn(thumbnailModel, 'create').mockResolvedValue(mockThumbnail);
 
       const result = await repository.create(newThumbnail);
 
-      expect(result).toEqual(expect.objectContaining({ id: 1, fileId: 2 }));
+      expect(result).toEqual(
+        expect.objectContaining({ id: 1, fileUuid: 'test-uuid' }),
+      );
       expect(thumbnailModel.create).toHaveBeenCalledWith(newThumbnail);
     });
   });
@@ -129,7 +128,7 @@ describe('SequelizeThumbnailRepository', () => {
 
   describe('deleteBy', () => {
     it('When condition matches then delete the thumbnails', async () => {
-      const where = { fileId: 2 };
+      const where = { fileUuid: 'test-uuid' };
       jest.spyOn(thumbnailModel, 'destroy').mockResolvedValue(1);
 
       await repository.deleteBy(where);

@@ -58,7 +58,6 @@ import { ThumbnailDto } from '../thumbnail/dto/thumbnail.dto';
 import { CreateThumbnailDto } from '../thumbnail/dto/create-thumbnail.dto';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { RequestLoggerInterceptor } from '../../middlewares/requests-logger.interceptor';
-import { Version } from '../../common/decorators/version.decorator';
 import { Workspace as WorkspaceDecorator } from '../auth/decorators/workspace.decorator';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { UniqueConstraintFilter } from '../../common/filters/unique-constraint.filter';
@@ -67,7 +66,6 @@ import { PaymentRequiredResponseDto } from '../feature-limit/exceptions/payment-
 @ApiTags('File')
 @Controller('files')
 export class FileController {
-  private readonly logger = new Logger(FileController.name);
   constructor(
     private readonly fileUseCases: FileUseCases,
     private readonly storageNotificationService: StorageNotificationService,
@@ -548,16 +546,7 @@ export class FileController {
   async createThumbnail(
     @UserDecorator() user: User,
     @Body() body: CreateThumbnailDto,
-    @Client() clientId: string,
-    @Version() version: string,
   ): Promise<ThumbnailDto> {
-    const stillUsesFileId = body.fileId && isNumber(body.fileId);
-    if (stillUsesFileId && !body.fileUuid) {
-      this.logger.warn(
-        `FILE_ID_USAGE: client ${clientId}, version ${version} is using fileId instead of fileUuid.`,
-      );
-    }
-
     return this.thumbnailUseCases.createThumbnail(user, body);
   }
 

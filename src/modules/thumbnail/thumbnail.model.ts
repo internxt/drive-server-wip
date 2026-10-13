@@ -23,8 +23,11 @@ export class ThumbnailModel extends Model implements ThumbnailAttributes {
   @Column
   id: number;
 
-  @Column(DataType.INTEGER)
-  fileId: number;
+  // Deprecated: kept for clients that still expect it in the response
+  @Column(DataType.VIRTUAL)
+  get fileId(): number {
+    return 0;
+  }
 
   @ForeignKey(() => FileModel)
   @Column(DataType.UUID)
