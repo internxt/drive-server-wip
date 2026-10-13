@@ -2827,8 +2827,6 @@ export class WorkspacesUsecases {
         {
           folderId: memberRootFolder.id,
           status: FileStatus.EXISTS,
-          deleted: false,
-          removed: false,
         },
         { limit: 1, offset: 0 },
       );

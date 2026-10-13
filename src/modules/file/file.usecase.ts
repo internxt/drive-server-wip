@@ -22,6 +22,7 @@ import {
   FileStatus,
   type SortableFileAttributes,
 } from './file.domain';
+import { Op } from 'sequelize';
 import { SequelizeFileRepository } from './file.repository';
 import { FolderUseCases } from '../folder/folder.usecase';
 import { type ReplaceFileDto } from './dto/replace-file.dto';
@@ -198,7 +199,7 @@ export class FileUseCases {
   ): Promise<{ id: number; uuid: string }> {
     const file = await this.fileRepository.findOneBy({
       ...where,
-      removed: false,
+      status: { [Op.ne]: FileStatus.DELETED },
     });
 
     if (!file) {
@@ -369,12 +370,8 @@ export class FileUseCases {
       encryptVersion: newFileDto.encryptVersion,
       userId: user.id,
       folderUuid: folder.uuid,
-      deleted: false,
-      deletedAt: null,
-      removed: false,
       createdAt: new Date(),
       updatedAt: new Date(),
-      removedAt: null,
       status: FileStatus.EXISTS,
       modificationTime: newFileDto.modificationTime || new Date(),
       creationTime: newFileDto.creationTime || newFileDto.date || new Date(),

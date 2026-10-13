@@ -28,10 +28,6 @@ export interface FileAttributes {
   folder?: any;
   folderUuid: string;
   encryptVersion: string;
-  deleted: boolean;
-  deletedAt: Date;
-  removed: boolean;
-  removedAt: Date;
   userId: number;
   user?: any;
   creationTime: Date;
@@ -43,13 +39,6 @@ export interface FileAttributes {
   thumbnails?: Thumbnail[];
   sharings?: Sharing[];
   isFavorite?: boolean;
-}
-
-export interface FileOptions {
-  deleted: FileAttributes['deleted'];
-  removed?: FileAttributes['removed'];
-  page?: number;
-  perPage?: number;
 }
 
 export class File implements FileAttributes {
@@ -64,21 +53,22 @@ export class File implements FileAttributes {
   folder: Folder;
   folderUuid: string;
   encryptVersion: string;
-  deleted: boolean;
-  removed: boolean;
-  deletedAt: Date;
   userId: number;
   user: User;
   creationTime: Date;
   modificationTime: Date;
   createdAt: Date;
   updatedAt: Date;
-  removedAt: Date;
   plainName: string;
   status: FileStatus;
   sharings?: Sharing[];
   thumbnails?: Thumbnail[];
   isFavorite?: boolean;
+  // Legacy response fields derived from status, still consumed by older clients
+  deleted: boolean;
+  deletedAt: Date | null;
+  removed: boolean;
+  removedAt: Date | null;
 
   private constructor({
     id,
@@ -91,8 +81,6 @@ export class File implements FileAttributes {
     folder,
     folderUuid,
     encryptVersion,
-    deleted,
-    deletedAt,
     userId,
     user,
     creationTime,
@@ -101,8 +89,6 @@ export class File implements FileAttributes {
     updatedAt,
     uuid,
     plainName,
-    removed,
-    removedAt,
     status,
     thumbnails,
     sharings,
@@ -117,8 +103,6 @@ export class File implements FileAttributes {
     this.size = size;
     this.bucket = bucket;
     this.encryptVersion = encryptVersion;
-    this.deleted = deleted;
-    this.deletedAt = deletedAt;
     this.userId = userId;
     this.setUser(user);
     this.creationTime = creationTime;
@@ -128,12 +112,11 @@ export class File implements FileAttributes {
     this.folderUuid = folderUuid;
     this.uuid = uuid;
     this.setPlainName(plainName);
-    this.removed = removed;
-    this.removedAt = removedAt;
     this.status = status;
     this.thumbnails = thumbnails;
     this.sharings = sharings;
     this.isFavorite = isFavorite;
+    this.setLegacyStatusFields();
   }
 
   static build(file: FileAttributes): File {
@@ -145,7 +128,7 @@ export class File implements FileAttributes {
   }
 
   isDeleted(): boolean {
-    return this.status === FileStatus.DELETED || this.removed;
+    return this.status === FileStatus.DELETED;
   }
 
   isEmpty(): boolean {
@@ -192,14 +175,11 @@ export class File implements FileAttributes {
     return !(isStringEmpty(this.plainName) && isStringEmpty(this.type));
   }
 
-  moveToTrash() {
-    this.deleted = true;
-    this.deletedAt = new Date();
-  }
-
-  removeFromTrash() {
-    this.deleted = false;
-    this.deletedAt = null;
+  private setLegacyStatusFields() {
+    this.deleted = this.status !== FileStatus.EXISTS;
+    this.deletedAt = this.deleted ? this.updatedAt : null;
+    this.removed = this.status === FileStatus.DELETED;
+    this.removedAt = this.removed ? this.updatedAt : null;
   }
 
   toJSON(): FileDto {

@@ -175,10 +175,6 @@ export const newFile = (params?: NewFilesParams): File => {
     type: randomDataGenerator.string(),
     size: BigInt(randomDataGenerator.natural({ min: 1 })),
     encryptVersion: '03-aes',
-    deleted: false,
-    removed: false,
-    deletedAt: undefined,
-    removedAt: undefined,
     creationTime: randomCreationTime,
     modificationTime: new Date(
       randomDataGenerator.date({

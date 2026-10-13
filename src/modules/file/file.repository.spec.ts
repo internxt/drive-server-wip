@@ -911,8 +911,6 @@ describe('FileRepository', () => {
       status: mockFile.status,
       plainName: mockFile.plainName,
       type: mockFile.type,
-      deleted: false,
-      removed: false,
     };
     const model: FileModel = {
       ...mockFile,
@@ -984,8 +982,6 @@ describe('FileRepository', () => {
       status: mockFile.status,
       plainName: mockFile.plainName,
       type: mockFile.type,
-      deleted: false,
-      removed: false,
     };
     const model: FileModel = {
       ...mockFile,
@@ -1111,8 +1107,6 @@ describe('FileRepository', () => {
       status: mockFile.status,
       plainName: mockFile.plainName,
       type: mockFile.type,
-      deleted: false,
-      removed: false,
     };
 
     it('When findAllCursor is called without favoriteUserUuid, then no favorites join is added', async () => {
@@ -1202,8 +1196,6 @@ describe('FileRepository', () => {
       status: mockFile.status,
       plainName: mockFile.plainName,
       type: mockFile.type,
-      deleted: false,
-      removed: false,
     };
 
     it('When called with favoriteUserUuid, then the favorites join is appended to the thumbnails/sharings includes', async () => {
@@ -1274,8 +1266,6 @@ describe('FileRepository', () => {
       status: mockFile.status,
       plainName: mockFile.plainName,
       type: mockFile.type,
-      deleted: false,
-      removed: false,
     };
     const model: FileModel = {
       ...mockFile,
@@ -1467,8 +1457,6 @@ describe('FileRepository', () => {
       status: mockFile.status,
       plainName: mockFile.plainName,
       type: mockFile.type,
-      deleted: false,
-      removed: false,
     };
     const model: FileModel = {
       ...mockFile,
@@ -1613,9 +1601,7 @@ describe('FileRepository', () => {
 
       expect(fileModel.update).toHaveBeenCalledWith(
         {
-          removed: true,
-          removedAt: expect.any(Date),
-          status: expect.any(String),
+          status: FileStatus.DELETED,
           updatedAt: expect.any(Date),
         },
         {

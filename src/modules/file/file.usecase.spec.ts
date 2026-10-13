@@ -2,6 +2,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { Environment } from '@internxt/inxt-js';
 import { createMock } from '@golevelup/ts-jest';
 import { aes } from '@internxt/lib';
+import { Op } from 'sequelize';
 import {
   FileUseCases,
   RECENT_FILES_DAYS,
@@ -163,8 +164,6 @@ describe('FileUseCases', () => {
       bucket: '',
       folderId: 4,
       encryptVersion: '',
-      deleted: false,
-      deletedAt: new Date(),
       userId: 1,
       creationTime: new Date(),
       modificationTime: new Date(),
@@ -172,8 +171,6 @@ describe('FileUseCases', () => {
       updatedAt: new Date(),
       uuid: '723274e5-ca2a-4e61-bf17-d9fba3b8d430',
       folderUuid: '',
-      removed: false,
-      removedAt: undefined,
       plainName: 'test',
       status: FileStatus.EXISTS,
     });
@@ -398,8 +395,6 @@ describe('FileUseCases', () => {
       folderId,
       folder: null,
       encryptVersion: 'aes-2',
-      deleted: false,
-      deletedAt: new Date('2022-09-21T11:11:30.742Z'),
       userId: 3431709237,
       user: null,
       creationTime: new Date('2022-09-21T11:11:30.742Z'),
@@ -408,8 +403,6 @@ describe('FileUseCases', () => {
       updatedAt: new Date('2022-09-21T11:11:30.742Z'),
       uuid: '',
       folderUuid: '',
-      removed: false,
-      removedAt: undefined,
       plainName: 'Myanmar',
       status: FileStatus.EXISTS,
     };
@@ -538,7 +531,7 @@ describe('FileUseCases', () => {
 
     it('When file is moved but it is removed, then an error is thrown', async () => {
       const mockFile = newFile({
-        attributes: { userId: userMocked.id, removed: true },
+        attributes: { userId: userMocked.id, status: FileStatus.DELETED },
       });
 
       jest.spyOn(fileRepository, 'findByUuid').mockResolvedValueOnce(mockFile);
@@ -3000,7 +2993,7 @@ describe('FileUseCases', () => {
       expect(result).toEqual({ id: mockFile.id, uuid: mockFile.uuid });
       expect(fileRepository.findOneBy).toHaveBeenCalledWith({
         id: mockFile.id,
-        removed: false,
+        status: { [Op.ne]: FileStatus.DELETED },
       });
       expect(sharingService.bulkRemoveSharings).toHaveBeenCalledWith(
         userMocked,
@@ -4623,8 +4616,6 @@ describe('FileUseCases', () => {
       bucket: bucketId,
       folderId: 4,
       encryptVersion: '',
-      deleted: false,
-      deletedAt: new Date(),
       userId: 1,
       creationTime: new Date(),
       modificationTime: new Date(),
@@ -4632,8 +4623,6 @@ describe('FileUseCases', () => {
       updatedAt: new Date(),
       uuid: '723274e5-ca2a-4e61-bf17-d9fba3b8d430',
       folderUuid: '',
-      removed: false,
-      removedAt: undefined,
       plainName: 'test',
       status: FileStatus.EXISTS,
     });

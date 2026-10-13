@@ -99,7 +99,7 @@ export interface FileRepository {
     order: Array<[keyof FileModel, string]>,
   ): Promise<Array<File> | []>;
   findOneBy(
-    where: Partial<FileAttributes>,
+    where: WhereOptions<FileAttributes>,
     opts?: { useMaster: boolean },
   ): Promise<File | null>;
   findByUuid(
@@ -1160,7 +1160,7 @@ export class SequelizeFileRepository implements FileRepository {
   }
 
   async findOneBy(
-    where: Partial<FileAttributes>,
+    where: WhereOptions<FileAttributes>,
     opts?: { useMaster: boolean },
   ): Promise<File | null> {
     const file = await this.fileModel.findOne({
@@ -1257,8 +1257,6 @@ export class SequelizeFileRepository implements FileRepository {
   ): Promise<void> {
     await this.fileModel.update(
       {
-        deleted: true,
-        deletedAt: new Date(),
         status: FileStatus.TRASHED,
         updatedAt: new Date(),
       },
@@ -1279,8 +1277,6 @@ export class SequelizeFileRepository implements FileRepository {
   async deleteFilesByUser(user: User, files: File[]): Promise<void> {
     await this.fileModel.update(
       {
-        removed: true,
-        removedAt: new Date(),
         status: FileStatus.DELETED,
         updatedAt: new Date(),
       },
@@ -1330,8 +1326,6 @@ export class SequelizeFileRepository implements FileRepository {
     const deletedDate = new Date();
     const [updatedCount] = await this.fileModel.update(
       {
-        removed: true,
-        removedAt: deletedDate,
         status: FileStatus.DELETED,
         updatedAt: deletedDate,
         fileId: Sequelize.literal(
@@ -1361,7 +1355,7 @@ export class SequelizeFileRepository implements FileRepository {
         return this.fileModel.sequelize.query(
           `
           UPDATE files
-          SET removed = true, removed_at = NOW(), status = 'DELETED', updated_at = NOW()
+          SET status = 'DELETED', updated_at = NOW()
           WHERE uuid IN (
             SELECT f.uuid
             FROM files f
