@@ -108,9 +108,9 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
             ? { ssl: { require: true, rejectUnauthorized: false } }
             : {}),
           application_name: appName,
-          // Cancels queries exceeding their timeout (5 min) to prevent long-running queries
+          // Cancels queries exceeding their timeout to prevent long-running queries.
           // Cronjob instances get a longer timeout (10 min) since they may run heavier operations.
-          statement_timeout: isCronjobInstance ? 600000 : 300000,
+          statement_timeout: isCronjobInstance ? 600000 : 115000,
         },
         logging: !configService.get('database.debug')
           ? false
