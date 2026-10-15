@@ -1049,6 +1049,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     return (results as { uuid: string }[]).map((r) => r.uuid);
   }
 
+  /** @deprecated Use findFoldersWithCursorWhereUpdatedAfter */
   async findAllCursorWhereUpdatedAfter(
     where: Partial<Folder>,
     updatedAfter: Date,

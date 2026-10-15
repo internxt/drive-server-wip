@@ -563,6 +563,10 @@ export class FolderController {
   }
 
   @Get('/')
+  @ApiOperation({
+    deprecated: true,
+    description: 'Deprecated in favor of GET /folders/sync',
+  })
   @ApiOkResponse({ isArray: true, type: FolderDto })
   async getFolders(
     @UserDecorator() user: User,

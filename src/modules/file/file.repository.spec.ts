@@ -802,31 +802,33 @@ describe('FileRepository', () => {
         additionalOrders,
       );
     });
+  });
 
-    it('When last id is provided, then it is used instead of the offset', async () => {
-      jest.spyOn(repository, 'findAllCursor');
+  describe('findAllForFullSync', () => {
+    const params = { userId: user.id, limit: 10, offset: 5 };
 
-      const lastId = v4();
+    it('When called, then it should fetch the existing files filtered by a paginated uuids subquery in a single query', async () => {
+      const file = newFile();
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
+      jest.spyOn(repository as any, 'toDomain').mockReturnValueOnce(file);
 
-      await repository.findAllCursorWhereUpdatedAfter(
-        whereClause,
-        updatedAtAfter,
-        limit,
-        offset,
-        additionalOrders,
-        lastId,
-      );
+      const result = await repository.findAllForFullSync(params);
 
-      expect(repository.findAllCursor).toHaveBeenCalledWith(
-        {
-          ...whereClause,
-          updatedAt: { [Op.gt]: updatedAtAfter },
-          uuid: { [Op.gt]: lastId },
+      expect(fileModel.findAll).toHaveBeenCalledTimes(1);
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: {
+          uuid: {
+            [Op.in]: expect.objectContaining({
+              val: expect.stringMatching(
+                /SELECT uuid FROM files[\s\S]*WHERE user_id = :userId AND status = 'EXISTS'[\s\S]*ORDER BY uuid ASC[\s\S]*LIMIT :limit OFFSET :offset/,
+              ),
+            }),
+          },
         },
-        limit,
-        0,
-        additionalOrders,
-      );
+        replacements: params,
+        order: [['uuid', 'ASC']],
+      });
+      expect(result).toEqual([file]);
     });
   });
 
