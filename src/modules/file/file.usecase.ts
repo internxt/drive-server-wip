@@ -593,15 +593,21 @@ export class FileUseCases {
       ['updatedAt', 'ASC'],
     ];
 
-    // Full sync (epoch date) walks the whole table with growing offsets
-    if (updatedAfter.getTime() <= 1) {
-      const files = await this.fileRepository.findAllForFullSync(
-        { ...where, userId },
-        updatedAfter,
-        pagination.limit,
-        pagination.offset,
-        additionalOrders,
-      );
+    // TODO: remove when Windows no longer calls GET /files. Ad hoc for Windows full sync (epoch, existing files sorted by uuid)
+    const [sortField, sortOrder] = pagination.sort?.[0] ?? [];
+    const isFullSync =
+      updatedAfter.getTime() <= 1 &&
+      sortField === 'uuid' &&
+      sortOrder === 'ASC' &&
+      where.status === FileStatus.EXISTS &&
+      !where.bucket;
+
+    if (isFullSync) {
+      const files = await this.fileRepository.findAllForFullSync({
+        userId,
+        limit: pagination.limit,
+        offset: pagination.offset,
+      });
       return files.map((file) => file.toJSON());
     }
 

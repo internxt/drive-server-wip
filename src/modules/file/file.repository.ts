@@ -66,13 +66,11 @@ export interface FileRepository {
     offset: number,
     additionalOrders: Array<[keyof FileModel, string]>,
   ): Promise<Array<File> | []>;
-  findAllForFullSync(
-    where: Partial<Record<keyof FileAttributes, any>>,
-    updatedAtAfter: Date,
-    limit: number,
-    offset: number,
-    additionalOrders: Array<[keyof FileModel, string]>,
-  ): Promise<Array<File> | []>;
+  findAllForFullSync(params: {
+    userId: FileAttributes['userId'];
+    limit: number;
+    offset: number;
+  }): Promise<Array<File> | []>;
   findAllCursorWhereUpdatedAfterInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
@@ -423,34 +421,32 @@ export class SequelizeFileRepository implements FileRepository {
   }
 
   /**
-   * Deferred join: paginates over uuids only, avoiding full rows reads on large offsets
+   * TODO: remove when Windows no longer calls GET /files.
+   * Ad hoc deferred join for Windows full sync: paginates uuids via index-only scan, then fetches only the page rows
    * @deprecated Use findFilesWithCursorWhereUpdatedAfter
    */
-  async findAllForFullSync(
-    where: Partial<Record<keyof FileAttributes, any>>,
-    updatedAtAfter: Date,
-    limit: number,
-    offset: number,
-    additionalOrders: Array<[keyof FileModel, string]> = [],
-  ): Promise<Array<File> | []> {
-    const order = this.applyCollateToPlainNameSort(additionalOrders);
-
-    const pageUuids = await this.fileModel.findAll({
-      attributes: ['uuid'],
-      where: { ...where, updatedAt: { [Op.gt]: updatedAtAfter } },
-      order,
-      limit,
-      offset,
-      raw: true,
-    });
-
-    if (pageUuids.length === 0) {
-      return [];
-    }
-
+  async findAllForFullSync({
+    userId,
+    limit,
+    offset,
+  }: {
+    userId: FileAttributes['userId'];
+    limit: number;
+    offset: number;
+  }): Promise<Array<File> | []> {
     const files = await this.fileModel.findAll({
-      where: { uuid: { [Op.in]: pageUuids.map((f) => f.uuid) } },
-      order,
+      where: {
+        uuid: {
+          [Op.in]: Sequelize.literal(`(
+            SELECT uuid FROM files
+            WHERE user_id = :userId AND status = 'EXISTS'
+            ORDER BY uuid ASC
+            LIMIT :limit OFFSET :offset
+          )`),
+        },
+      },
+      replacements: { userId, limit, offset },
+      order: [['uuid', 'ASC']],
     });
 
     return files.map(this.toDomain.bind(this));

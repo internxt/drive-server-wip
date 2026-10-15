@@ -805,59 +805,30 @@ describe('FileRepository', () => {
   });
 
   describe('findAllForFullSync', () => {
-    const updatedAtAfter = new Date(1);
-    const limit = 10;
-    const offset = 5;
-    const order = [['updatedAt', 'ASC']] as Array<[keyof FileModel, string]>;
-    const whereClause: Partial<FileAttributes> = {
-      userId: user.id,
-      status: FileStatus.EXISTS,
-    };
+    const params = { userId: user.id, limit: 10, offset: 5 };
 
-    it('When the page has files, then it should fetch the page uuids first and then the full rows by uuid', async () => {
+    it('When called, then it should fetch the existing files filtered by a paginated uuids subquery in a single query', async () => {
       const file = newFile();
-      jest
-        .spyOn(fileModel, 'findAll')
-        .mockResolvedValueOnce([{ uuid: file.uuid }] as any)
-        .mockResolvedValueOnce([file] as any);
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
       jest.spyOn(repository as any, 'toDomain').mockReturnValueOnce(file);
 
-      const result = await repository.findAllForFullSync(
-        whereClause,
-        updatedAtAfter,
-        limit,
-        offset,
-        order,
-      );
-
-      expect(fileModel.findAll).toHaveBeenNthCalledWith(1, {
-        attributes: ['uuid'],
-        where: { ...whereClause, updatedAt: { [Op.gt]: updatedAtAfter } },
-        order: [...order, ['uuid', 'ASC']],
-        limit,
-        offset,
-        raw: true,
-      });
-      expect(fileModel.findAll).toHaveBeenNthCalledWith(2, {
-        where: { uuid: { [Op.in]: [file.uuid] } },
-        order: [...order, ['uuid', 'ASC']],
-      });
-      expect(result).toEqual([file]);
-    });
-
-    it('When the page is empty, then it should return an empty array without fetching full rows', async () => {
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
-
-      const result = await repository.findAllForFullSync(
-        whereClause,
-        updatedAtAfter,
-        limit,
-        offset,
-        order,
-      );
+      const result = await repository.findAllForFullSync(params);
 
       expect(fileModel.findAll).toHaveBeenCalledTimes(1);
-      expect(result).toEqual([]);
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: {
+          uuid: {
+            [Op.in]: expect.objectContaining({
+              val: expect.stringMatching(
+                /SELECT uuid FROM files[\s\S]*WHERE user_id = :userId AND status = 'EXISTS'[\s\S]*ORDER BY uuid ASC[\s\S]*LIMIT :limit OFFSET :offset/,
+              ),
+            }),
+          },
+        },
+        replacements: params,
+        order: [['uuid', 'ASC']],
+      });
+      expect(result).toEqual([file]);
     });
   });
 
