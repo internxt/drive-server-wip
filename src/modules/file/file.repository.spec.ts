@@ -802,31 +802,62 @@ describe('FileRepository', () => {
         additionalOrders,
       );
     });
+  });
 
-    it('When last id is provided, then it is used instead of the offset', async () => {
-      jest.spyOn(repository, 'findAllCursor');
+  describe('findAllForFullSync', () => {
+    const updatedAtAfter = new Date(1);
+    const limit = 10;
+    const offset = 5;
+    const order = [['updatedAt', 'ASC']] as Array<[keyof FileModel, string]>;
+    const whereClause: Partial<FileAttributes> = {
+      userId: user.id,
+      status: FileStatus.EXISTS,
+    };
 
-      const lastId = v4();
+    it('When the page has files, then it should fetch the page uuids first and then the full rows by uuid', async () => {
+      const file = newFile();
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([{ uuid: file.uuid }] as any)
+        .mockResolvedValueOnce([file] as any);
+      jest.spyOn(repository as any, 'toDomain').mockReturnValueOnce(file);
 
-      await repository.findAllCursorWhereUpdatedAfter(
+      const result = await repository.findAllForFullSync(
         whereClause,
         updatedAtAfter,
         limit,
         offset,
-        additionalOrders,
-        lastId,
+        order,
       );
 
-      expect(repository.findAllCursor).toHaveBeenCalledWith(
-        {
-          ...whereClause,
-          updatedAt: { [Op.gt]: updatedAtAfter },
-          uuid: { [Op.gt]: lastId },
-        },
+      expect(fileModel.findAll).toHaveBeenNthCalledWith(1, {
+        attributes: ['uuid'],
+        where: { ...whereClause, updatedAt: { [Op.gt]: updatedAtAfter } },
+        order: [...order, ['uuid', 'ASC']],
         limit,
-        0,
-        additionalOrders,
+        offset,
+        raw: true,
+      });
+      expect(fileModel.findAll).toHaveBeenNthCalledWith(2, {
+        where: { uuid: { [Op.in]: [file.uuid] } },
+        order: [...order, ['uuid', 'ASC']],
+      });
+      expect(result).toEqual([file]);
+    });
+
+    it('When the page is empty, then it should return an empty array without fetching full rows', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await repository.findAllForFullSync(
+        whereClause,
+        updatedAtAfter,
+        limit,
+        offset,
+        order,
       );
+
+      expect(fileModel.findAll).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([]);
     });
   });
 

@@ -522,7 +522,6 @@ export class FileUseCases {
       limit: number;
       offset: number;
       sort?: SortParamsFile;
-      lastId?: string;
     },
     bucket?: File['bucket'],
   ): Promise<File[]> {
@@ -538,7 +537,7 @@ export class FileUseCases {
   getNotTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    pagination: { limit: number; offset: number; lastId?: string },
+    pagination: { limit: number; offset: number },
     bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = { status: FileStatus.EXISTS };
@@ -553,7 +552,7 @@ export class FileUseCases {
   getRemovedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    pagination: { limit: number; offset: number; lastId?: string },
+    pagination: { limit: number; offset: number },
     bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = { status: FileStatus.DELETED };
@@ -568,7 +567,7 @@ export class FileUseCases {
   getTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
-    pagination: { limit: number; offset: number; lastId?: string },
+    pagination: { limit: number; offset: number },
     bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = { status: FileStatus.TRASHED };
@@ -588,12 +587,23 @@ export class FileUseCases {
       limit: number;
       offset: number;
       sort?: SortParamsFile;
-      lastId?: string;
     },
   ): Promise<File[]> {
     const additionalOrders: SortParamsFile = pagination.sort ?? [
       ['updatedAt', 'ASC'],
     ];
+
+    // Full sync (epoch date) walks the whole table with growing offsets
+    if (updatedAfter.getTime() <= 1) {
+      const files = await this.fileRepository.findAllForFullSync(
+        { ...where, userId },
+        updatedAfter,
+        pagination.limit,
+        pagination.offset,
+        additionalOrders,
+      );
+      return files.map((file) => file.toJSON());
+    }
 
     const files = await this.fileRepository.findAllCursorWhereUpdatedAfter(
       { ...where, userId },
@@ -601,7 +611,6 @@ export class FileUseCases {
       pagination.limit,
       pagination.offset,
       additionalOrders,
-      pagination.lastId,
     );
     return files.map((file) => file.toJSON());
   }

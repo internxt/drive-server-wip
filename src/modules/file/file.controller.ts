@@ -366,6 +366,10 @@ export class FileController {
   }
 
   @Get('/')
+  @ApiOperation({
+    deprecated: true,
+    description: 'Deprecated in favor of GET /files/sync',
+  })
   @ApiOkResponse({ isArray: true, type: FileDto })
   async getFiles(
     @UserDecorator() user: User,

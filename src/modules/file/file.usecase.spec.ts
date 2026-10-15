@@ -2229,6 +2229,65 @@ describe('FileUseCases', () => {
     });
   });
 
+  describe('getFilesUpdatedAfter', () => {
+    const userIdForSync = 1;
+    const where = { status: FileStatus.EXISTS };
+    const pagination = { limit: 50, offset: 100 };
+    const defaultOrder = [['updatedAt', 'ASC']];
+
+    it('When updatedAfter is the epoch date, then it should use the full sync query', async () => {
+      const epoch = new Date(1);
+      jest
+        .spyOn(fileRepository, 'findAllForFullSync')
+        .mockResolvedValueOnce([]);
+      jest.spyOn(fileRepository, 'findAllCursorWhereUpdatedAfter');
+
+      await service.getFilesUpdatedAfter(
+        userIdForSync,
+        where,
+        epoch,
+        pagination,
+      );
+
+      expect(fileRepository.findAllForFullSync).toHaveBeenCalledWith(
+        { ...where, userId: userIdForSync },
+        epoch,
+        pagination.limit,
+        pagination.offset,
+        defaultOrder,
+      );
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfter,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('When updatedAfter is not the epoch date, then it should use the regular query', async () => {
+      const updatedAfter = new Date();
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce([]);
+      jest.spyOn(fileRepository, 'findAllForFullSync');
+
+      await service.getFilesUpdatedAfter(
+        userIdForSync,
+        where,
+        updatedAfter,
+        pagination,
+      );
+
+      expect(
+        fileRepository.findAllCursorWhereUpdatedAfter,
+      ).toHaveBeenCalledWith(
+        { ...where, userId: userIdForSync },
+        updatedAfter,
+        pagination.limit,
+        pagination.offset,
+        defaultOrder,
+      );
+      expect(fileRepository.findAllForFullSync).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getFilesUpdatedAfterWithCursor', () => {
     const userIdForSync = 1;
     const updatedAfter = new Date();

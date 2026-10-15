@@ -65,7 +65,13 @@ export interface FileRepository {
     limit: number,
     offset: number,
     additionalOrders: Array<[keyof FileModel, string]>,
-    lastId?: FileAttributes['uuid'],
+  ): Promise<Array<File> | []>;
+  findAllForFullSync(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    updatedAtAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FileModel, string]>,
   ): Promise<Array<File> | []>;
   findAllCursorWhereUpdatedAfterInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
@@ -398,30 +404,54 @@ export class SequelizeFileRepository implements FileRepository {
     return file ? this.toDomain(file) : null;
   }
 
+  /** @deprecated Use findFilesWithCursorWhereUpdatedAfter */
   async findAllCursorWhereUpdatedAfter(
     where: Partial<FileAttributes>,
     updatedAtAfter: Date,
     limit: number,
     offset: number,
     additionalOrders: Array<[keyof FileModel, string]> = [],
-    lastId?: FileAttributes['uuid'],
   ): Promise<Array<File> | []> {
-    let whereCondition: Partial<Record<keyof FileAttributes, any>> = {
-      ...where,
-      updatedAt: { [Op.gt]: updatedAtAfter },
-    };
-    if (lastId) {
-      whereCondition = {
-        ...whereCondition,
-        uuid: { [Op.gt]: lastId },
-      };
-    }
     const files = await this.findAllCursor(
-      whereCondition,
+      { ...where, updatedAt: { [Op.gt]: updatedAtAfter } },
       limit,
-      lastId ? 0 : offset,
+      offset,
       additionalOrders,
     );
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  /**
+   * Deferred join: paginates over uuids only, avoiding full rows reads on large offsets
+   * @deprecated Use findFilesWithCursorWhereUpdatedAfter
+   */
+  async findAllForFullSync(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    updatedAtAfter: Date,
+    limit: number,
+    offset: number,
+    additionalOrders: Array<[keyof FileModel, string]> = [],
+  ): Promise<Array<File> | []> {
+    const order = this.applyCollateToPlainNameSort(additionalOrders);
+
+    const pageUuids = await this.fileModel.findAll({
+      attributes: ['uuid'],
+      where: { ...where, updatedAt: { [Op.gt]: updatedAtAfter } },
+      order,
+      limit,
+      offset,
+      raw: true,
+    });
+
+    if (pageUuids.length === 0) {
+      return [];
+    }
+
+    const files = await this.fileModel.findAll({
+      where: { uuid: { [Op.in]: pageUuids.map((f) => f.uuid) } },
+      order,
+    });
 
     return files.map(this.toDomain.bind(this));
   }
