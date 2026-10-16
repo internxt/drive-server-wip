@@ -580,23 +580,16 @@ export class FileController {
   @Delete('/:bucketId/:fileId')
   @ApiBearerAuth()
   @ApiOperation({
+    deprecated: true,
     summary: 'Delete file from storage by fileId',
+    description:
+      'Only deletes the fileId from the network storage. It never touches Drive, the fileId is expected to not exist as a Drive file.',
   })
   async deleteFileByFileId(
     @UserDecorator() user: User,
     @Param('bucketId') bucketId: string,
     @Param('fileId') fileId: string,
-    @Client() clientId: string,
   ) {
-    const { fileExistedInDb, id, uuid } =
-      await this.fileUseCases.deleteFileByFileId(user, bucketId, fileId);
-
-    if (fileExistedInDb) {
-      this.storageNotificationService.fileDeleted({
-        payload: { id, uuid },
-        user,
-        clientId,
-      });
-    }
+    await this.fileUseCases.deleteFileByFileId(user, bucketId, fileId);
   }
 }
