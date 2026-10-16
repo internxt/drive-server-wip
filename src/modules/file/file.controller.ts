@@ -375,8 +375,7 @@ export class FileController {
     @UserDecorator() user: User,
     @Query() queryParams: GetFilesDto,
   ): Promise<FileDto[]> {
-    const { limit, offset, status, bucket, sort, order, updatedAt } =
-      queryParams;
+    const { limit, offset, status, sort, order, updatedAt } = queryParams;
 
     const fns: Record<string, (...args) => Promise<File[]>> = {
       ALL: this.fileUseCases.getAllFilesUpdatedAfter,
@@ -389,7 +388,6 @@ export class FileController {
       user.id,
       new Date(updatedAt || 1),
       { limit, offset, sort: sort && order && [[sort, order]] },
-      bucket,
     );
 
     return files.map((f) => {
