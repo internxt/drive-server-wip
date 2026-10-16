@@ -621,7 +621,6 @@ describe('FileController', () => {
         limit: validLimit,
         offset: validOffset,
         status: FileStatus.EXISTS,
-        bucket: 'test-bucket',
         sort: 'plainName',
         order: SortOrder.ASC,
         updatedAt: '2023-01-01T00:00:00.000Z',
@@ -649,7 +648,6 @@ describe('FileController', () => {
           offset: validOffset,
           sort: [['plainName', 'ASC']],
         }),
-        'test-bucket',
       );
     });
 
@@ -677,7 +675,6 @@ describe('FileController', () => {
           limit: validLimit,
           offset: validOffset,
         }),
-        undefined,
       );
     });
 
@@ -710,7 +707,6 @@ describe('FileController', () => {
           limit: validLimit,
           offset: validOffset,
         }),
-        undefined,
       );
     });
   });

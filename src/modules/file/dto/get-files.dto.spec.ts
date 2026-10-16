@@ -20,7 +20,6 @@ describe('GetFilesDto', () => {
     dto.limit = 10;
     dto.offset = 0;
     dto.status = FileStatus.EXISTS;
-    dto.bucket = 'test-bucket-id';
     dto.sort = 'updatedAt';
     dto.order = SortOrder.DESC;
     dto.updatedAt = '2024-01-01T00:00:00.000Z';
@@ -43,28 +42,6 @@ describe('GetFilesDto', () => {
     dto.limit = 10;
     dto.offset = 0;
     dto.status = 'INVALID_STATUS' as any;
-
-    const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-  });
-
-  it('When bucket is a valid string, then it should pass', async () => {
-    const dto = new GetFilesDto();
-    dto.limit = 10;
-    dto.offset = 0;
-    dto.status = FileStatus.EXISTS;
-    dto.bucket = 'valid-bucket-id';
-
-    const errors = await validate(dto);
-    expect(errors.length).toBe(0);
-  });
-
-  it('When bucket is not a string, then it should fail', async () => {
-    const dto = new GetFilesDto();
-    dto.limit = 10;
-    dto.offset = 0;
-    dto.status = FileStatus.EXISTS;
-    dto.bucket = 123 as any;
 
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);

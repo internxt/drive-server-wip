@@ -2313,33 +2313,6 @@ describe('FileUseCases', () => {
       expect(fileRepository.findAllForFullSync).not.toHaveBeenCalled();
     });
 
-    it('When bucket is provided, then it should use the regular query', async () => {
-      const whereWithBucket = { ...where, bucket: 'bucket-id' };
-      const pagination = { limit: 50, offset: 100, sort: uuidAscSort };
-      jest
-        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfter')
-        .mockResolvedValueOnce([]);
-      jest.spyOn(fileRepository, 'findAllForFullSync');
-
-      await service.getFilesUpdatedAfter(
-        userIdForSync,
-        whereWithBucket,
-        epoch,
-        pagination,
-      );
-
-      expect(
-        fileRepository.findAllCursorWhereUpdatedAfter,
-      ).toHaveBeenCalledWith(
-        { ...whereWithBucket, userId: userIdForSync },
-        epoch,
-        pagination.limit,
-        pagination.offset,
-        uuidAscSort,
-      );
-      expect(fileRepository.findAllForFullSync).not.toHaveBeenCalled();
-    });
-
     it('When updatedAfter is not the epoch date, then it should use the regular query', async () => {
       const updatedAfter = new Date();
       const pagination = { limit: 50, offset: 100, sort: uuidAscSort };

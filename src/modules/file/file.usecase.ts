@@ -502,6 +502,7 @@ export class FileUseCases {
     return this.fileRepository.findByIds(user.id, fileIds);
   }
 
+  /** @deprecated Use cursor pagination */
   getAllFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
@@ -510,62 +511,42 @@ export class FileUseCases {
       offset: number;
       sort?: SortParamsFile;
     },
-    bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = {};
-
-    if (bucket) {
-      where.bucket = bucket;
-    }
-
     return this.getFilesUpdatedAfter(userId, where, updatedAfter, pagination);
   }
 
+  /** @deprecated Use cursor pagination */
   getNotTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
     pagination: { limit: number; offset: number },
-    bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = { status: FileStatus.EXISTS };
-
-    if (bucket) {
-      where.bucket = bucket;
-    }
-
     return this.getFilesUpdatedAfter(userId, where, updatedAfter, pagination);
   }
 
+  /** @deprecated Use cursor pagination */
   getRemovedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
     pagination: { limit: number; offset: number },
-    bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = { status: FileStatus.DELETED };
-
-    if (bucket) {
-      where.bucket = bucket;
-    }
-
     return this.getFilesUpdatedAfter(userId, where, updatedAfter, pagination);
   }
 
+  /** @deprecated Use cursor pagination */
   getTrashedFilesUpdatedAfter(
     userId: UserAttributes['id'],
     updatedAfter: Date,
     pagination: { limit: number; offset: number },
-    bucket?: File['bucket'],
   ): Promise<File[]> {
     const where: Partial<FileAttributes> = { status: FileStatus.TRASHED };
-
-    if (bucket) {
-      where.bucket = bucket;
-    }
-
     return this.getFilesUpdatedAfter(userId, where, updatedAfter, pagination);
   }
 
+  /** @deprecated Use cursor pagination */
   async getFilesUpdatedAfter(
     userId: UserAttributes['id'],
     where: Partial<FileAttributes>,
@@ -586,8 +567,7 @@ export class FileUseCases {
       updatedAfter.getTime() <= 1 &&
       sortField === 'uuid' &&
       sortOrder === 'ASC' &&
-      where.status === FileStatus.EXISTS &&
-      !where.bucket;
+      where.status === FileStatus.EXISTS;
 
     if (isFullSync) {
       const files = await this.fileRepository.findAllForFullSync({

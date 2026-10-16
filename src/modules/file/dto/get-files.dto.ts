@@ -19,16 +19,6 @@ export class GetFilesDto extends RequiredLargePaginationDto {
   @IsEnum(allowedStatuses)
   status: FileStatus | 'ALL';
 
-  // TODO: this should not be a valid option.
-  @ApiProperty({
-    description: 'Bucket ID filter',
-    required: false,
-    deprecated: true,
-  })
-  @IsOptional()
-  @IsString()
-  bucket?: string;
-
   // TODO: uuid should not be a valid option here, but one client is using it so we need to keep it.
   @ApiProperty({
     description: 'Field to sort by',
