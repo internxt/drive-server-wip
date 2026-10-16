@@ -362,59 +362,16 @@ describe('FileController', () => {
     const bucketId = 'test-bucket';
     const fileId = 'test-file-id';
 
-    it('when file exists in db, should call usecase and send notification', async () => {
-      const deleteResult = {
-        fileExistedInDb: true,
-        id: 123,
-        uuid: 'test-uuid',
-      };
-
+    it('When called, then it should delete the file without sending notification', async () => {
       jest
         .spyOn(fileUseCases, 'deleteFileByFileId')
-        .mockResolvedValue(deleteResult);
+        .mockResolvedValue(undefined);
       const storageNotificationSpy = jest.spyOn(
         fileController['storageNotificationService'],
         'fileDeleted',
       );
 
-      await fileController.deleteFileByFileId(
-        userMocked,
-        bucketId,
-        fileId,
-        clientId,
-      );
-
-      expect(fileUseCases.deleteFileByFileId).toHaveBeenCalledWith(
-        userMocked,
-        bucketId,
-        fileId,
-      );
-      expect(storageNotificationSpy).toHaveBeenCalledWith({
-        payload: { id: deleteResult.id, uuid: deleteResult.uuid },
-        user: userMocked,
-        clientId,
-      });
-    });
-
-    it('when file does not exist in db, should call usecase without sending notification', async () => {
-      const deleteResult = {
-        fileExistedInDb: false,
-      };
-
-      jest
-        .spyOn(fileUseCases, 'deleteFileByFileId')
-        .mockResolvedValue(deleteResult);
-      const storageNotificationSpy = jest.spyOn(
-        fileController['storageNotificationService'],
-        'fileDeleted',
-      );
-
-      await fileController.deleteFileByFileId(
-        userMocked,
-        bucketId,
-        fileId,
-        clientId,
-      );
+      await fileController.deleteFileByFileId(userMocked, bucketId, fileId);
 
       expect(fileUseCases.deleteFileByFileId).toHaveBeenCalledWith(
         userMocked,
@@ -424,7 +381,7 @@ describe('FileController', () => {
       expect(storageNotificationSpy).not.toHaveBeenCalled();
     });
 
-    it('when fileUseCase throws an error, it should be propagated', async () => {
+    it('When fileUseCase throws an error, then it should be propagated', async () => {
       jest
         .spyOn(fileUseCases, 'deleteFileByFileId')
         .mockRejectedValue(
@@ -432,12 +389,7 @@ describe('FileController', () => {
         );
 
       await expect(
-        fileController.deleteFileByFileId(
-          userMocked,
-          bucketId,
-          fileId,
-          clientId,
-        ),
+        fileController.deleteFileByFileId(userMocked, bucketId, fileId),
       ).rejects.toThrow('Error deleting file from network');
     });
   });

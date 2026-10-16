@@ -234,19 +234,7 @@ export class FileUseCases {
     user: User,
     bucketId: string,
     fileId: string,
-  ): Promise<{ fileExistedInDb: boolean; id?: number; uuid?: string }> {
-    const file = await this.fileRepository.findOneBy({
-      fileId,
-      userId: user.id,
-    });
-
-    if (file) {
-      const { id, uuid } = await this.deleteFilePermanently(user, {
-        uuid: file.uuid,
-      });
-      return { fileExistedInDb: true, id, uuid };
-    }
-
+  ): Promise<void> {
     try {
       await this.network.deleteFile(user, bucketId, fileId);
     } catch (error) {
@@ -257,7 +245,6 @@ export class FileUseCases {
         'Error deleting file from network',
       );
     }
-    return { fileExistedInDb: false };
   }
 
   async getFileMetadata(user: User, fileUuid: File['uuid']): Promise<File> {
