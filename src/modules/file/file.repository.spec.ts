@@ -820,7 +820,7 @@ describe('FileRepository', () => {
           uuid: {
             [Op.in]: expect.objectContaining({
               val: expect.stringMatching(
-                /SELECT uuid FROM files[\s\S]*WHERE user_id = :userId AND status = 'EXISTS'[\s\S]*ORDER BY uuid ASC[\s\S]*LIMIT :limit OFFSET :offset/,
+                /SELECT uuid FROM files[\s\S]*WHERE user_id = :userId AND \(status = 'EXISTS'\) IS TRUE[\s\S]*ORDER BY uuid ASC[\s\S]*LIMIT :limit OFFSET :offset/,
               ),
             }),
           },
