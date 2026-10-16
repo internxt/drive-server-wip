@@ -31,6 +31,7 @@ import { type WorkspaceTeamAttributes } from '../workspaces/attributes/workspace
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { type WorkspaceItemUserAttributes } from '../workspaces/attributes/workspace-items-users.attributes';
 import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { Time } from '../../lib/time';
 
 interface SharingRepository {
   getInvitesByItem(
@@ -448,7 +449,10 @@ export class SequelizeSharingRepository implements SharingRepository {
   ): Promise<Sharing[]> {
     const sharedFolders = await this.sharings.findAll({
       where: {
-        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+        [Op.and]: [
+          { [Op.or]: [{ ownerId: userId }, { sharedWith: userId }] },
+          this.notExpiredCondition(),
+        ],
       },
       attributes: [
         [
@@ -456,6 +460,12 @@ export class SequelizeSharingRepository implements SharingRepository {
           'encryptionKey',
         ],
         [sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
+        [
+          sequelize.literal(
+            'MAX(CASE WHEN "SharingModel"."type" = \'public\' THEN "SharingModel"."expiration_at" END)',
+          ),
+          'expirationAt',
+        ],
       ],
       group: ['folder.id', 'folder->user.id', 'SharingModel.item_id'],
       include: [
@@ -496,7 +506,9 @@ export class SequelizeSharingRepository implements SharingRepository {
     userId: User['uuid'],
     offset: number,
     limit: number,
-  ): Promise<Pick<Sharing, 'encryptionKey' | 'createdAt' | 'itemId'>[]> {
+  ): Promise<
+    Pick<Sharing, 'encryptionKey' | 'createdAt' | 'itemId' | 'expirationAt'>[]
+  > {
     const sharedFiles = await this.sharings.findAll({
       attributes: [
         'itemId',
@@ -505,9 +517,18 @@ export class SequelizeSharingRepository implements SharingRepository {
           'encryptionKey',
         ],
         [sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
+        [
+          sequelize.literal(
+            'MAX(CASE WHEN "SharingModel"."type" = \'public\' THEN "SharingModel"."expiration_at" END)',
+          ),
+          'expirationAt',
+        ],
       ],
       where: {
-        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
+        [Op.and]: [
+          { [Op.or]: [{ ownerId: userId }, { sharedWith: userId }] },
+          this.notExpiredCondition(),
+        ],
       },
       group: ['itemId'],
       include: [
@@ -527,6 +548,7 @@ export class SequelizeSharingRepository implements SharingRepository {
       itemId: data.itemId,
       encryptionKey: data.encryptionKey,
       createdAt: data.createdAt,
+      expirationAt: data.expirationAt,
     }));
   }
 
@@ -1128,5 +1150,14 @@ export class SequelizeSharingRepository implements SharingRepository {
     await this.sharings.destroy({
       where,
     });
+  }
+
+  private notExpiredCondition(): WhereOptions<SharingModel> {
+    return {
+      [Op.or]: [
+        { expirationAt: null },
+        { expirationAt: { [Op.gt]: Time.now() } },
+      ],
+    };
   }
 }

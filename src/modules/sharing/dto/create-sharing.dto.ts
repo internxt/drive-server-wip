@@ -3,6 +3,7 @@ import { type Sharing } from '../sharing.domain';
 import {
   IsBase64,
   IsBoolean,
+  IsDateString,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -60,4 +61,13 @@ export class CreateSharingDto {
   @IsOptional()
   @IsBoolean()
   persistPreviousSharing: boolean;
+
+  @ApiProperty({
+    example: '2026-10-31T22:59:59.999Z',
+    description: 'Expiration date of the public sharing link',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  linkExpirationDate?: Date;
 }

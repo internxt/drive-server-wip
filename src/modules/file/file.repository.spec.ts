@@ -516,7 +516,7 @@ describe('FileRepository', () => {
           include: [
             expect.objectContaining({
               model: SharingModel,
-              attributes: ['type', 'id'],
+              attributes: ['type', 'id', 'expirationAt'],
             }),
           ],
         }),
@@ -1027,7 +1027,7 @@ describe('FileRepository', () => {
           expect.objectContaining({
             separate: true,
             model: SharingModel,
-            attributes: ['type', 'id'],
+            attributes: ['type', 'id', 'expirationAt'],
             required: false,
           }),
         ],

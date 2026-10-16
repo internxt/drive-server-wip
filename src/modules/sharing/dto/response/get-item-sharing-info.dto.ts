@@ -17,6 +17,13 @@ export class PublicSharingInfoDto {
     description: 'Encrypted public sharing password',
   })
   encryptedCode: string;
+
+  @ApiProperty({
+    description:
+      'Date when the public sharing expires, null if it never expires',
+    nullable: true,
+  })
+  expirationAt: Date | null;
 }
 
 export class ItemSharingInfoDto {
