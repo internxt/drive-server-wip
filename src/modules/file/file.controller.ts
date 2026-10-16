@@ -583,7 +583,7 @@ export class FileController {
     deprecated: true,
     summary: 'Delete file from storage by fileId',
     description:
-      'Only deletes the fileId from the network storage. It never touches Drive, the fileId is expected to not exist as a Drive file.',
+      'Deprecated, use network directly: DELETE /buckets/:bucketId/files/:fileId. Only deletes from network, never from Drive.',
   })
   async deleteFileByFileId(
     @UserDecorator() user: User,
