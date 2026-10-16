@@ -439,7 +439,7 @@ export class SequelizeFileRepository implements FileRepository {
         uuid: {
           [Op.in]: Sequelize.literal(`(
             SELECT uuid FROM files
-            WHERE user_id = :userId AND status = 'EXISTS'
+            WHERE user_id = :userId AND (status = 'EXISTS') IS TRUE
             ORDER BY uuid ASC
             LIMIT :limit OFFSET :offset
           )`),
