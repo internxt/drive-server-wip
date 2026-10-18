@@ -948,7 +948,7 @@ describe('Workspace Controller', () => {
       await workspacesController.searchWorkspace(
         workspaceId,
         user,
-        search,
+        { search },
         query,
       );
 

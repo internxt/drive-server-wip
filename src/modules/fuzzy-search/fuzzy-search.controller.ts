@@ -5,6 +5,7 @@ import { User } from '../user/user.domain';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
 import { FuzzySearchResults } from './dto/fuzzy-search-result.dto';
 import { FuzzySearchQueryDto } from './dto/fuzzy-search-query.dto';
+import { FuzzySearchParamsDto } from './dto/fuzzy-search-params.dto';
 
 @ApiTags('Fuzzy')
 @Controller('fuzzy')
@@ -22,7 +23,7 @@ export class FuzzySearchController {
   })
   async fuzzySearch(
     @UserDecorator() user: User,
-    @Param('search') search: string,
+    @Param() { search }: FuzzySearchParamsDto,
     @Body() query: FuzzySearchQueryDto,
   ): Promise<FuzzySearchResults> {
     const data = await this.usecases.fuzzySearch(user.uuid, search, query);

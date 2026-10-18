@@ -4,14 +4,19 @@ export async function withQueryTimeout<T>(
   sequelize: Sequelize,
   timeoutMs: number,
   callback: (transaction: Transaction) => Promise<T>,
+  options: { readOnly?: boolean } = {},
 ): Promise<T> {
   try {
-    return await sequelize.transaction(async (transaction) => {
-      await sequelize.query(`SET LOCAL statement_timeout = '${timeoutMs}ms'`, {
-        transaction,
-      });
-      return callback(transaction);
-    });
+    return await sequelize.transaction(
+      { readOnly: options.readOnly },
+      async (transaction) => {
+        await sequelize.query(
+          `SET LOCAL statement_timeout = '${timeoutMs}ms'`,
+          { transaction },
+        );
+        return callback(transaction);
+      },
+    );
   } catch (error) {
     if (error.original?.code === '57014') {
       throw new Error('Query timed out');

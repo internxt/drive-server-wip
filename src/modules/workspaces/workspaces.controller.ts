@@ -26,6 +26,7 @@ import {
 } from '@nestjs/swagger';
 import { WorkspacesUsecases } from './workspaces.usecase';
 import { FuzzySearchQueryDto } from '../fuzzy-search/dto/fuzzy-search-query.dto';
+import { FuzzySearchParamsDto } from '../fuzzy-search/dto/fuzzy-search-params.dto';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { type WorkspaceAttributes } from './attributes/workspace.attributes';
 import { User as UserDecorator } from '../auth/decorators/user.decorator';
@@ -1298,7 +1299,6 @@ export class WorkspacesController {
     summary: 'Search by name inside workspace',
   })
   @ApiParam({ name: 'workspaceId', type: String, required: true })
-  @ApiParam({ name: 'search', type: String, required: true })
   @HttpCode(200)
   @ApiOkResponse({
     description: 'Search results',
@@ -1309,7 +1309,7 @@ export class WorkspacesController {
     @Param('workspaceId', ValidateUUIDPipe)
     workspaceId: WorkspaceAttributes['id'],
     @UserDecorator() user: User,
-    @Param('search') search: string,
+    @Param() { search }: FuzzySearchParamsDto,
     @Body() query: FuzzySearchQueryDto,
   ) {
     return this.workspaceUseCases.searchWorkspaceContent(

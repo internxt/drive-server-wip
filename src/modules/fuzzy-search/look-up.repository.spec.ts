@@ -1,6 +1,11 @@
 import { v4 } from 'uuid';
 import { type Sequelize } from 'sequelize';
 import { SequelizeLookUpRepository } from './look-up.repository';
+import { withQueryTimeout } from '../../lib/query-timeout';
+
+jest.mock('../../lib/query-timeout', () => ({
+  withQueryTimeout: jest.fn((_sequelize, _timeout, cb) => cb({})),
+}));
 
 describe('SequelizeLookUpRepository', () => {
   let repository: SequelizeLookUpRepository;
@@ -38,6 +43,28 @@ describe('SequelizeLookUpRepository', () => {
         partialName,
         offset: 0,
       });
+    });
+
+    test('When searching, then it should only match names above the similarity threshold', async () => {
+      await repository.search(userUuid, partialName);
+
+      const [sql] = sequelize.query.mock.calls[0];
+      expect(sql).toContain('f."plain_name" % :partialName');
+      expect(sql).toContain('fo."plain_name" % :partialName');
+      expect(sql).not.toContain('> 0.0');
+    });
+
+    test('When searching, then it should run as a read-only query with a timeout', async () => {
+      await repository.search(userUuid, partialName);
+
+      const [, options] = sequelize.query.mock.calls[0];
+      expect(withQueryTimeout).toHaveBeenCalledWith(
+        sequelize,
+        15000,
+        expect.any(Function),
+        { readOnly: true },
+      );
+      expect(options.transaction).toEqual({});
     });
 
     test('When extensions are passed, then it should filter files by type', async () => {
