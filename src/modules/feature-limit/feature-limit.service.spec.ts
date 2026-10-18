@@ -614,5 +614,53 @@ describe('FeatureLimitService', () => {
       expect(limitsRepository.findTierById).toHaveBeenCalledWith(tierId);
       expect(result).toBeNull();
     });
+
+    it('When the tier was fetched recently, then it should be returned without querying again', async () => {
+      const tierId = v4();
+      const mockTier = newTier({ id: tierId });
+
+      limitsRepository.findTierById.mockResolvedValueOnce(mockTier);
+
+      await service.getTier(tierId);
+      const result = await service.getTier(tierId);
+
+      expect(limitsRepository.findTierById).toHaveBeenCalledTimes(1);
+      expect(result).toBe(mockTier);
+    });
+
+    it('When the cached tier has expired, then it should be fetched again', async () => {
+      const tierId = v4();
+      const staleTier = newTier({ id: tierId });
+      const freshTier = newTier({ id: tierId });
+      const now = Date.now();
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+
+      limitsRepository.findTierById
+        .mockResolvedValueOnce(staleTier)
+        .mockResolvedValueOnce(freshTier);
+
+      await service.getTier(tierId);
+      nowSpy.mockReturnValue(now + 5 * 60 * 1000 + 1);
+      const result = await service.getTier(tierId);
+
+      expect(limitsRepository.findTierById).toHaveBeenCalledTimes(2);
+      expect(result).toBe(freshTier);
+      nowSpy.mockRestore();
+    });
+
+    it('When the tier does not exist, then it should not be cached', async () => {
+      const tierId = v4();
+      const mockTier = newTier({ id: tierId });
+
+      limitsRepository.findTierById
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(mockTier);
+
+      await service.getTier(tierId);
+      const result = await service.getTier(tierId);
+
+      expect(limitsRepository.findTierById).toHaveBeenCalledTimes(2);
+      expect(result).toBe(mockTier);
+    });
   });
 });
