@@ -5,6 +5,7 @@ import {
   type NestInterceptor,
 } from '@nestjs/common';
 import newrelic from 'newrelic';
+import { type User } from '../modules/user/user.domain';
 
 /**
  * Only for the headers, the instrumentation is not done directly here
@@ -12,7 +13,9 @@ import newrelic from 'newrelic';
 @Injectable()
 export class NewRelicInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler) {
-    const req = context.switchToHttp().getRequest<Request & { id: string }>();
+    const req = context
+      .switchToHttp()
+      .getRequest<Request & { id: string; user?: User | boolean }>();
     const res = context.switchToHttp().getResponse();
 
     const rawClient = req.headers['internxt-client'];
@@ -45,6 +48,12 @@ export class NewRelicInterceptor implements NestInterceptor {
 
     if (requestId) {
       newrelic.addCustomAttribute('requestId', requestId);
+    }
+
+    // Gateway guard has no user
+    const user = req.user;
+    if (user && typeof user === 'object' && user.id) {
+      newrelic.setUserID(String(user.id));
     }
 
     return next.handle();
