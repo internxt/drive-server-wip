@@ -832,6 +832,60 @@ describe('FileRepository', () => {
     });
   });
 
+  describe('findAllForOffsetSync', () => {
+    const params = {
+      userId: user.id,
+      updatedAfter: new Date('2026-01-01T00:00:00.000Z'),
+      limit: 50,
+      offset: 100,
+    };
+    const firstFileOfPageUpdatedAt = '2026-01-01 10:00:05';
+
+    it('When the offset is greater than the number of files updated after the given date, then it should return an empty page', async () => {
+      jest.spyOn(fileModel.sequelize, 'query').mockResolvedValueOnce([] as any);
+      jest.spyOn(fileModel, 'findAll');
+
+      const result = await repository.findAllForOffsetSync(params);
+
+      expect(result).toEqual([]);
+      expect(fileModel.findAll).not.toHaveBeenCalled();
+    });
+
+    it('When some files of previous pages share the updated_at of the first file of the page, then it should skip only those', async () => {
+      const file = newFile();
+      const filesBeforeTieGroup = 97;
+      const tiedFilesInPreviousPages = params.offset - filesBeforeTieGroup;
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce([
+          { updatedAt: firstFileOfPageUpdatedAt, filesBeforeTieGroup },
+        ] as any);
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
+      jest.spyOn(repository as any, 'toDomain').mockReturnValueOnce(file);
+
+      const result = await repository.findAllForOffsetSync(params);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith({
+        where: {
+          userId: params.userId,
+          [Op.and]: [
+            expect.objectContaining({
+              val: '"FileModel"."updated_at" >= :firstFileOfPageUpdatedAt',
+            }),
+          ],
+        },
+        replacements: { firstFileOfPageUpdatedAt },
+        order: [
+          ['updatedAt', 'ASC'],
+          ['uuid', 'ASC'],
+        ],
+        limit: params.limit,
+        offset: tiedFilesInPreviousPages,
+      });
+      expect(result).toEqual([file]);
+    });
+  });
+
   describe('findAllCursorWhereUpdatedAfterInWorkspace', () => {
     const createdBy = v4();
     const workspaceId = v4();
