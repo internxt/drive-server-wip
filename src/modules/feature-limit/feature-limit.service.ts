@@ -10,11 +10,17 @@ import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspa
 import { SequelizeUserRepository } from '../user/user.repository';
 import { type Limit } from './domain/limit.domain';
 import { type User } from '../user/user.domain';
+import { type Tier } from './domain/tier.domain';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
 
 @Injectable()
 export class FeatureLimitService {
   private readonly logger = new Logger('FEATURE_LIMITS/SERVICE');
+  private readonly TIER_CACHE_TTL_MS = 5 * 60 * 1000;
+  private readonly tierCache = new Map<
+    Tier['id'],
+    { tier: Tier; expiresAt: number }
+  >();
 
   constructor(
     private readonly limitsRepository: SequelizeFeatureLimitsRepository,
@@ -103,8 +109,21 @@ export class FeatureLimitService {
     return workspaceTierIds;
   }
 
-  async getTier(tierId: string) {
-    return this.limitsRepository.findTierById(tierId);
+  async getTier(tierId: string): Promise<Tier | null> {
+    const cached = this.tierCache.get(tierId);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.tier;
+    }
+
+    const tier = await this.limitsRepository.findTierById(tierId);
+    if (tier) {
+      this.tierCache.set(tierId, {
+        tier,
+        expiresAt: Date.now() + this.TIER_CACHE_TTL_MS,
+      });
+    }
+
+    return tier;
   }
 
   async getFileVersioningLimits(userUuid: string): Promise<{
