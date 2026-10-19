@@ -95,7 +95,7 @@ describe('SequelizeUsageRepository', () => {
       const mockTransaction = {};
       const mockSequelize = {
         query: jest.fn().mockResolvedValue([{ toJSON: () => newUsage() }]),
-        transaction: jest.fn((cb) => cb(mockTransaction)),
+        transaction: jest.fn((_options, cb) => cb(mockTransaction)),
       };
 
       Object.defineProperty(usageModel, 'sequelize', {

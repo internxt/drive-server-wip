@@ -4,6 +4,9 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { type UserAttributes } from '../user/user.attributes';
 import { QueryTypes, Sequelize } from 'sequelize';
 import { type WorkspaceAttributes } from '../workspaces/attributes/workspace.attributes';
+import { withQueryTimeout } from '../../lib/query-timeout';
+
+const SEARCH_TIMEOUT_MS = 15000;
 
 type LookUpResult = Array<{
   id: string;
@@ -170,7 +173,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
       FROM files f
       WHERE f."user_id" = (SELECT id FROM users WHERE uuid = :userUuid)
         AND f."status" = 'EXISTS'
-        AND (f."plain_name" % :partialName OR similarity(f."plain_name", :partialName) > 0.0)
+        AND f."plain_name" % :partialName
         ${clauses.fileWhere}
       `;
 
@@ -181,7 +184,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         AND NOT fo."deleted"
         AND NOT fo."removed"
         AND fo."parent_uuid" IS NOT NULL
-        AND (fo."plain_name" % :partialName OR similarity(fo."plain_name", :partialName) > 0.0)
+        AND fo."plain_name" % :partialName
         ${clauses.folderWhere}
       `;
 
@@ -209,7 +212,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         AND f."status" = 'EXISTS'
         AND wiu.created_by = :userUuid
         AND wiu.workspace_id = :workspaceId
-        AND (f."plain_name" % :partialName OR similarity(f."plain_name", :partialName) > 0.0)
+        AND f."plain_name" % :partialName
         ${clauses.fileWhere}
       `;
 
@@ -223,7 +226,7 @@ export class SequelizeLookUpRepository implements LookUpRepository {
         AND fo."parent_uuid" IS NOT NULL
         AND wiu.created_by = :userUuid
         AND wiu.workspace_id = :workspaceId
-        AND (fo."plain_name" % :partialName OR similarity(fo."plain_name", :partialName) > 0.0)
+        AND fo."plain_name" % :partialName
         ${clauses.folderWhere}
       `;
 
@@ -251,16 +254,23 @@ export class SequelizeLookUpRepository implements LookUpRepository {
       return [];
     }
 
-    const rows = await this.sequelize.query<Record<string, unknown>>(
-      `
+    const rows = await withQueryTimeout(
+      this.sequelize,
+      SEARCH_TIMEOUT_MS,
+      (transaction) =>
+        this.sequelize.query<Record<string, unknown>>(
+          `
       ${selects.join('\n      UNION ALL\n')}
       ORDER BY "exactMatch" DESC, "similarity" DESC
       LIMIT 10 OFFSET :offset
       `,
-      {
-        replacements: { ...baseReplacements, ...clauses.replacements },
-        type: QueryTypes.SELECT,
-      },
+          {
+            replacements: { ...baseReplacements, ...clauses.replacements },
+            type: QueryTypes.SELECT,
+            transaction,
+          },
+        ),
+      { readOnly: true },
     );
 
     return toResult(rows);
