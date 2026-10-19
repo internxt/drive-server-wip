@@ -71,6 +71,12 @@ export interface FileRepository {
     limit: number;
     offset: number;
   }): Promise<Array<File> | []>;
+  findAllForOffsetSync(params: {
+    userId: FileAttributes['userId'];
+    updatedAfter: Date;
+    limit: number;
+    offset: number;
+  }): Promise<Array<File> | []>;
   findAllCursorWhereUpdatedAfterInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
@@ -447,6 +453,75 @@ export class SequelizeFileRepository implements FileRepository {
       },
       replacements: { userId, limit, offset },
       order: [['uuid', 'ASC']],
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  /**
+   * TODO: remove when clients no longer call GET /files.
+   * Same page as OFFSET pagination, skipping rows via index-only scan
+   * @deprecated Use findFilesWithCursorWhereUpdatedAfter
+   */
+  async findAllForOffsetSync({
+    userId,
+    updatedAfter,
+    limit,
+    offset,
+  }: {
+    userId: FileAttributes['userId'];
+    updatedAfter: Date;
+    limit: number;
+    offset: number;
+  }): Promise<Array<File> | []> {
+    const [firstFileOfPage] = await this.fileModel.sequelize.query<{
+      updatedAt: string;
+      filesBeforeTieGroup: number;
+    }>(
+      `
+      WITH first_file_of_page AS (
+        SELECT updated_at FROM files
+        WHERE user_id = :userId AND updated_at > :updatedAfter
+        ORDER BY updated_at ASC
+        LIMIT 1 OFFSET :offset
+      )
+      SELECT
+        first_file_of_page.updated_at::text AS "updatedAt",
+        (
+          SELECT count(*)::int FROM files
+          WHERE user_id = :userId AND updated_at > :updatedAfter AND updated_at < first_file_of_page.updated_at
+        ) AS "filesBeforeTieGroup"
+      FROM first_file_of_page
+      `,
+      {
+        replacements: { userId, updatedAfter, offset },
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    if (!firstFileOfPage) {
+      return [];
+    }
+
+    const tiedFilesInPreviousPages =
+      offset - firstFileOfPage.filesBeforeTieGroup;
+
+    const files = await this.fileModel.findAll({
+      where: {
+        userId,
+        [Op.and]: [
+          Sequelize.literal(
+            '"FileModel"."updated_at" >= :firstFileOfPageUpdatedAt',
+          ),
+        ],
+      },
+      replacements: { firstFileOfPageUpdatedAt: firstFileOfPage.updatedAt },
+      order: [
+        ['updatedAt', 'ASC'],
+        ['uuid', 'ASC'],
+      ],
+      limit,
+      offset: tiedFilesInPreviousPages,
     });
 
     return files.map(this.toDomain.bind(this));

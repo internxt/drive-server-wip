@@ -578,6 +578,24 @@ export class FileUseCases {
       return files.map((file) => file.toJSON());
     }
 
+    // TODO: remove when clients no longer call GET /files
+    const isSortedByUpdatedAtAsc =
+      !pagination.sort || (sortField === 'updatedAt' && sortOrder === 'ASC');
+    const isOffsetSync =
+      isSortedByUpdatedAtAsc &&
+      pagination.offset > 0 &&
+      where.status === undefined;
+
+    if (isOffsetSync) {
+      const files = await this.fileRepository.findAllForOffsetSync({
+        userId,
+        updatedAfter,
+        limit: pagination.limit,
+        offset: pagination.offset,
+      });
+      return files.map((file) => file.toJSON());
+    }
+
     const files = await this.fileRepository.findAllCursorWhereUpdatedAfter(
       { ...where, userId },
       updatedAfter,

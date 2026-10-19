@@ -531,6 +531,92 @@ describe('File module', () => {
     });
   });
 
+  // TODO: remove with findAllForOffsetSync
+  describe('findAllForOffsetSync', () => {
+    const updatedAfter = new Date('2025-12-31T00:00:00.000Z');
+    const limit = 50;
+    const totalFiles = 300;
+    const statuses = [
+      FileStatus.EXISTS,
+      FileStatus.TRASHED,
+      FileStatus.DELETED,
+    ];
+    const tieGroupOf = (index: number) => {
+      if (index >= 45 && index < 85) {
+        return 100;
+      }
+      if (index >= 97 && index < 247) {
+        return 300;
+      }
+      return (index < 45 ? 0 : index < 97 ? 200 : 400) + Math.floor(index / 7);
+    };
+    const updatedAtOf = (index: number) =>
+      new Date(
+        Date.parse('2026-01-01T10:00:00Z') + tieGroupOf(index) * 1000,
+      ).toISOString();
+    let createdFiles: File[];
+
+    beforeEach(async () => {
+      createdFiles = await Promise.all(
+        Array.from({ length: totalFiles }, (_, index) => {
+          const { id: _id, ...attributes } = newFile({
+            attributes: {
+              folderId: testUser.rootFolder?.id,
+              folderUuid: testUser.rootFolder?.uuid,
+              userId: testUser.user.id,
+              status: statuses[index % statuses.length],
+            },
+          }).toJSON();
+          return fileRepository.create(attributes);
+        }),
+      );
+      await Promise.all(
+        createdFiles.map((file, index) =>
+          fileModel.sequelize.query(
+            'UPDATE files SET updated_at = :updatedAt WHERE uuid = :uuid',
+            {
+              replacements: { updatedAt: updatedAtOf(index), uuid: file.uuid },
+            },
+          ),
+        ),
+      );
+    });
+
+    afterEach(async () => {
+      await fileModel.destroy({
+        where: { id: { [Op.in]: createdFiles.map((f) => f.id) } },
+      });
+    });
+
+    it.each([
+      0, 1, 6, 7, 44, 45, 50, 63, 84, 85, 96, 97, 100, 120, 147, 150, 197, 200,
+      246, 247, 280, 300, 500,
+    ])(
+      'When paginating with offset %i, then it should return the same page as the regular query',
+      async (offset) => {
+        const userId = testUser.user.id;
+        const regularPage = await fileRepository.findAllCursorWhereUpdatedAfter(
+          { userId },
+          updatedAfter,
+          limit,
+          offset,
+          [['updatedAt', 'ASC']],
+        );
+
+        const offsetSyncPage = await fileRepository.findAllForOffsetSync({
+          userId,
+          updatedAfter,
+          limit,
+          offset,
+        });
+
+        expect(offsetSyncPage.map((f) => f.uuid)).toEqual(
+          regularPage.map((f) => f.uuid),
+        );
+      },
+    );
+  });
+
   describe('File unique constraint', () => {
     it('When a file with a duplicated name is inserted, then the violated constraint is mapped to a conflict', async () => {
       const fileAttributes = newFile({

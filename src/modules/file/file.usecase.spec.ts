@@ -2339,6 +2339,78 @@ describe('FileUseCases', () => {
       );
       expect(fileRepository.findAllForFullSync).not.toHaveBeenCalled();
     });
+
+    it.each([
+      ['there is no sort', undefined],
+      ['sorted by updatedAt ASC', [['updatedAt', 'ASC']] as SortParamsFile],
+    ])(
+      'When status is ALL, offset is not 0 and %s, then it should use the offset sync query',
+      async (_, sort) => {
+        const updatedAfter = new Date();
+        const pagination = { limit: 50, offset: 100, sort };
+        jest
+          .spyOn(fileRepository, 'findAllForOffsetSync')
+          .mockResolvedValueOnce([]);
+        jest.spyOn(fileRepository, 'findAllCursorWhereUpdatedAfter');
+
+        await service.getFilesUpdatedAfter(
+          userIdForSync,
+          {},
+          updatedAfter,
+          pagination,
+        );
+
+        expect(fileRepository.findAllForOffsetSync).toHaveBeenCalledWith({
+          userId: userIdForSync,
+          updatedAfter,
+          limit: pagination.limit,
+          offset: pagination.offset,
+        });
+        expect(
+          fileRepository.findAllCursorWhereUpdatedAfter,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it('When sorted by updatedAt DESC, then it should use the regular query instead of the offset sync query', async () => {
+      const updatedAfter = new Date();
+      const pagination = {
+        limit: 50,
+        offset: 100,
+        sort: [['updatedAt', 'DESC']] as SortParamsFile,
+      };
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce([]);
+      jest.spyOn(fileRepository, 'findAllForOffsetSync');
+
+      await service.getFilesUpdatedAfter(
+        userIdForSync,
+        {},
+        updatedAfter,
+        pagination,
+      );
+
+      expect(fileRepository.findAllForOffsetSync).not.toHaveBeenCalled();
+    });
+
+    it('When offset is 0, then it should use the regular query instead of the offset sync query', async () => {
+      const updatedAfter = new Date();
+      const pagination = { limit: 50, offset: 0 };
+      jest
+        .spyOn(fileRepository, 'findAllCursorWhereUpdatedAfter')
+        .mockResolvedValueOnce([]);
+      jest.spyOn(fileRepository, 'findAllForOffsetSync');
+
+      await service.getFilesUpdatedAfter(
+        userIdForSync,
+        {},
+        updatedAfter,
+        pagination,
+      );
+
+      expect(fileRepository.findAllForOffsetSync).not.toHaveBeenCalled();
+    });
   });
 
   describe('getFilesUpdatedAfterWithCursor', () => {
