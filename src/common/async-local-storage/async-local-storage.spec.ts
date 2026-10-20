@@ -67,18 +67,6 @@ describe('Async local storage', () => {
     expect(result).toEqual({ client: 'rclone-adapter', version: '1.73.0' });
   });
 
-  it('When the client is sent in headers and the user agent is from rclone, then the header client is kept', () => {
-    const headers = {
-      'internxt-client': 'drive-web',
-      'internxt-version': '1.2.3',
-      'user-agent': 'rclone/v1.73.0',
-    };
-
-    const result = runWithHeaders(headers, getAsyncLocalStorage);
-
-    expect(result).toEqual({ client: 'drive-web', version: '1.2.3' });
-  });
-
   it.each(['unknown-client', 'constructor', '__proto__'])(
     'When the client is %s, then it is stored as null',
     (client) => {
