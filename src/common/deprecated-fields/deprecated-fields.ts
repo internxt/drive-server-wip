@@ -29,6 +29,18 @@ const DEPRECATION_RULES: Record<
       minVersion: '2.6.0',
       mode: DeprecationMode.PLAIN,
     },
+    [ClientEnum.Cli]: {
+      minVersion: '0.0.0',
+      mode: DeprecationMode.PLAIN,
+    },
+    [ClientEnum.CliLegacy]: {
+      minVersion: '0.0.0',
+      mode: DeprecationMode.PLAIN,
+    },
+    [ClientEnum.Rclone]: {
+      minVersion: '1.0.0',
+      mode: DeprecationMode.PLAIN,
+    },
   },
 };
 
