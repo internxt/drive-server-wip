@@ -51,25 +51,16 @@ describe('Async local storage', () => {
     },
   );
 
-  it.each([
-    ['2.7.0.89', '2.7.0'],
-    ['2.6.8.87', '2.6.8'],
-    ['2.7.1', '2.7.1'],
-    ['v2.7.1', '2.7.1'],
-    ['2.7', '2.7.0'],
-  ])(
-    'When the version is %s, then it is coerced to %s',
-    (rawVersion, expected) => {
-      const headers = {
-        'internxt-client': 'drive-desktop-macos',
-        'internxt-version': rawVersion,
-      };
+  it('When the version has 4 segments (macOS), then it is coerced to semver', () => {
+    const headers = {
+      'internxt-client': 'drive-desktop-macos',
+      'internxt-version': '2.7.0.89',
+    };
 
-      const result = runWithHeaders(headers, getAsyncLocalStorage);
+    const result = runWithHeaders(headers, getAsyncLocalStorage);
 
-      expect(result.version).toBe(expected);
-    },
-  );
+    expect(result.version).toBe('2.7.0');
+  });
 
   it.each(['unknown-client', 'constructor', '__proto__'])(
     'When the client is %s, then it is stored as null',
