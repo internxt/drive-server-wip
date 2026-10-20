@@ -59,12 +59,12 @@ describe('Async local storage', () => {
     expect(result.version).toBe('2.7.0');
   });
 
-  it('When the user agent is from rclone, then the client is rclone with the user agent version', () => {
+  it('When the user agent is from rclone, then the client is rclone', () => {
     const headers = { 'user-agent': 'rclone/v1.73.0' };
 
     const result = runWithHeaders(headers, getAsyncLocalStorage);
 
-    expect(result).toEqual({ client: 'rclone-adapter', version: '1.73.0' });
+    expect(result.client).toBe('rclone-adapter');
   });
 
   it.each(['unknown-client', 'constructor', '__proto__'])(

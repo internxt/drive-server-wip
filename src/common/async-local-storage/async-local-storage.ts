@@ -14,12 +14,13 @@ export const initAsyncLocalStorage = (
   cls: ClsService<AsyncLocalStorageData>,
   req: Request,
 ) => {
-  // Rclone does not send internxt headers, its version comes in the user agent (rclone/v1.73.0)
-  const userAgent = String(req.headers['user-agent'] ?? '');
-  const isRclone = userAgent.startsWith('rclone/');
+  // Rclone does not send internxt-client
+  const isRclone = String(req.headers['user-agent'] ?? '').startsWith(
+    'rclone/',
+  );
   const client = isRclone ? ClientEnum.Rclone : getClientIdFromHeaders(req);
   cls.set('client', KNOWN_CLIENTS.has(client) ? (client as ClientEnum) : null);
-  const rawVersion = isRclone ? userAgent : req.headers['internxt-version'];
+  const rawVersion = req.headers['internxt-version'];
   const version = rawVersion
     ? semver.valid(semver.coerce(String(rawVersion)))
     : null;
