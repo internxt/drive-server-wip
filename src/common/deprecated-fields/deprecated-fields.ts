@@ -12,7 +12,7 @@ export enum DeprecationMode {
 }
 
 interface DeprecationRule {
-  minVersion: string;
+  minVersion?: string;
   mode: DeprecationMode;
 }
 
@@ -29,6 +29,13 @@ const DEPRECATION_RULES: Record<
       minVersion: '2.6.0',
       mode: DeprecationMode.PLAIN,
     },
+    [ClientEnum.Cli]: {
+      minVersion: '1.5.0',
+      mode: DeprecationMode.PLAIN,
+    },
+    [ClientEnum.Rclone]: {
+      mode: DeprecationMode.PLAIN,
+    },
   },
 };
 
@@ -37,8 +44,13 @@ export const getDeprecationMode = (
 ): DeprecationMode | null => {
   const ctx = getAsyncLocalStorage();
   const rule = ctx?.client && DEPRECATION_RULES[field][ctx.client];
-  if (!rule || !ctx.version) {
+  if (!rule) {
     return null;
   }
-  return semver.gte(ctx.version, rule.minVersion) ? rule.mode : null;
+  if (!rule.minVersion) {
+    return rule.mode;
+  }
+  return ctx.version && semver.gte(ctx.version, rule.minVersion)
+    ? rule.mode
+    : null;
 };

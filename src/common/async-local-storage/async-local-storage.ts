@@ -14,7 +14,11 @@ export const initAsyncLocalStorage = (
   cls: ClsService<AsyncLocalStorageData>,
   req: Request,
 ) => {
-  const client = getClientIdFromHeaders(req);
+  // Rclone does not send internxt-client
+  const isRclone = String(req.headers['user-agent'] ?? '').startsWith(
+    'rclone/',
+  );
+  const client = isRclone ? ClientEnum.Rclone : getClientIdFromHeaders(req);
   cls.set('client', KNOWN_CLIENTS.has(client) ? (client as ClientEnum) : null);
   const rawVersion = req.headers['internxt-version'];
   const version = rawVersion
