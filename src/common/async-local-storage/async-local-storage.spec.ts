@@ -51,11 +51,8 @@ describe('Async local storage', () => {
     },
   );
 
-  it('When the version has 4 segments (macOS), then it is coerced to semver', () => {
-    const headers = {
-      'internxt-client': 'drive-desktop-macos',
-      'internxt-version': '2.7.0.89',
-    };
+  it('When the version has 4 segments, then it is coerced to semver', () => {
+    const headers = { 'internxt-version': '2.7.0.89' };
 
     const result = runWithHeaders(headers, getAsyncLocalStorage);
 
