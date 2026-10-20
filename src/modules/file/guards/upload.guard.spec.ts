@@ -43,7 +43,7 @@ describe('UploadFileGuard', () => {
       createMockExecutionContext({
         user,
         headers: {
-          'internxt-client': ClientEnum.Desktop, //macos
+          'internxt-client': ClientEnum.DesktopLegacy, //macos
           'internxt-version': '2.6.0.72',
         },
       }),

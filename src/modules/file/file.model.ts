@@ -22,6 +22,11 @@ import { type Sharing } from '../sharing/sharing.domain';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Sequelize } from 'sequelize';
 import { AesService } from '../../externals/crypto/aes';
+import {
+  DeprecatedField,
+  DeprecationMode,
+  getDeprecationMode,
+} from '../../common/deprecated-fields/deprecated-fields';
 import { FavoriteModel } from '../favorite/favorite.model';
 
 @Table({
@@ -44,9 +49,15 @@ export class FileModel extends Model implements FileAttributes {
 
   @Column(DataType.VIRTUAL)
   get name(): string {
+    const mode = getDeprecationMode(DeprecatedField.FILE_NAME);
+    if (mode === DeprecationMode.OMIT) {
+      return undefined;
+    }
     const plainName = this.getDataValue('plainName');
     const folderId = this.getDataValue('folderId');
-    if (!plainName || !folderId) return plainName ?? null;
+    if (!plainName || !folderId || mode === DeprecationMode.PLAIN) {
+      return plainName ?? null;
+    }
     return new AesService(process.env.CRYPTO_SECRET2).encrypt(
       plainName,
       folderId,
