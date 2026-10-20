@@ -148,7 +148,7 @@ describe('ConditionalCaptchaGuard', () => {
         },
         headers: {
           'x-internxt-captcha': 'valid-captcha-token',
-          [ClientHeaders.CLIENT_ID]: ClientEnum['Desktop'],
+          [ClientHeaders.CLIENT_ID]: ClientEnum['DesktopLegacy'],
         },
         ips: [],
         ip: '127.0.0.1',

@@ -38,7 +38,7 @@ describe('WorkspacesLogsInterceptor', () => {
     });
 
     it('When client is drive-desktop, then it should return DESKTOP platform', () => {
-      const platform = interceptor.determinePlatform(ClientEnum.Desktop);
+      const platform = interceptor.determinePlatform(ClientEnum.DesktopLegacy);
       expect(platform).toBe(WorkspaceLogPlatform.Desktop);
     });
   });

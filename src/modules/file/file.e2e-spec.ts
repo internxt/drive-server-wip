@@ -23,6 +23,9 @@ import { newFile } from '../../../test/fixtures';
 import { Time } from '../../lib/time';
 import { type File, FileStatus } from './file.domain';
 import { UniqueConstraintFilter } from '../../common/filters/unique-constraint.filter';
+import { AesService } from '../../externals/crypto/aes';
+import request from 'supertest';
+import { ClientEnum } from '../../common/enums/platform.enum';
 
 describe('File module', () => {
   let app: NestExpressApplication;
@@ -615,6 +618,102 @@ describe('File module', () => {
         );
       },
     );
+  });
+
+  describe('Fields removed or changed depending on client and version', () => {
+    let file: File;
+
+    beforeEach(async () => {
+      file = await fileRepository.create(
+        newFile({
+          attributes: {
+            folderId: testUser.rootFolder?.id,
+            folderUuid: testUser.rootFolder?.uuid,
+            userId: testUser.user.id,
+            status: FileStatus.EXISTS,
+          },
+        }),
+      );
+    });
+
+    afterEach(async () => {
+      await fileModel.destroy({ where: { id: file.id } });
+    });
+
+    const requestSyncedFile = async (headers: Record<string, string>) => {
+      const response = await request(app.getHttpServer())
+        .get('/files/sync')
+        .query({
+          status: FileStatus.EXISTS,
+          updatedAt: new Date(0).toISOString(),
+        })
+        .set('Authorization', `bearer ${testUser.token}`)
+        .set(headers);
+
+      expect(response.status).toBe(200);
+      return response.body.files.find(
+        (f: { uuid: string }) => f.uuid === file.uuid,
+      );
+    };
+
+    describe('name', () => {
+      const desktopClients = [
+        ['Windows', ClientEnum.DesktopWindows],
+        ['macOS', ClientEnum.DesktopMacos],
+      ];
+
+      it.each(desktopClients)(
+        'When %s desktop 2.6.0 or newer syncs, then name is the plain name',
+        async (_label, client) => {
+          const headers = {
+            'internxt-client': client,
+            'internxt-version': '2.6.0',
+          };
+
+          const syncedFile = await requestSyncedFile(headers);
+
+          expect(syncedFile.name).toBe(file.plainName);
+        },
+      );
+
+      it.each(desktopClients)(
+        'When %s desktop older than 2.6.0 syncs, then name is the encrypted plain name',
+        async (_label, client) => {
+          const headers = {
+            'internxt-client': client,
+            'internxt-version': '2.5.9',
+          };
+
+          const syncedFile = await requestSyncedFile(headers);
+
+          expect(syncedFile.name).toBeDefined();
+          expect(syncedFile.name).not.toBe(file.plainName);
+          expect(
+            new AesService(process.env.CRYPTO_SECRET2).decrypt(
+              syncedFile.name,
+              file.folderId,
+            ),
+          ).toBe(file.plainName);
+        },
+      );
+
+      it('When a client without a name rule syncs, then name is encrypted', async () => {
+        const headers = {
+          'internxt-client': ClientEnum.Web,
+          'internxt-version': '99.0.0',
+        };
+
+        const syncedFile = await requestSyncedFile(headers);
+
+        expect(syncedFile.name).not.toBe(file.plainName);
+      });
+
+      it('When the request has no client headers, then name is encrypted', async () => {
+        const syncedFile = await requestSyncedFile({});
+
+        expect(syncedFile.name).not.toBe(file.plainName);
+      });
+    });
   });
 
   describe('File unique constraint', () => {
