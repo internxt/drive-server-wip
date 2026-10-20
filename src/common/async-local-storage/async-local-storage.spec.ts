@@ -51,6 +51,14 @@ describe('Async local storage', () => {
     },
   );
 
+  it('When the version has 4 segments, then it is coerced to semver', () => {
+    const headers = { 'internxt-version': '2.7.0.89' };
+
+    const result = runWithHeaders(headers, getAsyncLocalStorage);
+
+    expect(result.version).toBe('2.7.0');
+  });
+
   it.each(['unknown-client', 'constructor', '__proto__'])(
     'When the client is %s, then it is stored as null',
     (client) => {

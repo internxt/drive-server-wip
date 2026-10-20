@@ -16,7 +16,11 @@ export const initAsyncLocalStorage = (
 ) => {
   const client = getClientIdFromHeaders(req);
   cls.set('client', KNOWN_CLIENTS.has(client) ? (client as ClientEnum) : null);
-  cls.set('version', semver.valid(String(req.headers['internxt-version'])));
+  const rawVersion = req.headers['internxt-version'];
+  const version = rawVersion
+    ? semver.valid(semver.coerce(String(rawVersion)))
+    : null;
+  cls.set('version', version);
 };
 
 export const getAsyncLocalStorage = (): AsyncLocalStorageData | null => {
