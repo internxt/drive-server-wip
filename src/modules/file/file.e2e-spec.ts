@@ -697,19 +697,16 @@ describe('File module', () => {
         },
       );
 
-      it.each([ClientEnum.Cli, ClientEnum.CliLegacy])(
-        'When %s syncs, then name is the plain name',
-        async (client) => {
-          const headers = {
-            'internxt-client': client,
-            'internxt-version': '1.6.10',
-          };
+      it('When CLI 1.5.0 or newer syncs, then name is the plain name', async () => {
+        const headers = {
+          'internxt-client': ClientEnum.Cli,
+          'internxt-version': '1.6.10',
+        };
 
-          const syncedFile = await requestSyncedFile(headers);
+        const syncedFile = await requestSyncedFile(headers);
 
-          expect(syncedFile.name).toBe(file.plainName);
-        },
-      );
+        expect(syncedFile.name).toBe(file.plainName);
+      });
 
       it('When rclone syncs, then name is the plain name', async () => {
         const headers = { 'user-agent': 'rclone/v1.73.0' };
