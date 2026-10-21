@@ -1479,7 +1479,7 @@ export class SequelizeFileRepository implements FileRepository {
         ) next_user
         WHERE t.n < :limit
       )
-      SELECT user_id FROM users_with_trash
+      SELECT user_id FROM users_with_trash ORDER BY user_id
       `,
       {
         replacements: { afterUserId, limit },
