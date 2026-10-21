@@ -59,12 +59,6 @@ describe('TrashCleanupProcessor', () => {
     pauseSpy = jest
       .spyOn(processor as any, 'pauseBetweenBatches')
       .mockResolvedValue(undefined);
-    fileRepository.markTrashedFilesAsDeleted.mockImplementation(
-      async (uuids) => uuids,
-    );
-    folderRepository.markTrashedFoldersAsRemoved.mockImplementation(
-      async (uuids) => uuids,
-    );
   });
 
   afterEach(() => {
@@ -130,7 +124,7 @@ describe('TrashCleanupProcessor', () => {
           { userId: 30, value: '30' },
         ],
       );
-      fileRepository.findExpiredTrashFileUuidsByUsers.mockResolvedValueOnce([
+      fileRepository.deleteExpiredTrashFilesByUsers.mockResolvedValueOnce([
         v4(),
         v4(),
       ]);
@@ -141,7 +135,7 @@ describe('TrashCleanupProcessor', () => {
         featureLimitsRepository.findEffectiveLimitValueByUserIds,
       ).toHaveBeenCalledWith([10, 20, 30], LimitLabels.TrashRetentionDays);
       expect(
-        fileRepository.findExpiredTrashFileUuidsByUsers,
+        fileRepository.deleteExpiredTrashFilesByUsers,
       ).toHaveBeenCalledWith(
         [
           { userId: 10, cutoffDate },
@@ -166,17 +160,17 @@ describe('TrashCleanupProcessor', () => {
       featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
         [{ userId: 10, value: '2' }],
       );
-      fileRepository.findExpiredTrashFileUuidsByUsers
+      fileRepository.deleteExpiredTrashFilesByUsers
         .mockResolvedValueOnce(fullBatch)
         .mockResolvedValueOnce([v4()]);
 
       const result = await processor.process(filesJob);
 
       expect(
-        fileRepository.findExpiredTrashFileUuidsByUsers,
+        fileRepository.deleteExpiredTrashFilesByUsers,
       ).toHaveBeenCalledTimes(2);
       expect(
-        fileRepository.findExpiredTrashFileUuidsByUsers,
+        fileRepository.deleteExpiredTrashFilesByUsers,
       ).toHaveBeenCalledWith(expect.any(Array), 250);
       expect(pauseSpy).toHaveBeenCalledTimes(2);
       expect(result).toEqual(expect.objectContaining({ deleted: 251 }));
@@ -190,7 +184,7 @@ describe('TrashCleanupProcessor', () => {
       featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
         [{ userId: 10, value: '2' }],
       );
-      fileRepository.findExpiredTrashFileUuidsByUsers.mockResolvedValueOnce(
+      fileRepository.deleteExpiredTrashFilesByUsers.mockResolvedValueOnce(
         deletedUuids,
       );
       const logSpy = jest.spyOn((processor as any).logger, 'log');
@@ -203,44 +197,17 @@ describe('TrashCleanupProcessor', () => {
       );
     });
 
-    it('When some selected items were restored before the update, then it should keep going with the next batch', async () => {
-      const fullBatch = Array.from({ length: 250 }, () => v4());
+    it('When a batch deletes nothing, then it should not pause', async () => {
       fileRepository.findUserIdsWithTrashedFiles
         .mockResolvedValueOnce([10])
         .mockResolvedValueOnce([]);
       featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
         [{ userId: 10, value: '2' }],
       );
-      fileRepository.findExpiredTrashFileUuidsByUsers
-        .mockResolvedValueOnce(fullBatch)
-        .mockResolvedValueOnce([]);
-      fileRepository.markTrashedFilesAsDeleted.mockResolvedValueOnce(
-        fullBatch.slice(1),
-      );
-
-      const result = await processor.process(filesJob);
-
-      expect(fileRepository.markTrashedFilesAsDeleted).toHaveBeenCalledWith(
-        fullBatch,
-      );
-      expect(
-        fileRepository.findExpiredTrashFileUuidsByUsers,
-      ).toHaveBeenCalledTimes(2);
-      expect(result).toEqual(expect.objectContaining({ deleted: 249 }));
-    });
-
-    it('When a batch finds nothing, then it should not update nor pause', async () => {
-      fileRepository.findUserIdsWithTrashedFiles
-        .mockResolvedValueOnce([10])
-        .mockResolvedValueOnce([]);
-      featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
-        [{ userId: 10, value: '2' }],
-      );
-      fileRepository.findExpiredTrashFileUuidsByUsers.mockResolvedValueOnce([]);
+      fileRepository.deleteExpiredTrashFilesByUsers.mockResolvedValueOnce([]);
 
       await processor.process(filesJob);
 
-      expect(fileRepository.markTrashedFilesAsDeleted).not.toHaveBeenCalled();
       expect(pauseSpy).not.toHaveBeenCalled();
     });
 
@@ -256,7 +223,7 @@ describe('TrashCleanupProcessor', () => {
       await processor.process(filesJob);
 
       expect(
-        fileRepository.findExpiredTrashFileUuidsByUsers,
+        fileRepository.deleteExpiredTrashFilesByUsers,
       ).toHaveBeenCalledWith([], expect.any(Number));
     });
 
@@ -275,7 +242,7 @@ describe('TrashCleanupProcessor', () => {
       const result = await processor.process(filesJob);
 
       expect(
-        fileRepository.findExpiredTrashFileUuidsByUsers,
+        fileRepository.deleteExpiredTrashFilesByUsers,
       ).not.toHaveBeenCalled();
       expect(redisClient.set).not.toHaveBeenCalled();
       expect(result).toEqual(
@@ -291,9 +258,9 @@ describe('TrashCleanupProcessor', () => {
       featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
         [{ userId: 10, value: '2' }],
       );
-      folderRepository.findExpiredTrashFolderUuidsByUsers.mockResolvedValueOnce(
-        [v4()],
-      );
+      folderRepository.deleteExpiredTrashFoldersByUsers.mockResolvedValueOnce([
+        v4(),
+      ]);
 
       const result = await processor.process(foldersJob);
 
@@ -309,7 +276,7 @@ describe('TrashCleanupProcessor', () => {
       featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
         [{ userId: 10, value: '2' }],
       );
-      fileRepository.findExpiredTrashFileUuidsByUsers.mockRejectedValueOnce(
+      fileRepository.deleteExpiredTrashFilesByUsers.mockRejectedValueOnce(
         error,
       );
 

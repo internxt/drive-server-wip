@@ -148,22 +148,20 @@ export class TrashCleanupProcessor extends WorkerHost {
     deadline: Date,
   ): Promise<{ deleted: number; completed: boolean }> {
     let deleted = 0;
-    let expiredUuids: string[];
+    let deletedUuids: string[];
 
     do {
       if (Time.now() >= deadline) {
         return { deleted, completed: false };
       }
-      expiredUuids = await this.findExpiredUuids(itemType, targets);
-      if (expiredUuids.length === 0) {
-        break;
-      }
-
-      const deletedUuids = await this.markAsDeleted(itemType, expiredUuids);
+      deletedUuids = await this.deleteBatch(itemType, targets);
       deleted += deletedUuids.length;
-      this.logger.log({ itemType, deletedUuids }, 'Batch of items deleted.');
-      await this.pauseBetweenBatches();
-    } while (expiredUuids.length === this.deleteBatchSize);
+
+      if (deletedUuids.length > 0) {
+        this.logger.log({ itemType, deletedUuids }, 'Batch of items deleted.');
+        await this.pauseBetweenBatches();
+      }
+    } while (deletedUuids.length === this.deleteBatchSize);
 
     return { deleted, completed: true };
   }
@@ -207,28 +205,19 @@ export class TrashCleanupProcessor extends WorkerHost {
         );
   }
 
-  private findExpiredUuids(
+  private deleteBatch(
     itemType: TrashCleanupItemType,
     targets: TrashExpirationTarget[],
   ): Promise<string[]> {
     return itemType === TrashCleanupItemType.Files
-      ? this.fileRepository.findExpiredTrashFileUuidsByUsers(
+      ? this.fileRepository.deleteExpiredTrashFilesByUsers(
           targets,
           this.deleteBatchSize,
         )
-      : this.folderRepository.findExpiredTrashFolderUuidsByUsers(
+      : this.folderRepository.deleteExpiredTrashFoldersByUsers(
           targets,
           this.deleteBatchSize,
         );
-  }
-
-  private markAsDeleted(
-    itemType: TrashCleanupItemType,
-    uuids: string[],
-  ): Promise<string[]> {
-    return itemType === TrashCleanupItemType.Files
-      ? this.fileRepository.markTrashedFilesAsDeleted(uuids)
-      : this.folderRepository.markTrashedFoldersAsRemoved(uuids);
   }
 
   private pauseBetweenBatches(): Promise<void> {

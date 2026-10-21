@@ -2008,17 +2008,17 @@ describe('FileRepository', () => {
     });
   });
 
-  describe('findExpiredTrashFileUuidsByUsers', () => {
-    it('When expired trash files exist, then it should return their uuids without updating them', async () => {
+  describe('deleteExpiredTrashFilesByUsers', () => {
+    it('When expired trash files exist, then it should return their uuids', async () => {
       const uuids = [v4(), v4(), v4()];
       const targets = [
         { userId: 1, cutoffDate: new Date('2026-10-01T00:00:00Z') },
       ];
       jest
         .spyOn(fileModel.sequelize, 'query')
-        .mockResolvedValueOnce(uuids.map((uuid) => ({ uuid })) as any);
+        .mockResolvedValueOnce([uuids.map((uuid) => ({ uuid })), {}] as any);
 
-      const result = await repository.findExpiredTrashFileUuidsByUsers(
+      const result = await repository.deleteExpiredTrashFilesByUsers(
         targets,
         1000,
       );
@@ -2029,10 +2029,7 @@ describe('FileRepository', () => {
     it('When there are no targets, then it should not query the database', async () => {
       const querySpy = jest.spyOn(fileModel.sequelize, 'query');
 
-      const result = await repository.findExpiredTrashFileUuidsByUsers(
-        [],
-        1000,
-      );
+      const result = await repository.deleteExpiredTrashFilesByUsers([], 1000);
 
       expect(result).toEqual([]);
       expect(querySpy).not.toHaveBeenCalled();
@@ -2044,9 +2041,11 @@ describe('FileRepository', () => {
         { userId: 2, cutoffDate: new Date('2026-09-15T00:00:00Z') },
       ];
       const limit = 1000;
-      jest.spyOn(fileModel.sequelize, 'query').mockResolvedValueOnce([] as any);
+      jest
+        .spyOn(fileModel.sequelize, 'query')
+        .mockResolvedValueOnce([[], {}] as any);
 
-      await repository.findExpiredTrashFileUuidsByUsers(targets, limit);
+      await repository.deleteExpiredTrashFilesByUsers(targets, limit);
 
       expect(fileModel.sequelize.query).toHaveBeenCalledWith(
         expect.any(String),
@@ -2061,32 +2060,6 @@ describe('FileRepository', () => {
           },
         }),
       );
-    });
-  });
-
-  describe('markTrashedFilesAsDeleted', () => {
-    it('When uuids are given, then it should return the uuids updated', async () => {
-      const uuids = [v4(), v4()];
-      jest
-        .spyOn(fileModel.sequelize, 'query')
-        .mockResolvedValueOnce([[{ uuid: uuids[0] }], {}] as any);
-
-      const result = await repository.markTrashedFilesAsDeleted(uuids);
-
-      expect(result).toEqual([uuids[0]]);
-      expect(fileModel.sequelize.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE files'),
-        expect.objectContaining({ replacements: { uuids } }),
-      );
-    });
-
-    it('When there are no uuids, then it should not query the database', async () => {
-      const querySpy = jest.spyOn(fileModel.sequelize, 'query');
-
-      const result = await repository.markTrashedFilesAsDeleted([]);
-
-      expect(result).toEqual([]);
-      expect(querySpy).not.toHaveBeenCalled();
     });
   });
 

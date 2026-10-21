@@ -212,11 +212,10 @@ export interface FileRepository {
     afterUserId: number,
     limit: number,
   ): Promise<number[]>;
-  findExpiredTrashFileUuidsByUsers(
+  deleteExpiredTrashFilesByUsers(
     targets: TrashExpirationTarget[],
     limit: number,
   ): Promise<string[]>;
-  markTrashedFilesAsDeleted(uuids: string[]): Promise<string[]>;
   findDeletedFilesUpdatedBefore(
     cutoffDate: Date,
     limit: number,
@@ -1490,7 +1489,7 @@ export class SequelizeFileRepository implements FileRepository {
     return results.map((r) => r.user_id);
   }
 
-  async findExpiredTrashFileUuidsByUsers(
+  async deleteExpiredTrashFilesByUsers(
     targets: TrashExpirationTarget[],
     limit: number,
   ): Promise<string[]> {
@@ -1498,20 +1497,28 @@ export class SequelizeFileRepository implements FileRepository {
       return [];
     }
 
-    const results = await this.fileModel.sequelize.query<{ uuid: string }>(
+    const [results] = await this.fileModel.sequelize.query(
       `
-      SELECT e.uuid
-      FROM unnest(ARRAY[:userIds]::int[], ARRAY[:cutoffDates]::timestamptz[]) AS t(user_id, cutoff_date)
-      CROSS JOIN LATERAL (
-        SELECT f.uuid
-        FROM files f
-        WHERE f.user_id = t.user_id
-          AND f.status = 'TRASHED'
-          AND f.updated_at <= t.cutoff_date
-          AND f.size >= 0
+      WITH expired AS (
+        SELECT e.uuid
+        FROM unnest(ARRAY[:userIds]::int[], ARRAY[:cutoffDates]::timestamptz[]) AS t(user_id, cutoff_date)
+        CROSS JOIN LATERAL (
+          SELECT f.uuid
+          FROM files f
+          WHERE f.user_id = t.user_id
+            AND f.status = 'TRASHED'
+            AND f.updated_at <= t.cutoff_date
+            AND f.size >= 0
+          LIMIT :limit
+        ) e
         LIMIT :limit
-      ) e
-      LIMIT :limit
+      )
+      UPDATE files f
+      SET removed = true, removed_at = NOW(), status = 'DELETED', updated_at = NOW()
+      FROM expired
+      WHERE f.uuid = expired.uuid
+        AND f.status = 'TRASHED'
+      RETURNING f.uuid
       `,
       {
         replacements: {
@@ -1519,27 +1526,6 @@ export class SequelizeFileRepository implements FileRepository {
           cutoffDates: targets.map((t) => t.cutoffDate.toISOString()),
           limit,
         },
-        type: QueryTypes.SELECT,
-      },
-    );
-    return results.map((r) => r.uuid);
-  }
-
-  async markTrashedFilesAsDeleted(uuids: string[]): Promise<string[]> {
-    if (uuids.length === 0) {
-      return [];
-    }
-
-    const [results] = await this.fileModel.sequelize.query(
-      `
-      UPDATE files
-      SET removed = true, removed_at = NOW(), status = 'DELETED', updated_at = NOW()
-      WHERE uuid IN (:uuids)
-        AND status = 'TRASHED'
-      RETURNING uuid
-      `,
-      {
-        replacements: { uuids },
         type: QueryTypes.UPDATE,
       },
     );

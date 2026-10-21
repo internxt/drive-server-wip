@@ -1850,17 +1850,17 @@ describe('SequelizeFolderRepository', () => {
     });
   });
 
-  describe('findExpiredTrashFolderUuidsByUsers', () => {
-    it('When expired trash folders exist, then it should return their uuids without updating them', async () => {
+  describe('deleteExpiredTrashFoldersByUsers', () => {
+    it('When expired trash folders exist, then it should return their uuids', async () => {
       const uuids = [v4(), v4(), v4()];
       const targets = [
         { userId: 1, cutoffDate: new Date('2026-10-01T00:00:00Z') },
       ];
       jest
         .spyOn(folderModel.sequelize, 'query')
-        .mockResolvedValueOnce(uuids.map((uuid) => ({ uuid })) as any);
+        .mockResolvedValueOnce([uuids.map((uuid) => ({ uuid })), {}] as any);
 
-      const result = await repository.findExpiredTrashFolderUuidsByUsers(
+      const result = await repository.deleteExpiredTrashFoldersByUsers(
         targets,
         1000,
       );
@@ -1871,7 +1871,7 @@ describe('SequelizeFolderRepository', () => {
     it('When there are no targets, then it should not query the database', async () => {
       const querySpy = jest.spyOn(folderModel.sequelize, 'query');
 
-      const result = await repository.findExpiredTrashFolderUuidsByUsers(
+      const result = await repository.deleteExpiredTrashFoldersByUsers(
         [],
         1000,
       );
@@ -1888,9 +1888,9 @@ describe('SequelizeFolderRepository', () => {
       const limit = 1000;
       jest
         .spyOn(folderModel.sequelize, 'query')
-        .mockResolvedValueOnce([] as any);
+        .mockResolvedValueOnce([[], {}] as any);
 
-      await repository.findExpiredTrashFolderUuidsByUsers(targets, limit);
+      await repository.deleteExpiredTrashFoldersByUsers(targets, limit);
 
       expect(folderModel.sequelize.query).toHaveBeenCalledWith(
         expect.any(String),
@@ -1905,32 +1905,6 @@ describe('SequelizeFolderRepository', () => {
           },
         }),
       );
-    });
-  });
-
-  describe('markTrashedFoldersAsRemoved', () => {
-    it('When uuids are given, then it should return the uuids updated', async () => {
-      const uuids = [v4(), v4()];
-      jest
-        .spyOn(folderModel.sequelize, 'query')
-        .mockResolvedValueOnce([[{ uuid: uuids[0] }], {}] as any);
-
-      const result = await repository.markTrashedFoldersAsRemoved(uuids);
-
-      expect(result).toEqual([uuids[0]]);
-      expect(folderModel.sequelize.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE folders'),
-        expect.objectContaining({ replacements: { uuids } }),
-      );
-    });
-
-    it('When there are no uuids, then it should not query the database', async () => {
-      const querySpy = jest.spyOn(folderModel.sequelize, 'query');
-
-      const result = await repository.markTrashedFoldersAsRemoved([]);
-
-      expect(result).toEqual([]);
-      expect(querySpy).not.toHaveBeenCalled();
     });
   });
 

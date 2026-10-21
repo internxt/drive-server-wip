@@ -167,11 +167,10 @@ interface FolderRepository {
     afterUserId: number,
     limit: number,
   ): Promise<number[]>;
-  findExpiredTrashFolderUuidsByUsers(
+  deleteExpiredTrashFoldersByUsers(
     targets: TrashExpirationTarget[],
     limit: number,
   ): Promise<string[]>;
-  markTrashedFoldersAsRemoved(uuids: string[]): Promise<string[]>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
   calculateFolderSize(folderUuid: string): Promise<number>;
   calculateFolderStats(folderUuid: string): Promise<{
@@ -1055,7 +1054,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     return results.map((r) => r.user_id);
   }
 
-  async findExpiredTrashFolderUuidsByUsers(
+  async deleteExpiredTrashFoldersByUsers(
     targets: TrashExpirationTarget[],
     limit: number,
   ): Promise<string[]> {
@@ -1063,20 +1062,29 @@ export class SequelizeFolderRepository implements FolderRepository {
       return [];
     }
 
-    const results = await this.folderModel.sequelize.query<{ uuid: string }>(
+    const [results] = await this.folderModel.sequelize.query(
       `
-      SELECT e.uuid
-      FROM unnest(ARRAY[:userIds]::int[], ARRAY[:cutoffDates]::timestamptz[]) AS t(user_id, cutoff_date)
-      CROSS JOIN LATERAL (
-        SELECT fo.uuid
-        FROM folders fo
-        WHERE fo.user_id = t.user_id
-          AND fo.deleted = true
-          AND fo.removed = false
-          AND fo.updated_at <= t.cutoff_date
+      WITH expired AS (
+        SELECT e.uuid
+        FROM unnest(ARRAY[:userIds]::int[], ARRAY[:cutoffDates]::timestamptz[]) AS t(user_id, cutoff_date)
+        CROSS JOIN LATERAL (
+          SELECT fo.uuid
+          FROM folders fo
+          WHERE fo.user_id = t.user_id
+            AND fo.deleted = true
+            AND fo.removed = false
+            AND fo.updated_at <= t.cutoff_date
+          LIMIT :limit
+        ) e
         LIMIT :limit
-      ) e
-      LIMIT :limit
+      )
+      UPDATE folders fo
+      SET removed = true, removed_at = NOW(), updated_at = NOW()
+      FROM expired
+      WHERE fo.uuid = expired.uuid
+        AND fo.deleted = true
+        AND fo.removed = false
+      RETURNING fo.uuid
       `,
       {
         replacements: {
@@ -1084,28 +1092,6 @@ export class SequelizeFolderRepository implements FolderRepository {
           cutoffDates: targets.map((t) => t.cutoffDate.toISOString()),
           limit,
         },
-        type: QueryTypes.SELECT,
-      },
-    );
-    return results.map((r) => r.uuid);
-  }
-
-  async markTrashedFoldersAsRemoved(uuids: string[]): Promise<string[]> {
-    if (uuids.length === 0) {
-      return [];
-    }
-
-    const [results] = await this.folderModel.sequelize.query(
-      `
-      UPDATE folders
-      SET removed = true, removed_at = NOW(), updated_at = NOW()
-      WHERE uuid IN (:uuids)
-        AND deleted = true
-        AND removed = false
-      RETURNING uuid
-      `,
-      {
-        replacements: { uuids },
         type: QueryTypes.UPDATE,
       },
     );
