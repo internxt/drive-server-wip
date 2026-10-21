@@ -118,7 +118,7 @@ export class TrashCleanupProcessor extends WorkerHost {
       }
 
       usersScanned += userIds.length;
-      lastUserId = userIds[userIds.length - 1];
+      lastUserId = userIds.at(-1);
     }
 
     this.logger.warn(
