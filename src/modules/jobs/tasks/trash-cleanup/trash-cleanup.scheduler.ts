@@ -30,7 +30,7 @@ export class TrashCleanupScheduler {
         `process-${itemType}`,
         { itemType },
         {
-          jobId: `trash-cleanup:${itemType}`,
+          jobId: `trash-cleanup-${itemType}`,
           attempts: 3,
           backoff: { type: 'exponential', delay: 5_000 },
           removeOnComplete: true,
