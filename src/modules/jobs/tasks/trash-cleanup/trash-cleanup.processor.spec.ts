@@ -5,7 +5,6 @@ import { type Job } from 'bullmq';
 import { v4 } from 'uuid';
 import {
   TrashCleanupProcessor,
-  TRASH_CLEANUP_CURSOR_KEY_PREFIX,
   type TrashCleanupJobData,
 } from './trash-cleanup.processor';
 import { TrashCleanupItemType } from './trash-cleanup.scheduler';
@@ -14,7 +13,6 @@ import { SequelizeFileRepository } from '../../../file/file.repository';
 import { SequelizeFolderRepository } from '../../../folder/folder.repository';
 import { SequelizeFeatureLimitsRepository } from '../../../feature-limit/feature-limit.repository';
 import { LimitLabels } from '../../../feature-limit/limits.enum';
-import { RedisService } from '../../../../externals/redis/redis.service';
 import { Time } from '../../../../lib/time';
 import { type JobExecutionModel } from '../../models/job-execution.model';
 
@@ -27,7 +25,6 @@ describe('TrashCleanupProcessor', () => {
   let fileRepository: DeepMocked<SequelizeFileRepository>;
   let folderRepository: DeepMocked<SequelizeFolderRepository>;
   let featureLimitsRepository: DeepMocked<SequelizeFeatureLimitsRepository>;
-  let redisClient: { get: jest.Mock; set: jest.Mock };
 
   const startedJob = { id: 'exec-job-1' } as JobExecutionModel;
   const filesJob = makeJob({ itemType: TrashCleanupItemType.Files });
@@ -45,13 +42,6 @@ describe('TrashCleanupProcessor', () => {
     fileRepository = moduleRef.get(SequelizeFileRepository);
     folderRepository = moduleRef.get(SequelizeFolderRepository);
     featureLimitsRepository = moduleRef.get(SequelizeFeatureLimitsRepository);
-
-    redisClient = {
-      get: jest.fn().mockResolvedValue(null),
-      set: jest.fn().mockResolvedValue('OK'),
-    };
-    const redisService: DeepMocked<RedisService> = moduleRef.get(RedisService);
-    redisService.getClient.mockResolvedValue(redisClient as any);
 
     jobExecutionRepository.startJob.mockResolvedValue(startedJob);
     jest.spyOn(Time, 'daysAgo').mockReturnValue(new Date('2026-10-01'));
@@ -75,7 +65,7 @@ describe('TrashCleanupProcessor', () => {
       expect(jobExecutionRepository.startJob).not.toHaveBeenCalled();
     });
 
-    it('When there are no users with trash, then it should reset the cursor and complete the pass', async () => {
+    it('When there are no users with trash, then it should complete the pass', async () => {
       fileRepository.findUserIdsWithTrashedFiles.mockResolvedValueOnce([]);
 
       const result = await processor.process(filesJob);
@@ -83,29 +73,30 @@ describe('TrashCleanupProcessor', () => {
       expect(result).toEqual({
         deleted: 0,
         usersScanned: 0,
-        endCursor: 0,
         passCompleted: true,
       });
-      expect(redisClient.set).toHaveBeenCalledWith(
-        TRASH_CLEANUP_CURSOR_KEY_PREFIX + TrashCleanupItemType.Files,
-        0,
-      );
       expect(jobExecutionRepository.markAsCompleted).toHaveBeenCalledWith(
         startedJob.id,
         expect.objectContaining({ passCompleted: true }),
       );
     });
 
-    it('When a cursor is stored, then it should resume from it', async () => {
-      redisClient.get.mockResolvedValueOnce('150');
-      fileRepository.findUserIdsWithTrashedFiles.mockResolvedValueOnce([]);
+    it('When a chunk of users is processed, then it should fetch the next users after the last one', async () => {
+      fileRepository.findUserIdsWithTrashedFiles
+        .mockResolvedValueOnce([10, 20])
+        .mockResolvedValueOnce([]);
+      featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
+        [],
+      );
 
       await processor.process(filesJob);
 
-      expect(fileRepository.findUserIdsWithTrashedFiles).toHaveBeenCalledWith(
-        150,
-        expect.any(Number),
-      );
+      expect(
+        fileRepository.findUserIdsWithTrashedFiles,
+      ).toHaveBeenNthCalledWith(1, 0, expect.any(Number));
+      expect(
+        fileRepository.findUserIdsWithTrashedFiles,
+      ).toHaveBeenNthCalledWith(2, 20, expect.any(Number));
     });
 
     it('When users have expired trash, then it should delete using each user effective retention', async () => {
@@ -138,10 +129,6 @@ describe('TrashCleanupProcessor', () => {
           { userId: 30, cutoffDate },
         ],
         expect.any(Number),
-      );
-      expect(redisClient.set).toHaveBeenCalledWith(
-        TRASH_CLEANUP_CURSOR_KEY_PREFIX + TrashCleanupItemType.Files,
-        30,
       );
       expect(result).toEqual(
         expect.objectContaining({ deleted: 2, usersScanned: 3 }),
@@ -184,7 +171,7 @@ describe('TrashCleanupProcessor', () => {
       ).toHaveBeenCalledWith([], expect.any(Number));
     });
 
-    it('When the time budget runs out mid chunk, then it should not advance the cursor', async () => {
+    it('When the time budget runs out mid chunk, then it should stop without completing the pass', async () => {
       const now = new Date('2026-10-20T10:00:00Z');
       jest
         .spyOn(Time, 'now')
@@ -201,10 +188,7 @@ describe('TrashCleanupProcessor', () => {
       expect(
         fileRepository.deleteExpiredTrashFilesByUsers,
       ).not.toHaveBeenCalled();
-      expect(redisClient.set).not.toHaveBeenCalled();
-      expect(result).toEqual(
-        expect.objectContaining({ endCursor: 0, passCompleted: false }),
-      );
+      expect(result).toEqual(expect.objectContaining({ passCompleted: false }));
     });
 
     it('When processing folders, then it should use the folder repository', async () => {

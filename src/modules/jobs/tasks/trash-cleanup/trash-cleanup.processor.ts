@@ -16,13 +16,10 @@ import {
 } from './trash-cleanup.scheduler';
 import { SequelizeFeatureLimitsRepository } from '../../../feature-limit/feature-limit.repository';
 import { LimitLabels } from '../../../feature-limit/limits.enum';
-import { RedisService } from '../../../../externals/redis/redis.service';
 
 export interface TrashCleanupJobData {
   itemType: TrashCleanupItemType;
 }
-
-export const TRASH_CLEANUP_CURSOR_KEY_PREFIX = 'trash-cleanup:cursor:';
 
 @Processor(TRASH_CLEANUP_QUEUE, {
   concurrency: 2,
@@ -42,7 +39,6 @@ export class TrashCleanupProcessor extends WorkerHost {
     private readonly fileRepository: SequelizeFileRepository,
     private readonly folderRepository: SequelizeFolderRepository,
     private readonly featureLimitsRepository: SequelizeFeatureLimitsRepository,
-    private readonly redisService: RedisService,
   ) {
     super();
   }
@@ -54,27 +50,24 @@ export class TrashCleanupProcessor extends WorkerHost {
     }
 
     const { itemType } = job.data;
-    const startCursor = await this.getCursor(itemType);
     const startedJob = await this.jobExecutionRepository.startJob(
       JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
-      { metadata: { itemType, startCursor } },
+      { metadata: { itemType } },
     );
 
     try {
       const result = await this.cleanup(
         itemType,
-        startCursor,
         Time.dateWithTimeAdded(this.timeBudgetMinutes, 'minute'),
       );
 
       await this.jobExecutionRepository.markAsCompleted(startedJob.id, {
         itemType,
-        startCursor,
         ...result,
       });
 
       this.logger.log(
-        { jobId: startedJob.id, itemType, startCursor, ...result },
+        { jobId: startedJob.id, itemType, ...result },
         'Trash cleanup run completed.',
       );
 
@@ -91,7 +84,6 @@ export class TrashCleanupProcessor extends WorkerHost {
       );
       await this.jobExecutionRepository.markAsFailed(startedJob.id, {
         itemType,
-        startCursor,
         errorMessage: error.message,
       });
       throw error;
@@ -100,24 +92,21 @@ export class TrashCleanupProcessor extends WorkerHost {
 
   private async cleanup(
     itemType: TrashCleanupItemType,
-    startCursor: number,
     deadline: Date,
   ): Promise<{
     deleted: number;
     usersScanned: number;
-    endCursor: number;
     passCompleted: boolean;
   }> {
-    let cursor = startCursor;
+    let lastUserId = 0;
     let deleted = 0;
     let usersScanned = 0;
 
     while (Time.now() < deadline) {
-      const userIds = await this.findNextUserIdsWithTrash(itemType, cursor);
+      const userIds = await this.findNextUserIdsWithTrash(itemType, lastUserId);
 
       if (userIds.length === 0) {
-        await this.saveCursor(itemType, 0);
-        return { deleted, usersScanned, endCursor: 0, passCompleted: true };
+        return { deleted, usersScanned, passCompleted: true };
       }
 
       const targets = await this.buildTargets(userIds);
@@ -129,15 +118,14 @@ export class TrashCleanupProcessor extends WorkerHost {
       }
 
       usersScanned += userIds.length;
-      cursor = userIds[userIds.length - 1];
-      await this.saveCursor(itemType, cursor);
+      lastUserId = userIds[userIds.length - 1];
     }
 
     this.logger.warn(
-      { itemType, endCursor: cursor, deleted },
+      { itemType, lastUserId, deleted },
       'Trash cleanup deadline reached.',
     );
-    return { deleted, usersScanned, endCursor: cursor, passCompleted: false };
+    return { deleted, usersScanned, passCompleted: false };
   }
 
   private async deleteChunk(
@@ -211,20 +199,5 @@ export class TrashCleanupProcessor extends WorkerHost {
           targets,
           this.deleteBatchSize,
         );
-  }
-
-  private async getCursor(itemType: TrashCleanupItemType): Promise<number> {
-    const client = await this.redisService.getClient();
-    const value = await client.get(TRASH_CLEANUP_CURSOR_KEY_PREFIX + itemType);
-    const cursor = Number(value);
-    return Number.isInteger(cursor) && cursor > 0 ? cursor : 0;
-  }
-
-  private async saveCursor(
-    itemType: TrashCleanupItemType,
-    cursor: number,
-  ): Promise<void> {
-    const client = await this.redisService.getClient();
-    await client.set(TRASH_CLEANUP_CURSOR_KEY_PREFIX + itemType, cursor);
   }
 }
