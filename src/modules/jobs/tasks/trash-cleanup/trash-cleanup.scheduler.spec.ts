@@ -43,12 +43,12 @@ describe('TrashCleanupScheduler', () => {
       expect(queue.add).toHaveBeenCalledWith(
         'process-files',
         { itemType: TrashCleanupItemType.Files },
-        expect.objectContaining({ jobId: 'trash-cleanup:files' }),
+        expect.objectContaining({ jobId: 'trash-cleanup-files' }),
       );
       expect(queue.add).toHaveBeenCalledWith(
         'process-folders',
         { itemType: TrashCleanupItemType.Folders },
-        expect.objectContaining({ jobId: 'trash-cleanup:folders' }),
+        expect.objectContaining({ jobId: 'trash-cleanup-folders' }),
       );
     });
 
