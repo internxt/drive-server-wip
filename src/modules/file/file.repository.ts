@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { withQueryTimeout } from '../../lib/query-timeout';
 import {
   cursorTimestampTupleFilter,
   cursorUpdatedAtAttribute,
@@ -38,6 +37,7 @@ import {
   type FavoriteAttributes,
 } from '../favorite/favorite.domain';
 import { applyCollateAndTiebreakerToSort } from '../../lib/sort';
+import { type TrashExpirationTarget } from '../trash/trash-expiration.utils';
 
 export interface FileRepository {
   create(file: Omit<FileAttributes, 'id'>): Promise<File | null>;
@@ -208,9 +208,12 @@ export interface FileRepository {
     order?: [keyof FileModel, 'ASC' | 'DESC'][],
   ): Promise<File[]>;
   deleteUserTrashedFilesBatch(userId: number, limit: number): Promise<number>;
-  deleteExpiredTrashFilesByTier(
-    tierId: string,
-    cutoffDate: Date,
+  findUserIdsWithTrashedFiles(
+    afterUserId: number,
+    limit: number,
+  ): Promise<number[]>;
+  deleteExpiredTrashFilesByUsers(
+    targets: TrashExpirationTarget[],
     limit: number,
   ): Promise<string[]>;
   findDeletedFilesUpdatedBefore(
@@ -1450,36 +1453,80 @@ export class SequelizeFileRepository implements FileRepository {
     return { updatedCount };
   }
 
-  async deleteExpiredTrashFilesByTier(
-    tierId: string,
-    cutoffDate: Date,
+  async findUserIdsWithTrashedFiles(
+    afterUserId: number,
+    limit: number,
+  ): Promise<number[]> {
+    const results = await this.fileModel.sequelize.query<{ user_id: number }>(
+      `
+      WITH RECURSIVE users_with_trash AS (
+        (
+          SELECT f.user_id, 1 AS n
+          FROM files f
+          WHERE f.status = 'TRASHED' AND f.user_id > :afterUserId
+          ORDER BY f.user_id
+          LIMIT 1
+        )
+        UNION ALL
+        SELECT next_user.user_id, t.n + 1
+        FROM users_with_trash t
+        CROSS JOIN LATERAL (
+          SELECT f.user_id
+          FROM files f
+          WHERE f.status = 'TRASHED' AND f.user_id > t.user_id
+          ORDER BY f.user_id
+          LIMIT 1
+        ) next_user
+        WHERE t.n < :limit
+      )
+      SELECT user_id FROM users_with_trash ORDER BY user_id
+      `,
+      {
+        replacements: { afterUserId, limit },
+        type: QueryTypes.SELECT,
+      },
+    );
+    return results.map((r) => r.user_id);
+  }
+
+  async deleteExpiredTrashFilesByUsers(
+    targets: TrashExpirationTarget[],
     limit: number,
   ): Promise<string[]> {
-    const [results] = await withQueryTimeout(
-      this.fileModel.sequelize,
-      60000 * 3,
-      async (transaction) => {
-        return this.fileModel.sequelize.query(
-          `
-          UPDATE files
-          SET removed = true, removed_at = NOW(), status = 'DELETED', updated_at = NOW()
-          WHERE uuid IN (
-            SELECT f.uuid
-            FROM files f
-            JOIN users u ON u.id = f.user_id AND u.tier_id = :tierId
-            WHERE f.status = 'TRASHED'
-              AND f.updated_at <= :cutoffDate
-              AND size >= 0
-            LIMIT :limit
-          )
-          RETURNING uuid
-          `,
-          {
-            replacements: { tierId, cutoffDate, limit },
-            transaction,
-            type: QueryTypes.UPDATE,
-          },
-        );
+    if (targets.length === 0) {
+      return [];
+    }
+
+    const [results] = await this.fileModel.sequelize.query(
+      `
+      WITH expired AS (
+        SELECT e.uuid
+        FROM unnest(ARRAY[:userIds]::int[], ARRAY[:cutoffDates]::timestamptz[]) AS t(user_id, cutoff_date)
+        CROSS JOIN LATERAL (
+          SELECT f.uuid
+          FROM files f
+          WHERE f.user_id = t.user_id
+            AND f.status = 'TRASHED'
+            AND f.updated_at <= t.cutoff_date
+            AND f.size >= 0
+          LIMIT :limit
+        ) e
+        LIMIT :limit
+      )
+      UPDATE files f
+      SET removed = true, removed_at = NOW(), status = 'DELETED', updated_at = NOW()
+      FROM expired
+      WHERE f.uuid = expired.uuid
+        AND f.status = 'TRASHED'
+      RETURNING f.uuid
+      `,
+      {
+        replacements: {
+          userIds: targets.map((t) => t.userId),
+          cutoffDates: targets.map((t) => t.cutoffDate.toISOString()),
+          limit,
+        },
+        type: QueryTypes.UPDATE,
       },
     );
     return (results as { uuid: string }[]).map((r) => r.uuid);

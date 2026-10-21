@@ -1,10 +1,3 @@
-jest.mock('newrelic', () => ({
-  startBackgroundTransaction: jest.fn((_name, _group, cb) => cb()),
-  getTransaction: jest.fn(() => ({ end: jest.fn() })),
-  noticeError: jest.fn(),
-  addCustomAttribute: jest.fn(),
-}));
-
 import { createMock, type DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
 import { type Logger } from '@nestjs/common';
@@ -12,15 +5,17 @@ import { type Job } from 'bullmq';
 import { v4 } from 'uuid';
 import {
   TrashCleanupProcessor,
+  TRASH_CLEANUP_CURSOR_KEY_PREFIX,
   type TrashCleanupJobData,
 } from './trash-cleanup.processor';
+import { TrashCleanupItemType } from './trash-cleanup.scheduler';
 import { SequelizeJobExecutionRepository } from '../../repositories/job-execution.repository';
 import { SequelizeFileRepository } from '../../../file/file.repository';
 import { SequelizeFolderRepository } from '../../../folder/folder.repository';
 import { SequelizeFeatureLimitsRepository } from '../../../feature-limit/feature-limit.repository';
-import { LimitLabels, LimitTypes } from '../../../feature-limit/limits.enum';
+import { LimitLabels } from '../../../feature-limit/limits.enum';
+import { RedisService } from '../../../../externals/redis/redis.service';
 import { Time } from '../../../../lib/time';
-import { newFeatureLimit, newTier } from '../../../../../test/fixtures';
 import { type JobExecutionModel } from '../../models/job-execution.model';
 
 const makeJob = (data: TrashCleanupJobData): Job<TrashCleanupJobData> =>
@@ -32,6 +27,10 @@ describe('TrashCleanupProcessor', () => {
   let fileRepository: DeepMocked<SequelizeFileRepository>;
   let folderRepository: DeepMocked<SequelizeFolderRepository>;
   let featureLimitsRepository: DeepMocked<SequelizeFeatureLimitsRepository>;
+  let redisClient: { get: jest.Mock; set: jest.Mock };
+
+  const startedJob = { id: 'exec-job-1' } as JobExecutionModel;
+  const filesJob = makeJob({ itemType: TrashCleanupItemType.Files });
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -46,6 +45,16 @@ describe('TrashCleanupProcessor', () => {
     fileRepository = moduleRef.get(SequelizeFileRepository);
     folderRepository = moduleRef.get(SequelizeFolderRepository);
     featureLimitsRepository = moduleRef.get(SequelizeFeatureLimitsRepository);
+
+    redisClient = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue('OK'),
+    };
+    const redisService: DeepMocked<RedisService> = moduleRef.get(RedisService);
+    redisService.getClient.mockResolvedValue(redisClient as any);
+
+    jobExecutionRepository.startJob.mockResolvedValue(startedJob);
+    jest.spyOn(Time, 'daysAgo').mockReturnValue(new Date('2026-10-01'));
   });
 
   afterEach(() => {
@@ -57,166 +66,183 @@ describe('TrashCleanupProcessor', () => {
   });
 
   describe('process', () => {
-    const tier = newTier();
-    const limit = newFeatureLimit({
-      type: LimitTypes.Counter,
-      value: '30',
-      label: LimitLabels.TrashRetentionDays,
-    });
-    const jobData: TrashCleanupJobData = {
-      tierId: tier.id,
-      tierName: tier.label,
-    };
-    const startedJob = { id: 'exec-job-1' } as JobExecutionModel;
-    // cutoffDate after TRASH_EXPIRATION_START_DATE (2026-03-10) so the tier is not skipped
-    const cutoffDate = new Date('2026-03-11T00:00:00Z');
+    it('When the job has no known item type, then it should skip it', async () => {
+      const legacyJob = makeJob({ tierId: v4(), tierName: 'free' } as any);
 
-    describe('When the cutoff date is before the first deployment date', () => {
-      it('When called, then it should skip processing and not create a job execution record', async () => {
-        featureLimitsRepository.findLimitByLabelAndTier.mockResolvedValue(
-          limit,
-        );
-        jest
-          .spyOn(Time, 'daysAgo')
-          .mockReturnValue(new Date('2026-03-09T00:00:00Z'));
+      const result = await processor.process(legacyJob);
 
-        const result = await processor.process(makeJob(jobData));
-
-        expect(result).toEqual({ skipped: true });
-        expect(jobExecutionRepository.startJob).not.toHaveBeenCalled();
-      });
+      expect(result).toEqual({ skipped: true });
+      expect(jobExecutionRepository.startJob).not.toHaveBeenCalled();
     });
 
-    describe('When the cutoff date is valid', () => {
-      beforeEach(() => {
-        featureLimitsRepository.findLimitByLabelAndTier.mockResolvedValue(
-          limit,
-        );
-        jest.spyOn(Time, 'daysAgo').mockReturnValue(cutoffDate);
-        jobExecutionRepository.startJob.mockResolvedValue(startedJob);
+    it('When there are no users with trash, then it should reset the cursor and complete the pass', async () => {
+      fileRepository.findUserIdsWithTrashedFiles.mockResolvedValueOnce([]);
+
+      const result = await processor.process(filesJob);
+
+      expect(result).toEqual({
+        deleted: 0,
+        usersScanned: 0,
+        endCursor: 0,
+        passCompleted: true,
       });
-
-      it('When called, then it should look up the retention limit for the correct tier and label', async () => {
-        fileRepository.deleteExpiredTrashFilesByTier.mockResolvedValue([]);
-        folderRepository.deleteExpiredTrashFoldersByTier.mockResolvedValue([]);
-
-        await processor.process(makeJob(jobData));
-
-        expect(
-          featureLimitsRepository.findLimitByLabelAndTier,
-        ).toHaveBeenCalledWith(tier.id, LimitLabels.TrashRetentionDays);
-      });
-
-      it('When files and folders are deleted, then it should mark the job as completed with the correct totals', async () => {
-        const fileUuids = [v4(), v4()];
-        const folderUuids = [v4()];
-
-        fileRepository.deleteExpiredTrashFilesByTier
-          .mockResolvedValueOnce(fileUuids)
-          .mockResolvedValueOnce([]);
-        folderRepository.deleteExpiredTrashFoldersByTier
-          .mockResolvedValueOnce(folderUuids)
-          .mockResolvedValueOnce([]);
-
-        const result = await processor.process(makeJob(jobData));
-
-        expect(result).toEqual({ filesDeleted: 2, foldersDeleted: 1 });
-        expect(jobExecutionRepository.markAsCompleted).toHaveBeenCalledWith(
-          startedJob.id,
-          expect.objectContaining({
-            tierId: tier.id,
-            tierName: tier.label,
-            filesDeleted: 2,
-            foldersDeleted: 1,
-          }),
-        );
-        expect(jobExecutionRepository.markAsFailed).not.toHaveBeenCalled();
-      });
-
-      it('When the repo returns a full batch, then it should keep fetching until a partial batch is returned', async () => {
-        const fullBatch = Array.from({ length: 100 }, () => v4());
-        const partialBatch = [v4(), v4()];
-
-        fileRepository.deleteExpiredTrashFilesByTier
-          .mockResolvedValueOnce(fullBatch)
-          .mockResolvedValueOnce(partialBatch);
-        folderRepository.deleteExpiredTrashFoldersByTier.mockResolvedValue([]);
-
-        const result = await processor.process(makeJob(jobData));
-
-        expect(result).toEqual({ filesDeleted: 102, foldersDeleted: 0 });
-        expect(
-          fileRepository.deleteExpiredTrashFilesByTier,
-        ).toHaveBeenCalledTimes(2);
-      });
-
-      it('When deletion throws, then it should mark the job as failed and rethrow the error', async () => {
-        const error = new Error('DB connection lost');
-        fileRepository.deleteExpiredTrashFilesByTier.mockRejectedValue(error);
-
-        await expect(processor.process(makeJob(jobData))).rejects.toThrow(
-          error,
-        );
-
-        expect(jobExecutionRepository.markAsFailed).toHaveBeenCalledWith(
-          startedJob.id,
-          expect.objectContaining({
-            tierId: tier.id,
-            tierName: tier.label,
-            errorMessage: error.message,
-          }),
-        );
-        expect(jobExecutionRepository.markAsCompleted).not.toHaveBeenCalled();
-      });
-
-      it('When the same UUID appears in 3 consecutive batches, then it should mark the job as failed and throw', async () => {
-        const repeatedUuid = v4();
-        // batch must be exactly batchSize=100 so the loop keeps running
-        const batch = [repeatedUuid, ...Array.from({ length: 99 }, () => v4())];
-        fileRepository.deleteExpiredTrashFilesByTier.mockResolvedValue(batch);
-
-        await expect(processor.process(makeJob(jobData))).rejects.toThrow(
-          `Same UUID ${repeatedUuid} repeated 3 times in consecutive batches`,
-        );
-
-        expect(jobExecutionRepository.markAsFailed).toHaveBeenCalledWith(
-          startedJob.id,
-          expect.objectContaining({ tierId: tier.id, tierName: tier.label }),
-        );
-      });
+      expect(redisClient.set).toHaveBeenCalledWith(
+        TRASH_CLEANUP_CURSOR_KEY_PREFIX + TrashCleanupItemType.Files,
+        0,
+      );
+      expect(jobExecutionRepository.markAsCompleted).toHaveBeenCalledWith(
+        startedJob.id,
+        expect.objectContaining({ passCompleted: true }),
+      );
     });
 
-    describe('When findLimitByLabelAndTier fails', () => {
-      it('When called, then it should rethrow without creating a job execution record', async () => {
-        const error = new Error('Limit not found');
-        featureLimitsRepository.findLimitByLabelAndTier.mockRejectedValue(
-          error,
-        );
+    it('When a cursor is stored, then it should resume from it', async () => {
+      redisClient.get.mockResolvedValueOnce('150');
+      fileRepository.findUserIdsWithTrashedFiles.mockResolvedValueOnce([]);
 
-        await expect(processor.process(makeJob(jobData))).rejects.toThrow(
-          error,
-        );
+      await processor.process(filesJob);
 
-        expect(jobExecutionRepository.startJob).not.toHaveBeenCalled();
-        expect(jobExecutionRepository.markAsFailed).not.toHaveBeenCalled();
-      });
+      expect(fileRepository.findUserIdsWithTrashedFiles).toHaveBeenCalledWith(
+        150,
+        expect.any(Number),
+      );
     });
 
-    describe('When startJob fails', () => {
-      it('When called, then it should rethrow without attempting to mark as failed', async () => {
-        featureLimitsRepository.findLimitByLabelAndTier.mockResolvedValue(
-          limit,
-        );
-        jest.spyOn(Time, 'daysAgo').mockReturnValue(cutoffDate);
-        const error = new Error('Could not start job');
-        jobExecutionRepository.startJob.mockRejectedValue(error);
+    it('When users have expired trash, then it should delete using each user effective retention', async () => {
+      const cutoffDate = new Date('2026-10-01');
+      fileRepository.findUserIdsWithTrashedFiles
+        .mockResolvedValueOnce([10, 20, 30])
+        .mockResolvedValueOnce([]);
+      featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
+        [
+          { userId: 10, value: '2' },
+          { userId: 20, value: null },
+          { userId: 30, value: '30' },
+        ],
+      );
+      fileRepository.deleteExpiredTrashFilesByUsers.mockResolvedValueOnce([
+        v4(),
+        v4(),
+      ]);
 
-        await expect(processor.process(makeJob(jobData))).rejects.toThrow(
-          error,
-        );
+      const result = await processor.process(filesJob);
 
-        expect(jobExecutionRepository.markAsFailed).not.toHaveBeenCalled();
-      });
+      expect(
+        featureLimitsRepository.findEffectiveLimitValueByUserIds,
+      ).toHaveBeenCalledWith([10, 20, 30], LimitLabels.TrashRetentionDays);
+      expect(
+        fileRepository.deleteExpiredTrashFilesByUsers,
+      ).toHaveBeenCalledWith(
+        [
+          { userId: 10, cutoffDate },
+          { userId: 30, cutoffDate },
+        ],
+        expect.any(Number),
+      );
+      expect(redisClient.set).toHaveBeenCalledWith(
+        TRASH_CLEANUP_CURSOR_KEY_PREFIX + TrashCleanupItemType.Files,
+        30,
+      );
+      expect(result).toEqual(
+        expect.objectContaining({ deleted: 2, usersScanned: 3 }),
+      );
+    });
+
+    it('When a full batch is deleted, then it should keep deleting for the same users', async () => {
+      const fullBatch = Array.from({ length: 1000 }, () => v4());
+      fileRepository.findUserIdsWithTrashedFiles
+        .mockResolvedValueOnce([10])
+        .mockResolvedValueOnce([]);
+      featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
+        [{ userId: 10, value: '2' }],
+      );
+      fileRepository.deleteExpiredTrashFilesByUsers
+        .mockResolvedValueOnce(fullBatch)
+        .mockResolvedValueOnce([v4()]);
+
+      const result = await processor.process(filesJob);
+
+      expect(
+        fileRepository.deleteExpiredTrashFilesByUsers,
+      ).toHaveBeenCalledTimes(2);
+      expect(result).toEqual(expect.objectContaining({ deleted: 1001 }));
+    });
+
+    it('When the retention cutoff is before the first deployment date, then it should skip the user', async () => {
+      (Time.daysAgo as jest.Mock).mockReturnValue(new Date('2026-03-01'));
+      fileRepository.findUserIdsWithTrashedFiles
+        .mockResolvedValueOnce([10])
+        .mockResolvedValueOnce([]);
+      featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
+        [{ userId: 10, value: '365' }],
+      );
+
+      await processor.process(filesJob);
+
+      expect(
+        fileRepository.deleteExpiredTrashFilesByUsers,
+      ).toHaveBeenCalledWith([], expect.any(Number));
+    });
+
+    it('When the time budget runs out mid chunk, then it should not advance the cursor', async () => {
+      const now = new Date('2026-10-20T10:00:00Z');
+      jest
+        .spyOn(Time, 'now')
+        .mockReturnValueOnce(now)
+        .mockReturnValueOnce(now)
+        .mockReturnValue(new Date('2026-10-20T11:00:00Z'));
+      fileRepository.findUserIdsWithTrashedFiles.mockResolvedValueOnce([10]);
+      featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
+        [{ userId: 10, value: '2' }],
+      );
+
+      const result = await processor.process(filesJob);
+
+      expect(
+        fileRepository.deleteExpiredTrashFilesByUsers,
+      ).not.toHaveBeenCalled();
+      expect(redisClient.set).not.toHaveBeenCalled();
+      expect(result).toEqual(
+        expect.objectContaining({ endCursor: 0, passCompleted: false }),
+      );
+    });
+
+    it('When processing folders, then it should use the folder repository', async () => {
+      const foldersJob = makeJob({ itemType: TrashCleanupItemType.Folders });
+      folderRepository.findUserIdsWithTrashedFolders
+        .mockResolvedValueOnce([10])
+        .mockResolvedValueOnce([]);
+      featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
+        [{ userId: 10, value: '2' }],
+      );
+      folderRepository.deleteExpiredTrashFoldersByUsers.mockResolvedValueOnce([
+        v4(),
+      ]);
+
+      const result = await processor.process(foldersJob);
+
+      expect(fileRepository.findUserIdsWithTrashedFiles).not.toHaveBeenCalled();
+      expect(result).toEqual(expect.objectContaining({ deleted: 1 }));
+    });
+
+    it('When deletion fails, then it should mark the execution as failed and rethrow', async () => {
+      const error = new Error('Query timed out');
+      fileRepository.findUserIdsWithTrashedFiles
+        .mockResolvedValueOnce([10])
+        .mockResolvedValueOnce([]);
+      featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
+        [{ userId: 10, value: '2' }],
+      );
+      fileRepository.deleteExpiredTrashFilesByUsers.mockRejectedValueOnce(
+        error,
+      );
+
+      await expect(processor.process(filesJob)).rejects.toThrow(error);
+
+      expect(jobExecutionRepository.markAsFailed).toHaveBeenCalledWith(
+        startedJob.id,
+        expect.objectContaining({ errorMessage: error.message }),
+      );
     });
   });
 });

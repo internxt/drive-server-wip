@@ -1820,63 +1820,89 @@ describe('SequelizeFolderRepository', () => {
     });
   });
 
-  describe('deleteExpiredTrashFoldersByTier', () => {
-    it('When expired trash folders exist, then it should return their uuids', async () => {
-      const folderUuids = [v4(), v4(), v4()];
-      const tierId = v4();
-      const cutoffDate = new Date('2026-02-08T00:00:00Z');
-      const limit = 100;
-
+  describe('findUserIdsWithTrashedFolders', () => {
+    it('When users with trashed folders exist, then it should return their ids', async () => {
+      const userIds = [1, 5, 9];
       jest
         .spyOn(folderModel.sequelize, 'query')
-        .mockResolvedValueOnce([
-          folderUuids.map((uuid) => ({ uuid })),
-          {},
-        ] as any);
+        .mockResolvedValueOnce(userIds.map((user_id) => ({ user_id })) as any);
 
-      const result = await (repository as any).deleteExpiredTrashFoldersByTier(
-        tierId,
-        cutoffDate,
-        limit,
-      );
+      const result = await repository.findUserIdsWithTrashedFolders(0, 500);
 
-      expect(result).toEqual(folderUuids);
+      expect(result).toEqual(userIds);
     });
 
-    it('When no expired trash folders exist, then it should return empty array', async () => {
+    it('When called, then it should pass the cursor and limit as replacements', async () => {
+      const afterUserId = 42;
+      const limit = 500;
       jest
         .spyOn(folderModel.sequelize, 'query')
-        .mockResolvedValueOnce([[], {}] as any);
+        .mockResolvedValueOnce([] as any);
 
-      const result = await (repository as any).deleteExpiredTrashFoldersByTier(
-        v4(),
-        Time.now('2026-02-08T00:00:00Z'),
-        100,
-      );
-
-      expect(result).toEqual([]);
-    });
-
-    it('When called, then it should pass tierId, cutoffDate and limit as replacements', async () => {
-      const tierId = v4();
-      const cutoffDate = Time.now('2026-02-08T00:00:00Z');
-      const limit = 50;
-
-      jest
-        .spyOn(folderModel.sequelize, 'query')
-        .mockResolvedValueOnce([[], {}] as any);
-
-      await (repository as any).deleteExpiredTrashFoldersByTier(
-        tierId,
-        cutoffDate,
-        limit,
-      );
+      await repository.findUserIdsWithTrashedFolders(afterUserId, limit);
 
       expect(folderModel.sequelize.query).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          replacements: { tierId, cutoffDate, limit },
-          transaction: expect.any(Object),
+          replacements: { afterUserId, limit },
+        }),
+      );
+    });
+  });
+
+  describe('deleteExpiredTrashFoldersByUsers', () => {
+    it('When expired trash folders exist, then it should return their uuids', async () => {
+      const uuids = [v4(), v4(), v4()];
+      const targets = [
+        { userId: 1, cutoffDate: new Date('2026-10-01T00:00:00Z') },
+      ];
+      jest
+        .spyOn(folderModel.sequelize, 'query')
+        .mockResolvedValueOnce([uuids.map((uuid) => ({ uuid })), {}] as any);
+
+      const result = await repository.deleteExpiredTrashFoldersByUsers(
+        targets,
+        1000,
+      );
+
+      expect(result).toEqual(uuids);
+    });
+
+    it('When there are no targets, then it should not query the database', async () => {
+      const querySpy = jest.spyOn(folderModel.sequelize, 'query');
+
+      const result = await repository.deleteExpiredTrashFoldersByUsers(
+        [],
+        1000,
+      );
+
+      expect(result).toEqual([]);
+      expect(querySpy).not.toHaveBeenCalled();
+    });
+
+    it('When called, then it should pass user ids, cutoff dates and limit as replacements', async () => {
+      const targets = [
+        { userId: 1, cutoffDate: new Date('2026-10-01T00:00:00Z') },
+        { userId: 2, cutoffDate: new Date('2026-09-15T00:00:00Z') },
+      ];
+      const limit = 1000;
+      jest
+        .spyOn(folderModel.sequelize, 'query')
+        .mockResolvedValueOnce([[], {}] as any);
+
+      await repository.deleteExpiredTrashFoldersByUsers(targets, limit);
+
+      expect(folderModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: {
+            userIds: [1, 2],
+            cutoffDates: [
+              '2026-10-01T00:00:00.000Z',
+              '2026-09-15T00:00:00.000Z',
+            ],
+            limit,
+          },
         }),
       );
     });

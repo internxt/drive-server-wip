@@ -23,3 +23,8 @@ export function getTrashNotExpiredCutoffDate(
   }
   return cutoffDate;
 }
+
+export interface TrashExpirationTarget {
+  userId: number;
+  cutoffDate: Date;
+}

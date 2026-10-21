@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
+import { type TrashExpirationTarget } from '../trash/trash-expiration.utils';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   type Includeable,
@@ -162,9 +163,12 @@ interface FolderRepository {
   ): Promise<void>;
   deleteById(folderId: FolderAttributes['id']): Promise<void>;
   deleteFoldersByUuid(folderUuids: string[]): Promise<number>;
-  deleteExpiredTrashFoldersByTier(
-    tierId: string,
-    cutoffDate: Date,
+  findUserIdsWithTrashedFolders(
+    afterUserId: number,
+    limit: number,
+  ): Promise<number[]>;
+  deleteExpiredTrashFoldersByUsers(
+    targets: TrashExpirationTarget[],
     limit: number,
   ): Promise<string[]>;
   clearOrphansFolders(userId: FolderAttributes['userId']): Promise<number>;
@@ -1014,36 +1018,81 @@ export class SequelizeFolderRepository implements FolderRepository {
     return updatedCount;
   }
 
-  async deleteExpiredTrashFoldersByTier(
-    tierId: string,
-    cutoffDate: Date,
+  async findUserIdsWithTrashedFolders(
+    afterUserId: number,
+    limit: number,
+  ): Promise<number[]> {
+    const results = await this.folderModel.sequelize.query<{ user_id: number }>(
+      `
+      WITH RECURSIVE users_with_trash AS (
+        (
+          SELECT fo.user_id, 1 AS n
+          FROM folders fo
+          WHERE fo.deleted = true AND fo.removed = false AND fo.user_id > :afterUserId
+          ORDER BY fo.user_id
+          LIMIT 1
+        )
+        UNION ALL
+        SELECT next_user.user_id, t.n + 1
+        FROM users_with_trash t
+        CROSS JOIN LATERAL (
+          SELECT fo.user_id
+          FROM folders fo
+          WHERE fo.deleted = true AND fo.removed = false AND fo.user_id > t.user_id
+          ORDER BY fo.user_id
+          LIMIT 1
+        ) next_user
+        WHERE t.n < :limit
+      )
+      SELECT user_id FROM users_with_trash ORDER BY user_id
+      `,
+      {
+        replacements: { afterUserId, limit },
+        type: QueryTypes.SELECT,
+      },
+    );
+    return results.map((r) => r.user_id);
+  }
+
+  async deleteExpiredTrashFoldersByUsers(
+    targets: TrashExpirationTarget[],
     limit: number,
   ): Promise<string[]> {
-    const [results] = await withQueryTimeout(
-      this.folderModel.sequelize,
-      120000,
-      async (transaction) => {
-        return this.folderModel.sequelize.query(
-          `
-          UPDATE folders
-          SET removed = true, removed_at = NOW(), updated_at = NOW()
-          WHERE uuid IN (
-            SELECT fo.uuid
-            FROM folders fo
-            JOIN users u ON u.id = fo.user_id AND u.tier_id = :tierId
-            WHERE fo.deleted = true
-              AND fo.removed = false
-              AND fo.updated_at <= :cutoffDate
-            LIMIT :limit
-          )
-          RETURNING uuid
-          `,
-          {
-            replacements: { tierId, cutoffDate, limit },
-            transaction,
-            type: QueryTypes.UPDATE,
-          },
-        );
+    if (targets.length === 0) {
+      return [];
+    }
+
+    const [results] = await this.folderModel.sequelize.query(
+      `
+      WITH expired AS (
+        SELECT e.uuid
+        FROM unnest(ARRAY[:userIds]::int[], ARRAY[:cutoffDates]::timestamptz[]) AS t(user_id, cutoff_date)
+        CROSS JOIN LATERAL (
+          SELECT fo.uuid
+          FROM folders fo
+          WHERE fo.user_id = t.user_id
+            AND fo.deleted = true
+            AND fo.removed = false
+            AND fo.updated_at <= t.cutoff_date
+          LIMIT :limit
+        ) e
+        LIMIT :limit
+      )
+      UPDATE folders fo
+      SET removed = true, removed_at = NOW(), updated_at = NOW()
+      FROM expired
+      WHERE fo.uuid = expired.uuid
+        AND fo.deleted = true
+        AND fo.removed = false
+      RETURNING fo.uuid
+      `,
+      {
+        replacements: {
+          userIds: targets.map((t) => t.userId),
+          cutoffDates: targets.map((t) => t.cutoffDate.toISOString()),
+          limit,
+        },
+        type: QueryTypes.UPDATE,
       },
     );
     return (results as { uuid: string }[]).map((r) => r.uuid);
