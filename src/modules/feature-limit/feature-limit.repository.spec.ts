@@ -99,6 +99,46 @@ describe('SequelizeFeatureLimitsRepository', () => {
     });
   });
 
+  describe('findEffectiveLimitValueByUserIds', () => {
+    it('When users are given, then it should return the effective limit value per user', async () => {
+      const rows = [
+        { userId: 1, value: '30' },
+        { userId: 2, value: null },
+      ];
+      jest
+        .spyOn(limitModel.sequelize, 'query')
+        .mockResolvedValueOnce(rows as any);
+
+      const result = await repository.findEffectiveLimitValueByUserIds(
+        [1, 2],
+        LimitLabels.TrashRetentionDays,
+      );
+
+      expect(result).toEqual(rows);
+      expect(limitModel.sequelize.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          replacements: {
+            userIds: [1, 2],
+            label: LimitLabels.TrashRetentionDays,
+          },
+        }),
+      );
+    });
+
+    it('When no users are given, then it should not query the database', async () => {
+      const querySpy = jest.spyOn(limitModel.sequelize, 'query');
+
+      const result = await repository.findEffectiveLimitValueByUserIds(
+        [],
+        LimitLabels.TrashRetentionDays,
+      );
+
+      expect(result).toEqual([]);
+      expect(querySpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('findLimitByLabelAndValue', () => {
     it('When limit is found by label and value, then it should return the Limit domain object', async () => {
       const mockLimitAttributes = createMock<Limitmodel>({

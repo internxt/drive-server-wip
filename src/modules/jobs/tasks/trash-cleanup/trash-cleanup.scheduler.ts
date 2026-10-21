@@ -2,11 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { SequelizeFeatureLimitsRepository } from '../../../feature-limit/feature-limit.repository';
-import { LimitLabels } from '../../../feature-limit/limits.enum';
 import { JobName } from '../../constants';
 
 export const TRASH_CLEANUP_QUEUE = 'trash-cleanup';
+
+export enum TrashCleanupItemType {
+  Files = 'files',
+  Folders = 'folders',
+}
 
 @Injectable()
 export class TrashCleanupScheduler {
@@ -14,36 +17,20 @@ export class TrashCleanupScheduler {
 
   constructor(
     @InjectQueue(TRASH_CLEANUP_QUEUE) private readonly queue: Queue,
-    private readonly featureLimitsRepository: SequelizeFeatureLimitsRepository,
   ) {}
 
   @Cron(CronExpression.EVERY_10_MINUTES, {
     name: JobName.EXPIRED_TRASH_ITEMS_CLEANUP,
   })
   async scheduleCleanup() {
-    const tierConfigs =
-      await this.featureLimitsRepository.findTiersWithLimitByLabel(
-        LimitLabels.TrashRetentionDays,
-      );
+    const itemTypes = Object.values(TrashCleanupItemType);
 
-    this.logger.log(
-      {
-        tierCount: tierConfigs.length,
-        tiers: tierConfigs.map((c) => ({
-          tierId: c.tier.id,
-          tierLabel: c.tier.label,
-          retentionDays: c.limit.value,
-        })),
-      },
-      'Enqueueing trash cleanup jobs for tiers.',
-    );
-
-    for (const { tier } of tierConfigs) {
+    for (const itemType of itemTypes) {
       await this.queue.add(
-        'process-tier',
-        { tierId: tier.id, tierName: tier.label },
+        `process-${itemType}`,
+        { itemType },
         {
-          jobId: `trash-cleanup:tier:${tier.id}`,
+          jobId: `trash-cleanup:${itemType}`,
           attempts: 3,
           backoff: { type: 'exponential', delay: 5_000 },
           removeOnComplete: true,
@@ -52,9 +39,6 @@ export class TrashCleanupScheduler {
       );
     }
 
-    this.logger.log(
-      { tierCount: tierConfigs.length },
-      'Trash cleanup jobs enqueued.',
-    );
+    this.logger.log({ itemTypes }, 'Trash cleanup jobs enqueued.');
   }
 }

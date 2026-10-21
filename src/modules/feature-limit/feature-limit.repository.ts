@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Sequelize } from 'sequelize';
+import { QueryTypes, Sequelize } from 'sequelize';
 import { TierModel } from './models/tier.model';
 import { Limitmodel } from './models/limit.model';
 import { Limit } from './domain/limit.domain';
 import { PaidPlansModel } from './models/paid-plans.model';
 import { Tier } from './domain/tier.domain';
-import { PLAN_FREE_TIER_ID } from './limits.enum';
+import { type LimitLabels, PLAN_FREE_TIER_ID } from './limits.enum';
 import { TierLimitsModel } from './models/tier-limits.model';
 import { UserOverriddenLimitModel } from './models/user-overridden-limit.model';
 
@@ -159,27 +159,45 @@ export class SequelizeFeatureLimitsRepository {
     return limit ? Limit.build(limit) : null;
   }
 
-  async findTiersWithLimitByLabel(
-    label: string,
-  ): Promise<Array<{ tier: Tier; limit: Limit }>> {
-    const tierLimits = await this.tierLimitsModel.findAll({
-      include: [
-        {
-          model: TierModel,
-          required: true,
-        },
-        {
-          model: Limitmodel,
-          where: { label },
-          required: true,
-        },
-      ],
-    });
+  async findEffectiveLimitValueByUserIds(
+    userIds: number[],
+    label: LimitLabels,
+  ): Promise<Array<{ userId: number; value: string | null }>> {
+    if (userIds.length === 0) {
+      return [];
+    }
 
-    return tierLimits.map((tl) => ({
-      tier: Tier.build(tl.tier),
-      limit: Limit.build(tl.limit),
-    }));
+    return this.limitModel.sequelize.query<{
+      userId: number;
+      value: string | null;
+    }>(
+      `
+      SELECT
+        u.id AS "userId",
+        COALESCE(
+          (
+            SELECT l.value
+            FROM user_overridden_limits uol
+            JOIN limits l ON l.id = uol.limit_id AND l.label = :label
+            WHERE uol.user_id = u.uuid
+            LIMIT 1
+          ),
+          (
+            SELECT l.value
+            FROM tiers_limits tl
+            JOIN limits l ON l.id = tl.limit_id AND l.label = :label
+            WHERE tl.tier_id = u.tier_id
+            LIMIT 1
+          )
+        ) AS value
+      FROM users u
+      WHERE u.id IN (:userIds)
+      `,
+      {
+        replacements: { userIds, label },
+        type: QueryTypes.SELECT,
+      },
+    );
   }
 
   async findLimitByLabelAndValue(
