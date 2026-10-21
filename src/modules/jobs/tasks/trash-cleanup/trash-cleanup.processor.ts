@@ -35,7 +35,6 @@ export class TrashCleanupProcessor extends WorkerHost {
   private readonly firstDeploymentDate = TRASH_EXPIRATION_START_DATE;
   private readonly usersPerChunk = 500;
   private readonly deleteBatchSize = 250;
-  // Spreads WAL and I/O so the job does not slow down user writes
   private readonly pauseBetweenBatchesMs = 500;
   // Keeps a single run from going on indefinitely
   private readonly timeBudgetMinutes = 30;
@@ -155,7 +154,6 @@ export class TrashCleanupProcessor extends WorkerHost {
       if (Time.now() >= deadline) {
         return { deleted, completed: false };
       }
-      // Selecting first keeps row locks limited to the short UPDATE by uuid
       expiredUuids = await this.findExpiredUuids(itemType, targets);
       if (expiredUuids.length === 0) {
         break;
