@@ -1,3 +1,4 @@
+import { setTimeout } from 'node:timers/promises';
 import { Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { type Job } from 'bullmq';
@@ -25,7 +26,7 @@ export interface TrashCleanupJobData {
 export const TRASH_CLEANUP_CURSOR_KEY_PREFIX = 'trash-cleanup:cursor:';
 
 @Processor(TRASH_CLEANUP_QUEUE, {
-  concurrency: 2,
+  concurrency: 1,
   stalledInterval: 30_000,
   maxStalledCount: 2,
 })
@@ -33,7 +34,9 @@ export class TrashCleanupProcessor extends WorkerHost {
   private readonly logger = new Logger(TrashCleanupProcessor.name);
   private readonly firstDeploymentDate = TRASH_EXPIRATION_START_DATE;
   private readonly usersPerChunk = 500;
-  private readonly deleteBatchSize = 1000;
+  private readonly deleteBatchSize = 250;
+  // Spreads WAL and I/O so the job does not slow down user writes
+  private readonly pauseBetweenBatchesMs = 500;
   // Keeps a single run from going on indefinitely
   private readonly timeBudgetMinutes = 30;
 
@@ -154,6 +157,11 @@ export class TrashCleanupProcessor extends WorkerHost {
       }
       deletedUuids = await this.deleteBatch(itemType, targets);
       deleted += deletedUuids.length;
+
+      if (deletedUuids.length > 0) {
+        this.logger.log({ itemType, deletedUuids }, 'Batch of items deleted.');
+        await this.pauseBetweenBatches();
+      }
     } while (deletedUuids.length === this.deleteBatchSize);
 
     return { deleted, completed: true };
@@ -211,6 +219,10 @@ export class TrashCleanupProcessor extends WorkerHost {
           targets,
           this.deleteBatchSize,
         );
+  }
+
+  private pauseBetweenBatches(): Promise<void> {
+    return setTimeout(this.pauseBetweenBatchesMs);
   }
 
   private async getCursor(itemType: TrashCleanupItemType): Promise<number> {

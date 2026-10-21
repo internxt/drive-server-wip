@@ -28,6 +28,7 @@ describe('TrashCleanupProcessor', () => {
   let folderRepository: DeepMocked<SequelizeFolderRepository>;
   let featureLimitsRepository: DeepMocked<SequelizeFeatureLimitsRepository>;
   let redisClient: { get: jest.Mock; set: jest.Mock };
+  let pauseSpy: jest.SpyInstance;
 
   const startedJob = { id: 'exec-job-1' } as JobExecutionModel;
   const filesJob = makeJob({ itemType: TrashCleanupItemType.Files });
@@ -55,6 +56,9 @@ describe('TrashCleanupProcessor', () => {
 
     jobExecutionRepository.startJob.mockResolvedValue(startedJob);
     jest.spyOn(Time, 'daysAgo').mockReturnValue(new Date('2026-10-01'));
+    pauseSpy = jest
+      .spyOn(processor as any, 'pauseBetweenBatches')
+      .mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -149,7 +153,7 @@ describe('TrashCleanupProcessor', () => {
     });
 
     it('When a full batch is deleted, then it should keep deleting for the same users', async () => {
-      const fullBatch = Array.from({ length: 1000 }, () => v4());
+      const fullBatch = Array.from({ length: 250 }, () => v4());
       fileRepository.findUserIdsWithTrashedFiles
         .mockResolvedValueOnce([10])
         .mockResolvedValueOnce([]);
@@ -165,7 +169,46 @@ describe('TrashCleanupProcessor', () => {
       expect(
         fileRepository.deleteExpiredTrashFilesByUsers,
       ).toHaveBeenCalledTimes(2);
-      expect(result).toEqual(expect.objectContaining({ deleted: 1001 }));
+      expect(
+        fileRepository.deleteExpiredTrashFilesByUsers,
+      ).toHaveBeenCalledWith(expect.any(Array), 250);
+      expect(pauseSpy).toHaveBeenCalledTimes(2);
+      expect(result).toEqual(expect.objectContaining({ deleted: 251 }));
+    });
+
+    it('When a batch is deleted, then it should log the deleted uuids', async () => {
+      const deletedUuids = [v4(), v4()];
+      fileRepository.findUserIdsWithTrashedFiles
+        .mockResolvedValueOnce([10])
+        .mockResolvedValueOnce([]);
+      featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
+        [{ userId: 10, value: '2' }],
+      );
+      fileRepository.deleteExpiredTrashFilesByUsers.mockResolvedValueOnce(
+        deletedUuids,
+      );
+      const logSpy = jest.spyOn((processor as any).logger, 'log');
+
+      await processor.process(filesJob);
+
+      expect(logSpy).toHaveBeenCalledWith(
+        { itemType: TrashCleanupItemType.Files, deletedUuids },
+        'Batch of items deleted.',
+      );
+    });
+
+    it('When a batch deletes nothing, then it should not pause', async () => {
+      fileRepository.findUserIdsWithTrashedFiles
+        .mockResolvedValueOnce([10])
+        .mockResolvedValueOnce([]);
+      featureLimitsRepository.findEffectiveLimitValueByUserIds.mockResolvedValueOnce(
+        [{ userId: 10, value: '2' }],
+      );
+      fileRepository.deleteExpiredTrashFilesByUsers.mockResolvedValueOnce([]);
+
+      await processor.process(filesJob);
+
+      expect(pauseSpy).not.toHaveBeenCalled();
     });
 
     it('When the retention cutoff is before the first deployment date, then it should skip the user', async () => {

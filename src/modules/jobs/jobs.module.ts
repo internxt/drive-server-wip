@@ -20,7 +20,11 @@ import { MailerModule } from '../../externals/mailer/mailer.module';
 import { FeatureLimitModule } from '../feature-limit/feature-limit.module';
 import { SecurityModule } from '../security/security.module';
 import { DeleteExpiredFileVersionsTask } from './tasks/delete-expired-file-versions.task';
-import { TRASH_CLEANUP_QUEUE } from './tasks/trash-cleanup/trash-cleanup.scheduler';
+import {
+  TrashCleanupScheduler,
+  TRASH_CLEANUP_QUEUE,
+} from './tasks/trash-cleanup/trash-cleanup.scheduler';
+import { TrashCleanupProcessor } from './tasks/trash-cleanup/trash-cleanup.processor';
 import {
   HardDeleteOldFilesScheduler,
   HARD_DELETE_OLD_FILES_QUEUE,
@@ -65,6 +69,8 @@ import { buildBullConnectionOptions } from '../../lib/bull-connection';
     RetroActiveDeleteItemsCleanupTask,
     InactiveUsersEmailTask,
     DeleteExpiredFileVersionsTask,
+    TrashCleanupScheduler,
+    TrashCleanupProcessor,
     HardDeleteOldFilesScheduler,
     HardDeleteOldFilesProcessor,
     CleanupDeletedFilesTableScheduler,
