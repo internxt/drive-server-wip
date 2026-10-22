@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { type Job } from 'bullmq';
 import {
+  APN_REFRESH_JOB,
   APN_REFRESH_QUEUE,
   type ApnRefreshJobData,
   StorageNotificationService,
@@ -30,6 +31,10 @@ export class ApnRefreshProcessor extends WorkerHost {
         'APN refresh job failed.',
       );
       throw error;
+    }
+
+    if (job.name === APN_REFRESH_JOB) {
+      await this.storageNotificationService.cancelApnRefreshMaxWait(userUuid);
     }
   }
 }

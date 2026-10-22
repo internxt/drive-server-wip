@@ -5,6 +5,8 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { type Queue } from 'bullmq';
 import {
   APN_REFRESH_DEBOUNCE_MS,
+  APN_REFRESH_MAX_WAIT_JOB,
+  APN_REFRESH_MAX_WAIT_MS,
   APN_REFRESH_QUEUE,
   StorageNotificationService,
 } from './storage.notifications.service';
@@ -455,7 +457,7 @@ describe('StorageNotificationService', () => {
   describe('enqueueApnRefresh', () => {
     const user = newUser();
 
-    it('When called, then it should enqueue a deduplicated delayed job for the user', () => {
+    it('When called, then it should enqueue a debounced job that is replaced by later events', () => {
       service.enqueueApnRefresh(user.uuid);
 
       expect(apnRefreshQueue.add).toHaveBeenCalledWith(
@@ -463,11 +465,28 @@ describe('StorageNotificationService', () => {
         { userUuid: user.uuid },
         expect.objectContaining({
           delay: APN_REFRESH_DEBOUNCE_MS,
-          deduplication: { id: user.uuid },
+          deduplication: {
+            id: user.uuid,
+            replace: true,
+            keepLastIfActive: true,
+          },
           attempts: 3,
           backoff: { type: 'exponential', delay: 5_000 },
           removeOnComplete: true,
           removeOnFail: true,
+        }),
+      );
+    });
+
+    it('When called, then it should enqueue a max wait job that is not replaced by later events', () => {
+      service.enqueueApnRefresh(user.uuid);
+
+      expect(apnRefreshQueue.add).toHaveBeenCalledWith(
+        APN_REFRESH_MAX_WAIT_JOB,
+        { userUuid: user.uuid },
+        expect.objectContaining({
+          delay: APN_REFRESH_MAX_WAIT_MS,
+          deduplication: { id: `${user.uuid}:max-wait` },
         }),
       );
     });
@@ -500,6 +519,41 @@ describe('StorageNotificationService', () => {
       expect(() =>
         serviceWithoutQueue.enqueueApnRefresh(user.uuid),
       ).not.toThrow();
+    });
+  });
+
+  describe('cancelApnRefreshMaxWait', () => {
+    const user = newUser();
+
+    it('When a max wait job is pending, then it should remove it', async () => {
+      apnRefreshQueue.getDeduplicationJobId.mockResolvedValueOnce('job-id');
+
+      await service.cancelApnRefreshMaxWait(user.uuid);
+
+      expect(apnRefreshQueue.getDeduplicationJobId).toHaveBeenCalledWith(
+        `${user.uuid}:max-wait`,
+      );
+      expect(apnRefreshQueue.remove).toHaveBeenCalledWith('job-id');
+    });
+
+    it('When there is no max wait job, then it should not remove anything', async () => {
+      apnRefreshQueue.getDeduplicationJobId.mockResolvedValueOnce(null);
+
+      await service.cancelApnRefreshMaxWait(user.uuid);
+
+      expect(apnRefreshQueue.remove).not.toHaveBeenCalled();
+    });
+
+    it('When the queue fails, then it should log the error instead of throwing', async () => {
+      const error = new Error('Queue unavailable');
+      apnRefreshQueue.getDeduplicationJobId.mockRejectedValueOnce(error);
+      const errorSpy = jest.spyOn(loggerMock, 'error');
+
+      await expect(
+        service.cancelApnRefreshMaxWait(user.uuid),
+      ).resolves.toBeUndefined();
+
+      expect(errorSpy).toHaveBeenCalled();
     });
   });
 
