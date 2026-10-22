@@ -35,7 +35,6 @@ import { CacheManagerModule } from './modules/cache-manager/cache-manager.module
 import { ReferralModule } from './modules/referral/referral.module';
 import { HealthModule } from './infrastructure/health/health.module';
 import { ClsModule } from 'nestjs-cls';
-import { initAsyncLocalStorage } from './common/async-local-storage/async-local-storage';
 
 const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
 const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
@@ -44,7 +43,7 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
   imports: [
     ClsModule.forRoot({
       global: true,
-      middleware: { mount: true, setup: initAsyncLocalStorage },
+      middleware: { mount: false },
     }),
     LoggerModule.forRoot({
       pinoHttp: {
