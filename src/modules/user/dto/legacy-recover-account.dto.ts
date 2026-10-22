@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, ValidateNested } from 'class-validator';
+import { IsNotEmpty, IsOptional, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { IsEncryptedMnemonic } from '../../../externals/crypto/decorators/is-encrypted-mnemonic.decorator';
 import {
@@ -43,9 +43,11 @@ class RecoverAccountEccKeysDto extends RecoverAccountKeysPairDto {
   @ApiProperty({
     example: 'revocation_key',
     description: 'Key used for revocation',
+    required: false,
+    deprecated: true,
   })
-  @IsNotEmpty()
-  revocationKey: string;
+  @IsOptional()
+  revocationKey?: string;
 }
 
 class NewGeneratedKeysDto {
