@@ -463,7 +463,7 @@ describe('StorageNotificationService', () => {
         { userUuid: user.uuid },
         expect.objectContaining({
           delay: APN_REFRESH_DEBOUNCE_MS,
-          deduplication: { id: user.uuid },
+          deduplication: { id: user.uuid, keepLastIfActive: true },
           attempts: 3,
           backoff: { type: 'exponential', delay: 5_000 },
           removeOnComplete: true,

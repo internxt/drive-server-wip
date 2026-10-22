@@ -235,7 +235,7 @@ export class StorageNotificationService {
         { userUuid },
         {
           delay: APN_REFRESH_DEBOUNCE_MS,
-          deduplication: { id: userUuid },
+          deduplication: { id: userUuid, keepLastIfActive: true },
           attempts: 3,
           backoff: { type: 'exponential', delay: 5_000 },
           removeOnComplete: true,
