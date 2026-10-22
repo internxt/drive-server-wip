@@ -11,7 +11,7 @@ import { type FileDto } from '../../modules/file/dto/responses/file.dto';
 import { type ItemToTrashDto } from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
 
 export const APN_REFRESH_QUEUE = 'apn-refresh';
-export const APN_REFRESH_DEBOUNCE_MS = 15_000;
+export const APN_REFRESH_DEBOUNCE_MS = 30_000;
 
 export interface ApnRefreshJobData {
   userUuid: string;
@@ -235,7 +235,7 @@ export class StorageNotificationService {
         { userUuid },
         {
           delay: APN_REFRESH_DEBOUNCE_MS,
-          deduplication: { id: userUuid },
+          deduplication: { id: userUuid, keepLastIfActive: true },
           attempts: 3,
           backoff: { type: 'exponential', delay: 5_000 },
           removeOnComplete: true,
