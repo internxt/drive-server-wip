@@ -11,17 +11,7 @@ import { type FileDto } from '../../modules/file/dto/responses/file.dto';
 import { type ItemToTrashDto } from '../../modules/trash/dto/controllers/move-items-to-trash.dto';
 
 export const APN_REFRESH_QUEUE = 'apn-refresh';
-export const APN_REFRESH_JOB = 'refresh';
-export const APN_REFRESH_MAX_WAIT_JOB = 'refresh-max-wait';
 export const APN_REFRESH_DEBOUNCE_MS = 30_000;
-export const APN_REFRESH_MAX_WAIT_MS = 60_000;
-
-const APN_REFRESH_JOB_OPTIONS = {
-  attempts: 3,
-  backoff: { type: 'exponential', delay: 5_000 },
-  removeOnComplete: true,
-  removeOnFail: true,
-};
 
 export interface ApnRefreshJobData {
   userUuid: string;
@@ -239,63 +229,22 @@ export class StorageNotificationService {
       return;
     }
 
-    // Debounce: each event pushes the delayed job back, so it fires once activity stops
     this.apnRefreshQueue
       .add(
-        APN_REFRESH_JOB,
+        'refresh',
         { userUuid },
         {
-          ...APN_REFRESH_JOB_OPTIONS,
           delay: APN_REFRESH_DEBOUNCE_MS,
-          deduplication: {
-            id: userUuid,
-            replace: true,
-            keepLastIfActive: true,
-          },
+          deduplication: { id: userUuid },
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5_000 },
+          removeOnComplete: true,
+          removeOnFail: true,
         },
       )
-      .catch((error) => this.logEnqueueError(userUuid, error));
-
-    // Max wait: guarantees a refresh during continuous activity
-    this.apnRefreshQueue
-      .add(
-        APN_REFRESH_MAX_WAIT_JOB,
-        { userUuid },
-        {
-          ...APN_REFRESH_JOB_OPTIONS,
-          delay: APN_REFRESH_MAX_WAIT_MS,
-          deduplication: { id: this.getMaxWaitDeduplicationId(userUuid) },
-        },
-      )
-      .catch((error) => this.logEnqueueError(userUuid, error));
-  }
-
-  async cancelApnRefreshMaxWait(userUuid: string) {
-    if (!this.apnRefreshQueue) {
-      return;
-    }
-
-    try {
-      const jobId = await this.apnRefreshQueue.getDeduplicationJobId(
-        this.getMaxWaitDeduplicationId(userUuid),
-      );
-      if (jobId) {
-        await this.apnRefreshQueue.remove(jobId);
-      }
-    } catch (error) {
-      this.logger.error(
-        { userUuid, error },
-        'Error cancelling APN refresh max wait.',
-      );
-    }
-  }
-
-  private logEnqueueError(userUuid: string, error: unknown) {
-    this.logger.error({ userUuid, error }, 'Error enqueuing APN refresh.');
-  }
-
-  private getMaxWaitDeduplicationId(userUuid: string) {
-    return `${userUuid}:max-wait`;
+      .catch((error) => {
+        this.logger.error({ userUuid, error }, 'Error enqueuing APN refresh.');
+      });
   }
 
   async getTokensAndSendApnNotification(
