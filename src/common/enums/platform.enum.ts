@@ -4,6 +4,7 @@ export enum ClientEnum {
   DesktopLegacy = 'drive-desktop',
   DesktopWindows = 'drive-desktop-windows',
   DesktopMacos = 'drive-desktop-macos',
+  DesktopLinux = 'drive-desktop-linux',
   Cli = 'internxt-cli',
   CliLegacy = '@internxt/cli',
   Rclone = 'rclone-adapter',
