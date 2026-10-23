@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "",
   "author": "Internxt",
-  "license": "MIT",
+  "license": "AGPL-3.0",
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "nest build",
