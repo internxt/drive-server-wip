@@ -1606,15 +1606,17 @@ export class SequelizeFolderRepository implements FolderRepository {
       this.folderModel.sequelize,
       3000,
       async (transaction) => {
-        const [[folder]] = await this.folderModel.sequelize.query(
+        const [folder] = await this.folderModel.sequelize.query(
           'SELECT * FROM get_folder_by_path (:userId, :path, :rootFolderUuid)',
           {
             replacements: { userId, path, rootFolderUuid },
             transaction,
+            model: this.folderModel,
+            mapToModel: true,
           },
         );
 
-        return (folder as Folder) ?? null;
+        return folder ? this.toDomain(folder) : null;
       },
     );
   }

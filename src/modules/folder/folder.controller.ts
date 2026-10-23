@@ -881,10 +881,11 @@ export class FolderController {
   }
 
   @Get('/meta')
+  @ApiOkResponse({ type: FolderDto })
   async getFolderMetaByPath(
     @UserDecorator() user: User,
     @Query('path') folderPath: string,
-  ) {
+  ): Promise<FolderDto> {
     if (
       typeof folderPath !== 'string' ||
       folderPath.length === 0 ||
@@ -905,7 +906,7 @@ export class FolderController {
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }
-    return folder;
+    return { ...folder, status: folder.getFolderStatus() };
   }
 
   @Delete('/:uuid')
