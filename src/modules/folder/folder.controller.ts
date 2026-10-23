@@ -47,6 +47,8 @@ import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { UniqueConstraintFilter } from '../../common/filters/unique-constraint.filter';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import { Client } from '../../common/decorators/client.decorator';
+import { ClientEnum } from '../../common/enums/platform.enum';
+import { getAsyncLocalStorage } from '../../common/async-local-storage/async-local-storage';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
@@ -200,6 +202,12 @@ export class FolderController {
     @Param('uuid', ValidateUUIDPipe) folderUuid: string,
     @Query() query: GetFilesInFoldersDto,
   ): Promise<FilesDto> {
+    // These clients never read thumbnails, sharings or isFavorite
+    const skipThumbnailsSharingsAndFavorites = [
+      ClientEnum.Cli,
+      ClientEnum.Rclone,
+      ClientEnum.DesktopMacos,
+    ].includes(getAsyncLocalStorage()?.client);
     const files = await this.fileUseCases.getFiles(
       user.id,
       {
@@ -210,7 +218,10 @@ export class FolderController {
         limit: query.limit,
         offset: query.offset,
         sort: query.sort && query.order && [[query.sort, query.order]],
-        favoriteUserUuid: user.uuid,
+        favoriteUserUuid: skipThumbnailsSharingsAndFavorites
+          ? undefined
+          : user.uuid,
+        withoutThumbnails: skipThumbnailsSharingsAndFavorites,
       },
     );
 
@@ -306,6 +317,12 @@ export class FolderController {
     @Param('uuid', ValidateUUIDPipe) folderUuid: string,
     @Query() query: GetFoldersInFoldersDto,
   ): Promise<FoldersDto> {
+    // These clients never read sharings or isFavorite
+    const skipSharingsAndFavorites = [
+      ClientEnum.Cli,
+      ClientEnum.Rclone,
+      ClientEnum.DesktopMacos,
+    ].includes(getAsyncLocalStorage()?.client);
     const folders = await this.folderUseCases.getFolders(
       user.id,
       {
@@ -317,7 +334,8 @@ export class FolderController {
         limit: query.limit,
         offset: query.offset,
         sort: query.sort && query.order && [[query.sort, query.order]],
-        favoriteUserUuid: user.uuid,
+        favoriteUserUuid: skipSharingsAndFavorites ? undefined : user.uuid,
+        withoutSharings: skipSharingsAndFavorites,
       },
     );
 

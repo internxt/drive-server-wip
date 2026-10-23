@@ -316,6 +316,7 @@ describe('FolderUseCases', () => {
         0,
         undefined,
         user.uuid,
+        undefined,
       );
     });
   });
