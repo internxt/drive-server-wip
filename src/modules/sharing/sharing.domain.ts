@@ -2,10 +2,14 @@ import type { File } from '../file/file.domain';
 import type { Folder } from '../folder/folder.domain';
 import type { User } from '../user/user.domain';
 import type { WorkspaceTeam } from '../workspaces/domains/workspace-team.domain';
+import { Time } from '../../lib/time';
 
 export const HYBRID_ALGORITHM = 'hybrid';
 export const HYBRID_ALGORITHM_WITH_BUCKET_KEY = 'hybrid-v2';
 
+const isHybridAlgorithm = (encryptionAlgorithm: string): boolean =>
+  encryptionAlgorithm === HYBRID_ALGORITHM ||
+  encryptionAlgorithm === HYBRID_ALGORITHM_WITH_BUCKET_KEY;
 
 export type Item = File | Folder;
 type ItemId = File['uuid'] | Folder['uuid'];
@@ -47,6 +51,7 @@ export interface SharingAttributes {
   encryptionKey: string;
   encryptionAlgorithm: string;
   type: SharingType;
+  expirationAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -94,6 +99,7 @@ export class Sharing implements SharingAttributes {
   encryptedCode?: string;
   encryptedPassword?: string;
   type: SharingType;
+  expirationAt?: Date | null;
 
   folder?: Folder;
   file?: File;
@@ -118,6 +124,7 @@ export class Sharing implements SharingAttributes {
     this.encryptionAlgorithm = attributes.encryptionAlgorithm;
     this.encryptedCode = attributes.encryptedCode;
     this.encryptedPassword = attributes.encryptedPassword;
+    this.expirationAt = attributes.expirationAt;
     this.createdAt = attributes.createdAt;
     this.updatedAt = attributes.updatedAt;
 
@@ -143,11 +150,15 @@ export class Sharing implements SharingAttributes {
   }
 
   isHybrid(): boolean {
-    return this.encryptionAlgorithm === HYBRID_ALGORITHM || this.encryptionAlgorithm === HYBRID_ALGORITHM_WITH_BUCKET_KEY;
+    return isHybridAlgorithm(this.encryptionAlgorithm);
   }
 
   isProtected(): boolean {
     return this.encryptedPassword !== null;
+  }
+
+  isExpired(now = Time.now()): boolean {
+    return !!this.expirationAt && this.expirationAt.getTime() <= now.getTime();
   }
 }
 
@@ -277,7 +288,7 @@ export class SharingInvite implements SharingInviteAttributes {
   }
 
   isHybrid(): boolean {
-    return this.encryptionAlgorithm === HYBRID_ALGORITHM || this.encryptionAlgorithm === HYBRID_ALGORITHM_WITH_BUCKET_KEY;
+    return isHybridAlgorithm(this.encryptionAlgorithm);
   }
 
   toJSON(): SharingInviteAttributes {

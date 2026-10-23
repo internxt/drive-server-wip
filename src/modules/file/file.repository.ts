@@ -715,7 +715,7 @@ export class SequelizeFileRepository implements FileRepository {
               {
                 separate: true,
                 model: SharingModel,
-                attributes: ['type', 'id'],
+                attributes: ['type', 'id', 'expirationAt'],
                 required: false,
               },
             ]
@@ -938,7 +938,7 @@ export class SequelizeFileRepository implements FileRepository {
         {
           separate: true,
           model: SharingModel,
-          attributes: ['type', 'id'],
+          attributes: ['type', 'id', 'expirationAt'],
           required: false,
         },
       ],
@@ -1060,7 +1060,7 @@ export class SequelizeFileRepository implements FileRepository {
         {
           separate: true,
           model: SharingModel,
-          attributes: ['type', 'id'],
+          attributes: ['type', 'id', 'expirationAt'],
           required: false,
         },
         ...this.favoriteInclude(favoriteUserUuid),
@@ -1092,7 +1092,7 @@ export class SequelizeFileRepository implements FileRepository {
           {
             separate: true,
             model: SharingModel,
-            attributes: ['type', 'id'],
+            attributes: ['type', 'id', 'expirationAt'],
             required: false,
           },
         ]
@@ -1143,7 +1143,7 @@ export class SequelizeFileRepository implements FileRepository {
         {
           separate: true,
           model: SharingModel,
-          attributes: ['type', 'id'],
+          attributes: ['type', 'id', 'expirationAt'],
           required: false,
         },
         {
