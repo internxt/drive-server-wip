@@ -1,4 +1,9 @@
-import { ClsServiceManager, type ClsService, type ClsStore } from 'nestjs-cls';
+import {
+  ClsMiddleware,
+  ClsServiceManager,
+  type ClsService,
+  type ClsStore,
+} from 'nestjs-cls';
 import * as semver from 'semver';
 import { getClientIdFromHeaders } from '../decorators/client.decorator';
 import { ClientEnum } from '../enums/platform.enum';
@@ -26,6 +31,10 @@ export const initAsyncLocalStorage = (
     : null;
   cls.set('version', version);
 };
+
+// Mounted without path so New Relic does not prepend the global prefix to transaction names
+export const asyncLocalStorageMiddleware = () =>
+  new ClsMiddleware({ setup: initAsyncLocalStorage }).use;
 
 export const getAsyncLocalStorage = (): AsyncLocalStorageData | null => {
   const cls = ClsServiceManager.getClsService<AsyncLocalStorageData>();

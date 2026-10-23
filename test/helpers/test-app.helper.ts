@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { v4 } from 'uuid';
 import { AppModule } from '../../src/app.module';
+import { asyncLocalStorageMiddleware } from '../../src/common/async-local-storage/async-local-storage';
 import { TransformInterceptor } from '../../src/lib/transform.interceptor';
 import { AuthGuard } from '../../src/modules/auth/auth.guard';
 import { BridgeService } from '../../src/externals/bridge/bridge.service';
@@ -75,6 +76,7 @@ export async function createTestApp(
     .useClass(MockNotificationListener)
     .compile();
   const app = moduleFixture.createNestApplication<NestExpressApplication>();
+  app.use(asyncLocalStorageMiddleware());
   if (enableAuthGuard) {
     const reflector = app.get(Reflector);
     app.useGlobalGuards(new AuthGuard(reflector));
