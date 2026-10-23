@@ -716,7 +716,7 @@ describe('File module', () => {
         expect(syncedFile.name).toBe(file.plainName);
       });
 
-      it('When a client without a name rule syncs, then name is encrypted', async () => {
+      it('When a client without a name rule syncs, then name is the plain name', async () => {
         const headers = {
           'internxt-client': ClientEnum.Web,
           'internxt-version': '99.0.0',
@@ -724,13 +724,13 @@ describe('File module', () => {
 
         const syncedFile = await requestSyncedFile(headers);
 
-        expect(syncedFile.name).not.toBe(file.plainName);
+        expect(syncedFile.name).toBe(file.plainName);
       });
 
-      it('When the request has no client headers, then name is encrypted', async () => {
+      it('When the request has no client headers, then name is the plain name', async () => {
         const syncedFile = await requestSyncedFile({});
 
-        expect(syncedFile.name).not.toBe(file.plainName);
+        expect(syncedFile.name).toBe(file.plainName);
       });
     });
   });

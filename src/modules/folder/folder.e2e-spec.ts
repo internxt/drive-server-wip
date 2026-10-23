@@ -19,7 +19,6 @@ import {
   type TestUserContext,
 } from '../../../test/helpers/user.helper';
 import { createTestApp } from '../../../test/helpers/test-app.helper';
-import { AesService } from '../../externals/crypto/aes';
 import { UniqueConstraintFilter } from '../../common/filters/unique-constraint.filter';
 
 describe('Folder module', () => {
@@ -121,14 +120,8 @@ describe('Folder module', () => {
         userId: file.userId,
         size: file.size,
         type: file.type,
+        name: file.plainName,
       });
-
-      const aes = new AesService(process.env.CRYPTO_SECRET2);
-      const decryptedName = aes.decrypt(
-        response.body.files[0].name,
-        response.body.files[0].folderId,
-      );
-      expect(decryptedName).toEqual(file.plainName);
     });
 
     it('When user does not match the folder owner, then it should return nothing', async () => {
