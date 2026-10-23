@@ -628,7 +628,10 @@ describe('FolderController', () => {
         userMocked,
         folderPath,
       );
-      expect(result).toEqual(expectedFolder);
+      expect(result).toEqual({
+        ...expectedFolder,
+        status: expectedFolder.getFolderStatus(),
+      });
     });
 
     it('When get folder metadata by path is requested with a valid path that not exists, then it should throw a not found error', async () => {

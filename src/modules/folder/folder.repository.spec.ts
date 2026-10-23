@@ -1364,6 +1364,47 @@ describe('SequelizeFolderRepository', () => {
     });
   });
 
+  describe('getFolderByPath', () => {
+    it('When the path resolves to a folder, then it should return it as a domain folder', async () => {
+      const user = newUser();
+      const rootFolderUuid = v4();
+      const path = '/folder1';
+      const folderInstance = { toJSON: () => ({ ...folder }) };
+
+      jest
+        .spyOn(folderModel.sequelize, 'query')
+        .mockResolvedValueOnce([folderInstance] as any);
+
+      const result = await repository.getFolderByPath(
+        user.id,
+        path,
+        rootFolderUuid,
+      );
+
+      expect(folderModel.sequelize.query).toHaveBeenCalledWith(
+        'SELECT * FROM get_folder_by_path (:userId, :path, :rootFolderUuid)',
+        expect.objectContaining({
+          replacements: { userId: user.id, path, rootFolderUuid },
+          model: folderModel,
+          mapToModel: true,
+        }),
+      );
+      expect(result).toBeInstanceOf(Folder);
+      expect(result.uuid).toBe(folder.uuid);
+      expect(result.plainName).toBe(folder.plainName);
+    });
+
+    it('When the path does not resolve to a folder, then it should return null', async () => {
+      jest
+        .spyOn(folderModel.sequelize, 'query')
+        .mockResolvedValueOnce([] as any);
+
+      const result = await repository.getFolderByPath(1, '/missing', v4());
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe('getFoldersCountWhere', () => {
     it('When counting folders with conditions, then it should return count', async () => {
       const whereConditions = { userId: 1, deleted: false };
