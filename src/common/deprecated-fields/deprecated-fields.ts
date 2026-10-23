@@ -36,6 +36,12 @@ const DEPRECATION_RULES: Record<
     [ClientEnum.Rclone]: {
       mode: DeprecationMode.PLAIN,
     },
+    // Linux backups decrypt file.name, so it stays encrypted for every version.
+    // Set minVersion to the first release that reads plainName instead.
+    [ClientEnum.DesktopLinux]: {
+      minVersion: '99.0.0',
+      mode: DeprecationMode.PLAIN,
+    },
   },
 };
 

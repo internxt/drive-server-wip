@@ -716,6 +716,17 @@ describe('File module', () => {
         expect(syncedFile.name).toBe(file.plainName);
       });
 
+      it('When Linux desktop syncs, then name is encrypted', async () => {
+        const headers = {
+          'internxt-client': ClientEnum.DesktopLinux,
+          'internxt-version': '2.6.2',
+        };
+
+        const syncedFile = await requestSyncedFile(headers);
+
+        expect(syncedFile.name).not.toBe(file.plainName);
+      });
+
       it('When a client without a name rule syncs, then name is the plain name', async () => {
         const headers = {
           'internxt-client': ClientEnum.Web,
