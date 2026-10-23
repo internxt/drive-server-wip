@@ -17,8 +17,7 @@ import configuration from './config/configuration';
 import { TransformInterceptor } from './lib/transform.interceptor';
 import { RequestLoggerInterceptor } from './middlewares/requests-logger.interceptor';
 import { NewRelicInterceptor } from './lib/newrelic.interceptor';
-import { ClsMiddleware } from 'nestjs-cls';
-import { initAsyncLocalStorage } from './common/async-local-storage/async-local-storage';
+import { asyncLocalStorageMiddleware } from './common/async-local-storage/async-local-storage';
 
 const config = configuration();
 const APP_PORT = config.port || 3000;
@@ -58,8 +57,7 @@ async function bootstrap() {
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalInterceptors(new NewRelicInterceptor());
 
-  // Mounted without path so New Relic does not prepend the global prefix to transaction names
-  app.use(new ClsMiddleware({ setup: initAsyncLocalStorage }).use);
+  app.use(asyncLocalStorageMiddleware());
   app.use(helmet());
 
   if (!config.isProduction) {
