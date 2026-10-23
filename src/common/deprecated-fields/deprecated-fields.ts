@@ -39,13 +39,20 @@ const DEPRECATION_RULES: Record<
   },
 };
 
+const DEFAULT_MODES: Record<DeprecatedField, DeprecationMode> = {
+  [DeprecatedField.FILE_NAME]: DeprecationMode.PLAIN,
+};
+
 export const getDeprecationMode = (
   field: DeprecatedField,
 ): DeprecationMode | null => {
   const ctx = getAsyncLocalStorage();
-  const rule = ctx?.client && DEPRECATION_RULES[field][ctx.client];
-  if (!rule) {
+  if (!ctx) {
     return null;
+  }
+  const rule = ctx.client && DEPRECATION_RULES[field][ctx.client];
+  if (!rule) {
+    return DEFAULT_MODES[field];
   }
   if (!rule.minVersion) {
     return rule.mode;
