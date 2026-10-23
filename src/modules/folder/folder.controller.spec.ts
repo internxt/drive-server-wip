@@ -18,6 +18,7 @@ import { FileStatus } from '../file/file.domain';
 import { StorageNotificationService } from './../../externals/notifications/storage.notifications.service';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { SortOrder } from '../../common/order.type';
+import * as asyncLocalStorage from '../../common/async-local-storage/async-local-storage';
 
 const requester = newUser();
 
@@ -146,9 +147,37 @@ describe('FolderController', () => {
         expect(fileUseCases.getFiles).toHaveBeenCalledWith(
           userMocked.id,
           expect.objectContaining({ folderUuid: folder.uuid }),
-          expect.objectContaining({ favoriteUserUuid: userMocked.uuid }),
+          expect.objectContaining({
+            favoriteUserUuid: userMocked.uuid,
+            withoutThumbnails: false,
+          }),
         );
       });
+
+      it.each([ClientEnum.Cli, ClientEnum.Rclone, ClientEnum.DesktopMacos])(
+        'When the client is %s, then thumbnails, sharings and favorites are skipped',
+        async (client) => {
+          jest
+            .spyOn(asyncLocalStorage, 'getAsyncLocalStorage')
+            .mockReturnValueOnce({ client, version: null });
+          jest.spyOn(fileUseCases, 'getFiles').mockResolvedValue([]);
+
+          await folderController.getFolderContentFiles(
+            userMocked,
+            folder.uuid,
+            { limit: 50, offset: 0 },
+          );
+
+          expect(fileUseCases.getFiles).toHaveBeenCalledWith(
+            userMocked.id,
+            expect.anything(),
+            expect.objectContaining({
+              favoriteUserUuid: undefined,
+              withoutThumbnails: true,
+            }),
+          );
+        },
+      );
     });
 
     describe('getFolderContentFilesV2', () => {
@@ -210,9 +239,37 @@ describe('FolderController', () => {
         expect(folderUseCases.getFolders).toHaveBeenCalledWith(
           userMocked.id,
           expect.objectContaining({ parentUuid: folder.uuid }),
-          expect.objectContaining({ favoriteUserUuid: userMocked.uuid }),
+          expect.objectContaining({
+            favoriteUserUuid: userMocked.uuid,
+            withoutSharings: false,
+          }),
         );
       });
+
+      it.each([ClientEnum.Cli, ClientEnum.Rclone, ClientEnum.DesktopMacos])(
+        'When the client is %s, then sharings and favorites are skipped',
+        async (client) => {
+          jest
+            .spyOn(asyncLocalStorage, 'getAsyncLocalStorage')
+            .mockReturnValueOnce({ client, version: null });
+          jest.spyOn(folderUseCases, 'getFolders').mockResolvedValue([]);
+
+          await folderController.getFolderContentFolders(
+            userMocked,
+            folder.uuid,
+            { limit: 50, offset: 0 },
+          );
+
+          expect(folderUseCases.getFolders).toHaveBeenCalledWith(
+            userMocked.id,
+            expect.anything(),
+            expect.objectContaining({
+              favoriteUserUuid: undefined,
+              withoutSharings: true,
+            }),
+          );
+        },
+      );
     });
 
     describe('getFolderContentFoldersV2', () => {

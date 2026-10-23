@@ -283,6 +283,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     offset: number,
     order: Array<[keyof FolderModel, 'ASC' | 'DESC']> = [],
     favoriteUserUuid?: FavoriteAttributes['userId'],
+    withoutSharings = false,
   ): Promise<Array<Folder> | []> {
     const appliedOrder = this.applyCollateToPlainNameSort(order);
 
@@ -293,12 +294,16 @@ export class SequelizeFolderRepository implements FolderRepository {
       subQuery: false,
       order: appliedOrder,
       include: [
-        {
-          separate: true,
-          model: SharingModel,
-          attributes: ['type', 'id'],
-          required: false,
-        },
+        ...(withoutSharings
+          ? []
+          : [
+              {
+                separate: true,
+                model: SharingModel,
+                attributes: ['type', 'id'],
+                required: false,
+              },
+            ]),
         ...this.favoriteInclude(favoriteUserUuid),
       ],
     });

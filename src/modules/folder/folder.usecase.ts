@@ -861,6 +861,7 @@ export class FolderUseCases {
       offset: number;
       sort?: SortParamsFolder;
       favoriteUserUuid?: UserAttributes['uuid'];
+      withoutSharings?: boolean;
     } = {
       limit: 20,
       offset: 0,
@@ -872,6 +873,7 @@ export class FolderUseCases {
       options.offset,
       options.sort,
       options.favoriteUserUuid,
+      options.withoutSharings,
     );
 
     return foldersWithMaybePlainName.map((folder) =>

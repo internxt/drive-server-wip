@@ -885,6 +885,30 @@ describe('SequelizeFolderRepository', () => {
     });
   });
 
+  describe('findAllCursor sharings include', () => {
+    const whereClause = { deleted: false, removed: false };
+
+    it('When sharings are not skipped, then the sharings include is added', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(whereClause, 10, 0);
+
+      const { include } = (folderModel.findAll as jest.Mock).mock.calls[0][0];
+      expect(include).toEqual([
+        expect.objectContaining({ model: SharingModel }),
+      ]);
+    });
+
+    it('When sharings are skipped, then no sharings include is added', async () => {
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(whereClause, 10, 0, [], undefined, true);
+
+      const { include } = (folderModel.findAll as jest.Mock).mock.calls[0][0];
+      expect(include).toEqual([]);
+    });
+  });
+
   describe('findFolderSubfoldersWithCursor', () => {
     const parentUuid = newFolder().uuid;
     const userId = newUser().id;
