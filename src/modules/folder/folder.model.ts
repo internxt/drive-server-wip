@@ -19,6 +19,7 @@ import { SharingModel } from '../sharing/models';
 import { type Sharing } from '../sharing/sharing.domain';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Sequelize } from 'sequelize';
+import { v7 } from 'uuid';
 import { DeviceModel } from '../backups/models/device.model';
 import { FavoriteModel } from '../favorite/favorite.model';
 
@@ -33,6 +34,7 @@ export class FolderModel extends Model implements FolderAttributes {
   @Column
   id: number;
 
+  @Default(() => v7())
   @Index
   @Column
   uuid: string;

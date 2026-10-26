@@ -21,6 +21,7 @@ import { SharingModel } from '../sharing/models';
 import { type Sharing } from '../sharing/sharing.domain';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
 import { Sequelize } from 'sequelize';
+import { v7 } from 'uuid';
 import { AesService } from '../../externals/crypto/aes';
 import {
   DeprecatedField,
@@ -36,6 +37,7 @@ import { FavoriteModel } from '../favorite/favorite.model';
 })
 export class FileModel extends Model implements FileAttributes {
   @PrimaryKey
+  @Default(() => v7())
   @Column(DataType.UUIDV4)
   uuid: string;
 
