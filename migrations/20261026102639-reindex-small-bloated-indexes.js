@@ -20,6 +20,7 @@ module.exports = {
     await reindexIfExists(queryInterface, 'deleted_files_new_pkey');
     await reindexIfExists(queryInterface, '"folders_uuid_UNIQUE"');
     await reindexIfExists(queryInterface, 'thumbnails_pkey');
+    await reindexIfExists(queryInterface, 'files_folder_uuid_index');
     await reindexIfExists(
       queryInterface,
       'files_files_folder_id_foreign_id_fk',
