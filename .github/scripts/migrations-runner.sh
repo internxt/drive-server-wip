@@ -17,7 +17,12 @@ is_running() {
 migrate() {
   local sha=$1
   cd "$REPO_DIR"
-  git fetch --quiet origin "$sha"
+  git fetch --quiet --prune origin '+refs/heads/*:refs/remotes/origin/*'
+  # Fork PR commits are fetchable by sha through refs/pull/*, but never sit on one of origin's branches
+  if [[ -z "$(git branch --remotes --contains "$sha" 2>/dev/null)" ]]; then
+    echo "Commit ${sha} is not on any branch of origin" >&2
+    return 1
+  fi
   git checkout --quiet --detach "$sha"
   npm ci --ignore-scripts --no-audit --no-fund
   NODE_ENV=production ./node_modules/.bin/sequelize db:migrate:status | awk '$1 == "down" { print $2 }' >"${STATE_DIR}/pending"
