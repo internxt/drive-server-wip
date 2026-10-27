@@ -2,3 +2,6 @@
 
 /.github/workflows/run-migrations.yml @sg-gs
 /.github/scripts/ @sg-gs
+/CODEOWNERS @sg-gs
+/.github/CODEOWNERS @sg-gs
+/docs/CODEOWNERS @sg-gs
