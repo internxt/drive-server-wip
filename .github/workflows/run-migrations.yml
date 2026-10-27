@@ -1,6 +1,8 @@
 name: Run Migrations
+# pull_request_target runs this workflow and .github/scripts from master, so a PR can't alter them
+# before CODEOWNERS review; the PR's code only reaches the migrations machine through its commit sha.
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
     paths: ['migrations/**']
 
@@ -44,7 +46,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
           sparse-checkout: .github/scripts
 
       - name: Check the approved commit is still the PR head
