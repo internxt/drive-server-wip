@@ -19,8 +19,8 @@ migrate() {
   cd "$REPO_DIR"
   git fetch --quiet origin "$sha"
   git checkout --quiet --detach "$sha"
-  npm ci --no-audit --no-fund
-  NODE_ENV=production npx sequelize db:migrate:status | awk '$1 == "down" { print $2 }' >"${STATE_DIR}/pending"
+  npm ci --ignore-scripts --no-audit --no-fund
+  NODE_ENV=production ./node_modules/.bin/sequelize db:migrate:status | awk '$1 == "down" { print $2 }' >"${STATE_DIR}/pending"
   npm run migrate:prod
 }
 

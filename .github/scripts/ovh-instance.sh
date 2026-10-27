@@ -13,6 +13,7 @@ ovh_call() {
   local url="${API}${path}"
   local timestamp signature
   timestamp=$(curl -fsS "${API}/auth/time")
+  # SHA-1 is the signature scheme mandated by the OVH API, not a choice we can change.
   signature="\$1\$$(printf '%s' "${OVH_APPLICATION_SECRET}+${OVH_CONSUMER_KEY}+${method}+${url}++${timestamp}" | sha1sum | cut -d' ' -f1)"
   curl -fsS -X "$method" "$url" \
     -H "X-Ovh-Application: ${OVH_APPLICATION_KEY}" \
