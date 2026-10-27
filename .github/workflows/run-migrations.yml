@@ -19,19 +19,34 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - uses: actions/checkout@v6
+        with:
           ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
           fetch-depth: 0
           persist-credentials: false
 
       - id: diff
         name: Detect added migrations
+        working-directory: pr
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          added=$(git diff --name-only --diff-filter=A "${BASE_SHA}...${HEAD_SHA}" -- migrations/)
-          echo "$added"
-          echo "has-new-migrations=$([[ -n "$added" ]] && echo true || echo false)" >>"$GITHUB_OUTPUT"
+          git diff -z --name-only --diff-filter=A "${BASE_SHA}...${HEAD_SHA}" -- migrations/ >"${RUNNER_TEMP}/added-migrations"
+          tr '\0' '\n' <"${RUNNER_TEMP}/added-migrations"
+          echo "has-new-migrations=$([[ -s "${RUNNER_TEMP}/added-migrations" ]] && echo true || echo false)" >>"$GITHUB_OUTPUT"
+
+      - name: Block destructive migrations
+        if: steps.diff.outputs.has-new-migrations == 'true'
+        working-directory: pr
+        run: |
+          npm install --prefix "${RUNNER_TEMP}/checker" --ignore-scripts --no-audit --no-fund acorn@8.14.0 acorn-walk@8.3.4
+          mapfile -d '' migrations <"${RUNNER_TEMP}/added-migrations"
+          NODE_PATH="${RUNNER_TEMP}/checker/node_modules" node "${GITHUB_WORKSPACE}/.github/scripts/check-destructive-migrations.cjs" "${migrations[@]}"
 
   migrate:
     needs: detect
