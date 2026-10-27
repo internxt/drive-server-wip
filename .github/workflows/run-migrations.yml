@@ -1,0 +1,127 @@
+name: Run Migrations
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths: ['migrations/**']
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  detect:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    outputs:
+      has-new-migrations: ${{ steps.diff.outputs.has-new-migrations }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - id: diff
+        name: Detect added migrations
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          added=$(git diff --name-only --diff-filter=A "${BASE_SHA}...${HEAD_SHA}" -- migrations/)
+          echo "$added"
+          echo "has-new-migrations=$([[ -n "$added" ]] && echo true || echo false)" >>"$GITHUB_OUTPUT"
+
+  migrate:
+    needs: detect
+    if: needs.detect.outputs.has-new-migrations == 'true'
+    runs-on: ubuntu-latest
+    environment: production-migrations
+    concurrency:
+      group: production-migrations
+      cancel-in-progress: false
+    timeout-minutes: 360
+    env:
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout: .github/scripts
+
+      - name: Check the approved commit is still the PR head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          current=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq .head.sha)
+          if [[ "$current" != "$HEAD_SHA" ]]; then
+            echo "::error::The PR has new commits since this run was triggered; approve the latest run instead"
+            exit 1
+          fi
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.MIGRATION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.MIGRATION_SSH_HOST }}
+          SSH_USER: ${{ secrets.MIGRATION_SSH_USER }}
+          SSH_KNOWN_HOSTS: ${{ secrets.MIGRATION_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" >~/.ssh/migrations_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" >~/.ssh/known_hosts
+          chmod 600 ~/.ssh/migrations_key ~/.ssh/known_hosts
+          cat >~/.ssh/config <<EOF
+          Host migrations
+            HostName ${SSH_HOST}
+            User ${SSH_USER}
+            IdentityFile ~/.ssh/migrations_key
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking yes
+            LogLevel ERROR
+            ConnectTimeout 10
+          EOF
+
+      - id: unshelve
+        name: Unshelve migrations machine
+        env:
+          OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
+          OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
+          OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
+          OVH_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
+          OVH_INSTANCE_ID: ${{ secrets.OVH_INSTANCE_ID }}
+        run: .github/scripts/ovh-instance.sh unshelve
+
+      - name: Wait for SSH
+        run: |
+          for _ in $(seq 60); do
+            ssh migrations status && exit 0
+            sleep 10
+          done
+          echo "::error::Machine did not accept SSH connections in time"
+          exit 1
+
+      - name: Run migrations
+        run: |
+          ssh migrations run "$HEAD_SHA"
+          while true; do
+            sleep 30
+            status=$(ssh migrations status) || continue
+            [[ "$status" != running ]] && break
+          done
+          echo "$status"
+          [[ "$(head -n1 <<<"$status")" == "done 0" ]]
+
+      - name: Shelve migrations machine
+        if: always() && steps.unshelve.outcome != 'skipped'
+        env:
+          OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
+          OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
+          OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
+          OVH_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
+          OVH_INSTANCE_ID: ${{ secrets.OVH_INSTANCE_ID }}
+        run: |
+          if [[ "$(ssh migrations status || true)" == running ]]; then
+            echo "::warning::A migration is still running on the machine; leaving it active, shelve it manually once it finishes"
+            exit 0
+          fi
+          .github/scripts/ovh-instance.sh shelve
