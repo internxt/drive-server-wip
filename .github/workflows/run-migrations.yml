@@ -10,19 +10,21 @@ permissions: {}
 
 jobs:
   detect:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.ref == 'master'
     runs-on: ubuntu-latest
     permissions:
       contents: read
     outputs:
       has-new-migrations: ${{ steps.diff.outputs.has-new-migrations }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           sparse-checkout: .github/scripts
           persist-credentials: false
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           path: pr
@@ -36,8 +38,17 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          git diff -z --name-only --diff-filter=A "${BASE_SHA}...${HEAD_SHA}" -- migrations/ >"${RUNNER_TEMP}/added-migrations"
+          git diff -z --no-renames --name-only --diff-filter=A "${BASE_SHA}...${HEAD_SHA}" -- migrations/ >"${RUNNER_TEMP}/added-migrations"
+          not_added=$(git diff --no-renames --name-status --diff-filter=a "${BASE_SHA}...${HEAD_SHA}" -- migrations/)
+          stop_token=$(openssl rand -hex 16)
+          echo "::stop-commands::${stop_token}"
           tr '\0' '\n' <"${RUNNER_TEMP}/added-migrations"
+          echo "$not_added"
+          echo "::${stop_token}::"
+          if [[ -n "$not_added" ]]; then
+            echo "::error::Migrations can only be added; changing, deleting or renaming existing ones is not allowed"
+            exit 1
+          fi
           echo "has-new-migrations=$([[ -s "${RUNNER_TEMP}/added-migrations" ]] && echo true || echo false)" >>"$GITHUB_OUTPUT"
 
       - name: Block destructive migrations
@@ -61,11 +72,13 @@ jobs:
       cancel-in-progress: false
     timeout-minutes: 360
     env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           sparse-checkout: .github/scripts
+          persist-credentials: false
 
       - name: Check the PR is approved and its head is the triggering commit
         env:
@@ -126,7 +139,7 @@ jobs:
 
       - name: Run migrations
         run: |
-          ssh migrations run "$HEAD_SHA"
+          ssh migrations run "$BASE_SHA" "$HEAD_SHA"
           while true; do
             sleep 30
             status=$(ssh migrations status) || continue
@@ -144,8 +157,14 @@ jobs:
           OVH_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OVH_INSTANCE_ID: ${{ secrets.OVH_INSTANCE_ID }}
         run: |
-          if [[ "$(ssh migrations status || true)" == running ]]; then
-            echo "::warning::A migration is still running on the machine; leaving it active, shelve it manually once it finishes"
-            exit 0
-          fi
-          .github/scripts/ovh-instance.sh shelve
+          for _ in $(seq 5); do
+            status=$(ssh migrations status) && break
+            status=unreachable
+            sleep 10
+          done
+          case "$(head -n1 <<<"$status")" in
+            idle | "done "*) .github/scripts/ovh-instance.sh shelve ;;
+            *)
+              echo "::warning::Machine reported '${status%%$'\n'*}'; leaving it active so a running migration isn't cut off, shelve it manually once it finishes"
+              ;;
+          esac
