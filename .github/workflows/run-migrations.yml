@@ -52,14 +52,18 @@ jobs:
         with:
           sparse-checkout: .github/scripts
 
-      - name: Check the approved commit is still the PR head
+      - name: Check the PR is approved and its head is the triggering commit
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          current=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq .head.sha)
+          read -r current decision < <(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid,reviewDecision --jq '"\(.headRefOid) \(.reviewDecision)"')
           if [[ "$current" != "$HEAD_SHA" ]]; then
             echo "::error::The PR has new commits since this run was triggered; approve the latest run instead"
+            exit 1
+          fi
+          if [[ "$decision" != APPROVED ]]; then
+            echo "::error::The PR must be approved by its required reviewers before running its migrations (review decision: ${decision:-none})"
             exit 1
           fi
 
