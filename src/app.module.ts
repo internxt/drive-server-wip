@@ -97,9 +97,10 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
         username: configService.get('database.username'),
         password: configService.get('database.password'),
         database: configService.get('database.database'),
-        replication: !configService.get('isDevelopment')
-          ? configService.get('database.replication')
-          : false,
+        replication:
+          !configService.get('isDevelopment') && !isCronjobInstance
+            ? configService.get('database.replication')
+            : false,
         pool: {
           maxConnections: Number.MAX_SAFE_INTEGER,
           maxIdleTime: 30000,
