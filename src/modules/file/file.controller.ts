@@ -42,6 +42,7 @@ import { WorkspacesInBehalfValidationFile } from '../workspaces/guards/workspace
 import { CreateFileDto } from './dto/create-file.dto';
 import { GetFilesDto } from './dto/get-files.dto';
 import { GetFilesSyncDto } from './dto/get-files-sync.dto';
+import { SYNC_MAX_LIMIT } from '../../common/dto/get-sync.dto';
 import { GetFilesSyncResponseDto } from './dto/responses/get-files-sync.dto';
 import { RequiredSharingPermissions } from '../sharing/guards/sharing-permissions.decorator';
 import { SharingActionName } from '../sharing/sharing.domain';
@@ -420,7 +421,7 @@ export class FileController {
         user.id,
         status,
         new Date(updatedAt || 1),
-        limit ?? 1000,
+        Math.min(limit ?? SYNC_MAX_LIMIT, SYNC_MAX_LIMIT),
         cursor,
       );
 

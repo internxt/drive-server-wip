@@ -11,6 +11,8 @@ import {
   ValidateIf,
 } from 'class-validator';
 
+export const SYNC_MAX_LIMIT = 250;
+
 export abstract class GetSyncDto {
   @ApiProperty({
     description:
@@ -34,7 +36,8 @@ export abstract class GetSyncDto {
   cursor?: string;
 
   @ApiProperty({
-    description: 'Page size, max 1000',
+    description:
+      'Page size, max 250. Values up to 1000 are still accepted for backward compatibility but capped to 250; they will be rejected in the future',
     required: false,
   })
   @IsOptional()
