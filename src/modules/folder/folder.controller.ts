@@ -53,6 +53,7 @@ import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { Workspace } from '../workspaces/domains/workspaces.domain';
 import { CheckFoldersExistenceOldDto } from './dto/folder-existence-in-folder-old.dto';
 import { GetFoldersSyncDto } from './dto/get-folders-sync.dto';
+import { SYNC_MAX_LIMIT } from '../../common/dto/get-sync.dto';
 import { GetFoldersSyncResponseDto } from './dto/responses/get-folders-sync.dto';
 import { Requester } from '../auth/decorators/requester.decorator';
 import {
@@ -647,7 +648,7 @@ export class FolderController {
         user.id,
         status,
         new Date(updatedAt || 1),
-        limit ?? 1000,
+        Math.min(limit ?? SYNC_MAX_LIMIT, SYNC_MAX_LIMIT),
         cursor,
       );
 

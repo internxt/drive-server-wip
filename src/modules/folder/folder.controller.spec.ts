@@ -1159,7 +1159,7 @@ describe('FolderController', () => {
         userMocked.id,
         query.status,
         new Date(query.updatedAt),
-        1000,
+        250,
         undefined,
       );
     });
@@ -1182,8 +1182,31 @@ describe('FolderController', () => {
         userMocked.id,
         query.status,
         new Date(1),
-        1000,
+        250,
         'abc',
+      );
+    });
+
+    it('When limit is greater than 250, then it should cap it to 250', async () => {
+      const query = buildQuery({ limit: 1000 });
+      jest
+        .spyOn(folderUseCases, 'getFoldersUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          folders: [],
+          hasMore: false,
+          nextCursor: null,
+        });
+
+      await folderController.getFoldersSync(userMocked, query as any);
+
+      expect(
+        folderUseCases.getFoldersUpdatedAfterWithCursor,
+      ).toHaveBeenCalledWith(
+        userMocked.id,
+        query.status,
+        expect.any(Date),
+        250,
+        undefined,
       );
     });
 

@@ -783,7 +783,7 @@ describe('FileController', () => {
         userMocked.id,
         query.status,
         new Date(query.updatedAt),
-        1000,
+        250,
         undefined,
       );
     });
@@ -804,8 +804,29 @@ describe('FileController', () => {
         userMocked.id,
         query.status,
         new Date(1),
-        1000,
+        250,
         'abc',
+      );
+    });
+
+    it('When limit is greater than 250, then it should cap it to 250', async () => {
+      const query = buildQuery({ limit: 1000 });
+      jest
+        .spyOn(fileUseCases, 'getFilesUpdatedAfterWithCursor')
+        .mockResolvedValueOnce({
+          files: [],
+          hasMore: false,
+          nextCursor: null,
+        });
+
+      await fileController.getFilesSync(userMocked, query as any);
+
+      expect(fileUseCases.getFilesUpdatedAfterWithCursor).toHaveBeenCalledWith(
+        userMocked.id,
+        query.status,
+        expect.any(Date),
+        250,
+        undefined,
       );
     });
 
