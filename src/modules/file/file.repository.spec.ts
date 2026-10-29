@@ -1,5 +1,5 @@
 import { Test, type TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/sequelize';
+import { getConnectionToken, getModelToken } from '@nestjs/sequelize';
 import { createMock } from '@golevelup/ts-jest';
 import {
   newFile,
@@ -9,6 +9,7 @@ import {
 } from '../../../test/fixtures';
 import { type FileAttributes, FileStatus } from './file.domain';
 import { FileModel } from './file.model';
+import { LEGACY_PGBOUNCER_CONNECTION } from '../../config/legacy-pgbouncer-connection';
 import {
   type FileRepository,
   SequelizeFileRepository,
@@ -33,13 +34,21 @@ const withCursorTimestamp = (file: ReturnType<typeof newFile>, value: string) =>
 describe('FileRepository', () => {
   let repository: FileRepository;
   let fileModel: typeof FileModel;
+  let legacyPgBouncerFileModel: typeof FileModel;
 
   const user = newUser();
   const workspace = newWorkspace();
 
   beforeEach(async () => {
+    legacyPgBouncerFileModel = createMock<typeof FileModel>();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [SequelizeFileRepository],
+      providers: [
+        SequelizeFileRepository,
+        {
+          provide: getConnectionToken(LEGACY_PGBOUNCER_CONNECTION),
+          useValue: { getRepository: () => legacyPgBouncerFileModel },
+        },
+      ],
     })
       .useMocker(() => createMock())
       .compile();
@@ -759,8 +768,8 @@ describe('FileRepository', () => {
     >;
     const whereClause: Partial<FileAttributes> = { status: FileStatus.EXISTS };
 
-    it('When sort options are not provided, it should default to none', async () => {
-      jest.spyOn(repository, 'findAllCursor');
+    it('When sort options are not provided, then it should query through the legacy PgBouncer connection without order', async () => {
+      jest.spyOn(legacyPgBouncerFileModel, 'findAll').mockResolvedValueOnce([]);
 
       await repository.findAllCursorWhereUpdatedAfter(
         whereClause,
@@ -770,19 +779,17 @@ describe('FileRepository', () => {
         [],
       );
 
-      expect(repository.findAllCursor).toHaveBeenCalledWith(
-        {
-          ...whereClause,
-          updatedAt: { [Op.gt]: updatedAtAfter },
-        },
+      expect(legacyPgBouncerFileModel.findAll).toHaveBeenCalledWith({
         limit,
         offset,
-        [],
-      );
+        where: { ...whereClause, updatedAt: { [Op.gt]: updatedAtAfter } },
+        subQuery: false,
+        order: [],
+      });
     });
 
-    it('When sort options are provided, it should sort files', async () => {
-      jest.spyOn(repository, 'findAllCursor');
+    it('When sort options are provided, then it should query through the legacy PgBouncer connection sorting files', async () => {
+      jest.spyOn(legacyPgBouncerFileModel, 'findAll').mockResolvedValueOnce([]);
 
       await repository.findAllCursorWhereUpdatedAfter(
         whereClause,
@@ -792,14 +799,13 @@ describe('FileRepository', () => {
         additionalOrders,
       );
 
-      expect(repository.findAllCursor).toHaveBeenCalledWith(
-        {
-          ...whereClause,
-          updatedAt: { [Op.gt]: updatedAtAfter },
-        },
-        limit,
-        offset,
-        additionalOrders,
+      expect(legacyPgBouncerFileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          order: [
+            ['updatedAt', 'ASC'],
+            ['uuid', 'ASC'],
+          ],
+        }),
       );
     });
   });
@@ -809,13 +815,15 @@ describe('FileRepository', () => {
 
     it('When called, then it should fetch the existing files filtered by a paginated uuids subquery in a single query', async () => {
       const file = newFile();
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
+      jest
+        .spyOn(legacyPgBouncerFileModel, 'findAll')
+        .mockResolvedValueOnce([file] as any);
       jest.spyOn(repository as any, 'toDomain').mockReturnValueOnce(file);
 
       const result = await repository.findAllForFullSync(params);
 
-      expect(fileModel.findAll).toHaveBeenCalledTimes(1);
-      expect(fileModel.findAll).toHaveBeenCalledWith({
+      expect(legacyPgBouncerFileModel.findAll).toHaveBeenCalledTimes(1);
+      expect(legacyPgBouncerFileModel.findAll).toHaveBeenCalledWith({
         where: {
           uuid: {
             [Op.in]: expect.objectContaining({
@@ -842,13 +850,15 @@ describe('FileRepository', () => {
     const firstFileOfPageUpdatedAt = '2026-01-01 10:00:05';
 
     it('When the offset is greater than the number of files updated after the given date, then it should return an empty page', async () => {
-      jest.spyOn(fileModel.sequelize, 'query').mockResolvedValueOnce([] as any);
-      jest.spyOn(fileModel, 'findAll');
+      jest
+        .spyOn(legacyPgBouncerFileModel.sequelize, 'query')
+        .mockResolvedValueOnce([] as any);
+      jest.spyOn(legacyPgBouncerFileModel, 'findAll');
 
       const result = await repository.findAllForOffsetSync(params);
 
       expect(result).toEqual([]);
-      expect(fileModel.findAll).not.toHaveBeenCalled();
+      expect(legacyPgBouncerFileModel.findAll).not.toHaveBeenCalled();
     });
 
     it('When some files of previous pages share the updated_at of the first file of the page, then it should skip only those', async () => {
@@ -856,16 +866,18 @@ describe('FileRepository', () => {
       const filesBeforeTieGroup = 97;
       const tiedFilesInPreviousPages = params.offset - filesBeforeTieGroup;
       jest
-        .spyOn(fileModel.sequelize, 'query')
+        .spyOn(legacyPgBouncerFileModel.sequelize, 'query')
         .mockResolvedValueOnce([
           { updatedAt: firstFileOfPageUpdatedAt, filesBeforeTieGroup },
         ] as any);
-      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([file] as any);
+      jest
+        .spyOn(legacyPgBouncerFileModel, 'findAll')
+        .mockResolvedValueOnce([file] as any);
       jest.spyOn(repository as any, 'toDomain').mockReturnValueOnce(file);
 
       const result = await repository.findAllForOffsetSync(params);
 
-      expect(fileModel.findAll).toHaveBeenCalledWith({
+      expect(legacyPgBouncerFileModel.findAll).toHaveBeenCalledWith({
         where: {
           userId: params.userId,
           [Op.and]: [

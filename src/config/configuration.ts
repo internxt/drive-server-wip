@@ -31,6 +31,9 @@ export default () => ({
         password: process.env.RDS_PASSWORD,
       },
     },
+    legacyPgBouncer: {
+      url: process.env.LEGACY_PGBOUNCER_URL,
+    },
   },
   cache: {
     redisConnectionString: process.env.REDIS_CONNECTION_STRING,

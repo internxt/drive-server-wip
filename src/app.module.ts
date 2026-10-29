@@ -35,6 +35,10 @@ import { CacheManagerModule } from './modules/cache-manager/cache-manager.module
 import { ReferralModule } from './modules/referral/referral.module';
 import { HealthModule } from './infrastructure/health/health.module';
 import { ClsModule } from 'nestjs-cls';
+import {
+  LEGACY_PGBOUNCER_CONNECTION,
+  legacyPgBouncerModels,
+} from './config/legacy-pgbouncer-connection';
 
 const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
 const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
@@ -133,6 +137,55 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
               }
             },
       }),
+    }),
+    SequelizeModule.forRootAsync({
+      name: LEGACY_PGBOUNCER_CONNECTION,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => {
+        const legacyPgBouncerUrl = configService.get(
+          'database.legacyPgBouncer.url',
+        );
+        const useLegacyPgBouncer = !!legacyPgBouncerUrl;
+        const useReplication =
+          !configService.get('isDevelopment') && !isCronjobInstance;
+
+        return {
+          name: LEGACY_PGBOUNCER_CONNECTION,
+          dialect: 'postgres',
+          // Binds a copy of each model to this connection, leaving the default connection models untouched
+          repositoryMode: true,
+          autoLoadModels: false,
+          models: legacyPgBouncerModels,
+          synchronize: false,
+          ...(useLegacyPgBouncer
+            ? { uri: legacyPgBouncerUrl }
+            : {
+                host: configService.get('database.host'),
+                port: configService.get('database.port'),
+                username: configService.get('database.username'),
+                password: configService.get('database.password'),
+                database: configService.get('database.database'),
+                replication: useReplication
+                  ? configService.get('database.replication')
+                  : false,
+              }),
+          pool: {
+            max: 20,
+            min: 0,
+            idle: 20000,
+            acquire: 20000,
+          },
+          dialectOptions: {
+            ...(configService.get('isProduction')
+              ? { ssl: { require: true, rejectUnauthorized: false } }
+              : {}),
+            application_name: `${appName}-legacy-pgbouncer`,
+            ...(useLegacyPgBouncer ? {} : { statement_timeout: 115000 }),
+          },
+          logging: false,
+        };
+      },
     }),
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
     ...(isCronjobInstance ? [JobsModule] : []),
