@@ -9,7 +9,7 @@ import {
 } from '../../../test/fixtures';
 import { type FileAttributes, FileStatus } from './file.domain';
 import { FileModel } from './file.model';
-import { LEGACY_PGBOUNCER_CONNECTION } from '../../config/legacy-pgbouncer-connection';
+import { HEAVY_READ_POOL_CONNECTION } from '../../config/heavy-read-pool-connection';
 import {
   type FileRepository,
   SequelizeFileRepository,
@@ -34,19 +34,19 @@ const withCursorTimestamp = (file: ReturnType<typeof newFile>, value: string) =>
 describe('FileRepository', () => {
   let repository: FileRepository;
   let fileModel: typeof FileModel;
-  let legacyPgBouncerFileModel: typeof FileModel;
+  let heavyReadPoolFileModel: typeof FileModel;
 
   const user = newUser();
   const workspace = newWorkspace();
 
   beforeEach(async () => {
-    legacyPgBouncerFileModel = createMock<typeof FileModel>();
+    heavyReadPoolFileModel = createMock<typeof FileModel>();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SequelizeFileRepository,
         {
-          provide: getConnectionToken(LEGACY_PGBOUNCER_CONNECTION),
-          useValue: { getRepository: () => legacyPgBouncerFileModel },
+          provide: getConnectionToken(HEAVY_READ_POOL_CONNECTION),
+          useValue: { getRepository: () => heavyReadPoolFileModel },
         },
       ],
     })
@@ -768,8 +768,8 @@ describe('FileRepository', () => {
     >;
     const whereClause: Partial<FileAttributes> = { status: FileStatus.EXISTS };
 
-    it('When sort options are not provided, then it should query through the legacy PgBouncer connection without order', async () => {
-      jest.spyOn(legacyPgBouncerFileModel, 'findAll').mockResolvedValueOnce([]);
+    it('When sort options are not provided, then it should query through the heavy read pool connection without order', async () => {
+      jest.spyOn(heavyReadPoolFileModel, 'findAll').mockResolvedValueOnce([]);
 
       await repository.findAllCursorWhereUpdatedAfter(
         whereClause,
@@ -779,7 +779,7 @@ describe('FileRepository', () => {
         [],
       );
 
-      expect(legacyPgBouncerFileModel.findAll).toHaveBeenCalledWith({
+      expect(heavyReadPoolFileModel.findAll).toHaveBeenCalledWith({
         limit,
         offset,
         where: { ...whereClause, updatedAt: { [Op.gt]: updatedAtAfter } },
@@ -788,8 +788,8 @@ describe('FileRepository', () => {
       });
     });
 
-    it('When sort options are provided, then it should query through the legacy PgBouncer connection sorting files', async () => {
-      jest.spyOn(legacyPgBouncerFileModel, 'findAll').mockResolvedValueOnce([]);
+    it('When sort options are provided, then it should query through the heavy read pool connection sorting files', async () => {
+      jest.spyOn(heavyReadPoolFileModel, 'findAll').mockResolvedValueOnce([]);
 
       await repository.findAllCursorWhereUpdatedAfter(
         whereClause,
@@ -799,7 +799,7 @@ describe('FileRepository', () => {
         additionalOrders,
       );
 
-      expect(legacyPgBouncerFileModel.findAll).toHaveBeenCalledWith(
+      expect(heavyReadPoolFileModel.findAll).toHaveBeenCalledWith(
         expect.objectContaining({
           order: [
             ['updatedAt', 'ASC'],
@@ -816,14 +816,14 @@ describe('FileRepository', () => {
     it('When called, then it should fetch the existing files filtered by a paginated uuids subquery in a single query', async () => {
       const file = newFile();
       jest
-        .spyOn(legacyPgBouncerFileModel, 'findAll')
+        .spyOn(heavyReadPoolFileModel, 'findAll')
         .mockResolvedValueOnce([file] as any);
       jest.spyOn(repository as any, 'toDomain').mockReturnValueOnce(file);
 
       const result = await repository.findAllForFullSync(params);
 
-      expect(legacyPgBouncerFileModel.findAll).toHaveBeenCalledTimes(1);
-      expect(legacyPgBouncerFileModel.findAll).toHaveBeenCalledWith({
+      expect(heavyReadPoolFileModel.findAll).toHaveBeenCalledTimes(1);
+      expect(heavyReadPoolFileModel.findAll).toHaveBeenCalledWith({
         where: {
           uuid: {
             [Op.in]: expect.objectContaining({
@@ -851,14 +851,14 @@ describe('FileRepository', () => {
 
     it('When the offset is greater than the number of files updated after the given date, then it should return an empty page', async () => {
       jest
-        .spyOn(legacyPgBouncerFileModel.sequelize, 'query')
+        .spyOn(heavyReadPoolFileModel.sequelize, 'query')
         .mockResolvedValueOnce([] as any);
-      jest.spyOn(legacyPgBouncerFileModel, 'findAll');
+      jest.spyOn(heavyReadPoolFileModel, 'findAll');
 
       const result = await repository.findAllForOffsetSync(params);
 
       expect(result).toEqual([]);
-      expect(legacyPgBouncerFileModel.findAll).not.toHaveBeenCalled();
+      expect(heavyReadPoolFileModel.findAll).not.toHaveBeenCalled();
     });
 
     it('When some files of previous pages share the updated_at of the first file of the page, then it should skip only those', async () => {
@@ -866,18 +866,18 @@ describe('FileRepository', () => {
       const filesBeforeTieGroup = 97;
       const tiedFilesInPreviousPages = params.offset - filesBeforeTieGroup;
       jest
-        .spyOn(legacyPgBouncerFileModel.sequelize, 'query')
+        .spyOn(heavyReadPoolFileModel.sequelize, 'query')
         .mockResolvedValueOnce([
           { updatedAt: firstFileOfPageUpdatedAt, filesBeforeTieGroup },
         ] as any);
       jest
-        .spyOn(legacyPgBouncerFileModel, 'findAll')
+        .spyOn(heavyReadPoolFileModel, 'findAll')
         .mockResolvedValueOnce([file] as any);
       jest.spyOn(repository as any, 'toDomain').mockReturnValueOnce(file);
 
       const result = await repository.findAllForOffsetSync(params);
 
-      expect(legacyPgBouncerFileModel.findAll).toHaveBeenCalledWith({
+      expect(heavyReadPoolFileModel.findAll).toHaveBeenCalledWith({
         where: {
           userId: params.userId,
           [Op.and]: [

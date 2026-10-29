@@ -31,7 +31,7 @@ export default () => ({
         password: process.env.RDS_PASSWORD,
       },
     },
-    legacyPgBouncer: {
+    heavyReadPool: {
       url: process.env.HEAVY_READ_PGBOUNCER_URL,
     },
   },

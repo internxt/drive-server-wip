@@ -8,7 +8,7 @@ import { type FolderFilesCursorDto } from '../folder/dto/get-folder-content-file
 import { SortOrder } from '../../common/order.type';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { type Sequelize as SequelizeTypescript } from 'sequelize-typescript';
-import { LEGACY_PGBOUNCER_CONNECTION } from '../../config/legacy-pgbouncer-connection';
+import { HEAVY_READ_POOL_CONNECTION } from '../../config/heavy-read-pool-connection';
 import { File, type FileAttributes, FileStatus } from './file.domain';
 import {
   type FindOptions,
@@ -258,18 +258,18 @@ export interface FileRepository {
 
 @Injectable()
 export class SequelizeFileRepository implements FileRepository {
-  private readonly legacyPgBouncerFileModel: typeof FileModel;
+  private readonly heavyReadPoolFileModel: typeof FileModel;
 
   constructor(
     @InjectModel(FileModel)
     private readonly fileModel: typeof FileModel,
     @InjectModel(ThumbnailModel)
     private readonly thumbnailModel: typeof ThumbnailModel,
-    @InjectConnection(LEGACY_PGBOUNCER_CONNECTION)
-    legacyPgBouncerConnection: SequelizeTypescript,
+    @InjectConnection(HEAVY_READ_POOL_CONNECTION)
+    heavyReadPoolConnection: SequelizeTypescript,
   ) {
-    this.legacyPgBouncerFileModel =
-      legacyPgBouncerConnection.getRepository(FileModel);
+    this.heavyReadPoolFileModel =
+      heavyReadPoolConnection.getRepository(FileModel);
   }
 
   async findAll(): Promise<Array<File> | []> {
@@ -428,7 +428,7 @@ export class SequelizeFileRepository implements FileRepository {
     offset: number,
     additionalOrders: Array<[keyof FileModel, string]> = [],
   ): Promise<Array<File> | []> {
-    const files = await this.legacyPgBouncerFileModel.findAll({
+    const files = await this.heavyReadPoolFileModel.findAll({
       limit,
       offset,
       where: { ...where, updatedAt: { [Op.gt]: updatedAtAfter } },
@@ -453,7 +453,7 @@ export class SequelizeFileRepository implements FileRepository {
     limit: number;
     offset: number;
   }): Promise<Array<File> | []> {
-    const files = await this.legacyPgBouncerFileModel.findAll({
+    const files = await this.heavyReadPoolFileModel.findAll({
       where: {
         uuid: {
           [Op.in]: Sequelize.literal(`(
@@ -488,7 +488,7 @@ export class SequelizeFileRepository implements FileRepository {
     offset: number;
   }): Promise<Array<File> | []> {
     const [firstFileOfPage] =
-      await this.legacyPgBouncerFileModel.sequelize.query<{
+      await this.heavyReadPoolFileModel.sequelize.query<{
         updatedAt: string;
         filesBeforeTieGroup: number;
       }>(
@@ -520,7 +520,7 @@ export class SequelizeFileRepository implements FileRepository {
     const tiedFilesInPreviousPages =
       offset - firstFileOfPage.filesBeforeTieGroup;
 
-    const files = await this.legacyPgBouncerFileModel.findAll({
+    const files = await this.heavyReadPoolFileModel.findAll({
       where: {
         userId,
         [Op.and]: [

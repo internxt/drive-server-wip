@@ -33,16 +33,16 @@ describe('SequelizeFolderRepository', () => {
 
   let repository: SequelizeFolderRepository;
   let folderModel: typeof FolderModel;
-  let legacyPgBouncerFolderModel: typeof FolderModel;
+  let heavyReadPoolFolderModel: typeof FolderModel;
   let folder: Folder;
 
   beforeEach(async () => {
     folderModel = createMock<typeof FolderModel>();
 
-    legacyPgBouncerFolderModel = createMock<typeof FolderModel>();
+    heavyReadPoolFolderModel = createMock<typeof FolderModel>();
 
     repository = new SequelizeFolderRepository(folderModel, {
-      getRepository: () => legacyPgBouncerFolderModel,
+      getRepository: () => heavyReadPoolFolderModel,
     } as any);
 
     folder = newFolder();
@@ -1482,10 +1482,10 @@ describe('SequelizeFolderRepository', () => {
       ['updatedAt', 'ASC'],
     ];
 
-    it('When finding folders updated after a date, then it should apply date filter through the legacy PgBouncer connection', async () => {
+    it('When finding folders updated after a date, then it should apply date filter through the heavy read pool connection', async () => {
       const folders = [newFolder()];
       jest
-        .spyOn(legacyPgBouncerFolderModel, 'findAll')
+        .spyOn(heavyReadPoolFolderModel, 'findAll')
         .mockResolvedValueOnce(folders as any);
 
       const result = await repository.findAllCursorWhereUpdatedAfter(
@@ -1496,7 +1496,7 @@ describe('SequelizeFolderRepository', () => {
         order,
       );
 
-      expect(legacyPgBouncerFolderModel.findAll).toHaveBeenCalledWith({
+      expect(heavyReadPoolFolderModel.findAll).toHaveBeenCalledWith({
         where: {
           ...whereClause,
           updatedAt: { [Op.gt]: updatedAfter },

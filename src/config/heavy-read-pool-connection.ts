@@ -15,10 +15,10 @@ import { WorkspaceTeamModel } from '../modules/workspaces/models/workspace-team.
 import { WorkspaceUserModel } from '../modules/workspaces/models/workspace-users.model';
 import { WorkspaceModel } from '../modules/workspaces/models/workspace.model';
 
-export const LEGACY_PGBOUNCER_CONNECTION = 'legacy-pgbouncer';
+export const HEAVY_READ_POOL_CONNECTION = 'heavy-read-pool';
 
 // FileModel/FolderModel and their associations, required to initialize them in this connection
-export const legacyPgBouncerModels = [
+export const heavyReadPoolModels = [
   FileModel,
   FolderModel,
   UserModel,

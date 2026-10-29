@@ -36,9 +36,9 @@ import { ReferralModule } from './modules/referral/referral.module';
 import { HealthModule } from './infrastructure/health/health.module';
 import { ClsModule } from 'nestjs-cls';
 import {
-  LEGACY_PGBOUNCER_CONNECTION,
-  legacyPgBouncerModels,
-} from './config/legacy-pgbouncer-connection';
+  HEAVY_READ_POOL_CONNECTION,
+  heavyReadPoolModels,
+} from './config/heavy-read-pool-connection';
 
 const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
 const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
@@ -139,27 +139,27 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
       }),
     }),
     SequelizeModule.forRootAsync({
-      name: LEGACY_PGBOUNCER_CONNECTION,
+      name: HEAVY_READ_POOL_CONNECTION,
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => {
-        const legacyPgBouncerUrl = configService.get(
-          'database.legacyPgBouncer.url',
+        const heavyReadPoolUrl = configService.get(
+          'database.heavyReadPool.url',
         );
-        const useLegacyPgBouncer = !!legacyPgBouncerUrl;
+        const useHeavyReadPool = !!heavyReadPoolUrl;
         const useReplication =
           !configService.get('isDevelopment') && !isCronjobInstance;
 
         return {
-          name: LEGACY_PGBOUNCER_CONNECTION,
+          name: HEAVY_READ_POOL_CONNECTION,
           dialect: 'postgres',
           // Binds a copy of each model to this connection, leaving the default connection models untouched
           repositoryMode: true,
           autoLoadModels: false,
-          models: legacyPgBouncerModels,
+          models: heavyReadPoolModels,
           synchronize: false,
-          ...(useLegacyPgBouncer
-            ? { uri: legacyPgBouncerUrl }
+          ...(useHeavyReadPool
+            ? { uri: heavyReadPoolUrl }
             : {
                 host: configService.get('database.host'),
                 port: configService.get('database.port'),
@@ -180,8 +180,8 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
             ...(configService.get('isProduction')
               ? { ssl: { require: true, rejectUnauthorized: false } }
               : {}),
-            application_name: `${appName}-legacy-pgbouncer`,
-            ...(useLegacyPgBouncer ? {} : { statement_timeout: 115000 }),
+            application_name: `${appName}-heavy-read-pool`,
+            ...(useHeavyReadPool ? {} : { statement_timeout: 115000 }),
           },
           logging: false,
         };
