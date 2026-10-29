@@ -268,7 +268,6 @@ export class SequelizeFileRepository implements FileRepository {
     @InjectConnection(LEGACY_PGBOUNCER_CONNECTION)
     legacyPgBouncerConnection: SequelizeTypescript,
   ) {
-    // TODO: remove when GET /files is removed
     this.legacyPgBouncerFileModel =
       legacyPgBouncerConnection.getRepository(FileModel);
   }
