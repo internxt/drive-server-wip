@@ -3,6 +3,8 @@ import { type NestExpressApplication } from '@nestjs/platform-express';
 import { getModelToken } from '@nestjs/sequelize';
 import request from 'supertest';
 import speakeasy from 'speakeasy';
+import { createClient, type RedisClientType } from '@keyv/redis';
+import { JwtService } from '@nestjs/jwt';
 
 import { createTestApp } from '../../../test/helpers/test-app.helper';
 import {
@@ -15,6 +17,7 @@ import { FolderModel } from '../folder/folder.model';
 import { FileModel } from '../file/file.model';
 import { KeyServerModel } from '../keyserver/key-server.model';
 import { CryptoService } from '../../externals/crypto/crypto.service';
+import getEnv from '../../config/configuration';
 
 describe('User Authentication E2E', () => {
   let app: NestExpressApplication;
@@ -417,6 +420,60 @@ describe('User Authentication E2E', () => {
 
         expect(response.body.tfa).toBe(true);
       });
+    });
+  });
+
+  describe('Logout', () => {
+    let redisClient: RedisClientType;
+
+    const loginAndGetToken = async (): Promise<string> => {
+      const registrationData = await generateValidRegistrationData();
+      const { email, password } = await registerUser(registrationData);
+      const response = await request(app.getHttpServer())
+        .post('/auth/login/access')
+        .send({ email, password })
+        .expect(HttpStatus.OK);
+      return response.body.newToken;
+    };
+
+    beforeAll(async () => {
+      redisClient = createClient({
+        url: getEnv().cache.redisConnectionString,
+      }) as RedisClientType;
+      await redisClient.connect();
+    });
+
+    afterAll(async () => {
+      await redisClient.quit();
+    });
+
+    it('When user logs out, then the same token is rejected', async () => {
+      const token = await loginAndGetToken();
+
+      await request(app.getHttpServer())
+        .get('/auth/logout')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(HttpStatus.OK);
+
+      await request(app.getHttpServer())
+        .get('/auth/tfa')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(HttpStatus.UNAUTHORIZED);
+    });
+
+    it('When user logs out, then the token stays blacklisted until it expires', async () => {
+      const token = await loginAndGetToken();
+      const { jti, exp } = app.get(JwtService).decode(token);
+      const remainingMs = exp * 1000 - Date.now();
+
+      await request(app.getHttpServer())
+        .get('/auth/logout')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(HttpStatus.OK);
+
+      const [key] = await redisClient.keys(`*jwt:${jti}`);
+      const pttl = await redisClient.pTTL(key);
+      expect(Math.abs(pttl - remainingMs)).toBeLessThan(10_000);
     });
   });
 });

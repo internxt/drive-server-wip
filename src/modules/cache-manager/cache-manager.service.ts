@@ -97,11 +97,11 @@ export class CacheManagerService {
     return cachedLimit;
   }
 
-  async blacklistJwt(jti: string, ttl: number) {
+  async blacklistJwt(jti: string, ttlMs: number) {
     const cacheJwt = await this.cacheManager.set(
       `${this.JWT_KEY_PREFIX}${jti}`,
       true,
-      ttl,
+      ttlMs,
     );
     return cacheJwt;
   }

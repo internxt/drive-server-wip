@@ -6,13 +6,7 @@ dayjs.extend(utc);
 dayjs.extend(isSameOrBefore);
 
 export type TimeUnit =
-  | 'year'
-  | 'month'
-  | 'week'
-  | 'day'
-  | 'hour'
-  | 'minute'
-  | 'second';
+  'year' | 'month' | 'week' | 'day' | 'hour' | 'minute' | 'second';
 
 export class Time {
   public static now(initialDate?: string | Date | number): Date {
@@ -47,8 +41,12 @@ export class Time {
   }
 
   public static readonly convertTimestampToDate = (timestamp: number): Date => {
-    return dayjs(timestamp * 1000).toDate();
+    return dayjs(Time.secondsToMs(timestamp)).toDate();
   };
+
+  public static secondsToMs(seconds: number): number {
+    return seconds * 1000;
+  }
 
   /**
    * Returns a new Date object set to the end of the day (23:59:59.999)
