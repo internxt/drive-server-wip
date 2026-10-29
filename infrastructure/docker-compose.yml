@@ -162,9 +162,11 @@ services:
   #     - ./volumes/dbeaver_workspace:/opt/cloudbeaver/workspace
 
   redis:
-    image: redis:latest
+    image: valkey/valkey:8
     container_name: drive-server-redis
     restart: always
+    ports:
+      - 6379:6379
     networks:
       - internxt
 
