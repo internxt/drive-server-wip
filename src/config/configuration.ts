@@ -32,7 +32,7 @@ export default () => ({
       },
     },
     legacyPgBouncer: {
-      url: process.env.LEGACY_PGBOUNCER_URL,
+      url: process.env.HEAVY_READ_PGBOUNCER_URL,
     },
   },
   cache: {
