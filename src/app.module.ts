@@ -147,6 +147,11 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
           'database.heavyReadPool.url',
         );
         const useHeavyReadPool = !!heavyReadPoolUrl;
+        if (!useHeavyReadPool) {
+          new Logger('HeavyReadPool').warn(
+            'HEAVY_READ_PGBOUNCER_URL not set, heavy read pool falls back to the main database config instead of pooling',
+          );
+        }
         const useReplication =
           !configService.get('isDevelopment') && !isCronjobInstance;
 
