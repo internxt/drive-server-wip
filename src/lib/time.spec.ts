@@ -90,6 +90,16 @@ describe('Time class', () => {
     });
   });
 
+  describe('secondsToMs()', () => {
+    it('When seconds are provided, then returns the equivalent milliseconds', () => {
+      const seconds = 600;
+
+      const ms = Time.secondsToMs(seconds);
+
+      expect(ms).toBe(600_000);
+    });
+  });
+
   describe('daysAgo()', () => {
     it('When days is 0, then returns current date', () => {
       const result = Time.daysAgo(0);

@@ -33,10 +33,11 @@ describe('AuthUsecases', () => {
 
   describe('logout use case', () => {
     beforeEach(() => {
-      jest.spyOn(Date, 'now').mockReturnValue(1640995200000); // 2022-01-01 00:00:00
+      jest.useFakeTimers().setSystemTime(1640995200000); // 2022-01-01 00:00:00
     });
 
     afterEach(() => {
+      jest.useRealTimers();
       jest.restoreAllMocks();
     });
 
@@ -45,7 +46,7 @@ describe('AuthUsecases', () => {
         jti: v4(),
         exp: 1640995800, // 10 minutes from now
       };
-      const expectedTtl = 600; // 10 minutes
+      const expectedTtl = 600_000; // 10 minutes
 
       jest.spyOn(jwtService, 'decode').mockReturnValue(mockTokenClaims);
       jest.spyOn(cacheManagerService, 'blacklistJwt').mockResolvedValue(true);
