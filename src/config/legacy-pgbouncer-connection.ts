@@ -17,7 +17,7 @@ import { WorkspaceModel } from '../modules/workspaces/models/workspace.model';
 
 export const LEGACY_PGBOUNCER_CONNECTION = 'legacy-pgbouncer';
 
-// Association graph of FileModel/FolderModel: every associated model must be registered in the same connection
+// FileModel/FolderModel and their associations, required to initialize them in this connection
 export const legacyPgBouncerModels = [
   FileModel,
   FolderModel,
