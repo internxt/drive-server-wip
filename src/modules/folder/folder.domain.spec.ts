@@ -66,4 +66,27 @@ describe('Folder domain', () => {
       expect(filter).toEqual({});
     });
   });
+
+  describe('toJSON', () => {
+    it('When the folder is trashed, then it includes the trashed status', () => {
+      const folder = newFolder({
+        attributes: { deleted: true, removed: false },
+      });
+
+      const json = folder.toJSON();
+
+      expect(json.status).toBe(FolderStatus.TRASHED);
+    });
+
+    it('When the folder changes after being built, then it includes the current status', () => {
+      const folder = newFolder({
+        attributes: { deleted: false, removed: false },
+      });
+      folder.moveToTrash();
+
+      const json = folder.toJSON();
+
+      expect(json.status).toBe(FolderStatus.TRASHED);
+    });
+  });
 });
