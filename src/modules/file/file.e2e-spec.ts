@@ -2,6 +2,7 @@ import { type NestExpressApplication } from '@nestjs/platform-express';
 import {
   BadRequestException,
   ConflictException,
+  HttpStatus,
   type ArgumentsHost,
 } from '@nestjs/common';
 import { createMock } from '@golevelup/ts-jest';
@@ -26,6 +27,7 @@ import { UniqueConstraintFilter } from '../../common/filters/unique-constraint.f
 import { AesService } from '../../externals/crypto/aes';
 import request from 'supertest';
 import { ClientEnum } from '../../common/enums/platform.enum';
+import { SequelizeThumbnailRepository } from '../thumbnail/thumbnail.repository';
 
 describe('File module', () => {
   let app: NestExpressApplication;
@@ -51,6 +53,18 @@ describe('File module', () => {
     await usageModel.destroy({ where: { userId: testUser.user.uuid } });
     await testUser.cleanup();
   });
+
+  const createUserFile = (owner: TestUserContext) =>
+    fileRepository.create(
+      newFile({
+        attributes: {
+          folderId: owner.rootFolder?.id,
+          folderUuid: owner.rootFolder?.uuid,
+          userId: owner.user.id,
+          status: FileStatus.EXISTS,
+        },
+      }),
+    );
 
   afterAll(async () => {
     await app.close();
@@ -743,6 +757,144 @@ describe('File module', () => {
 
         expect(syncedFile.name).toBe(file.plainName);
       });
+    });
+  });
+
+  describe('POST /files', () => {
+    const buildCreateFileBody = (folderUuid: string) => ({
+      bucket: v4().substring(0, 24),
+      fileId: v4().substring(0, 24),
+      encryptVersion: '03-aes',
+      folderUuid,
+      size: 100,
+      plainName: `file-${v4()}`,
+      type: 'txt',
+    });
+
+    it('When the user uploads a file to their own folder, then the file is created', async () => {
+      const body = buildCreateFileBody(testUser.rootFolder?.uuid);
+
+      const response = await request(app.getHttpServer())
+        .post('/files')
+        .set('Authorization', `bearer ${testUser.token}`)
+        .send(body);
+      const storedFile = await fileModel.findOne({
+        where: { uuid: response.body.uuid ?? null },
+      });
+
+      expect(response.status).toBe(HttpStatus.CREATED);
+      expect(response.body).toMatchObject({
+        uuid: expect.any(String),
+        plainName: body.plainName,
+        status: FileStatus.EXISTS,
+        folderUuid: body.folderUuid,
+        userId: testUser.user.id,
+      });
+      expect(storedFile).toMatchObject({
+        uuid: response.body.uuid,
+        plainName: body.plainName,
+        status: FileStatus.EXISTS,
+        folderUuid: body.folderUuid,
+        userId: testUser.user.id,
+      });
+    });
+
+    it('When the user uploads a file to a folder of another user, then it is not allowed', async () => {
+      const anotherTestUser = await createTestUser(app);
+      const body = buildCreateFileBody(anotherTestUser.rootFolder?.uuid);
+
+      const response = await request(app.getHttpServer())
+        .post('/files')
+        .set('Authorization', `bearer ${testUser.token}`)
+        .send(body);
+      const filesInFolder = await fileModel.count({
+        where: { folderUuid: anotherTestUser.rootFolder?.uuid },
+      });
+      await anotherTestUser.cleanup();
+
+      expect(response.status).toBe(HttpStatus.FORBIDDEN);
+      expect(filesInFolder).toBe(0);
+    });
+  });
+
+  describe('GET /files/sync', () => {
+    it('When listing files, then only the files of the current user are returned', async () => {
+      const anotherTestUser = await createTestUser(app);
+      const requesterFile = await createUserFile(testUser);
+      const anotherUserFile = await createUserFile(anotherTestUser);
+
+      const response = await request(app.getHttpServer())
+        .get('/files/sync')
+        .query({
+          status: FileStatus.EXISTS,
+          updatedAt: new Date(0).toISOString(),
+        })
+        .set('Authorization', `bearer ${testUser.token}`);
+      await anotherTestUser.cleanup();
+
+      expect(response.status).toBe(HttpStatus.OK);
+      expect(response.body.files).toHaveLength(1);
+      expect(response.body.files[0]).toMatchObject({
+        uuid: requesterFile.uuid,
+        plainName: requesterFile.plainName,
+        status: FileStatus.EXISTS,
+      });
+      expect(response.body.files[0].uuid).not.toBe(anotherUserFile.uuid);
+    });
+  });
+
+  describe('POST /files/thumbnail', () => {
+    let thumbnailRepository: SequelizeThumbnailRepository;
+
+    beforeAll(() => {
+      thumbnailRepository = app.get(SequelizeThumbnailRepository);
+    });
+
+    const buildThumbnailBody = (fileUuid: string) => ({
+      fileUuid,
+      type: 'png',
+      size: 100,
+      maxWidth: 300,
+      maxHeight: 300,
+      bucketId: v4().substring(0, 24),
+      bucketFile: v4().substring(0, 24),
+      encryptVersion: '03-aes',
+    });
+
+    it('When the user adds a thumbnail to their own file, then the thumbnail is created', async () => {
+      const file = await createUserFile(testUser);
+      const body = buildThumbnailBody(file.uuid);
+
+      const response = await request(app.getHttpServer())
+        .post('/files/thumbnail')
+        .set('Authorization', `bearer ${testUser.token}`)
+        .send(body);
+      const thumbnails = await thumbnailRepository.findAll({
+        fileUuid: file.uuid,
+      });
+      await thumbnailRepository.deleteBy({ fileUuid: file.uuid });
+
+      expect(response.status).toBe(HttpStatus.CREATED);
+      expect(response.body).toMatchObject({ fileUuid: file.uuid });
+      expect(thumbnails).toHaveLength(1);
+    });
+
+    it('When the user adds a thumbnail to a file of another user, then it is not allowed', async () => {
+      const anotherTestUser = await createTestUser(app);
+      const otherUserFile = await createUserFile(anotherTestUser);
+      const body = buildThumbnailBody(otherUserFile.uuid);
+
+      const response = await request(app.getHttpServer())
+        .post('/files/thumbnail')
+        .set('Authorization', `bearer ${testUser.token}`)
+        .send(body);
+      const thumbnails = await thumbnailRepository.findAll({
+        fileUuid: otherUserFile.uuid,
+      });
+      await anotherTestUser.cleanup();
+
+      expect(response.status).toBe(HttpStatus.FORBIDDEN);
+      expect(thumbnails).toHaveLength(0);
     });
   });
 

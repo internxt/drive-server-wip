@@ -10,9 +10,9 @@ import request from 'supertest';
 
 import { SequelizeFileRepository } from '../file/file.repository';
 import { newFile, newFolder } from '../../../test/fixtures';
-import { type File } from '../file/file.domain';
+import { type File, FileStatus } from '../file/file.domain';
 import { SequelizeFolderRepository } from './folder.repository';
-import { type Folder } from './folder.domain';
+import { type Folder, FolderStatus } from './folder.domain';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import {
   createTestUser,
@@ -121,6 +121,8 @@ describe('Folder module', () => {
         size: file.size,
         type: file.type,
         name: file.plainName,
+        plainName: file.plainName,
+        status: FileStatus.EXISTS,
       });
     });
 
@@ -176,6 +178,108 @@ describe('Folder module', () => {
 
       expect(response.body).toHaveProperty('folders');
       expect(response.body.folders.length).toBe(1);
+      expect(response.body.folders[0]).toMatchObject({
+        uuid: folder.uuid,
+        plainName: folder.plainName,
+        status: FolderStatus.EXISTS,
+      });
+    });
+
+    it('When the user lists the subfolders of a folder of another user, then nothing is returned', async () => {
+      const anotherTestUser = await createTestUser(app);
+      const folderUuid = testUser.rootFolder?.uuid;
+
+      const response = await request(app.getHttpServer())
+        .get(`/folders/content/${folderUuid}/folders`)
+        .query({ limit: DEFAULT_LIMIT, offset: DEFAULT_OFFSET })
+        .set('Authorization', `bearer ${anotherTestUser.token}`);
+      await anotherTestUser.cleanup();
+
+      expect(response.status).toBe(HttpStatus.OK);
+      expect(response.body.folders.length).toBe(0);
+    });
+  });
+
+  describe('POST /folders/content/:uuid/files/existence', () => {
+    let file: File;
+
+    beforeEach(async () => {
+      file = await fileRepository.create(
+        newFile({
+          attributes: {
+            folderId: testUser.rootFolder?.id,
+            folderUuid: testUser.rootFolder?.uuid,
+            userId: testUser.user.id,
+          },
+        }),
+      );
+    });
+
+    afterEach(async () => {
+      await fileRepository.destroyFile({ id: file.id });
+    });
+
+    it('When the user checks a file that exists in their folder, then the file is returned', async () => {
+      const folderUuid = testUser.rootFolder?.uuid;
+      const body = { files: [{ plainName: file.plainName, type: file.type }] };
+
+      const response = await makeRequest(
+        'post',
+        `/folders/content/${folderUuid}/files/existence`,
+      )
+        .send(body)
+        .expect(HttpStatus.CREATED);
+
+      expect(response.body.existentFiles).toHaveLength(1);
+      expect(response.body.existentFiles[0]).toMatchObject({
+        uuid: file.uuid,
+        plainName: file.plainName,
+        status: FileStatus.EXISTS,
+      });
+    });
+
+    it('When the user checks files in a folder of another user, then an error is thrown', async () => {
+      const anotherTestUser = await createTestUser(app);
+      const folderUuid = testUser.rootFolder?.uuid;
+      const body = { files: [{ plainName: file.plainName, type: file.type }] };
+
+      const response = await request(app.getHttpServer())
+        .post(`/folders/content/${folderUuid}/files/existence`)
+        .set('Authorization', `bearer ${anotherTestUser.token}`)
+        .send(body);
+      await anotherTestUser.cleanup();
+
+      expect(response.status).toBe(HttpStatus.FORBIDDEN);
+    });
+  });
+
+  describe('GET /folders/:id/metadata', () => {
+    it('When the user requests the metadata of their own folder, then it is returned', async () => {
+      const folderId = testUser.rootFolder?.id;
+
+      const response = await makeRequest(
+        'get',
+        `/folders/${folderId}/metadata`,
+      ).expect(HttpStatus.OK);
+
+      expect(response.body).toMatchObject({
+        id: folderId,
+        uuid: testUser.rootFolder?.uuid,
+        plainName: testUser.rootFolder?.plainName,
+        status: FolderStatus.EXISTS,
+      });
+    });
+
+    it('When the user requests the metadata of a folder of another user, then it is not found', async () => {
+      const anotherTestUser = await createTestUser(app);
+      const folderId = testUser.rootFolder?.id;
+
+      const response = await request(app.getHttpServer())
+        .get(`/folders/${folderId}/metadata`)
+        .set('Authorization', `bearer ${anotherTestUser.token}`);
+      await anotherTestUser.cleanup();
+
+      expect(response.status).toBe(HttpStatus.NOT_FOUND);
     });
   });
 
