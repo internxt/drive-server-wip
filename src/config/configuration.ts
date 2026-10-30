@@ -31,6 +31,9 @@ export default () => ({
         password: process.env.RDS_PASSWORD,
       },
     },
+    heavyReadPool: {
+      url: process.env.HEAVY_READ_PGBOUNCER_URL,
+    },
   },
   cache: {
     redisConnectionString: process.env.REDIS_CONNECTION_STRING,

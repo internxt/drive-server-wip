@@ -33,12 +33,17 @@ describe('SequelizeFolderRepository', () => {
 
   let repository: SequelizeFolderRepository;
   let folderModel: typeof FolderModel;
+  let heavyReadPoolFolderModel: typeof FolderModel;
   let folder: Folder;
 
   beforeEach(async () => {
     folderModel = createMock<typeof FolderModel>();
 
-    repository = new SequelizeFolderRepository(folderModel);
+    heavyReadPoolFolderModel = createMock<typeof FolderModel>();
+
+    repository = new SequelizeFolderRepository(folderModel, {
+      getRepository: () => heavyReadPoolFolderModel,
+    } as any);
 
     folder = newFolder();
   });
@@ -1469,17 +1474,19 @@ describe('SequelizeFolderRepository', () => {
   });
 
   describe('findAllCursorWhereUpdatedAfter', () => {
-    it('When finding folders updated after a date, then it should apply date filter', async () => {
-      const whereClause = { deleted: false };
-      const updatedAfter = new Date('2023-01-01');
-      const limit = 10;
-      const offset = 0;
-      const order: Array<[keyof FolderAttributes, string]> = [
-        ['updatedAt', 'ASC'],
-      ];
-      const folders = [newFolder()];
+    const whereClause = { deleted: false };
+    const updatedAfter = new Date('2023-01-01');
+    const limit = 10;
+    const offset = 0;
+    const order: Array<[keyof FolderAttributes, string]> = [
+      ['updatedAt', 'ASC'],
+    ];
 
-      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce(folders as any);
+    it('When finding folders updated after a date, then it should apply date filter through the heavy read pool connection', async () => {
+      const folders = [newFolder()];
+      jest
+        .spyOn(heavyReadPoolFolderModel, 'findAll')
+        .mockResolvedValueOnce(folders as any);
 
       const result = await repository.findAllCursorWhereUpdatedAfter(
         whereClause,
@@ -1489,7 +1496,7 @@ describe('SequelizeFolderRepository', () => {
         order,
       );
 
-      expect(folderModel.findAll).toHaveBeenCalledWith({
+      expect(heavyReadPoolFolderModel.findAll).toHaveBeenCalledWith({
         where: {
           ...whereClause,
           updatedAt: { [Op.gt]: updatedAfter },
@@ -1499,6 +1506,7 @@ describe('SequelizeFolderRepository', () => {
         limit,
         offset,
       });
+      expect(folderModel.findAll).not.toHaveBeenCalled();
       expect(result).toHaveLength(1);
     });
   });

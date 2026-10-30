@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { withQueryTimeout } from '../../lib/query-timeout';
 import { type TrashExpirationTarget } from '../trash/trash-expiration.utils';
-import { InjectModel } from '@nestjs/sequelize';
+import { InjectConnection, InjectModel } from '@nestjs/sequelize';
+import { type Sequelize as SequelizeTypescript } from 'sequelize-typescript';
+import { HEAVY_READ_POOL_CONNECTION } from '../../config/heavy-read-pool-connection';
 import {
   type Includeable,
   Op,
@@ -229,10 +231,17 @@ interface FolderRepository {
 
 @Injectable()
 export class SequelizeFolderRepository implements FolderRepository {
+  private readonly heavyReadPoolFolderModel: typeof FolderModel;
+
   constructor(
     @InjectModel(FolderModel)
     private readonly folderModel: typeof FolderModel,
-  ) {}
+    @InjectConnection(HEAVY_READ_POOL_CONNECTION)
+    heavyReadPoolConnection: SequelizeTypescript,
+  ) {
+    this.heavyReadPoolFolderModel =
+      heavyReadPoolConnection.getRepository(FolderModel);
+  }
 
   private applyCollateToPlainNameSort(
     order: Array<[keyof FolderModel, string]>,
@@ -1111,7 +1120,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     offset: number,
     additionalOrders: Array<[keyof FolderAttributes, string]> = [],
   ): Promise<Array<Folder>> {
-    const folders = await this.folderModel.findAll({
+    const folders = await this.heavyReadPoolFolderModel.findAll({
       where: {
         ...where,
         updatedAt: {
