@@ -15,6 +15,7 @@ import {
 } from 'sequelize-typescript';
 import { UserModel } from '../user/user.model';
 import { type FolderAttributes } from './folder.attributes';
+import { FolderStatus } from './folder.domain';
 import { SharingModel } from '../sharing/models';
 import { type Sharing } from '../sharing/sharing.domain';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
@@ -81,6 +82,24 @@ export class FolderModel extends Model implements FolderAttributes {
   @Default(false)
   @Column
   removed: boolean;
+
+  @Column(DataType.VIRTUAL)
+  get status(): FolderStatus {
+    const deleted = this.getDataValue('deleted');
+    const removed = this.getDataValue('removed');
+    // Covers queries that don't select deleted or removed.
+    if (deleted === undefined || removed === undefined) {
+      return undefined;
+    }
+
+    if (removed) {
+      return FolderStatus.DELETED;
+    }
+    if (deleted) {
+      return FolderStatus.TRASHED;
+    }
+    return FolderStatus.EXISTS;
+  }
 
   @Default(Sequelize.fn('NOW'))
   @Column

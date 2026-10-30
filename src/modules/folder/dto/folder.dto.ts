@@ -1,4 +1,5 @@
 import type { Sharing } from '../../sharing/sharing.domain';
+import type { FolderStatus } from '../folder.domain';
 
 export class FolderDto {
   id: number;
@@ -18,4 +19,5 @@ export class FolderDto {
   updatedAt: Date;
   sharings?: Sharing[];
   isFavorite?: boolean;
+  status: FolderStatus;
 }

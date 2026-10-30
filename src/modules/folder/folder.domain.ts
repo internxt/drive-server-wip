@@ -208,6 +208,7 @@ export class Folder implements FolderAttributes {
       updatedAt: this.updatedAt,
       sharings: this.sharings,
       isFavorite: this.isFavorite,
+      status: this.getFolderStatus(),
     };
   }
 }
