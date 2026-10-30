@@ -10,9 +10,9 @@ import request from 'supertest';
 
 import { SequelizeFileRepository } from '../file/file.repository';
 import { newFile, newFolder } from '../../../test/fixtures';
-import { type File } from '../file/file.domain';
+import { type File, FileStatus } from '../file/file.domain';
 import { SequelizeFolderRepository } from './folder.repository';
-import { type Folder } from './folder.domain';
+import { type Folder, FolderStatus } from './folder.domain';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import {
   createTestUser,
@@ -121,6 +121,8 @@ describe('Folder module', () => {
         size: file.size,
         type: file.type,
         name: file.plainName,
+        plainName: file.plainName,
+        status: FileStatus.EXISTS,
       });
     });
 
@@ -176,6 +178,11 @@ describe('Folder module', () => {
 
       expect(response.body).toHaveProperty('folders');
       expect(response.body.folders.length).toBe(1);
+      expect(response.body.folders[0]).toMatchObject({
+        uuid: folder.uuid,
+        plainName: folder.plainName,
+        status: FolderStatus.EXISTS,
+      });
     });
 
     it('When the user lists the subfolders of a folder of another user, then nothing is returned', async () => {
@@ -224,7 +231,11 @@ describe('Folder module', () => {
         .expect(HttpStatus.CREATED);
 
       expect(response.body.existentFiles).toHaveLength(1);
-      expect(response.body.existentFiles[0].uuid).toBe(file.uuid);
+      expect(response.body.existentFiles[0]).toMatchObject({
+        uuid: file.uuid,
+        plainName: file.plainName,
+        status: FileStatus.EXISTS,
+      });
     });
 
     it('When the user checks files in a folder of another user, then an error is thrown', async () => {
@@ -254,6 +265,8 @@ describe('Folder module', () => {
       expect(response.body).toMatchObject({
         id: folderId,
         uuid: testUser.rootFolder?.uuid,
+        plainName: testUser.rootFolder?.plainName,
+        status: FolderStatus.EXISTS,
       });
     });
 

@@ -778,10 +778,22 @@ describe('File module', () => {
         .post('/files')
         .set('Authorization', `bearer ${testUser.token}`)
         .send(body);
+      const storedFile = await fileModel.findOne({
+        where: { uuid: response.body.uuid ?? null },
+      });
 
       expect(response.status).toBe(HttpStatus.CREATED);
       expect(response.body).toMatchObject({
+        uuid: expect.any(String),
         plainName: body.plainName,
+        status: FileStatus.EXISTS,
+        folderUuid: body.folderUuid,
+        userId: testUser.user.id,
+      });
+      expect(storedFile).toMatchObject({
+        uuid: response.body.uuid,
+        plainName: body.plainName,
+        status: FileStatus.EXISTS,
         folderUuid: body.folderUuid,
         userId: testUser.user.id,
       });
@@ -821,9 +833,13 @@ describe('File module', () => {
       await anotherTestUser.cleanup();
 
       expect(response.status).toBe(HttpStatus.OK);
-      const uuids = response.body.files.map((f: { uuid: string }) => f.uuid);
-      expect(uuids).toContain(requesterFile.uuid);
-      expect(uuids).not.toContain(anotherUserFile.uuid);
+      expect(response.body.files).toHaveLength(1);
+      expect(response.body.files[0]).toMatchObject({
+        uuid: requesterFile.uuid,
+        plainName: requesterFile.plainName,
+        status: FileStatus.EXISTS,
+      });
+      expect(response.body.files[0].uuid).not.toBe(anotherUserFile.uuid);
     });
   });
 
@@ -853,10 +869,14 @@ describe('File module', () => {
         .post('/files/thumbnail')
         .set('Authorization', `bearer ${testUser.token}`)
         .send(body);
+      const thumbnails = await thumbnailRepository.findAll({
+        fileUuid: file.uuid,
+      });
       await thumbnailRepository.deleteBy({ fileUuid: file.uuid });
 
       expect(response.status).toBe(HttpStatus.CREATED);
       expect(response.body).toMatchObject({ fileUuid: file.uuid });
+      expect(thumbnails).toHaveLength(1);
     });
 
     it('When the user adds a thumbnail to a file of another user, then it is not allowed', async () => {
