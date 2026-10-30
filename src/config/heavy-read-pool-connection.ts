@@ -1,3 +1,5 @@
+import { Logger } from '@nestjs/common';
+import { Sequelize, type Options } from 'sequelize';
 import { BackupModel } from '../modules/backups/models/backup.model';
 import { DeviceModel } from '../modules/backups/models/device.model';
 import { FavoriteModel } from '../modules/favorite/favorite.model';
@@ -37,3 +39,34 @@ export const heavyReadPoolModels = [
   BackupModel,
   UserNotificationTokensModel,
 ];
+
+// Sequelize merges URI params over dialectOptions, and pg treats sslmode=require as verify-full,
+// which would override our ssl config and reject the provider's self-signed certificate
+export const removeSslModeFromUrl = (url: string): string => {
+  const parsedUrl = new URL(url);
+  parsedUrl.searchParams.delete('sslmode');
+  return parsedUrl.toString();
+};
+
+export const canConnectToHeavyReadPool = async (
+  uri: string,
+  dialectOptions: Options['dialectOptions'],
+): Promise<boolean> => {
+  const sequelize = new Sequelize(uri, {
+    dialect: 'postgres',
+    dialectOptions: { ...dialectOptions, connectionTimeoutMillis: 5000 },
+    pool: { max: 1, min: 0 },
+    logging: false,
+  });
+  try {
+    await sequelize.authenticate();
+    return true;
+  } catch (error) {
+    new Logger('HeavyReadPool').warn(
+      `Heavy read pool connection check failed: ${(error as Error).message}`,
+    );
+    return false;
+  } finally {
+    await sequelize.close().catch(() => undefined);
+  }
+};

@@ -38,6 +38,8 @@ import { ClsModule } from 'nestjs-cls';
 import {
   HEAVY_READ_POOL_CONNECTION,
   heavyReadPoolModels,
+  removeSslModeFromUrl,
+  canConnectToHeavyReadPool,
 } from './config/heavy-read-pool-connection';
 
 const isCronjobInstance = process.env.EXECUTE_JOBS === 'true';
@@ -146,10 +148,18 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
         const heavyReadPoolUrl = configService.get(
           'database.heavyReadPool.url',
         );
-        const useHeavyReadPool = !!heavyReadPoolUrl;
+        const heavyReadPoolUri = heavyReadPoolUrl
+          ? removeSslModeFromUrl(heavyReadPoolUrl)
+          : null;
+        const sslOptions = configService.get('isProduction')
+          ? { ssl: { require: true, rejectUnauthorized: false } }
+          : {};
+        const useHeavyReadPool =
+          !!heavyReadPoolUri &&
+          (await canConnectToHeavyReadPool(heavyReadPoolUri, sslOptions));
         if (!useHeavyReadPool) {
           new Logger('HeavyReadPool').warn(
-            'HEAVY_READ_PGBOUNCER_URL not set, heavy read pool falls back to the main database config instead of pooling',
+            'Heavy read pool not set or unreachable, falling back to the main database config instead of pooling',
           );
         }
         const useReplication =
@@ -164,7 +174,7 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
           models: heavyReadPoolModels,
           synchronize: false,
           ...(useHeavyReadPool
-            ? { uri: heavyReadPoolUrl }
+            ? { uri: heavyReadPoolUri }
             : {
                 host: configService.get('database.host'),
                 port: configService.get('database.port'),
@@ -182,9 +192,7 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
             acquire: 20000,
           },
           dialectOptions: {
-            ...(configService.get('isProduction')
-              ? { ssl: { require: true, rejectUnauthorized: false } }
-              : {}),
+            ...sslOptions,
             application_name: `${appName}-heavy-read-pool`,
             ...(useHeavyReadPool ? {} : { statement_timeout: 115000 }),
           },
