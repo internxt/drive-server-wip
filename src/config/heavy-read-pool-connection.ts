@@ -40,14 +40,6 @@ export const heavyReadPoolModels = [
   UserNotificationTokensModel,
 ];
 
-// Sequelize merges URI params over dialectOptions, and pg treats sslmode=require as verify-full,
-// which would override our ssl config and reject the provider's self-signed certificate
-export const removeSslModeFromUrl = (url: string): string => {
-  const parsedUrl = new URL(url);
-  parsedUrl.searchParams.delete('sslmode');
-  return parsedUrl.toString();
-};
-
 export const canConnectToHeavyReadPool = async (
   uri: string,
   dialectOptions: Options['dialectOptions'],

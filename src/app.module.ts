@@ -38,7 +38,6 @@ import { ClsModule } from 'nestjs-cls';
 import {
   HEAVY_READ_POOL_CONNECTION,
   heavyReadPoolModels,
-  removeSslModeFromUrl,
   canConnectToHeavyReadPool,
 } from './config/heavy-read-pool-connection';
 
@@ -148,15 +147,12 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
         const heavyReadPoolUrl = configService.get(
           'database.heavyReadPool.url',
         );
-        const heavyReadPoolUri = heavyReadPoolUrl
-          ? removeSslModeFromUrl(heavyReadPoolUrl)
-          : null;
         const sslOptions = configService.get('isProduction')
           ? { ssl: { require: true, rejectUnauthorized: false } }
           : {};
         const useHeavyReadPool =
-          !!heavyReadPoolUri &&
-          (await canConnectToHeavyReadPool(heavyReadPoolUri, sslOptions));
+          !!heavyReadPoolUrl &&
+          (await canConnectToHeavyReadPool(heavyReadPoolUrl, sslOptions));
         if (!useHeavyReadPool) {
           new Logger('HeavyReadPool').warn(
             'Heavy read pool not set or unreachable, falling back to the main database config instead of pooling',
@@ -174,7 +170,7 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
           models: heavyReadPoolModels,
           synchronize: false,
           ...(useHeavyReadPool
-            ? { uri: heavyReadPoolUri }
+            ? { uri: heavyReadPoolUrl }
             : {
                 host: configService.get('database.host'),
                 port: configService.get('database.port'),
