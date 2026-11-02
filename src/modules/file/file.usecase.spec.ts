@@ -197,37 +197,64 @@ describe('FileUseCases', () => {
     });
 
     it('When you try to trash files, then it stops sharing those files', async () => {
-      const files = [newFile(), newFile(), newFile()];
-      const fileUuids = ['656a3abb-36ab-47ee-8303-6e4198f2a32a'];
+      const filesById = [newFile(), newFile(), newFile()];
+      const filesByUuid = [newFile()];
+      const fileUuids = filesByUuid.map((file) => file.uuid);
       const ids = [mockFile.id];
 
       jest
         .spyOn(fileRepository as SequelizeFileRepository, 'findByIds')
-        .mockResolvedValueOnce(files);
+        .mockResolvedValueOnce(filesById);
+      jest
+        .spyOn(fileRepository as SequelizeFileRepository, 'findByUuids')
+        .mockResolvedValueOnce(filesByUuid);
 
       await service.moveFilesToTrash(userMocked, ids, fileUuids);
 
+      expect(
+        (fileRepository as SequelizeFileRepository).findByUuids,
+      ).toHaveBeenCalledWith(fileUuids, { userId: userMocked.id });
       expect(sharingService.bulkRemoveSharings).toHaveBeenCalledWith(
         userMocked,
-        [...fileUuids, ...files.map((file) => file.uuid)],
+        [...filesById, ...filesByUuid].map((file) => file.uuid),
+        SharingItemType.File,
+      );
+    });
+
+    it('When you try to trash files of another user, then their sharings are not removed', async () => {
+      const anotherUserFileUuid = v4();
+
+      jest
+        .spyOn(fileRepository as SequelizeFileRepository, 'findByUuids')
+        .mockResolvedValueOnce([]);
+
+      await service.moveFilesToTrash(userMocked, [], [anotherUserFileUuid]);
+
+      expect(sharingService.bulkRemoveSharings).toHaveBeenCalledWith(
+        userMocked,
+        [],
         SharingItemType.File,
       );
     });
 
     it('When you try to trash files, then it also removes them from favorites', async () => {
-      const files = [newFile(), newFile()];
-      const fileUuids = ['656a3abb-36ab-47ee-8303-6e4198f2a32a'];
+      const filesById = [newFile(), newFile()];
+      const filesByUuid = [newFile()];
+      const fileUuids = filesByUuid.map((file) => file.uuid);
       const ids = [mockFile.id];
 
       jest
         .spyOn(fileRepository as SequelizeFileRepository, 'findByIds')
-        .mockResolvedValueOnce(files);
+        .mockResolvedValueOnce(filesById);
+      jest
+        .spyOn(fileRepository as SequelizeFileRepository, 'findByUuids')
+        .mockResolvedValueOnce(filesByUuid);
 
       await service.moveFilesToTrash(userMocked, ids, fileUuids);
 
       expect(favoriteUseCases.bulkRemoveFavorites).toHaveBeenCalledWith(
         userMocked,
-        [...fileUuids, ...files.map((file) => file.uuid)],
+        [...filesById, ...filesByUuid].map((file) => file.uuid),
         FavoriteItemType.File,
       );
     });

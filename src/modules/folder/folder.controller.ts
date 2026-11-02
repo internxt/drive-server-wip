@@ -855,7 +855,11 @@ export class FolderController {
   }
 
   @Get(':uuid/size')
-  async getFolderSize(@Param('uuid', ValidateUUIDPipe) folderUuid: string) {
+  async getFolderSize(
+    @UserDecorator() user: User,
+    @Param('uuid', ValidateUUIDPipe) folderUuid: string,
+  ) {
+    await this.folderUseCases.getFolderByUuidAndUser(folderUuid, user);
     const size = await this.folderUseCases.getFolderSizeByUuid(folderUuid);
 
     return { size };

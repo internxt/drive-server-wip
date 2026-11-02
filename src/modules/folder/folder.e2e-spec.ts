@@ -179,6 +179,40 @@ describe('Folder module', () => {
     });
   });
 
+  describe('GET /folders/:uuid/size', () => {
+    it('When the user requests the size of their own folder, then the size is returned', async () => {
+      const file = await fileRepository.create(
+        newFile({
+          attributes: {
+            folderId: testUser.rootFolder?.id,
+            folderUuid: testUser.rootFolder?.uuid,
+            userId: testUser.user.id,
+            size: BigInt(100),
+          },
+        }),
+      );
+
+      const response = await makeRequest(
+        'get',
+        `/folders/${testUser.rootFolder?.uuid}/size`,
+      );
+
+      expect(response.status).toBe(HttpStatus.OK);
+      expect(Number(response.body.size)).toBe(Number(file.size));
+    });
+
+    it('When the user requests the size of a folder of another user, then it is not found', async () => {
+      const anotherTestUser = await createTestUser(app);
+
+      const response = await request(app.getHttpServer())
+        .get(`/folders/${testUser.rootFolder?.uuid}/size`)
+        .set('Authorization', `bearer ${anotherTestUser.token}`);
+      await anotherTestUser.cleanup();
+
+      expect(response.status).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
   describe('Folder unique constraint', () => {
     it('When a folder with a duplicated name is inserted, then the violated constraint is mapped to a conflict', async () => {
       const folderAttributes = newFolder({
