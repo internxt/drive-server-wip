@@ -83,21 +83,47 @@ describe('FolderController', () => {
     it('When get folder size is requested, then return the folder size', async () => {
       const expectedSize = 100;
       jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(folder);
+      jest
         .spyOn(folderUseCases, 'getFolderSizeByUuid')
         .mockResolvedValue(expectedSize);
 
-      const result = await folderController.getFolderSize(folder.uuid);
+      const result = await folderController.getFolderSize(
+        requester,
+        folder.uuid,
+      );
+
+      expect(folderUseCases.getFolderByUuidAndUser).toHaveBeenCalledWith(
+        folder.uuid,
+        requester,
+      );
       expect(result).toEqual({ size: expectedSize });
+    });
+
+    it('When the folder does not belong to the user, then it should not be found', async () => {
+      jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockRejectedValue(new NotFoundException());
+      jest.spyOn(folderUseCases, 'getFolderSizeByUuid');
+
+      await expect(
+        folderController.getFolderSize(requester, folder.uuid),
+      ).rejects.toThrow(NotFoundException);
+      expect(folderUseCases.getFolderSizeByUuid).not.toHaveBeenCalled();
     });
 
     it('When get folder size times out, then throw an exception', async () => {
       jest
+        .spyOn(folderUseCases, 'getFolderByUuidAndUser')
+        .mockResolvedValue(folder);
+      jest
         .spyOn(folderUseCases, 'getFolderSizeByUuid')
         .mockRejectedValue(new CalculateFolderSizeTimeoutException());
 
-      await expect(folderController.getFolderSize(folder.uuid)).rejects.toThrow(
-        CalculateFolderSizeTimeoutException,
-      );
+      await expect(
+        folderController.getFolderSize(requester, folder.uuid),
+      ).rejects.toThrow(CalculateFolderSizeTimeoutException);
     });
   });
 

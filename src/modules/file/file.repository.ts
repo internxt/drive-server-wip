@@ -368,8 +368,8 @@ export class SequelizeFileRepository implements FileRepository {
       where: {
         uuid: {
           [Op.in]: uuids,
-          ...where,
         },
+        ...where,
       },
     });
 

@@ -1035,20 +1035,24 @@ export class FileUseCases {
     ids: FileAttributes['id'][],
     fileUuids: FileAttributes['uuid'][] = [],
   ): Promise<void> {
-    const files = await this.fileRepository.findByIds(user.id, ids);
-
-    const allFileUuids = [...fileUuids, ...files.map((file) => file.uuid)];
+    const [filesById, filesByUuid] = await Promise.all([
+      ids.length > 0 ? this.fileRepository.findByIds(user.id, ids) : [],
+      fileUuids.length > 0
+        ? this.fileRepository.findByUuids(fileUuids, { userId: user.id })
+        : [],
+    ]);
+    const filesUuids = [...filesById, ...filesByUuid].map((f) => f.uuid);
 
     await Promise.all([
       this.fileRepository.updateFilesStatusToTrashedByUuid(user, fileUuids),
       this.sharingUsecases.bulkRemoveSharings(
         user,
-        allFileUuids,
+        filesUuids,
         SharingItemType.File,
       ),
       this.favoriteUsecases.bulkRemoveFavorites(
         user,
-        allFileUuids,
+        filesUuids,
         FavoriteItemType.File,
       ),
     ]);
