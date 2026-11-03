@@ -399,6 +399,7 @@ export class FolderUseCases {
         deleted: false,
         removed: false,
       },
+      { useMaster: true },
     );
 
     if (foldersWithSameName.length > 0) {

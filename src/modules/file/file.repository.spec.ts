@@ -757,6 +757,24 @@ describe('FileRepository', () => {
         replacements: { plainName: mockFile.plainName },
       });
     });
+
+    it('When reading from master is requested, then it should query the primary', async () => {
+      const mockFile = newFile();
+      jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(null);
+
+      await repository.findByPlainNameAndFolderId(
+        mockFile.userId,
+        mockFile.plainName,
+        mockFile.type,
+        mockFile.folderUuid,
+        mockFile.status,
+        { useMaster: true },
+      );
+
+      expect(fileModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ useMaster: true }),
+      );
+    });
   });
 
   describe('findAllCursorWhereUpdatedAfter', () => {
@@ -2084,6 +2102,21 @@ describe('FileRepository', () => {
 
       expect(fileModel.findOne).toHaveBeenCalledWith({
         where,
+        useMaster: true,
+      });
+    });
+  });
+
+  describe('findByUuid', () => {
+    it('When reading from master is requested, then it should query the primary', async () => {
+      const fileUuid = v4();
+      const userId = 1;
+      jest.spyOn(fileModel, 'findOne').mockResolvedValueOnce(null);
+
+      await repository.findByUuid(fileUuid, userId, {}, { useMaster: true });
+
+      expect(fileModel.findOne).toHaveBeenCalledWith({
+        where: { uuid: fileUuid, userId },
         useMaster: true,
       });
     });
