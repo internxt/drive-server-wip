@@ -49,6 +49,10 @@ import { ClientEnum } from '../../common/enums/platform.enum';
 import { type IncompleteCheckoutDto } from './dto/incomplete-checkout.dto';
 import { AuditLogService } from '../../common/audit-logs/audit-log.service';
 import {
+  AUDIT_LOG_METADATA_KEY,
+  type AuditLogConfig,
+} from '../../common/audit-logs/decorators/audit-log.decorator';
+import {
   AuditAction,
   AuditEntityType,
   AuditPerformerType,
@@ -2188,6 +2192,21 @@ describe('User Controller', () => {
         'encrypted-id',
       );
       expect(result).toEqual(mockResult);
+    });
+
+    it('When the email change is accepted, then the audit log records the old and new emails in place', () => {
+      const auditLogConfig: AuditLogConfig = Reflect.getMetadata(
+        AUDIT_LOG_METADATA_KEY,
+        UserController.prototype.acceptAttemptChangeEmail,
+      );
+      const metadata = auditLogConfig.metadata as (
+        req: any,
+        res: any,
+      ) => Record<string, any>;
+
+      expect(
+        metadata({}, { oldEmail: 'old@test.com', newEmail: 'new@test.com' }),
+      ).toEqual({ oldEmail: 'old@test.com', newEmail: 'new@test.com' });
     });
   });
 
