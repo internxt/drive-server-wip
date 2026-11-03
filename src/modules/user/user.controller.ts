@@ -1029,8 +1029,8 @@ export class UserController {
   @AuditLog({
     action: AuditAction.EmailChanged,
     metadata: (_req, res) => ({
-      oldEmail: res.newEmail,
-      newEmail: res.oldEmail,
+      oldEmail: res.oldEmail,
+      newEmail: res.newEmail,
     }),
   })
   async acceptAttemptChangeEmail(
