@@ -1198,6 +1198,7 @@ describe('FolderUseCases', () => {
       expect(folderRepository.findByParentUuid).toHaveBeenCalledWith(
         parentFolder.uuid,
         { plainName: folderName, deleted: false, removed: false },
+        { useMaster: true },
       );
       expect(result).toEqual(newFolderCreated);
     });

@@ -82,6 +82,7 @@ interface FolderRepository {
       deleted: boolean;
       removed: boolean;
     },
+    opts?: { useMaster: boolean },
   ): Promise<Folder[]>;
   findByNameAndParentUuid(
     name: FolderAttributes['name'],
@@ -256,6 +257,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       deleted: boolean;
       removed: boolean;
     },
+    opts?: { useMaster: boolean },
   ): Promise<Folder[]> {
     const where: WhereOptions<Folder> = {
       parentUuid,
@@ -280,6 +282,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         ...where,
         ...(plainNameCondition.length && { [Op.and]: plainNameCondition }),
       },
+      useMaster: opts?.useMaster,
       replacements: plainNameCondition.length ? { plainNames } : undefined,
     });
 
