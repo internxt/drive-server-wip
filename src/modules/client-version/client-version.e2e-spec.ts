@@ -88,11 +88,18 @@ describe('Client version policies', () => {
       expect(response.status).toBe(HttpStatus.OK);
       expect(response.body).toEqual({
         status: ClientVersionStatus.Deprecated,
-        message:
-          'This version of the app is deprecated and will stop working soon. Please update.',
+        message: 'This version of the app is deprecated. Please update.',
         recommendedVersion: '3.0.0',
         sunsetAt: sunsetAt.toISOString(),
       });
+    });
+
+    it('When the status is requested, then the response is not cached', async () => {
+      const response = await getCompatibility(
+        clientHeaders(ClientEnum.Mobile, '3.0.0'),
+      );
+
+      expect(response.headers['cache-control']).toBe('no-store');
     });
 
     it('When the app version is below the recommended one, then an update is recommended', async () => {
@@ -141,10 +148,11 @@ describe('Client version policies', () => {
 
       expect(response.status).toBe(HttpStatus.FORBIDDEN);
       expect(response.body).toEqual({
-        statusCode: HttpStatus.FORBIDDEN,
         message:
           'This version of the app is no longer supported. Please update to a newer version.',
-        error: 'CLIENT_VERSION_UNSUPPORTED',
+        error: 'Forbidden',
+        statusCode: HttpStatus.FORBIDDEN,
+        errorCode: 'CLIENT_VERSION_UNSUPPORTED',
         recommendedVersion: '3.0.0',
       });
     });
