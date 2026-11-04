@@ -49,6 +49,7 @@ describe('ClientVersionPolicy', () => {
 
   it.each([
     ['a version is not semver', { minVersion: 'latest' }],
+    ['the targeted version is not exact', { version: '2.8' }],
     [
       'the minimum is above the recommended version',
       { minVersion: '3.0.0', recommendedVersion: '2.0.0' },

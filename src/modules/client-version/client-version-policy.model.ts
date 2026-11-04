@@ -6,7 +6,6 @@ import {
   Model,
   PrimaryKey,
   Table,
-  Unique,
 } from 'sequelize-typescript';
 import { type ClientVersionPolicyAttributes } from './client-version-policy.domain';
 
@@ -25,9 +24,12 @@ export class ClientVersionPolicyModel
   id: number;
 
   @AllowNull(false)
-  @Unique
   @Column(DataType.STRING)
   client: string;
+
+  @AllowNull(true)
+  @Column(DataType.STRING)
+  version: string | null;
 
   @AllowNull(true)
   @Column(DataType.STRING)

@@ -15,7 +15,12 @@ module.exports = {
         comment: 'Client identifier',
         type: Sequelize.STRING,
         allowNull: false,
-        unique: true,
+      },
+      version: {
+        comment:
+          'Normally NULL. An exact version replaces the general policy for that version only',
+        type: Sequelize.STRING,
+        allowNull: true,
       },
       min_version: {
         comment: 'Versions below this one are unsupported',
@@ -50,6 +55,17 @@ module.exports = {
         defaultValue: Sequelize.literal('NOW()'),
       },
     });
+
+    await queryInterface.sequelize.query(`
+      CREATE UNIQUE INDEX ${tableName}_client_general_key
+      ON ${tableName} (client)
+      WHERE version IS NULL
+    `);
+
+    await queryInterface.sequelize.query(`
+      CREATE UNIQUE INDEX ${tableName}_client_version_key
+      ON ${tableName} (client, version)
+    `);
 
     await queryInterface.sequelize.query(`
       ALTER TABLE ${tableName}

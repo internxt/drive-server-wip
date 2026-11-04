@@ -10,6 +10,7 @@ export enum ClientVersionStatus {
 export interface ClientVersionPolicyAttributes {
   id: number;
   client: string;
+  version: string | null;
   minVersion: string | null;
   deprecatedBelow: string | null;
   sunsetAt: Date | null;
@@ -21,6 +22,7 @@ export interface ClientVersionPolicyAttributes {
 export class ClientVersionPolicy implements ClientVersionPolicyAttributes {
   id: number;
   client: string;
+  version: string | null;
   minVersion: string | null;
   deprecatedBelow: string | null;
   sunsetAt: Date | null;
@@ -37,6 +39,10 @@ export class ClientVersionPolicy implements ClientVersionPolicyAttributes {
   }
 
   isValid(): boolean {
+    if (this.version !== null && semver.valid(this.version) !== this.version) {
+      return false;
+    }
+
     const thresholds = [
       this.minVersion,
       this.deprecatedBelow,

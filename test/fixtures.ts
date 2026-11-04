@@ -818,6 +818,7 @@ export const newClientVersionPolicy = (params?: {
   return ClientVersionPolicy.build({
     id: randomDataGenerator.natural({ min: 1 }),
     client: 'internxt-cli',
+    version: null,
     minVersion: null,
     deprecatedBelow: null,
     sunsetAt: null,

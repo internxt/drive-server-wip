@@ -34,7 +34,8 @@ export class ClientVersionUseCase {
   ): ClientCompatibilityResponseDto {
     this.refreshIfStale();
 
-    const policy = this.policies.get(client);
+    const policy =
+      this.policies.get(`${client}@${version}`) ?? this.policies.get(client);
     const status = policy?.getStatus(version) ?? ClientVersionStatus.UpToDate;
 
     return {
@@ -54,7 +55,12 @@ export class ClientVersionUseCase {
       this.policies = new Map(
         policies
           .filter((policy) => this.isUsable(policy))
-          .map((policy) => [policy.client, policy]),
+          .map((policy) => [
+            policy.version
+              ? `${policy.client}@${policy.version}`
+              : policy.client,
+            policy,
+          ]),
       );
     } catch (error) {
       this.logger.error(
