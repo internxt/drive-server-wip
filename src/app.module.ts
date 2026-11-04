@@ -34,6 +34,8 @@ import { AuthGuard } from './modules/auth/auth.guard';
 import { CacheManagerModule } from './modules/cache-manager/cache-manager.module';
 import { ReferralModule } from './modules/referral/referral.module';
 import { HealthModule } from './infrastructure/health/health.module';
+import { ClientVersionModule } from './modules/client-version/client-version.module';
+import { ClientVersionGuard } from './modules/client-version/client-version.guard';
 import { ClsModule } from 'nestjs-cls';
 import {
   HEAVY_READ_POOL_CONNECTION,
@@ -218,12 +220,17 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
     CacheManagerModule,
     ReferralModule,
     HealthModule,
+    ClientVersionModule,
   ],
   controllers: [],
   providers: [
     {
       provide: APP_FILTER,
       useClass: HttpGlobalExceptionFilter,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ClientVersionGuard,
     },
     {
       provide: APP_GUARD,
