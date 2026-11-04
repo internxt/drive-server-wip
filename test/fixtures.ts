@@ -1,4 +1,8 @@
 import { v4 } from 'uuid';
+import {
+  ClientVersionPolicy,
+  type ClientVersionPolicyAttributes,
+} from '../src/modules/client-version/client-version-policy.domain';
 import { Chance } from 'chance';
 import { Folder } from '../src/modules/folder/folder.domain';
 import { User } from '../src/modules/user/user.domain';
@@ -807,3 +811,19 @@ export const newVersioningLimits = (
   retentionDays: params?.retentionDays ?? 15,
   maxVersions: params?.maxVersions ?? 10,
 });
+
+export const newClientVersionPolicy = (params?: {
+  attributes?: Partial<ClientVersionPolicyAttributes>;
+}): ClientVersionPolicy => {
+  return ClientVersionPolicy.build({
+    id: randomDataGenerator.natural({ min: 1 }),
+    client: 'internxt-cli',
+    minVersion: null,
+    deprecatedBelow: null,
+    sunsetAt: null,
+    recommendedVersion: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...params?.attributes,
+  });
+};
