@@ -19,6 +19,7 @@ describe('Client version policies', () => {
   let testUser: TestUserContext;
 
   const sunsetAt = new Date('2099-01-01T00:00:00.000Z');
+  const targetedSunsetAt = new Date('2098-01-01T00:00:00.000Z');
 
   const clientHeaders = (client: ClientEnum, version: string) => ({
     'internxt-client': client,
@@ -51,6 +52,29 @@ describe('Client version policies', () => {
         deprecatedBelow: '2.0.0',
         sunsetAt: new Date('2000-01-01T00:00:00.000Z'),
       },
+      {
+        client: ClientEnum.Mobile,
+        version: '2.9.0',
+        minVersion: '2.9.1',
+        recommendedVersion: '2.9.1',
+      },
+      {
+        client: ClientEnum.Mobile,
+        version: '2.9.2',
+        deprecatedBelow: '2.9.3',
+        sunsetAt: targetedSunsetAt,
+        recommendedVersion: '2.9.3',
+      },
+      {
+        client: ClientEnum.Mobile,
+        version: '2.9.4',
+        recommendedVersion: '2.9.5',
+      },
+      {
+        client: ClientEnum.DesktopMacos,
+        version: '2.8.0',
+        minVersion: '2.8.1',
+      },
     ]);
     await app.get(ClientVersionUseCase).refreshPolicies();
     testUser = await createTestUser(app);
@@ -59,7 +83,13 @@ describe('Client version policies', () => {
   afterAll(async () => {
     await testUser.cleanup();
     await policyModel.destroy({
-      where: { client: [ClientEnum.Mobile, ClientEnum.DesktopLegacy] },
+      where: {
+        client: [
+          ClientEnum.Mobile,
+          ClientEnum.DesktopLegacy,
+          ClientEnum.DesktopMacos,
+        ],
+      },
     });
     await app.close();
   });
@@ -137,6 +167,122 @@ describe('Client version policies', () => {
       });
 
       expect(response.status).toBe(HttpStatus.BAD_REQUEST);
+    });
+  });
+
+  describe('Policy for a specific version', () => {
+    it('When the policy targets the app version, then access is denied with its update details', async () => {
+      const response = await listRootFolderFiles(
+        clientHeaders(ClientEnum.Mobile, '2.9.0'),
+      );
+
+      expect(response.status).toBe(HttpStatus.FORBIDDEN);
+      expect(response.body).toMatchObject({
+        errorCode: 'CLIENT_VERSION_UNSUPPORTED',
+        recommendedVersion: '2.9.1',
+      });
+    });
+
+    it('When the app is on another version, then the request is allowed', async () => {
+      const response = await listRootFolderFiles(
+        clientHeaders(ClientEnum.Mobile, '2.9.1'),
+      );
+
+      expect(response.status).toBe(HttpStatus.OK);
+    });
+
+    it('When the policy targets the app version, then the status is unsupported', async () => {
+      const response = await getCompatibility(
+        clientHeaders(ClientEnum.Mobile, '2.9.0'),
+      );
+
+      expect(response.body).toEqual({
+        status: ClientVersionStatus.Unsupported,
+        message:
+          'This version of the app is no longer supported. Please update to a newer version.',
+        recommendedVersion: '2.9.1',
+        sunsetAt: null,
+      });
+    });
+
+    it('When the policy deprecates the app version, then its sunset date and update target are returned', async () => {
+      const response = await getCompatibility(
+        clientHeaders(ClientEnum.Mobile, '2.9.2'),
+      );
+
+      expect(response.body).toEqual({
+        status: ClientVersionStatus.Deprecated,
+        message: 'This version of the app is deprecated. Please update.',
+        recommendedVersion: '2.9.3',
+        sunsetAt: targetedSunsetAt.toISOString(),
+      });
+    });
+
+    it('When the policy deprecates the app version, then the request is still allowed', async () => {
+      const response = await listRootFolderFiles(
+        clientHeaders(ClientEnum.Mobile, '2.9.2'),
+      );
+
+      expect(response.status).toBe(HttpStatus.OK);
+    });
+
+    it('When the policy recommends an update for the app version, then its update target is returned', async () => {
+      const response = await getCompatibility(
+        clientHeaders(ClientEnum.Mobile, '2.9.4'),
+      );
+
+      expect(response.body).toEqual({
+        status: ClientVersionStatus.UpdateRecommended,
+        message: 'A new version of the app is available. Please update.',
+        recommendedVersion: '2.9.5',
+        sunsetAt: null,
+      });
+    });
+
+    it('When the app is on another version, then the general policy still applies', async () => {
+      const response = await getCompatibility(
+        clientHeaders(ClientEnum.Mobile, '2.9.1'),
+      );
+
+      expect(response.body).toMatchObject({
+        status: ClientVersionStatus.UpdateRecommended,
+        recommendedVersion: '3.0.0',
+      });
+    });
+
+    it('When the app version is a prerelease of the targeted version, then the policy applies', async () => {
+      const response = await getCompatibility(
+        clientHeaders(ClientEnum.Mobile, '2.9.0-rc.1'),
+      );
+
+      expect(response.body.status).toBe(ClientVersionStatus.Unsupported);
+    });
+
+    it('When the app only has a policy for one version, then other versions are up to date', async () => {
+      const targetedVersion = await getCompatibility(
+        clientHeaders(ClientEnum.DesktopMacos, '2.8.0'),
+      );
+      const olderVersion = await getCompatibility(
+        clientHeaders(ClientEnum.DesktopMacos, '2.7.0'),
+      );
+
+      expect(targetedVersion.body.status).toBe(ClientVersionStatus.Unsupported);
+      expect(olderVersion.body.status).toBe(ClientVersionStatus.UpToDate);
+    });
+
+    it('When a general policy already exists for the app, then another one cannot be created', async () => {
+      const creation = policyModel.create({ client: ClientEnum.Mobile });
+
+      await expect(creation).rejects.toThrow();
+    });
+
+    it('When a policy already targets the version, then another one cannot be created', async () => {
+      const creation = policyModel.create({
+        client: ClientEnum.Mobile,
+        version: '2.9.0',
+      });
+
+      await expect(creation).rejects.toThrow();
     });
   });
 
