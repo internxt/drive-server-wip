@@ -39,27 +39,14 @@ export class ClientVersionPolicy implements ClientVersionPolicyAttributes {
   }
 
   isValid(): boolean {
-    if (this.version !== null && semver.valid(this.version) !== this.version) {
-      return false;
-    }
-
-    const thresholds = [
+    return [
+      this.version,
       this.minVersion,
       this.deprecatedBelow,
       this.recommendedVersion,
-    ].filter((threshold) => threshold !== null);
-
-    const areValidVersions = thresholds.every((threshold) =>
-      semver.valid(threshold),
-    );
-    if (!areValidVersions) {
-      return false;
-    }
-
-    return thresholds.every(
-      (threshold, index) =>
-        index === 0 || semver.lte(thresholds[index - 1], threshold),
-    );
+    ]
+      .filter((version) => version !== null)
+      .every((version) => semver.valid(version));
   }
 
   getStatus(version: string): ClientVersionStatus {

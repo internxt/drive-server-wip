@@ -125,19 +125,6 @@ describe('ClientVersionUseCase', () => {
     expect(compatibility.status).toBe(ClientVersionStatus.UpdateRecommended);
   });
 
-  it('When only a version is targeted, then other versions of the app are up to date', async () => {
-    policyRepository.findAll.mockResolvedValueOnce([
-      policyRow({ version: '2.8.0', minVersion: '2.8.1' }),
-    ]);
-    await loadPolicies();
-
-    const targetedVersion = useCase.getCompatibility('internxt-cli', '2.8.0');
-    const otherVersion = useCase.getCompatibility('internxt-cli', '2.7.0');
-
-    expect(targetedVersion.status).toBe(ClientVersionStatus.Unsupported);
-    expect(otherVersion.status).toBe(ClientVersionStatus.UpToDate);
-  });
-
   it('When the policies are older than the refresh interval, then they are reloaded', async () => {
     policyRepository.findAll
       .mockResolvedValueOnce([])

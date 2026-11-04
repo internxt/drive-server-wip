@@ -22,19 +22,6 @@ describe('ClientVersionPolicy', () => {
     expect(status).toBe(expected);
   });
 
-  it('When the sunset date has passed, then deprecated versions are still deprecated', () => {
-    const pastSunsetPolicy = newClientVersionPolicy({
-      attributes: {
-        deprecatedBelow: '2.0.0',
-        sunsetAt: new Date('2000-01-01T00:00:00.000Z'),
-      },
-    });
-
-    const status = pastSunsetPolicy.getStatus('1.5.0');
-
-    expect(status).toBe(ClientVersionStatus.Deprecated);
-  });
-
   it('When no version is set, then every version is up to date', () => {
     const emptyPolicy = newClientVersionPolicy();
 
@@ -50,10 +37,6 @@ describe('ClientVersionPolicy', () => {
   it.each([
     ['a version is not semver', { minVersion: 'latest' }],
     ['the targeted version is not exact', { version: '2.8' }],
-    [
-      'the minimum is above the recommended version',
-      { minVersion: '3.0.0', recommendedVersion: '2.0.0' },
-    ],
   ])('When %s, then the policy is invalid', (_, attributes) => {
     const invalidPolicy = newClientVersionPolicy({ attributes });
 

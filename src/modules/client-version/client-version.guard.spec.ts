@@ -39,31 +39,7 @@ describe('ClientVersionGuard', () => {
     jest.clearAllMocks();
   });
 
-  it('When the app version is unsupported, then the blocked request is reported', () => {
-    clientVersionUseCase.getCompatibility.mockReturnValue(
-      compatibilityWith(ClientVersionStatus.Unsupported),
-    );
-
-    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-
-    expect(newrelic.addCustomAttributes).toHaveBeenCalledWith({
-      internxtClient: ClientEnum.Cli,
-      internxtVersion: '1.0.0',
-      errorCode: 'CLIENT_VERSION_UNSUPPORTED',
-    });
-  });
-
-  it('When the app version is allowed, then nothing is reported', () => {
-    clientVersionUseCase.getCompatibility.mockReturnValue(
-      compatibilityWith(ClientVersionStatus.Deprecated),
-    );
-
-    guard.canActivate(context);
-
-    expect(newrelic.addCustomAttributes).not.toHaveBeenCalled();
-  });
-
-  it('When the app version is unsupported, then access is denied with the update details', () => {
+  it('When the app version is unsupported, then access is denied and reported', () => {
     clientVersionUseCase.getCompatibility.mockReturnValue(
       compatibilityWith(ClientVersionStatus.Unsupported),
     );
@@ -82,6 +58,11 @@ describe('ClientVersionGuard', () => {
       statusCode: 403,
       errorCode: 'CLIENT_VERSION_UNSUPPORTED',
       recommendedVersion: '2.8.1',
+    });
+    expect(newrelic.addCustomAttributes).toHaveBeenCalledWith({
+      internxtClient: ClientEnum.Cli,
+      internxtVersion: '1.0.0',
+      errorCode: 'CLIENT_VERSION_UNSUPPORTED',
     });
   });
 

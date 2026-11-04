@@ -57,20 +57,8 @@ module.exports = {
     });
 
     await queryInterface.sequelize.query(`
-      CREATE UNIQUE INDEX ${tableName}_client_general_key
-      ON ${tableName} (client)
-      WHERE version IS NULL
-    `);
-
-    await queryInterface.sequelize.query(`
       CREATE UNIQUE INDEX ${tableName}_client_version_key
-      ON ${tableName} (client, version)
-    `);
-
-    await queryInterface.sequelize.query(`
-      ALTER TABLE ${tableName}
-      ADD CONSTRAINT ${tableName}_sunset_at_requires_deprecated_below
-      CHECK (sunset_at IS NULL OR deprecated_below IS NOT NULL)
+      ON ${tableName} (client, COALESCE(version, ''))
     `);
   },
 
