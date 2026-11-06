@@ -118,6 +118,7 @@ export interface FileRepository {
     fileUuid: FileAttributes['uuid'],
     userId: FileAttributes['userId'],
     where: FindOptions<FileAttributes>,
+    opts?: { useMaster: boolean },
   ): Promise<File | null>;
   findUserFilesInFolderByName(
     userId: File['userId'],
@@ -130,6 +131,7 @@ export interface FileRepository {
     type: FileAttributes['type'],
     folderUuid: FileAttributes['folderUuid'],
     status: FileAttributes['status'],
+    opts?: { useMaster: boolean },
   ): Promise<File | null>;
   getSumSizeOfFilesInWorkspaceByStatuses(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
@@ -381,6 +383,7 @@ export class SequelizeFileRepository implements FileRepository {
     fileUuid: string,
     userId: number,
     where: FindOptions<FileAttributes> = {},
+    opts?: { useMaster: boolean },
   ): Promise<File | null> {
     const file = await this.fileModel.findOne({
       where: {
@@ -388,6 +391,7 @@ export class SequelizeFileRepository implements FileRepository {
         userId,
         ...where,
       },
+      useMaster: opts?.useMaster,
     });
 
     return file ? this.toDomain(file) : null;
@@ -399,6 +403,7 @@ export class SequelizeFileRepository implements FileRepository {
     type: FileAttributes['type'],
     folderUuid: FileAttributes['folderUuid'],
     status: FileAttributes['status'],
+    opts?: { useMaster: boolean },
   ): Promise<File | null> {
     const typeCondition =
       type == null || type.trim() === ''
@@ -416,6 +421,7 @@ export class SequelizeFileRepository implements FileRepository {
         folderUuid: { [Op.eq]: folderUuid },
         status: { [Op.eq]: status },
       },
+      useMaster: opts?.useMaster,
       replacements: { plainName },
     });
     return file ? this.toDomain(file) : null;
