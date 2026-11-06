@@ -791,13 +791,12 @@ export class FolderController {
     @Client() client: string,
     @Version() version: string,
   ) {
-    const lastSupportedLinuxVersion = '2.7.0';
+    const lastSupportedLinuxVersion = '2.7.1';
     const clientVersion = semver.coerce(version);
 
     if (
-      client === ClientEnum.DesktopLinux &&
-      clientVersion &&
-      semver.gt(clientVersion, lastSupportedLinuxVersion)
+      client !== ClientEnum.DesktopLinux ||
+      (clientVersion && semver.gt(clientVersion, lastSupportedLinuxVersion))
     ) {
       this.logger.warn(
         {
