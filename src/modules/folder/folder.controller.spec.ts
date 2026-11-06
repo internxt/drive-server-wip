@@ -2,6 +2,7 @@ import { createMock } from '@golevelup/ts-jest';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
+import { DeprecatedEndpointException } from '../../common/deprecated-endpoint.exception';
 import {
   newFile,
   newFolder,
@@ -147,9 +148,100 @@ describe('FolderController', () => {
         .spyOn(folderUseCases, 'getFolderTree')
         .mockResolvedValue(mockFolderTree);
 
-      const result = await folderController.getFolderTree(user, folder.uuid);
+      const result = await folderController.getFolderTree(
+        user,
+        folder.uuid,
+        ClientEnum.DesktopLinux,
+        '2.7.1',
+      );
       expect(result).toEqual({ tree: mockFolderTree });
     });
+
+    it.each(['2.7.2', '2.8.0', '3.0.0'])(
+      'When a newer Linux app (%s) requests the tree, then it should reject it as deprecated',
+      async (version) => {
+        const user = newUser();
+        const folder = newFolder();
+        const getFolderTreeSpy = jest.spyOn(folderUseCases, 'getFolderTree');
+        getFolderTreeSpy.mockClear();
+
+        const treeRequest = folderController.getFolderTree(
+          user,
+          folder.uuid,
+          ClientEnum.DesktopLinux,
+          version,
+        );
+
+        await expect(treeRequest).rejects.toThrow(DeprecatedEndpointException);
+        await expect(treeRequest).rejects.toMatchObject({
+          response: { errorCode: 'ENDPOINT_DEPRECATED' },
+        });
+        expect(getFolderTreeSpy).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['2.7.1', '2.7.0', '2.6.2'])(
+      'When the Linux app %s requests the tree, then it should return it',
+      async (version) => {
+        const user = newUser();
+        const folder = newFolder();
+        const mockFolderTree = { ...folder, children: [], files: [] };
+        jest
+          .spyOn(folderUseCases, 'getFolderTree')
+          .mockResolvedValue(mockFolderTree);
+
+        const result = await folderController.getFolderTree(
+          user,
+          folder.uuid,
+          ClientEnum.DesktopLinux,
+          version,
+        );
+
+        expect(result).toEqual({ tree: mockFolderTree });
+      },
+    );
+
+    it('When the Linux app does not send its version, then it should return the tree', async () => {
+      const user = newUser();
+      const folder = newFolder();
+      const mockFolderTree = { ...folder, children: [], files: [] };
+      jest
+        .spyOn(folderUseCases, 'getFolderTree')
+        .mockResolvedValue(mockFolderTree);
+
+      const result = await folderController.getFolderTree(
+        user,
+        folder.uuid,
+        ClientEnum.DesktopLinux,
+        'undefined',
+      );
+
+      expect(result).toEqual({ tree: mockFolderTree });
+    });
+
+    it.each([
+      [ClientEnum.Web, '1.0.0'],
+      [ClientEnum.DesktopWindows, '2.7.0'],
+      ['', 'undefined'],
+    ])(
+      'When a client other than Linux (%s) requests the tree, then it should reject it as deprecated',
+      async (client, version) => {
+        const user = newUser();
+        const folder = newFolder();
+        const getFolderTreeSpy = jest.spyOn(folderUseCases, 'getFolderTree');
+        getFolderTreeSpy.mockClear();
+
+        const treeRequest = folderController.getFolderTree(
+          user,
+          folder.uuid,
+          client,
+          version,
+        );
+
+        await expect(treeRequest).rejects.toThrow(DeprecatedEndpointException);
+        expect(getFolderTreeSpy).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('get folder content', () => {

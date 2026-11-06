@@ -7,6 +7,7 @@ import {
   Logger,
   NotAcceptableException,
   NotFoundException,
+  HttpStatus,
   RequestTimeoutException,
   UnprocessableEntityException,
   forwardRef,
@@ -133,6 +134,8 @@ export class FolderUseCases {
     rootFolderUuid: FolderAttributes['uuid'],
     deleted = false,
   ) {
+    const maxItems = 10000;
+    const deadline = Date.now() + 60000;
     const rootElements = [];
     const pendingFolders = [
       {
@@ -141,7 +144,18 @@ export class FolderUseCases {
       },
     ];
 
+    let itemCount = 0;
+
     while (pendingFolders.length) {
+      if (Date.now() > deadline) {
+        throw new RequestTimeoutException({
+          message: 'Folder tree retrieval timed out',
+          error: 'Request Timeout',
+          statusCode: HttpStatus.REQUEST_TIMEOUT,
+          errorCode: 'FOLDER_TREE_TIMEOUT',
+        });
+      }
+
       const { folderUuid, elements } = pendingFolders.shift();
 
       const folder: Folder & { files?: File[]; children?: Folder[] } =
@@ -155,9 +169,12 @@ export class FolderUseCases {
         throw new ForbiddenException('Folder does not belong to you!');
       }
 
+      const fetchLimit = maxItems - itemCount + 1;
+
       folder.files = await this.fileRepository.getFilesByFolderUuid(
         folder.uuid,
         deleted ? FileStatus.TRASHED : FileStatus.EXISTS,
+        fetchLimit,
       );
 
       folder.children = [];
@@ -165,7 +182,19 @@ export class FolderUseCases {
       const folders = await this.folderRepository.findAllByParentUuid(
         folderUuid,
         deleted,
+        fetchLimit,
       );
+
+      itemCount += folder.files.length + folders.length;
+
+      if (itemCount > maxItems) {
+        throw new UnprocessableEntityException({
+          message: 'Folder tree has too many items',
+          error: 'Unprocessable Entity',
+          statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+          errorCode: 'FOLDER_TREE_TOO_LARGE',
+        });
+      }
 
       folders.forEach((f) => {
         pendingFolders.push({

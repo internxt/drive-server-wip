@@ -605,9 +605,11 @@ export class SequelizeFolderRepository implements FolderRepository {
   async findAllByParentUuid(
     parentUuid: Folder['parentUuid'],
     deleted = false,
+    limit?: number,
   ): Promise<Array<Folder>> {
     const folders = await this.folderModel.findAll({
       where: { parentUuid, deleted },
+      limit,
     });
     return folders.map((folder) => this.toDomain(folder));
   }

@@ -155,6 +155,7 @@ export interface FileRepository {
   getFilesByFolderUuid(
     folderUuid: Folder['uuid'],
     status: FileStatus,
+    limit?: number,
   ): Promise<File[]>;
   getFilesByFolderUuidsWithCursor(params: {
     folderUuids: Folder['uuid'][];
@@ -1196,12 +1197,14 @@ export class SequelizeFileRepository implements FileRepository {
   async getFilesByFolderUuid(
     folderUuid: Folder['uuid'],
     status: FileStatus,
+    limit?: number,
   ): Promise<File[]> {
     const files = await this.fileModel.findAll({
       where: {
         folderUuid,
         status,
       },
+      limit,
       include: [
         {
           model: this.thumbnailModel,

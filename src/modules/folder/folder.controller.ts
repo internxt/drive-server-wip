@@ -46,7 +46,13 @@ import { SharingActionName } from '../sharing/sharing.domain';
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { UniqueConstraintFilter } from '../../common/filters/unique-constraint.filter';
 import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
+import * as semver from 'semver';
 import { Client } from '../../common/decorators/client.decorator';
+import { Version } from '../../common/decorators/version.decorator';
+import {
+  DeprecatedEndpointException,
+  ENDPOINT_DEPRECATED,
+} from '../../common/deprecated-endpoint.exception';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { getAsyncLocalStorage } from '../../common/async-local-storage/async-local-storage';
 import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
@@ -91,6 +97,8 @@ class BadRequestWrongFolderIdException extends BadRequestException {
 @ApiTags('Folder')
 @Controller('folders')
 export class FolderController {
+  private readonly logger = new Logger(FolderController.name);
+
   constructor(
     private readonly folderUseCases: FolderUseCases,
     private readonly fileUseCases: FileUseCases,
@@ -763,6 +771,7 @@ export class FolderController {
   }
 
   @Get('/:uuid/tree')
+  @ApiOperation({ deprecated: true })
   @GetDataFromRequest([
     {
       sourceKey: 'params',
@@ -779,7 +788,29 @@ export class FolderController {
   async getFolderTree(
     @UserDecorator() user: User,
     @Param('uuid', ValidateUUIDPipe) folderUuid: string,
+    @Client() client: string,
+    @Version() version: string,
   ) {
+    const lastSupportedLinuxVersion = '2.7.1';
+    const clientVersion = semver.coerce(version);
+
+    if (
+      client !== ClientEnum.DesktopLinux ||
+      (clientVersion && semver.gt(clientVersion, lastSupportedLinuxVersion))
+    ) {
+      this.logger.warn(
+        {
+          client,
+          version,
+          userUuid: user.uuid,
+          errorCode: ENDPOINT_DEPRECATED,
+        },
+        'Deprecated endpoint called',
+      );
+
+      throw new DeprecatedEndpointException();
+    }
+
     const folderWithTree = await this.folderUseCases.getFolderTree(
       user,
       folderUuid,
