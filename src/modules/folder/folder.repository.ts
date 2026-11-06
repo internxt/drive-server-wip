@@ -93,10 +93,9 @@ interface FolderRepository {
     where: Partial<FolderAttributes>,
     opts?: { useMaster: boolean },
   ): Promise<Folder | null>;
-  findAllByParentUuids(
-    parentUuids: Folder['parentUuid'][],
+  findAllByParentUuid(
+    parentUuid: Folder['parentUuid'],
     deleted?: boolean,
-    limit?: number,
   ): Promise<Array<Folder>>;
   findAllCursorInWorkspace(
     createdBy: WorkspaceItemUserAttributes['createdBy'],
@@ -603,13 +602,13 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map(this.toDomain.bind(this));
   }
 
-  async findAllByParentUuids(
-    parentUuids: Folder['parentUuid'][],
+  async findAllByParentUuid(
+    parentUuid: Folder['parentUuid'],
     deleted = false,
     limit?: number,
   ): Promise<Array<Folder>> {
     const folders = await this.folderModel.findAll({
-      where: { parentUuid: { [Op.in]: parentUuids }, deleted, removed: false },
+      where: { parentUuid, deleted },
       limit,
     });
     return folders.map((folder) => this.toDomain(folder));

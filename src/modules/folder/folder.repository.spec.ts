@@ -765,43 +765,33 @@ describe('SequelizeFolderRepository', () => {
     });
   });
 
-  describe('findAllByParentUuids', () => {
+  describe('findAllByParentUuid', () => {
     const parentUuid = v4();
 
-    it('When folders are found by parent uuids, then they should be returned', async () => {
+    it('When folders are found by parent uuid, then they should be returned', async () => {
       const folder1 = newFolder({ attributes: { parentUuid } });
       const folder2 = newFolder({ attributes: { parentUuid } });
       jest
         .spyOn(folderModel, 'findAll')
         .mockResolvedValueOnce([folder1, folder2] as any);
 
-      const result = await repository.findAllByParentUuids([parentUuid]);
+      const result = await repository.findAllByParentUuid(parentUuid);
 
       expect(folderModel.findAll).toHaveBeenCalledWith({
-        where: {
-          parentUuid: { [Op.in]: [parentUuid] },
-          deleted: false,
-          removed: false,
-        },
-        limit: undefined,
+        where: { parentUuid, deleted: false },
       });
       expect(result).toHaveLength(2);
       expect(result[0]).toBeInstanceOf(Folder);
       expect(result[1]).toBeInstanceOf(Folder);
     });
 
-    it('When searching for deleted folders with a limit, then both should be applied', async () => {
+    it('When searching for deleted folders by parent uuid, then deleted condition should be applied', async () => {
       jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
 
-      await repository.findAllByParentUuids([parentUuid], true, 10);
+      await repository.findAllByParentUuid(parentUuid, true);
 
       expect(folderModel.findAll).toHaveBeenCalledWith({
-        where: {
-          parentUuid: { [Op.in]: [parentUuid] },
-          deleted: true,
-          removed: false,
-        },
-        limit: 10,
+        where: { parentUuid, deleted: true },
       });
     });
   });

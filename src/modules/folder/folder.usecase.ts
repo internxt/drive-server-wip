@@ -134,92 +134,79 @@ export class FolderUseCases {
     rootFolderUuid: FolderAttributes['uuid'],
     deleted = false,
   ) {
-    type TreeFolder = Folder & { files?: File[]; children?: TreeFolder[] };
-
     const maxItems = 10000;
-    const batchSize = 500;
     const deadline = Date.now() + 60000;
+    const rootElements = [];
+    const pendingFolders = [
+      {
+        folderUuid: rootFolderUuid,
+        elements: rootElements,
+      },
+    ];
 
-    const rootFolder: TreeFolder =
-      await this.folderRepository.findByUuid(rootFolderUuid);
-
-    if (!rootFolder) {
-      throw new NotFoundException('Folder does not exist!');
-    }
-
-    if (!rootFolder.isOwnedBy(user)) {
-      throw new ForbiddenException('Folder does not belong to you!');
-    }
-
-    rootFolder.files = [];
-    rootFolder.children = [];
-
-    let currentLevel = [rootFolder];
     let itemCount = 0;
 
-    while (currentLevel.length) {
-      const nextLevel: TreeFolder[] = [];
-
-      for (let i = 0; i < currentLevel.length; i += batchSize) {
-        if (Date.now() > deadline) {
-          throw new RequestTimeoutException({
-            message: 'Folder tree retrieval timed out',
-            error: 'Request Timeout',
-            statusCode: HttpStatus.REQUEST_TIMEOUT,
-            errorCode: 'FOLDER_TREE_TIMEOUT',
-          });
-        }
-
-        const batch = currentLevel.slice(i, i + batchSize);
-        const foldersByUuid = new Map(
-          batch.map((folder) => [folder.uuid, folder]),
-        );
-        const folderUuids = [...foldersByUuid.keys()];
-        const fetchLimit = maxItems - itemCount + 1;
-
-        const files = await this.fileRepository.getFilesByFolderUuids(
-          folderUuids,
-          deleted ? FileStatus.TRASHED : FileStatus.EXISTS,
-          fetchLimit,
-        );
-        const children: TreeFolder[] =
-          await this.folderRepository.findAllByParentUuids(
-            folderUuids,
-            deleted,
-            fetchLimit,
-          );
-
-        itemCount += files.length + children.length;
-
-        if (itemCount > maxItems) {
-          throw new UnprocessableEntityException({
-            message: 'Folder tree has too many items',
-            error: 'Unprocessable Entity',
-            statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-            errorCode: 'FOLDER_TREE_TOO_LARGE',
-          });
-        }
-
-        for (const file of files) {
-          foldersByUuid.get(file.folderUuid).files.push(file);
-        }
-
-        for (const child of children) {
-          if (!child.isOwnedBy(user)) {
-            throw new ForbiddenException('Folder does not belong to you!');
-          }
-
-          child.files = [];
-          child.children = [];
-          foldersByUuid.get(child.parentUuid).children.push(child);
-          nextLevel.push(child);
-        }
+    while (pendingFolders.length) {
+      if (Date.now() > deadline) {
+        throw new RequestTimeoutException({
+          message: 'Folder tree retrieval timed out',
+          error: 'Request Timeout',
+          statusCode: HttpStatus.REQUEST_TIMEOUT,
+          errorCode: 'FOLDER_TREE_TIMEOUT',
+        });
       }
 
-      currentLevel = nextLevel;
+      const { folderUuid, elements } = pendingFolders.shift();
+
+      const folder: Folder & { files?: File[]; children?: Folder[] } =
+        await this.folderRepository.findByUuid(folderUuid);
+
+      if (!folder) {
+        throw new NotFoundException('Folder does not exist!');
+      }
+
+      if (!folder.isOwnedBy(user)) {
+        throw new ForbiddenException('Folder does not belong to you!');
+      }
+
+      const fetchLimit = maxItems - itemCount + 1;
+
+      folder.files = await this.fileRepository.getFilesByFolderUuid(
+        folder.uuid,
+        deleted ? FileStatus.TRASHED : FileStatus.EXISTS,
+        fetchLimit,
+      );
+
+      folder.children = [];
+
+      const folders = await this.folderRepository.findAllByParentUuid(
+        folderUuid,
+        deleted,
+        fetchLimit,
+      );
+
+      itemCount += folder.files.length + folders.length;
+
+      if (itemCount > maxItems) {
+        throw new UnprocessableEntityException({
+          message: 'Folder tree has too many items',
+          error: 'Unprocessable Entity',
+          statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+          errorCode: 'FOLDER_TREE_TOO_LARGE',
+        });
+      }
+
+      folders.forEach((f) => {
+        pendingFolders.push({
+          folderUuid: f.uuid,
+          elements: folder.children,
+        });
+      });
+
+      elements.push(folder);
     }
 
-    return rootFolder;
+    return rootElements[0];
   }
 
   async getFolderByUserId(

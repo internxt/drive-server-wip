@@ -1760,157 +1760,115 @@ describe('FolderUseCases', () => {
     const user = newUser();
     const rootFolder = newFolder({ attributes: { userId: user.id } });
     const fileInRootFolder = newFile({
-      attributes: { folderUuid: rootFolder.uuid, userId: user.id },
-    });
-    const newChildFolder = (parentUuid: string) =>
-      newFolder({ attributes: { userId: user.id, parentUuid } });
-
-    beforeEach(() => {
-      jest.mocked(folderRepository.findByUuid).mockReset();
-      jest.mocked(folderRepository.findAllByParentUuids).mockReset();
-      jest.mocked(fileRepository.getFilesByFolderUuids).mockReset();
-      jest
-        .mocked(folderRepository.findByUuid)
-        .mockResolvedValue(newFolder({ attributes: rootFolder }));
-      jest.mocked(folderRepository.findAllByParentUuids).mockResolvedValue([]);
-      jest.mocked(fileRepository.getFilesByFolderUuids).mockResolvedValue([]);
+      attributes: { folderId: rootFolder.id, userId: user.id },
     });
 
     it('When retrieving the folder tree, then it should return the folder tree structure', async () => {
-      const childFolder = newChildFolder(rootFolder.uuid);
-      const grandchildFolder = newChildFolder(childFolder.uuid);
-      const fileInChildFolder = newFile({
-        attributes: { folderUuid: childFolder.uuid, userId: user.id },
+      const childrenFolder = newFolder({
+        attributes: { userId: user.id, parentId: rootFolder.id },
       });
+
       jest
-        .mocked(fileRepository.getFilesByFolderUuids)
-        .mockResolvedValueOnce([fileInRootFolder])
-        .mockResolvedValueOnce([fileInChildFolder]);
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
       jest
-        .mocked(folderRepository.findAllByParentUuids)
-        .mockResolvedValueOnce([childFolder])
-        .mockResolvedValueOnce([grandchildFolder]);
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([fileInRootFolder]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([childrenFolder]);
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([]);
+
+      // Second iteration mocks for children folder
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(childrenFolder);
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([]);
 
       const result = await service.getFolderTree(user, rootFolder.uuid);
 
       expect(result).toEqual({
         ...rootFolder,
         files: [fileInRootFolder],
-        children: [
-          {
-            ...childFolder,
-            files: [fileInChildFolder],
-            children: [{ ...grandchildFolder, files: [], children: [] }],
-          },
-        ],
+        children: [{ ...childrenFolder, files: [], children: [] }],
       });
-    });
-
-    it('When folders of the same level are retrieved together, then each one should get its own items', async () => {
-      const firstChild = newChildFolder(rootFolder.uuid);
-      const secondChild = newChildFolder(rootFolder.uuid);
-      const fileInSecondChild = newFile({
-        attributes: { folderUuid: secondChild.uuid, userId: user.id },
-      });
-      const grandchildInFirstChild = newChildFolder(firstChild.uuid);
-      jest
-        .mocked(folderRepository.findAllByParentUuids)
-        .mockResolvedValueOnce([firstChild, secondChild])
-        .mockResolvedValueOnce([grandchildInFirstChild]);
-      jest
-        .mocked(fileRepository.getFilesByFolderUuids)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([fileInSecondChild]);
-
-      const result = await service.getFolderTree(user, rootFolder.uuid);
-
-      expect(result.children).toEqual([
-        {
-          ...firstChild,
-          files: [],
-          children: [{ ...grandchildInFirstChild, files: [], children: [] }],
-        },
-        { ...secondChild, files: [fileInSecondChild], children: [] },
-      ]);
-    });
-
-    it('When a level has many folders, then it should retrieve them in batches', async () => {
-      const children = Array.from({ length: 501 }, () =>
-        newChildFolder(rootFolder.uuid),
-      );
-      jest
-        .mocked(folderRepository.findAllByParentUuids)
-        .mockResolvedValueOnce(children);
-
-      await service.getFolderTree(user, rootFolder.uuid);
-
-      const batches = jest
-        .mocked(fileRepository.getFilesByFolderUuids)
-        .mock.calls.map(([folderUuids]) => folderUuids.length);
-      expect(batches).toEqual([1, 500, 1]);
     });
 
     it('When the root folder does not belong to the user, then it should throw an error', async () => {
       const anotherUser = newUser();
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
 
       await expect(
         service.getFolderTree(anotherUser, rootFolder.uuid),
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('When a subfolder does not belong to the user, then it should throw an error', async () => {
-      const foreignFolder = newFolder({
-        attributes: { userId: user.id + 1, parentUuid: rootFolder.uuid },
-      });
-      jest
-        .mocked(folderRepository.findAllByParentUuids)
-        .mockResolvedValueOnce([foreignFolder]);
-
-      await expect(
-        service.getFolderTree(user, rootFolder.uuid),
-      ).rejects.toThrow(ForbiddenException);
-    });
-
-    it('When the root folder is not found, then it should throw', async () => {
-      jest.mocked(folderRepository.findByUuid).mockResolvedValueOnce(null);
-
-      await expect(
-        service.getFolderTree(user, rootFolder.uuid),
-      ).rejects.toThrow(NotFoundException);
-    });
-
     it('When a folder has no children, then it should return the folder tree without children', async () => {
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([fileInRootFolder]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([]);
+
       const result = await service.getFolderTree(user, rootFolder.uuid);
 
-      expect(result).toEqual({ ...rootFolder, files: [], children: [] });
+      expect(result).toEqual({
+        ...rootFolder,
+        files: [fileInRootFolder],
+        children: [],
+      });
     });
 
     it('When a folder tree is requested including removed folders and files, then should look for trashed files', async () => {
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([fileInRootFolder]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([]);
+
       await service.getFolderTree(user, rootFolder.uuid, true);
 
-      expect(fileRepository.getFilesByFolderUuids).toHaveBeenCalledWith(
-        [rootFolder.uuid],
+      expect(fileRepository.getFilesByFolderUuid).toHaveBeenCalledWith(
+        rootFolder.uuid,
         FileStatus.TRASHED,
-        10001,
-      );
-      expect(folderRepository.findAllByParentUuids).toHaveBeenCalledWith(
-        [rootFolder.uuid],
-        true,
         10001,
       );
     });
 
     it('When the tree exceeds the items limit, then it should stop and throw', async () => {
+      const childrenFolder = newFolder({
+        attributes: { userId: user.id, parentId: rootFolder.id },
+      });
       const tooManyFiles = Array.from(
         { length: 10001 },
         () => fileInRootFolder,
       );
       jest
-        .mocked(fileRepository.getFilesByFolderUuids)
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
         .mockResolvedValueOnce(tooManyFiles);
       jest
-        .mocked(folderRepository.findAllByParentUuids)
-        .mockResolvedValueOnce([newChildFolder(rootFolder.uuid)]);
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([childrenFolder]);
 
       const treeRetrieval = service.getFolderTree(user, rootFolder.uuid);
 
@@ -1918,7 +1876,37 @@ describe('FolderUseCases', () => {
       await expect(treeRetrieval).rejects.toMatchObject({
         response: { errorCode: 'FOLDER_TREE_TOO_LARGE' },
       });
-      expect(fileRepository.getFilesByFolderUuids).toHaveBeenCalledTimes(1);
+      expect(folderRepository.findByUuid).toHaveBeenCalledTimes(1);
+    });
+
+    it('When retrieving the tree takes too long, then it should stop and throw a timeout', async () => {
+      const startedAt = Date.now();
+      const childrenFolder = newFolder({
+        attributes: { userId: user.id, parentId: rootFolder.id },
+      });
+      const dateNowSpy = jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(startedAt)
+        .mockReturnValueOnce(startedAt)
+        .mockReturnValueOnce(startedAt + 60001);
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([childrenFolder]);
+
+      const treeRetrieval = service.getFolderTree(user, rootFolder.uuid);
+
+      await expect(treeRetrieval).rejects.toThrow(RequestTimeoutException);
+      await expect(treeRetrieval).rejects.toMatchObject({
+        response: { errorCode: 'FOLDER_TREE_TIMEOUT' },
+      });
+      expect(folderRepository.findByUuid).toHaveBeenCalledTimes(1);
+      dateNowSpy.mockRestore();
     });
 
     it('When the tree is exactly at the items limit, then it should return it', async () => {
@@ -1927,8 +1915,14 @@ describe('FolderUseCases', () => {
         () => fileInRootFolder,
       );
       jest
-        .mocked(fileRepository.getFilesByFolderUuids)
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
         .mockResolvedValueOnce(filesAtLimit);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([]);
 
       const result = await service.getFolderTree(user, rootFolder.uuid);
 
@@ -1936,42 +1930,77 @@ describe('FolderUseCases', () => {
     });
 
     it('When previous folders used part of the limit, then it should only fetch the remaining items', async () => {
-      const childFolder = newChildFolder(rootFolder.uuid);
+      const childrenFolder = newFolder({
+        attributes: { userId: user.id, parentId: rootFolder.id },
+      });
       jest
-        .mocked(fileRepository.getFilesByFolderUuids)
-        .mockResolvedValueOnce([fileInRootFolder]);
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder)
+        .mockResolvedValueOnce(childrenFolder);
       jest
-        .mocked(folderRepository.findAllByParentUuids)
-        .mockResolvedValueOnce([childFolder]);
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([fileInRootFolder])
+        .mockResolvedValueOnce([]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([childrenFolder])
+        .mockResolvedValueOnce([]);
 
       await service.getFolderTree(user, rootFolder.uuid);
 
-      expect(fileRepository.getFilesByFolderUuids).toHaveBeenLastCalledWith(
-        [childFolder.uuid],
+      expect(fileRepository.getFilesByFolderUuid).toHaveBeenLastCalledWith(
+        childrenFolder.uuid,
         FileStatus.EXISTS,
         9999,
       );
     });
 
-    it('When retrieving the tree takes too long, then it should stop and throw a timeout', async () => {
-      const startedAt = Date.now();
-      const dateNowSpy = jest
-        .spyOn(Date, 'now')
-        .mockReturnValueOnce(startedAt)
-        .mockReturnValueOnce(startedAt)
-        .mockReturnValueOnce(startedAt + 60001);
-      jest
-        .mocked(folderRepository.findAllByParentUuids)
-        .mockResolvedValueOnce([newChildFolder(rootFolder.uuid)]);
+    it('When the root folder is not found, then it should throw', async () => {
+      jest.spyOn(folderRepository, 'findByUuid').mockResolvedValueOnce(null);
 
-      const treeRetrieval = service.getFolderTree(user, rootFolder.uuid);
+      await expect(
+        service.getFolderTree(user, rootFolder.uuid),
+      ).rejects.toThrow(NotFoundException);
+    });
 
-      await expect(treeRetrieval).rejects.toThrow(RequestTimeoutException);
-      await expect(treeRetrieval).rejects.toMatchObject({
-        response: { errorCode: 'FOLDER_TREE_TIMEOUT' },
+    it('When folder has children folders, then it should return the folder with children', async () => {
+      const childrenFolder = newFolder({
+        attributes: { userId: user.id, parentId: rootFolder.id },
       });
-      expect(fileRepository.getFilesByFolderUuids).toHaveBeenCalledTimes(1);
-      dateNowSpy.mockRestore();
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([fileInRootFolder]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([childrenFolder]);
+
+      // Second iteration mocks for children folder
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(childrenFolder); // Children folder is fetch again from queue
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getFolderTree(user, rootFolder.uuid);
+
+      expect(result).toEqual({
+        ...rootFolder,
+        files: [fileInRootFolder],
+        children: [
+          {
+            ...childrenFolder,
+            files: [],
+            children: [],
+          },
+        ],
+      });
     });
   });
 
