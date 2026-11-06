@@ -1848,6 +1848,110 @@ describe('FolderUseCases', () => {
       expect(fileRepository.getFilesByFolderUuid).toHaveBeenCalledWith(
         rootFolder.uuid,
         FileStatus.TRASHED,
+        10001,
+      );
+    });
+
+    it('When the tree exceeds the items limit, then it should stop and throw', async () => {
+      const childrenFolder = newFolder({
+        attributes: { userId: user.id, parentId: rootFolder.id },
+      });
+      const tooManyFiles = Array.from(
+        { length: 10001 },
+        () => fileInRootFolder,
+      );
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce(tooManyFiles);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([childrenFolder]);
+
+      const treeRetrieval = service.getFolderTree(user, rootFolder.uuid);
+
+      await expect(treeRetrieval).rejects.toThrow(UnprocessableEntityException);
+      await expect(treeRetrieval).rejects.toMatchObject({
+        response: { errorCode: 'FOLDER_TREE_TOO_LARGE' },
+      });
+      expect(folderRepository.findByUuid).toHaveBeenCalledTimes(1);
+    });
+
+    it('When retrieving the tree takes too long, then it should stop and throw a timeout', async () => {
+      const startedAt = Date.now();
+      const childrenFolder = newFolder({
+        attributes: { userId: user.id, parentId: rootFolder.id },
+      });
+      const dateNowSpy = jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(startedAt)
+        .mockReturnValueOnce(startedAt)
+        .mockReturnValueOnce(startedAt + 60001);
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([childrenFolder]);
+
+      const treeRetrieval = service.getFolderTree(user, rootFolder.uuid);
+
+      await expect(treeRetrieval).rejects.toThrow(RequestTimeoutException);
+      await expect(treeRetrieval).rejects.toMatchObject({
+        response: { errorCode: 'FOLDER_TREE_TIMEOUT' },
+      });
+      expect(folderRepository.findByUuid).toHaveBeenCalledTimes(1);
+      dateNowSpy.mockRestore();
+    });
+
+    it('When the tree is exactly at the items limit, then it should return it', async () => {
+      const filesAtLimit = Array.from(
+        { length: 10000 },
+        () => fileInRootFolder,
+      );
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder);
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce(filesAtLimit);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getFolderTree(user, rootFolder.uuid);
+
+      expect(result.files).toHaveLength(10000);
+    });
+
+    it('When previous folders used part of the limit, then it should only fetch the remaining items', async () => {
+      const childrenFolder = newFolder({
+        attributes: { userId: user.id, parentId: rootFolder.id },
+      });
+      jest
+        .spyOn(folderRepository, 'findByUuid')
+        .mockResolvedValueOnce(rootFolder)
+        .mockResolvedValueOnce(childrenFolder);
+      jest
+        .spyOn(fileRepository, 'getFilesByFolderUuid')
+        .mockResolvedValueOnce([fileInRootFolder])
+        .mockResolvedValueOnce([]);
+      jest
+        .spyOn(folderRepository, 'findAllByParentUuid')
+        .mockResolvedValueOnce([childrenFolder])
+        .mockResolvedValueOnce([]);
+
+      await service.getFolderTree(user, rootFolder.uuid);
+
+      expect(fileRepository.getFilesByFolderUuid).toHaveBeenLastCalledWith(
+        childrenFolder.uuid,
+        FileStatus.EXISTS,
+        9999,
       );
     });
 
