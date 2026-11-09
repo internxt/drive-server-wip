@@ -3,6 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { type UserAttributes } from '../../modules/user/user.attributes';
 import { HttpClient } from '../http/http.service';
 
+export interface NewsletterProfileLocation {
+  ip?: string;
+  country?: string;
+  region?: string;
+  city?: string;
+  timezone?: string;
+}
+
 @Injectable()
 export class NewsletterService {
   constructor(
@@ -14,6 +22,7 @@ export class NewsletterService {
   async subscribe(
     email: UserAttributes['email'],
     listId?: string,
+    location?: NewsletterProfileLocation,
   ): Promise<void> {
     const resolvedListId =
       listId ?? this.configService.get('newsletter.listId');
@@ -25,7 +34,7 @@ export class NewsletterService {
       {
         data: {
           type: 'profile',
-          attributes: { email },
+          attributes: this.buildProfileAttributes(email, location),
         },
       },
       {
@@ -52,5 +61,20 @@ export class NewsletterService {
         },
       },
     );
+  }
+
+  private buildProfileAttributes(
+    email: UserAttributes['email'],
+    location?: NewsletterProfileLocation,
+  ) {
+    const resolved = Object.fromEntries(
+      Object.entries(location ?? {}).filter(
+        ([, value]) => value !== undefined && value !== null && value !== '',
+      ),
+    );
+
+    return Object.keys(resolved).length > 0
+      ? { email, location: resolved }
+      : { email };
   }
 }
