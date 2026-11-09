@@ -27,38 +27,23 @@ describe('getLocation', () => {
     });
   });
 
-  it('When the country code has no name, then it should leave the country empty so it is not sent', () => {
-    mockedGeoip.lookup.mockReturnValue({
-      country: 'QQ',
-      region: '',
-      city: '',
-      timezone: 'Europe/Madrid',
-    } as any);
+  it.each([
+    { case: 'has no name', country: 'QQ' },
+    { case: 'is the unknown region placeholder', country: 'ZZ' },
+    { case: 'is empty', country: '' },
+  ])(
+    'When the country code $case, then it should leave the country empty so it is not sent',
+    ({ country }) => {
+      mockedGeoip.lookup.mockReturnValue({
+        country,
+        region: '',
+        city: '',
+        timezone: 'Europe/Madrid',
+      } as any);
 
-    expect(getLocation('139.47.19.216').country).toBe('');
-  });
-
-  it('When the country is ZZ, then it should leave it empty instead of the Unknown Region placeholder', () => {
-    mockedGeoip.lookup.mockReturnValue({
-      country: 'ZZ',
-      region: '',
-      city: '',
-      timezone: 'Europe/Madrid',
-    } as any);
-
-    expect(getLocation('139.47.19.216').country).toBe('');
-  });
-
-  it('When the country is empty, then it should leave it empty', () => {
-    mockedGeoip.lookup.mockReturnValue({
-      country: '',
-      region: '',
-      city: '',
-      timezone: 'Europe/Madrid',
-    } as any);
-
-    expect(getLocation('139.47.19.216').country).toBe('');
-  });
+      expect(getLocation('139.47.19.216').country).toBe('');
+    },
+  );
 
   it('When the ip is empty, then it should return null without querying the database', () => {
     expect(getLocation('')).toBeNull();
