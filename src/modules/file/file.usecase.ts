@@ -136,7 +136,13 @@ export class FileUseCases {
   async getUserUsedStorageIncrementally(user: User): Promise<number> {
     const lastTemporalUsage =
       await this.usageService.getMostRecentTemporalUsage(user.uuid);
-    const calculateFirstDelta = !lastTemporalUsage;
+    const isUsageOutdated = lastTemporalUsage?.isOutdated();
+
+    if (isUsageOutdated) {
+      await this.usageService.deleteUserUsages(user.uuid);
+    }
+
+    const calculateFirstDelta = !lastTemporalUsage || isUsageOutdated;
 
     if (calculateFirstDelta) {
       const firstUsage = await this.usageService.calculateFirstTemporalUsage(

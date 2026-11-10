@@ -89,6 +89,19 @@ describe('SequelizeUsageRepository', () => {
     });
   });
 
+  describe('deleteByUserId', () => {
+    it('When called, then should delete all usages of the user', async () => {
+      const userUuid = v4();
+      jest.spyOn(usageModel, 'destroy').mockResolvedValue(3);
+
+      await repository.deleteByUserId(userUuid);
+
+      expect(usageModel.destroy).toHaveBeenCalledWith({
+        where: { userId: userUuid },
+      });
+    });
+  });
+
   describe('createFirstUsageCalculation', () => {
     it('When called, then should execute query with expected arguments', async () => {
       const userUuid = v4();

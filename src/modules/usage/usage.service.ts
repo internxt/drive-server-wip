@@ -32,6 +32,10 @@ export class UsageService {
 
     return createdDailyUsage;
   }
+  async deleteUserUsages(userUuid: User['uuid']): Promise<void> {
+    await this.usageRepository.deleteByUserId(userUuid);
+  }
+
   async calculateFirstTemporalUsage(userUuid: User['uuid']) {
     return this.usageRepository.createFirstUsageCalculation(userUuid);
   }

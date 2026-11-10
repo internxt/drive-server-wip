@@ -43,6 +43,39 @@ describe('Usage Domain', () => {
     expect(nextPeriod).toEqual(Time.now('2025-01-01T00:00:00.000Z'));
   });
 
+  describe('isOutdated', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2024-06-15T10:00:00.000Z'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('When period is older than 5 months, then should return true', () => {
+      const usage = Usage.build({
+        ...usageAttributes,
+        period: Time.now('2024-01-14T00:00:00.000Z'),
+      });
+
+      const result = usage.isOutdated();
+
+      expect(result).toBe(true);
+    });
+
+    it('When period is within the last 5 months, then should return false', () => {
+      const usage = Usage.build({
+        ...usageAttributes,
+        period: Time.now('2024-02-01T00:00:00.000Z'),
+      });
+
+      const result = usage.isOutdated();
+
+      expect(result).toBe(false);
+    });
+  });
+
   describe('isAtOrBeforePeriod', () => {
     const yearlyPeriod = Time.now('2024-01-01T00:00:00.000Z');
     const dailyPeriod = Time.now('2024-06-15T00:00:00.000Z');

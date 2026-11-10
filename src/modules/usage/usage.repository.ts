@@ -35,6 +35,10 @@ export class SequelizeUsageRepository {
     return latestUsage ? this.toDomain(latestUsage) : null;
   }
 
+  public async deleteByUserId(userUuid: string): Promise<void> {
+    await this.usageModel.destroy({ where: { userId: userUuid } });
+  }
+
   public async createFirstUsageCalculation(userUuid: string): Promise<Usage> {
     const currentDate = Time.startOf(Time.now(), 'day');
     const yesterday = Time.startOf(Time.dateWithTimeAdded(-1, 'day'), 'day');

@@ -454,6 +454,17 @@ describe('UsageService', () => {
     });
   });
 
+  describe('deleteUserUsages', () => {
+    it('When called, then it should delete all user usages', async () => {
+      const user = newUser();
+      jest.spyOn(usageRepository, 'deleteByUserId').mockResolvedValue();
+
+      await service.deleteUserUsages(user.uuid);
+
+      expect(usageRepository.deleteByUserId).toHaveBeenCalledWith(user.uuid);
+    });
+  });
+
   describe('createFirstUsageCalculation', () => {
     it('When called, then it should call the repository with expected arguments and return the first created usage', async () => {
       const user = newUser();
