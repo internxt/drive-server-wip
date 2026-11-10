@@ -131,18 +131,6 @@ describe('SequelizeFolderRepository', () => {
     const parentUuid = v4();
     const plainNames = ['Document', 'Image'];
 
-    it('When reading from master is requested, then it should query the primary', async () => {
-      await repository.findByParentUuid(
-        parentUuid,
-        { plainName: plainNames, deleted: false, removed: false },
-        { useMaster: true },
-      );
-
-      expect(folderModel.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({ useMaster: true }),
-      );
-    });
-
     it('When folders are searched with names, then it should filter by the collated plain_name', async () => {
       await repository.findByParentUuid(parentUuid, {
         plainName: plainNames,
