@@ -25,6 +25,7 @@ import { PaymentRequiredException } from '../feature-limit/exceptions/payment-re
 import { PlatformName } from '../../common/constants';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { MailService } from '../../externals/mail/mail.service';
+import { SKIP_CLIENT_VERSION_CHECK_KEY } from '../client-version/decorators/skip-client-version-check.decorator';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -395,6 +396,15 @@ describe('AuthController', () => {
       const result = await authController.logout(jwt);
 
       expect(result).toEqual({ logout: true });
+    });
+
+    it('When the client version is unsupported, then logout is still allowed by the version guard', () => {
+      const skip = Reflect.getMetadata(
+        SKIP_CLIENT_VERSION_CHECK_KEY,
+        AuthController.prototype.logout,
+      );
+
+      expect(skip).toBe(true);
     });
   });
 
