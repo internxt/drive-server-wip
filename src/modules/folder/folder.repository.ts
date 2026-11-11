@@ -292,7 +292,7 @@ export class SequelizeFolderRepository implements FolderRepository {
         : [pageKeys[0], pageKeys.at(-1)];
     const escape = (value: string) => this.folderModel.sequelize.escape(value);
     const pageRange = Sequelize.literal(
-      `"FolderModel"."plain_name" COLLATE "custom_numeric" BETWEEN ${escape(first.plainName)} COLLATE "custom_numeric" AND ${escape(last.plainName)} COLLATE "custom_numeric"`,
+      `"FolderModel"."plain_name" COLLATE "custom_numeric" BETWEEN (${escape(first.plainName)} COLLATE "custom_numeric") AND (${escape(last.plainName)} COLLATE "custom_numeric")`,
     );
     return {
       where: { [Op.and]: [where, pageRange] },

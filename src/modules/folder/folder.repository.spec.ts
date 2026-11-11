@@ -2242,7 +2242,7 @@ describe('SequelizeFolderRepository', () => {
       expect(pageQuery()).toEqual(expect.objectContaining({ limit: 2 }));
       expect(pageQuery()).not.toHaveProperty('offset');
       expect(pageQuery().where[Op.and][1].val).toMatch(
-        /BETWEEN 'a' COLLATE "custom_numeric" AND 'b' COLLATE "custom_numeric"/,
+        /BETWEEN \('a' COLLATE "custom_numeric"\) AND \('b' COLLATE "custom_numeric"\)/,
       );
     });
 
