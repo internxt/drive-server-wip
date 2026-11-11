@@ -23,6 +23,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Public } from './decorators/public.decorator';
+import { SkipClientVersionCheck } from '../client-version/decorators/skip-client-version-check.decorator';
 import { User } from '../user/user.domain';
 import { UserUseCases } from '../user/user.usecase';
 import { KeyServerUseCases } from '../keyserver/key-server.usecase';
@@ -174,6 +175,7 @@ export class AuthController {
   }
 
   @Get('/logout')
+  @SkipClientVersionCheck()
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
