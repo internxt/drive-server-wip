@@ -249,6 +249,58 @@ export class SequelizeFolderRepository implements FolderRepository {
     return applyCollateAndTiebreakerToSort(FolderModel, order);
   }
 
+  /**
+   * @deprecated Alternative path only for the v1 folder content endpoint sorted
+   * by name, remove with it. Skips the OFFSET rows with an index-only scan
+   */
+  private async buildOffsetPageOptions(
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, string]>,
+  ) {
+    const [[sortField, direction] = []] = order;
+    const pageOrder = this.applyCollateToPlainNameSort(order);
+    const isV1FolderContentByName =
+      order.length === 1 &&
+      sortField === 'plainName' &&
+      typeof where.parentUuid === 'string' &&
+      where.deleted === false &&
+      where.removed === false;
+    if (!isV1FolderContentByName) {
+      return { where, limit, offset, order: pageOrder };
+    }
+
+    const pageKeys = await this.folderModel.findAll({
+      where,
+      limit,
+      offset,
+      attributes: ['plainName'],
+      order: pageOrder.slice(0, 1),
+      raw: true,
+    });
+    if (pageKeys.length === 0) {
+      return null;
+    }
+    if (pageKeys.some((key) => key.plainName === null)) {
+      return { where, limit, offset, order: pageOrder };
+    }
+
+    const [first, last] =
+      direction === 'DESC'
+        ? [pageKeys.at(-1), pageKeys[0]]
+        : [pageKeys[0], pageKeys.at(-1)];
+    const escape = (value: string) => this.folderModel.sequelize.escape(value);
+    const pageRange = Sequelize.literal(
+      `"FolderModel"."plain_name" COLLATE "custom_numeric" BETWEEN ${escape(first.plainName)} COLLATE "custom_numeric" AND ${escape(last.plainName)} COLLATE "custom_numeric"`,
+    );
+    return {
+      where: { [Op.and]: [where, pageRange] },
+      limit: pageKeys.length,
+      order: pageOrder,
+    };
+  }
+
   async findByParentUuid(
     parentUuid: Folder['parentUuid'],
     searchBy: {
@@ -286,6 +338,7 @@ export class SequelizeFolderRepository implements FolderRepository {
     return folders.map(this.toDomain.bind(this));
   }
 
+  /** @deprecated Offset pagination, use cursor based pagination instead */
   async findAllCursor(
     where: Partial<Record<keyof FolderAttributes, any>>,
     limit: number,
@@ -294,14 +347,19 @@ export class SequelizeFolderRepository implements FolderRepository {
     favoriteUserUuid?: FavoriteAttributes['userId'],
     withoutSharings = false,
   ): Promise<Array<Folder> | []> {
-    const appliedOrder = this.applyCollateToPlainNameSort(order);
-
-    const folders = await this.folderModel.findAll({
+    const pageOptions = await this.buildOffsetPageOptions(
+      where,
       limit,
       offset,
-      where,
+      order,
+    );
+    if (!pageOptions) {
+      return [];
+    }
+
+    const folders = await this.folderModel.findAll({
+      ...pageOptions,
       subQuery: false,
-      order: appliedOrder,
       include: [
         ...(withoutSharings
           ? []

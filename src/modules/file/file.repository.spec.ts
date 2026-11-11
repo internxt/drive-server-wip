@@ -2168,4 +2168,73 @@ describe('FileRepository', () => {
       );
     });
   });
+
+  describe('Folder content sorted by name', () => {
+    const where = { folderUuid: v4(), userId: 1, status: FileStatus.EXISTS };
+    const byName: Array<[keyof FileModel, string]> = [
+      ['plainName', SortOrder.ASC],
+    ];
+    const pageQuery = () => (fileModel.findAll as jest.Mock).mock.calls[1][0];
+
+    beforeEach(() => {
+      fileModel.sequelize.escape = jest.fn((value) => `'${value}'`);
+    });
+
+    it('When the user lists a folder page by name, then only the files of that page are fetched', async () => {
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([
+          { plainName: 'a', type: 'jpg' },
+          { plainName: 'b', type: 'png' },
+        ] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursorWithThumbnails(where, 2, 100, byName);
+
+      expect(fileModel.findAll).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ where, limit: 2, offset: 100, raw: true }),
+      );
+      expect(pageQuery()).toEqual(expect.objectContaining({ limit: 2 }));
+      expect(pageQuery()).not.toHaveProperty('offset');
+      expect(pageQuery().where[Op.and][1].val).toMatch(
+        /BETWEEN \('a' COLLATE "custom_numeric", 'jpg'\) AND \('b' COLLATE "custom_numeric", 'png'\)/,
+      );
+    });
+
+    it('When the folder page has files without type, then the page is fetched with the regular offset query', async () => {
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([{ plainName: 'a', type: null }] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, byName);
+
+      expect(pageQuery()).toEqual(
+        expect.objectContaining({ where, limit: 2, offset: 100 }),
+      );
+    });
+
+    it('When the user asks for a page past the end of the folder, then no files are returned', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await repository.findAllCursor(where, 50, 1000, byName);
+
+      expect(fileModel.findAll).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([]);
+    });
+
+    it('When the user lists files sorted by another field, then the regular offset query is used', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, [
+        ['updatedAt', SortOrder.ASC],
+      ]);
+
+      expect(fileModel.findAll).toHaveBeenCalledTimes(1);
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ where, limit: 2, offset: 100 }),
+      );
+    });
+  });
 });

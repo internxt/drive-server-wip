@@ -2215,4 +2215,49 @@ describe('SequelizeFolderRepository', () => {
       expect(result.folders).toHaveLength(1);
     });
   });
+
+  describe('Folder content sorted by name', () => {
+    const where = {
+      parentUuid: v4(),
+      userId: 1,
+      deleted: false,
+      removed: false,
+    };
+    const pageQuery = () => (folderModel.findAll as jest.Mock).mock.calls[1][0];
+
+    beforeEach(() => {
+      folderModel.sequelize.escape = jest.fn((value) => `'${value}'`);
+    });
+
+    it('When the user lists a folder page by name in descending order, then only the subfolders of that page are fetched', async () => {
+      jest
+        .spyOn(folderModel, 'findAll')
+        .mockResolvedValueOnce([{ plainName: 'b' }, { plainName: 'a' }] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, [
+        ['plainName', SortOrder.DESC],
+      ]);
+
+      expect(pageQuery()).toEqual(expect.objectContaining({ limit: 2 }));
+      expect(pageQuery()).not.toHaveProperty('offset');
+      expect(pageQuery().where[Op.and][1].val).toMatch(
+        /BETWEEN 'a' COLLATE "custom_numeric" AND 'b' COLLATE "custom_numeric"/,
+      );
+    });
+
+    it('When the listing includes deleted subfolders, then the regular offset query is used', async () => {
+      const deletedWhere = { ...where, deleted: true };
+      jest.spyOn(folderModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(deletedWhere, 2, 100, [
+        ['plainName', SortOrder.ASC],
+      ]);
+
+      expect(folderModel.findAll).toHaveBeenCalledTimes(1);
+      expect(folderModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ where: deletedWhere, limit: 2, offset: 100 }),
+      );
+    });
+  });
 });

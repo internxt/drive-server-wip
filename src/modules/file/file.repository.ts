@@ -46,6 +46,7 @@ export interface FileRepository {
   deleteFilesByUser(user: User, files: File[]): Promise<void>;
   destroyFile(where: Partial<FileModel>): Promise<void>;
   findAll(): Promise<Array<File> | []>;
+  /** @deprecated Offset pagination, use cursor based pagination instead */
   findAllCursor(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -95,6 +96,7 @@ export interface FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]>,
   ): Promise<Array<File> | []>;
+  /** @deprecated Offset pagination, use cursor based pagination instead */
   findAllCursorWithThumbnails(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -776,6 +778,66 @@ export class SequelizeFileRepository implements FileRepository {
     return applyCollateAndTiebreakerToSort(FileModel, order);
   }
 
+  /**
+   * @deprecated Alternative path only for the v1 folder content endpoint sorted
+   * by name, remove with it. Skips the OFFSET rows with an index-only scan.
+   */
+  private async buildOffsetPageOptions(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]>,
+  ) {
+    const [[sortField, direction] = []] = order;
+    const isV1FolderContentByName =
+      order.length === 1 &&
+      sortField === 'plainName' &&
+      typeof where.folderUuid === 'string' &&
+      where.status === FileStatus.EXISTS;
+    if (!isV1FolderContentByName) {
+      return {
+        where,
+        limit,
+        offset,
+        order: this.applyCollateToPlainNameSort(order),
+      };
+    }
+
+    const pageOrder = this.applyCollateToPlainNameSort([
+      ...order,
+      ['type', direction],
+    ]);
+    const pageKeys = await this.fileModel.findAll({
+      where,
+      limit,
+      offset,
+      attributes: ['plainName', 'type'],
+      order: pageOrder.slice(0, 2),
+      raw: true,
+    });
+    if (pageKeys.length === 0) {
+      return null;
+    }
+    if (pageKeys.some((key) => key.plainName === null || key.type === null)) {
+      return { where, limit, offset, order: pageOrder };
+    }
+
+    const [first, last] =
+      direction === 'DESC'
+        ? [pageKeys.at(-1), pageKeys[0]]
+        : [pageKeys[0], pageKeys.at(-1)];
+    const escape = (value: string) => this.fileModel.sequelize.escape(value);
+    const pageRange = Sequelize.literal(
+      `("FileModel"."plain_name" COLLATE "custom_numeric", "FileModel"."type") BETWEEN (${escape(first.plainName)} COLLATE "custom_numeric", ${escape(first.type)}) AND (${escape(last.plainName)} COLLATE "custom_numeric", ${escape(last.type)})`,
+    );
+    return {
+      where: { [Op.and]: [where, pageRange] },
+      limit: pageKeys.length,
+      order: pageOrder,
+    };
+  }
+
+  /** @deprecated Offset pagination, use cursor based pagination instead */
   async findAllCursor(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -783,15 +845,20 @@ export class SequelizeFileRepository implements FileRepository {
     order: Array<[keyof FileModel, string]> = [],
     favoriteUserUuid?: FavoriteAttributes['userId'],
   ): Promise<Array<File> | []> {
-    const appliedOrder = this.applyCollateToPlainNameSort(order);
-
-    const files = await this.fileModel.findAll({
+    const pageOptions = await this.buildOffsetPageOptions(
+      where,
       limit,
       offset,
-      where,
+      order,
+    );
+    if (!pageOptions) {
+      return [];
+    }
+
+    const files = await this.fileModel.findAll({
+      ...pageOptions,
       include: this.favoriteInclude(favoriteUserUuid),
       subQuery: false,
-      order: appliedOrder,
     });
 
     return files.map(this.toDomain.bind(this));
@@ -1050,6 +1117,7 @@ export class SequelizeFileRepository implements FileRepository {
     return sizes[0]['total'] as unknown as number;
   }
 
+  /** @deprecated Offset pagination, use cursor based pagination instead */
   async findAllCursorWithThumbnails(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -1057,12 +1125,18 @@ export class SequelizeFileRepository implements FileRepository {
     order: Array<[keyof FileModel, string]> = [],
     favoriteUserUuid?: FavoriteAttributes['userId'],
   ): Promise<Array<File> | []> {
-    const appliedOrder = this.applyCollateToPlainNameSort(order);
-
-    const files = await this.fileModel.findAll({
+    const pageOptions = await this.buildOffsetPageOptions(
+      where,
       limit,
       offset,
-      where,
+      order,
+    );
+    if (!pageOptions) {
+      return [];
+    }
+
+    const files = await this.fileModel.findAll({
+      ...pageOptions,
       include: [
         {
           separate: true,
@@ -1078,7 +1152,6 @@ export class SequelizeFileRepository implements FileRepository {
         ...this.favoriteInclude(favoriteUserUuid),
       ],
       subQuery: false,
-      order: appliedOrder,
     });
 
     return files.map(this.toDomain.bind(this));
