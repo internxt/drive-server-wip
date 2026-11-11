@@ -15,6 +15,8 @@ const temporalUsage = new Set([
   UsageType.Yearly,
 ]);
 
+const OUTDATED_USAGE_MONTHS = 5;
+
 export interface UsageAttributes {
   id: string;
   userId: string;
@@ -81,6 +83,11 @@ export class Usage implements UsageAttributes {
           `Cannot get next period start date for non-temporal usage of type ${this.type}`,
         );
     }
+  }
+
+  isOutdated(): boolean {
+    const threshold = Time.dateWithTimeAdded(-OUTDATED_USAGE_MONTHS, 'month');
+    return this.getNextPeriodStartDate() < threshold;
   }
 
   isAtOrBeforePeriod(date: Date): boolean {

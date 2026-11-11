@@ -43,6 +43,66 @@ describe('Usage Domain', () => {
     expect(nextPeriod).toEqual(Time.now('2025-01-01T00:00:00.000Z'));
   });
 
+  describe('isOutdated', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2024-06-15T10:00:00.000Z'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('When usage period ended more than 5 months ago, then should return true', () => {
+      const usage = Usage.build({
+        ...usageAttributes,
+        type: UsageType.Daily,
+        period: Time.now('2024-01-13T00:00:00.000Z'),
+      });
+
+      const result = usage.isOutdated();
+
+      expect(result).toBe(true);
+    });
+
+    it('When usage period ended within the last 5 months, then should return false', () => {
+      const usage = Usage.build({
+        ...usageAttributes,
+        type: UsageType.Daily,
+        period: Time.now('2024-02-01T00:00:00.000Z'),
+      });
+
+      const result = usage.isOutdated();
+
+      expect(result).toBe(false);
+    });
+
+    it('When usage is yearly from previous year and it ended within the last 5 months, then should return false', () => {
+      jest.setSystemTime(new Date('2024-03-15T10:00:00.000Z'));
+      const usage = Usage.build({
+        ...usageAttributes,
+        type: UsageType.Yearly,
+        period: Time.now('2023-01-01T00:00:00.000Z'),
+      });
+
+      const result = usage.isOutdated();
+
+      expect(result).toBe(false);
+    });
+
+    it('When usage is yearly and its year ended more than 5 months ago, then should return true', () => {
+      const usage = Usage.build({
+        ...usageAttributes,
+        type: UsageType.Yearly,
+        period: Time.now('2023-01-01T00:00:00.000Z'),
+      });
+
+      const result = usage.isOutdated();
+
+      expect(result).toBe(true);
+    });
+  });
+
   describe('isAtOrBeforePeriod', () => {
     const yearlyPeriod = Time.now('2024-01-01T00:00:00.000Z');
     const dailyPeriod = Time.now('2024-06-15T00:00:00.000Z');

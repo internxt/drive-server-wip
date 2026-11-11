@@ -4445,6 +4445,42 @@ describe('FileUseCases', () => {
       expect(result).toEqual(expectedTotal);
     });
 
+    it('When last usage is older than 5 months, then it should delete user usages and calculate them from scratch', async () => {
+      const mockUser = newUser();
+      const today = new Date('2024-07-02T10:00:00Z');
+      const firstUsageDelta = 1000;
+      const deltaChangeToday = 500;
+      const outdatedUsage = newUsage({
+        attributes: { period: new Date('2024-01-01T00:00:00Z') },
+      });
+      const mockFirstUsage = newUsage({
+        attributes: {
+          period: new Date('2024-07-01T00:00:00Z'),
+          delta: firstUsageDelta,
+        },
+      });
+      jest.setSystemTime(today);
+      jest
+        .spyOn(usageService, 'getMostRecentTemporalUsage')
+        .mockResolvedValue(outdatedUsage);
+      jest.spyOn(usageService, 'deleteUserUsages').mockResolvedValue();
+      jest
+        .spyOn(usageService, 'calculateFirstTemporalUsage')
+        .mockResolvedValue(mockFirstUsage);
+      jest
+        .spyOn(fileRepository, 'sumFileSizeDeltaFromDate')
+        .mockResolvedValue(deltaChangeToday);
+
+      const result = await service.getUserUsedStorageIncrementally(mockUser);
+
+      expect(usageService.deleteUserUsages).toHaveBeenCalledWith(mockUser.uuid);
+      expect(usageService.calculateFirstTemporalUsage).toHaveBeenCalledWith(
+        mockUser.uuid,
+      );
+      expect(usageService.calculateAggregatedUsage).not.toHaveBeenCalled();
+      expect(result).toEqual(firstUsageDelta + deltaChangeToday);
+    });
+
     it('When user has recent usage and is up to date, then it should not create new usage', async () => {
       const mockUser = newUser();
       const today = new Date('2024-01-02T00:00:00Z');
