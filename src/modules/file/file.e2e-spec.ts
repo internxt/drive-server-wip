@@ -119,6 +119,7 @@ describe('File module', () => {
       });
 
       afterEach(async () => {
+        jest.setSystemTime(fixedSystemCurrentDate);
         if (createdFiles.length > 0) {
           await fileModel.destroy({
             where: {
@@ -265,23 +266,20 @@ describe('File module', () => {
         ).toBe(initialDeltaUsage + fileSize);
       });
 
-      it('When last usage is Yearly from previous completed year, then it should backfill from start of current year', async () => {
-        const initialYearlyDelta = 50000;
-        const lastYearPeriod = Time.dateWithTimeAdded(
+      it('When last usage is Monthly from previous month, then it should backfill from start of current month', async () => {
+        const initialMonthlyDelta = 50000;
+        const lastMonthPeriod = Time.dateWithTimeAdded(
           -1,
-          'year',
+          'month',
           fixedSystemCurrentDate,
         );
-
         await usageModel.create({
           id: v4(),
           userId: testUser.user.uuid,
-          period: lastYearPeriod,
-          type: UsageType.Yearly,
-          delta: initialYearlyDelta,
+          period: lastMonthPeriod,
+          type: UsageType.Monthly,
+          delta: initialMonthlyDelta,
         });
-
-        // Files created in current year (after the yearly aggregation)
         const file1Size = 1500;
         const file2Size = 800;
         await createTestFile(Time.daysAgo(10), file1Size);
@@ -293,47 +291,80 @@ describe('File module', () => {
           where: { userId: testUser.user.uuid },
           order: [['period', 'ASC']],
         });
-
         expect(usages.length).toBeGreaterThanOrEqual(2);
-
         const mostRecentUsage = findYesterdayUsage(usages);
         expect(mostRecentUsage).toBeDefined();
-        // Backfill should include all files created after the yearly period
         expect(Number(mostRecentUsage.delta)).toBe(file1Size + file2Size);
       });
 
-      it('When last usage is Yearly from 2+ years ago, then it should backfill all intermediate changes', async () => {
-        const initialYearlyDelta = 20000;
-        // Yearly aggregation from 2 years ago
-        const oldYearPeriod = Time.startOf(
-          Time.dateWithTimeAdded(-2, 'year', fixedSystemCurrentDate),
+      it('When last usage is Yearly from previous completed year, then it should backfill from start of current year', async () => {
+        const currentDate = new Date('2025-03-15T00:00:00.000Z');
+        jest.setSystemTime(currentDate);
+        const lastYearPeriod = Time.startOf(
+          Time.dateWithTimeAdded(-1, 'year', currentDate),
           'year',
         );
-
         await usageModel.create({
           id: v4(),
           userId: testUser.user.uuid,
-          period: oldYearPeriod,
+          period: lastYearPeriod,
           type: UsageType.Yearly,
-          delta: initialYearlyDelta,
+          delta: 50000,
         });
-
-        const newFileSize = 3000;
-        await createTestFile(Time.daysAgo(2), newFileSize);
+        const file1Size = 1500;
+        const file2Size = 800;
+        await createTestFile(Time.daysAgo(10), file1Size);
+        await createTestFile(Time.daysAgo(5), file2Size);
 
         await fileUseCases.getUserUsedStorageIncrementally(testUser.user);
 
         const usages = await usageModel.findAll({
           where: { userId: testUser.user.uuid },
-          order: [['period', 'ASC']],
         });
+        const yearlyUsage = usages.find((u) => u.type === UsageType.Yearly);
+        const yesterdayUsage = usages.find(
+          (u) =>
+            u.type === UsageType.Daily &&
+            Time.formatAsDateOnly(new Date(u.period)) ===
+              Time.formatAsDateOnly(
+                Time.dateWithTimeAdded(-1, 'day', currentDate),
+              ),
+        );
+        expect(yearlyUsage).toBeDefined();
+        expect(yesterdayUsage).toBeDefined();
+        expect(Number(yesterdayUsage.delta)).toBe(file1Size + file2Size);
+      });
 
-        expect(usages.length).toBeGreaterThanOrEqual(2);
+      it('When last usage is older than 5 months, then it should delete all usages and recalculate them from scratch', async () => {
+        const oldYearPeriod = Time.startOf(
+          Time.dateWithTimeAdded(-2, 'year', fixedSystemCurrentDate),
+          'year',
+        );
+        await usageModel.create({
+          id: v4(),
+          userId: testUser.user.uuid,
+          period: oldYearPeriod,
+          type: UsageType.Yearly,
+          delta: 20000,
+        });
+        await createUsageRecord(Time.dateWithTimeAdded(-6, 'month'), 7000);
+        const oldFileSize = 1000;
+        const newFileSize = 3000;
+        await createTestFile(Time.dateWithTimeAdded(-1, 'year'), oldFileSize);
+        await createTestFile(Time.daysAgo(2), newFileSize);
 
-        const mostRecentUsage = findYesterdayUsage(usages);
-        expect(mostRecentUsage).toBeDefined();
-        expect(mostRecentUsage.type).toBe(UsageType.Daily);
-        expect(Number(mostRecentUsage.delta)).toBe(newFileSize);
+        const result = await fileUseCases.getUserUsedStorageIncrementally(
+          testUser.user,
+        );
+
+        const usages = await usageModel.findAll({
+          where: { userId: testUser.user.uuid },
+        });
+        expect(usages).toHaveLength(1);
+        const recalculatedUsage = findYesterdayUsage(usages);
+        expect(recalculatedUsage).toBeDefined();
+        expect(Number(recalculatedUsage.delta)).toBe(oldFileSize + newFileSize);
+        expect(result).toBe(oldFileSize + newFileSize);
       });
 
       describe('First usage calculation (cumulative through end of yesterday)', () => {

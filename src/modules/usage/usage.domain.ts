@@ -87,7 +87,7 @@ export class Usage implements UsageAttributes {
 
   isOutdated(): boolean {
     const threshold = Time.dateWithTimeAdded(-OUTDATED_USAGE_MONTHS, 'month');
-    return this.period < threshold;
+    return this.getNextPeriodStartDate() < threshold;
   }
 
   isAtOrBeforePeriod(date: Date): boolean {
