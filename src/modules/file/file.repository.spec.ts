@@ -2215,6 +2215,22 @@ describe('FileRepository', () => {
       );
     });
 
+    it('When the user lists the first page of a folder by name, then the regular query is used keeping the type order', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 50, 0, byName);
+
+      expect(fileModel.findAll).toHaveBeenCalledTimes(1);
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where,
+          limit: 50,
+          offset: 0,
+          order: [expect.anything(), ['type', SortOrder.ASC], ['uuid', 'ASC']],
+        }),
+      );
+    });
+
     it('When the user asks for a page past the end of the folder, then no files are returned', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
 

@@ -807,6 +807,10 @@ export class SequelizeFileRepository implements FileRepository {
       ...order,
       ['type', direction],
     ]);
+    if (offset === 0) {
+      return { where, limit, offset, order: pageOrder };
+    }
+
     const pageKeys = await this.fileModel.findAll({
       where,
       limit,

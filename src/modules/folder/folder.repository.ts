@@ -267,7 +267,7 @@ export class SequelizeFolderRepository implements FolderRepository {
       typeof where.parentUuid === 'string' &&
       where.deleted === false &&
       where.removed === false;
-    if (!isV1FolderContentByName) {
+    if (!isV1FolderContentByName || offset === 0) {
       return { where, limit, offset, order: pageOrder };
     }
 
