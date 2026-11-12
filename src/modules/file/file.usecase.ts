@@ -509,10 +509,6 @@ export class FileUseCases {
     };
   }
 
-  getFilesByIds(user: User, fileIds: File['id'][]): Promise<File[]> {
-    return this.fileRepository.findByIds(user.id, fileIds);
-  }
-
   /** @deprecated Use cursor pagination */
   getAllFilesUpdatedAfter(
     userId: UserAttributes['id'],
@@ -1043,16 +1039,12 @@ export class FileUseCases {
 
   async moveFilesToTrash(
     user: User,
-    ids: FileAttributes['id'][],
-    fileUuids: FileAttributes['uuid'][] = [],
+    fileUuids: FileAttributes['uuid'][],
   ): Promise<void> {
-    const [filesById, filesByUuid] = await Promise.all([
-      ids.length > 0 ? this.fileRepository.findByIds(user.id, ids) : [],
-      fileUuids.length > 0
-        ? this.fileRepository.findByUuids(fileUuids, { userId: user.id })
-        : [],
-    ]);
-    const filesUuids = [...filesById, ...filesByUuid].map((f) => f.uuid);
+    const files = await this.fileRepository.findByUuids(fileUuids, {
+      userId: user.id,
+    });
+    const filesUuids = files.map((f) => f.uuid);
 
     await Promise.all([
       this.fileRepository.updateFilesStatusToTrashedByUuid(user, fileUuids),

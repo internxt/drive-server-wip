@@ -19,7 +19,8 @@ export enum ItemToTrashType {
 export class ItemToTrashDto {
   @ApiProperty({
     example: '4',
-    description: 'Id of file or folder (deprecated in favor of uuid)',
+    description:
+      'Id of folder (deprecated in favor of uuid). Files only accept uuid',
     required: false,
     deprecated: true,
   })
@@ -38,6 +39,10 @@ export class ItemToTrashDto {
   @ValidateIf((item) => (!item.id && !item.uuid) || (item.id && item.uuid))
   @IsDefined({ message: 'Provide either item id or uuid, and not both' })
   readonly AreUuidAndIdDefined?: boolean;
+
+  @ValidateIf((item) => item.type === ItemToTrashType.FILE && !item.uuid)
+  @IsDefined({ message: 'Files must be provided by uuid' })
+  readonly IsFileUuidDefined?: boolean;
 
   @IsEnum(ItemToTrashType)
   @ApiProperty({
