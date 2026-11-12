@@ -4,6 +4,7 @@ import { ClientEnum } from '../enums/platform.enum';
 
 export enum DeprecatedField {
   FILE_NAME = 'file.name',
+  FILE_ID = 'file.id',
 }
 
 export enum DeprecationMode {
@@ -42,10 +43,29 @@ const DEPRECATION_RULES: Record<
       mode: DeprecationMode.PLAIN,
     },
   },
+  [DeprecatedField.FILE_ID]: {
+    [ClientEnum.Mobile]: {
+      minVersion: '1.12.2',
+      mode: DeprecationMode.OMIT,
+    },
+    [ClientEnum.DesktopWindows]: {
+      minVersion: '2.7.3',
+      mode: DeprecationMode.OMIT,
+    },
+    [ClientEnum.DesktopMacos]: {
+      minVersion: '2.7.1',
+      mode: DeprecationMode.OMIT,
+    },
+    [ClientEnum.DesktopLinux]: {
+      minVersion: '2.7.1',
+      mode: DeprecationMode.OMIT,
+    },
+  },
 };
 
-const DEFAULT_MODES: Record<DeprecatedField, DeprecationMode> = {
+const DEFAULT_MODES: Record<DeprecatedField, DeprecationMode | null> = {
   [DeprecatedField.FILE_NAME]: DeprecationMode.PLAIN,
+  [DeprecatedField.FILE_ID]: null,
 };
 
 export const getDeprecationMode = (

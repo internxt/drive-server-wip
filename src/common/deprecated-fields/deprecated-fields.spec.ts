@@ -62,4 +62,31 @@ describe('getDeprecationMode', () => {
       },
     );
   });
+
+  describe(DeprecatedField.FILE_ID, () => {
+    it.each([
+      [ClientEnum.Mobile, '1.12.2', DeprecationMode.OMIT],
+      [ClientEnum.Mobile, '1.13.0', DeprecationMode.OMIT],
+      [ClientEnum.Mobile, '1.12.1', null],
+      [ClientEnum.Mobile, 'undefined', null],
+      [ClientEnum.DesktopWindows, '2.7.3', DeprecationMode.OMIT],
+      [ClientEnum.DesktopWindows, '2.8.0', DeprecationMode.OMIT],
+      [ClientEnum.DesktopWindows, '2.7.2', null],
+      [ClientEnum.DesktopMacos, '2.7.1', DeprecationMode.OMIT],
+      [ClientEnum.DesktopMacos, '2.7.0', null],
+      [ClientEnum.DesktopLinux, '2.7.1', DeprecationMode.OMIT],
+      [ClientEnum.DesktopLinux, '2.7.0', null],
+      [ClientEnum.Web, '99.0.0', null],
+      ['unknown-client', 'undefined', null],
+    ])(
+      'When the client is %s with version %s, then it returns %s',
+      (client, version, expected) => {
+        const result = runWithClient(client, version, () =>
+          getDeprecationMode(DeprecatedField.FILE_ID),
+        );
+
+        expect(result).toBe(expected);
+      },
+    );
+  });
 });

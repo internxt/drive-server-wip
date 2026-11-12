@@ -107,7 +107,6 @@ const FILE_COLUMNS = `
           similarity(f."plain_name", :partialName)                             AS "similarity",
           CASE WHEN f."plain_name" = :partialName THEN 1 ELSE 0 END            AS "exactMatch",
           f."type"        AS "file.type",
-          f."id"          AS "file.id",
           f."size"        AS "file.size",
           f."bucket"      AS "file.bucket",
           f."file_id"     AS "file.fileId",
@@ -124,7 +123,6 @@ const FOLDER_COLUMNS = `
           similarity(fo."plain_name", :partialName)                            AS "similarity",
           CASE WHEN fo."plain_name" = :partialName THEN 1 ELSE 0 END           AS "exactMatch",
           NULL AS "file.type",
-          NULL AS "file.id",
           NULL AS "file.size",
           NULL AS "file.bucket",
           NULL AS "file.fileId",
@@ -144,7 +142,6 @@ function toResult(rows: Record<string, unknown>[]): LookUpResult {
       row.itemType === 'file'
         ? {
             type: row['file.type'],
-            id: row['file.id'],
             size: row['file.size'],
             bucket: row['file.bucket'],
             fileId: row['file.fileId'],
