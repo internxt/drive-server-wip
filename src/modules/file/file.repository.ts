@@ -46,6 +46,7 @@ export interface FileRepository {
   deleteFilesByUser(user: User, files: File[]): Promise<void>;
   destroyFile(where: Partial<FileModel>): Promise<void>;
   findAll(): Promise<Array<File> | []>;
+  /** @deprecated Offset pagination, use cursor based pagination instead */
   findAllCursor(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -95,6 +96,7 @@ export interface FileRepository {
     offset: number,
     order: Array<[keyof FileModel, string]>,
   ): Promise<Array<File> | []>;
+  /** @deprecated Offset pagination, use cursor based pagination instead */
   findAllCursorWithThumbnails(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -776,6 +778,7 @@ export class SequelizeFileRepository implements FileRepository {
     return applyCollateAndTiebreakerToSort(FileModel, order);
   }
 
+  /** @deprecated Offset pagination, use cursor based pagination instead */
   async findAllCursor(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -783,15 +786,109 @@ export class SequelizeFileRepository implements FileRepository {
     order: Array<[keyof FileModel, string]> = [],
     favoriteUserUuid?: FavoriteAttributes['userId'],
   ): Promise<Array<File> | []> {
-    const appliedOrder = this.applyCollateToPlainNameSort(order);
-
-    const files = await this.fileModel.findAll({
+    return this.findOffsetPage(
+      where,
       limit,
       offset,
+      order,
+      this.favoriteInclude(favoriteUserUuid),
+    );
+  }
+
+  private findOffsetPage(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]>,
+    include: Includeable[],
+  ): Promise<File[]> {
+    const isV1FolderContent =
+      typeof where.folderUuid === 'string' &&
+      where.status === FileStatus.EXISTS;
+    const pageOrder: Array<[keyof FileModel, string]> =
+      isV1FolderContent && order.length === 0
+        ? [['plainName', SortOrder.ASC]]
+        : order;
+    const [[sortField] = []] = pageOrder;
+    const isV1FolderContentByName =
+      isV1FolderContent && pageOrder.length === 1 && sortField === 'plainName';
+    if (isV1FolderContentByName && offset > 0) {
+      return this.findV1FolderContentPageByName(
+        where,
+        limit,
+        offset,
+        pageOrder,
+        include,
+      );
+    }
+    return this.findPageByOffset(where, limit, offset, pageOrder, include);
+  }
+
+  private byNameAndType(
+    order: Array<[keyof FileModel, string]>,
+  ): Array<[keyof FileModel, string] | Literal> {
+    const [[sortField, direction] = []] = order;
+    const isByName = order.length === 1 && sortField === 'plainName';
+    return this.applyCollateToPlainNameSort(
+      isByName ? [...order, ['type', direction]] : order,
+    );
+  }
+
+  private async findPageByOffset(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]>,
+    include: Includeable[],
+  ): Promise<File[]> {
+    const files = await this.fileModel.findAll({
       where,
-      include: this.favoriteInclude(favoriteUserUuid),
+      limit,
+      offset,
+      include,
       subQuery: false,
-      order: appliedOrder,
+      order: this.byNameAndType(order),
+    });
+
+    return files.map(this.toDomain.bind(this));
+  }
+
+  /** @deprecated Only for v1 folder content sorted by name, remove with it */
+  private async findV1FolderContentPageByName(
+    where: Partial<Record<keyof FileAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FileModel, string]>,
+    include: Includeable[],
+  ): Promise<File[]> {
+    const [[, direction]] = order;
+    const pageOrder = this.byNameAndType(order);
+    const pageKeys = await this.fileModel.findAll({
+      where,
+      limit,
+      offset,
+      attributes: ['plainName', 'type'],
+      order: pageOrder.slice(0, 2),
+      raw: true,
+    });
+    if (pageKeys.length === 0) {
+      return [];
+    }
+    if (pageKeys.some((key) => key.plainName === null || key.type === null)) {
+      return this.findPageByOffset(where, limit, offset, order, include);
+    }
+
+    const [{ plainName, type }] = pageKeys;
+    const escape = (value: string) => this.fileModel.sequelize.escape(value);
+    const pageStart = Sequelize.literal(
+      `("FileModel"."plain_name" COLLATE "custom_numeric", "FileModel"."type") ${direction === 'DESC' ? '<=' : '>='} (${escape(plainName)} COLLATE "custom_numeric", ${escape(type)})`,
+    );
+    const files = await this.fileModel.findAll({
+      where: { [Op.and]: [where, pageStart] },
+      limit,
+      include,
+      subQuery: false,
+      order: pageOrder,
     });
 
     return files.map(this.toDomain.bind(this));
@@ -1050,6 +1147,7 @@ export class SequelizeFileRepository implements FileRepository {
     return sizes[0]['total'] as unknown as number;
   }
 
+  /** @deprecated Offset pagination, use cursor based pagination instead */
   async findAllCursorWithThumbnails(
     where: Partial<Record<keyof FileAttributes, any>>,
     limit: number,
@@ -1057,31 +1155,20 @@ export class SequelizeFileRepository implements FileRepository {
     order: Array<[keyof FileModel, string]> = [],
     favoriteUserUuid?: FavoriteAttributes['userId'],
   ): Promise<Array<File> | []> {
-    const appliedOrder = this.applyCollateToPlainNameSort(order);
-
-    const files = await this.fileModel.findAll({
-      limit,
-      offset,
-      where,
-      include: [
-        {
-          separate: true,
-          model: this.thumbnailModel,
-          required: false,
-        },
-        {
-          separate: true,
-          model: SharingModel,
-          attributes: ['type', 'id'],
-          required: false,
-        },
-        ...this.favoriteInclude(favoriteUserUuid),
-      ],
-      subQuery: false,
-      order: appliedOrder,
-    });
-
-    return files.map(this.toDomain.bind(this));
+    return this.findOffsetPage(where, limit, offset, order, [
+      {
+        separate: true,
+        model: this.thumbnailModel,
+        required: false,
+      },
+      {
+        separate: true,
+        model: SharingModel,
+        attributes: ['type', 'id'],
+        required: false,
+      },
+      ...this.favoriteInclude(favoriteUserUuid),
+    ]);
   }
 
   async findRecent(

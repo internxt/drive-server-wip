@@ -20,6 +20,9 @@ import {
 } from '../../../test/helpers/user.helper';
 import { createTestApp } from '../../../test/helpers/test-app.helper';
 import { UniqueConstraintFilter } from '../../common/filters/unique-constraint.filter';
+import { SortOrder } from '../../common/order.type';
+import { type FileModel } from '../file/file.model';
+import { type FolderModel } from './folder.model';
 
 describe('Folder module', () => {
   let app: NestExpressApplication;
@@ -197,6 +200,194 @@ describe('Folder module', () => {
 
       expect(response.status).toBe(HttpStatus.OK);
       expect(response.body.folders.length).toBe(0);
+    });
+  });
+
+  describe('v1 content by name: ad hoc page lookup matches offset pagination', () => {
+    describe('Files', () => {
+      let where: Partial<Record<keyof File, any>>;
+
+      beforeEach(() => {
+        where = {
+          folderUuid: testUser.rootFolder.uuid,
+          status: FileStatus.EXISTS,
+          userId: testUser.user.id,
+        };
+      });
+
+      const createFiles = (files: Array<{ plainName: string; type: string }>) =>
+        Promise.all(
+          files.map((attributes) =>
+            fileRepository.create(
+              newFile({
+                attributes: {
+                  ...attributes,
+                  folderId: testUser.rootFolder.id,
+                  folderUuid: testUser.rootFolder.uuid,
+                  userId: testUser.user.id,
+                },
+              }),
+            ),
+          ),
+        );
+
+      const getBothPages = async (
+        limit: number,
+        offset: number,
+        order: SortOrder,
+      ) => {
+        const sort: Array<[keyof FileModel, string]> = [['plainName', order]];
+        const optimizedPage = await fileRepository[
+          'findV1FolderContentPageByName'
+        ](where, limit, offset, sort, []);
+        const offsetPage = await fileRepository['findPageByOffset'](
+          where,
+          limit,
+          offset,
+          sort,
+          [],
+        );
+        return {
+          optimizedPage: optimizedPage.map(({ uuid }) => uuid),
+          offsetPage: offsetPage.map(({ uuid }) => uuid),
+        };
+      };
+
+      it.each([SortOrder.ASC, SortOrder.DESC])(
+        'When a page starts between files with the same name (%s), then it matches the offset query',
+        async (order) => {
+          await createFiles([
+            { plainName: 'a', type: 'txt' },
+            { plainName: 'file 2', type: 'jpg' },
+            { plainName: 'file 2', type: 'png' },
+            { plainName: 'file 10', type: 'jpg' },
+          ]);
+
+          const { optimizedPage, offsetPage } = await getBothPages(2, 2, order);
+
+          expect(optimizedPage).toEqual(offsetPage);
+        },
+      );
+
+      it('When the page has files without type, then it matches the offset query', async () => {
+        await createFiles([
+          { plainName: 'a', type: 'txt' },
+          { plainName: 'notes', type: 'md' },
+          { plainName: 'notes', type: null },
+          { plainName: 'z', type: 'txt' },
+        ]);
+
+        const { optimizedPage, offsetPage } = await getBothPages(
+          2,
+          1,
+          SortOrder.ASC,
+        );
+
+        expect(optimizedPage).toEqual(offsetPage);
+      });
+
+      it('When the page has files without name, then it matches the offset query', async () => {
+        await createFiles([
+          { plainName: 'a', type: 'txt' },
+          { plainName: 'b', type: 'txt' },
+          { plainName: null, type: 'txt' },
+        ]);
+
+        const { optimizedPage, offsetPage } = await getBothPages(
+          2,
+          1,
+          SortOrder.ASC,
+        );
+
+        expect(optimizedPage).toEqual(offsetPage);
+      });
+
+      it('When the page is past the end of the folder, then no files are returned', async () => {
+        await createFiles([{ plainName: 'a', type: 'txt' }]);
+
+        const { optimizedPage, offsetPage } = await getBothPages(
+          2,
+          10,
+          SortOrder.ASC,
+        );
+
+        expect(optimizedPage).toEqual([]);
+        expect(offsetPage).toEqual([]);
+      });
+    });
+
+    describe('Folders', () => {
+      let where: Partial<Record<keyof Folder, any>>;
+
+      beforeEach(() => {
+        where = {
+          parentUuid: testUser.rootFolder.uuid,
+          deleted: false,
+          removed: false,
+          userId: testUser.user.id,
+        };
+      });
+
+      const createSubfolders = (plainNames: string[]) =>
+        Promise.all(
+          plainNames.map((plainName) =>
+            folderRepository.createWithAttributes(
+              newFolder({
+                attributes: {
+                  plainName,
+                  parentId: testUser.rootFolder.id,
+                  parentUuid: testUser.rootFolder.uuid,
+                  userId: testUser.user.id,
+                },
+              }),
+            ),
+          ),
+        );
+
+      const getBothPages = async (
+        limit: number,
+        offset: number,
+        order: SortOrder,
+      ) => {
+        const sort: Array<[keyof FolderModel, string]> = [['plainName', order]];
+        const optimizedPage = await folderRepository[
+          'findV1FolderContentPageByName'
+        ](where, limit, offset, sort, []);
+        const offsetPage = await folderRepository['findPageByOffset'](
+          where,
+          limit,
+          offset,
+          sort,
+          [],
+        );
+        return {
+          optimizedPage: optimizedPage.map(({ uuid }) => uuid),
+          offsetPage: offsetPage.map(({ uuid }) => uuid),
+        };
+      };
+
+      it.each([SortOrder.ASC, SortOrder.DESC])(
+        'When a page has numeric names (%s), then it matches the offset query',
+        async (order) => {
+          await createSubfolders(['1', '2', '10', 'a']);
+
+          const { optimizedPage, offsetPage } = await getBothPages(2, 1, order);
+
+          expect(optimizedPage).toEqual(offsetPage);
+        },
+      );
+
+      it('When the page has subfolders without name, then it matches the offset query', async () => {
+        await createSubfolders(['a', 'b', null]);
+
+        const { optimizedPage, offsetPage } = await getBothPages(
+          2,
+          1,
+          SortOrder.ASC,
+        );
+
+        expect(optimizedPage).toEqual(offsetPage);
+      });
     });
   });
 

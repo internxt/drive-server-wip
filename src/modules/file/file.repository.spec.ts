@@ -1139,7 +1139,7 @@ describe('FileRepository', () => {
       ]);
     });
 
-    it('When sorting by plainName, then the collated sort is followed by the uuid tiebreaker', async () => {
+    it('When sorting by plainName, then the collated sort is followed by the type and uuid tiebreakers', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
 
       await repository.findAllCursor(where, limit, offset, [
@@ -1147,9 +1147,10 @@ describe('FileRepository', () => {
       ]);
 
       const { order } = (fileModel.findAll as jest.Mock).mock.calls[0][0];
-      expect(order).toHaveLength(2);
+      expect(order).toHaveLength(3);
       expect(order[0].val).toContain('COLLATE "custom_numeric" DESC');
-      expect(order[1]).toEqual(['uuid', 'ASC']);
+      expect(order[1]).toEqual(['type', 'DESC']);
+      expect(order[2]).toEqual(['uuid', 'ASC']);
     });
 
     it('When the sort already includes a unique field, then no tiebreaker is appended', async () => {
@@ -2165,6 +2166,169 @@ describe('FileRepository', () => {
             status: FileStatus.DELETED,
           }),
         }),
+      );
+    });
+  });
+
+  describe('Folder content sorted by name', () => {
+    const where = { folderUuid: v4(), userId: 1, status: FileStatus.EXISTS };
+    const byName: Array<[keyof FileModel, string]> = [
+      ['plainName', SortOrder.ASC],
+    ];
+    const pageQuery = () => (fileModel.findAll as jest.Mock).mock.calls[1][0];
+
+    beforeEach(() => {
+      fileModel.sequelize.escape = jest.fn((value) => `'${value}'`);
+    });
+
+    it('When the user lists a folder page by name, then only the files of that page are fetched', async () => {
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([
+          { plainName: 'a', type: 'jpg' },
+          { plainName: 'b', type: 'png' },
+        ] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursorWithThumbnails(where, 2, 100, byName);
+
+      expect(fileModel.findAll).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ where, limit: 2, offset: 100, raw: true }),
+      );
+      expect(pageQuery()).toEqual(expect.objectContaining({ limit: 2 }));
+      expect(pageQuery()).not.toHaveProperty('offset');
+      expect(pageQuery().where[Op.and][1].val).toMatch(
+        />= \('a' COLLATE "custom_numeric", 'jpg'\)$/,
+      );
+    });
+
+    it('When the user lists a folder page by name, then the page follows the name and type index order', async () => {
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([{ plainName: 'a', type: 'jpg' }] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, byName);
+
+      expect(pageQuery().order).toEqual([
+        expect.anything(),
+        ['type', SortOrder.ASC],
+        ['uuid', SortOrder.ASC],
+      ]);
+    });
+
+    it('When the user lists a folder page by name, then the page keys are read only from the name and type index', async () => {
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([{ plainName: 'a', type: 'jpg' }] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, byName);
+
+      const keysQuery = (fileModel.findAll as jest.Mock).mock.calls[0][0];
+      expect(keysQuery.order).toEqual([
+        expect.anything(),
+        ['type', SortOrder.ASC],
+      ]);
+    });
+
+    it('When files of the page are removed while it is read, then the page is still filled up to the requested limit', async () => {
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([{ plainName: 'a', type: 'jpg' }] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, byName);
+
+      expect(pageQuery()).toEqual(expect.objectContaining({ limit: 2 }));
+    });
+
+    it('When the folder page has files without type, then the page is fetched with the regular offset query', async () => {
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([{ plainName: 'a', type: null }] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, byName);
+
+      expect(pageQuery()).toEqual(
+        expect.objectContaining({ where, limit: 2, offset: 100 }),
+      );
+    });
+
+    it('When the user lists the first page of a folder by name, then the regular query is used keeping the type order', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 50, 0, byName);
+
+      expect(fileModel.findAll).toHaveBeenCalledTimes(1);
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where,
+          limit: 50,
+          offset: 0,
+          order: [expect.anything(), ['type', SortOrder.ASC], ['uuid', 'ASC']],
+        }),
+      );
+    });
+
+    it('When the user asks for a page past the end of the folder, then no files are returned', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      const result = await repository.findAllCursor(where, 50, 1000, byName);
+
+      expect(fileModel.findAll).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([]);
+    });
+
+    it('When the user lists a folder without sort, then files are sorted by name ascending', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 50, 0, []);
+
+      const { order } = (fileModel.findAll as jest.Mock).mock.calls[0][0];
+      expect(order[0].val).toContain('COLLATE "custom_numeric" ASC');
+      expect(order.slice(1)).toEqual([
+        ['type', SortOrder.ASC],
+        ['uuid', 'ASC'],
+      ]);
+    });
+
+    it('When the user lists a folder page without sort, then only the files of that page are fetched', async () => {
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([{ plainName: 'a', type: 'jpg' }] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, []);
+
+      expect(pageQuery().where[Op.and][1].val).toMatch(
+        />= \('a' COLLATE "custom_numeric", 'jpg'\)$/,
+      );
+    });
+
+    it('When files are listed without sort outside a folder, then no order is applied', async () => {
+      const trashedWhere = { userId: 1, status: FileStatus.TRASHED };
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(trashedWhere, 50, 0, []);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ order: [] }),
+      );
+    });
+
+    it('When the user lists files sorted by another field, then the regular offset query is used', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, [
+        ['updatedAt', SortOrder.ASC],
+      ]);
+
+      expect(fileModel.findAll).toHaveBeenCalledTimes(1);
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ where, limit: 2, offset: 100 }),
       );
     });
   });
