@@ -48,6 +48,10 @@ const DEPRECATION_RULES: Record<
       minVersion: '1.12.2',
       mode: DeprecationMode.OMIT,
     },
+    [ClientEnum.DesktopWindows]: {
+      minVersion: '2.7.3',
+      mode: DeprecationMode.OMIT,
+    },
   },
 };
 

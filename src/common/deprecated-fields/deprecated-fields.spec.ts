@@ -69,7 +69,10 @@ describe('getDeprecationMode', () => {
       [ClientEnum.Mobile, '1.13.0', DeprecationMode.OMIT],
       [ClientEnum.Mobile, '1.12.1', null],
       [ClientEnum.Mobile, 'undefined', null],
-      [ClientEnum.DesktopWindows, '2.7.1', null],
+      [ClientEnum.DesktopWindows, '2.7.3', DeprecationMode.OMIT],
+      [ClientEnum.DesktopWindows, '2.8.0', DeprecationMode.OMIT],
+      [ClientEnum.DesktopWindows, '2.7.2', null],
+      [ClientEnum.DesktopMacos, '2.7.3', null],
       [ClientEnum.Web, '99.0.0', null],
       ['unknown-client', 'undefined', null],
     ])(
