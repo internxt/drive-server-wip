@@ -249,58 +249,6 @@ export class SequelizeFolderRepository implements FolderRepository {
     return applyCollateAndTiebreakerToSort(FolderModel, order);
   }
 
-  /**
-   * @deprecated Alternative path only for the v1 folder content endpoint sorted
-   * by name, remove with it. Skips the OFFSET rows with an index-only scan
-   */
-  private async buildOffsetPageOptions(
-    where: Partial<Record<keyof FolderAttributes, any>>,
-    limit: number,
-    offset: number,
-    order: Array<[keyof FolderModel, string]>,
-  ) {
-    const [[sortField, direction] = []] = order;
-    const pageOrder = this.applyCollateToPlainNameSort(order);
-    const isV1FolderContentByName =
-      order.length === 1 &&
-      sortField === 'plainName' &&
-      typeof where.parentUuid === 'string' &&
-      where.deleted === false &&
-      where.removed === false;
-    if (!isV1FolderContentByName || offset === 0) {
-      return { where, limit, offset, order: pageOrder };
-    }
-
-    const pageKeys = await this.folderModel.findAll({
-      where,
-      limit,
-      offset,
-      attributes: ['plainName'],
-      order: pageOrder.slice(0, 1),
-      raw: true,
-    });
-    if (pageKeys.length === 0) {
-      return null;
-    }
-    if (pageKeys.some((key) => key.plainName === null)) {
-      return { where, limit, offset, order: pageOrder };
-    }
-
-    const [first, last] =
-      direction === 'DESC'
-        ? [pageKeys.at(-1), pageKeys[0]]
-        : [pageKeys[0], pageKeys.at(-1)];
-    const escape = (value: string) => this.folderModel.sequelize.escape(value);
-    const pageRange = Sequelize.literal(
-      `"FolderModel"."plain_name" COLLATE "custom_numeric" BETWEEN (${escape(first.plainName)} COLLATE "custom_numeric") AND (${escape(last.plainName)} COLLATE "custom_numeric")`,
-    );
-    return {
-      where: { [Op.and]: [where, pageRange] },
-      limit: pageKeys.length,
-      order: pageOrder,
-    };
-  }
-
   async findByParentUuid(
     parentUuid: Folder['parentUuid'],
     searchBy: {
@@ -347,32 +295,101 @@ export class SequelizeFolderRepository implements FolderRepository {
     favoriteUserUuid?: FavoriteAttributes['userId'],
     withoutSharings = false,
   ): Promise<Array<Folder> | []> {
-    const pageOptions = await this.buildOffsetPageOptions(
+    const include: Includeable[] = [
+      ...(withoutSharings
+        ? []
+        : [
+            {
+              separate: true,
+              model: SharingModel,
+              attributes: ['type', 'id'],
+              required: false,
+            },
+          ]),
+      ...this.favoriteInclude(favoriteUserUuid),
+    ];
+
+    const isV1FolderContent =
+      typeof where.parentUuid === 'string' &&
+      where.deleted === false &&
+      where.removed === false;
+
+    const pageOrder: Array<[keyof FolderModel, string]> =
+      isV1FolderContent && order.length === 0
+        ? [['plainName', SortOrder.ASC]]
+        : order;
+    const [[sortField] = []] = pageOrder;
+    const isV1FolderContentByName =
+      isV1FolderContent && pageOrder.length === 1 && sortField === 'plainName';
+
+    if (isV1FolderContentByName && offset > 0) {
+      return this.findV1FolderContentPageByName(
+        where,
+        limit,
+        offset,
+        pageOrder,
+        include,
+      );
+    }
+
+    return this.findPageByOffset(where, limit, offset, pageOrder, include);
+  }
+
+  private async findPageByOffset(
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, string]>,
+    include: Includeable[],
+  ): Promise<Folder[]> {
+    const folders = await this.folderModel.findAll({
       where,
       limit,
       offset,
-      order,
-    );
-    if (!pageOptions) {
+      include,
+      subQuery: false,
+      order: this.applyCollateToPlainNameSort(order),
+    });
+
+    return folders.map(this.toDomain.bind(this));
+  }
+
+  /** @deprecated Only for v1 folder content sorted by name, remove with it */
+  private async findV1FolderContentPageByName(
+    where: Partial<Record<keyof FolderAttributes, any>>,
+    limit: number,
+    offset: number,
+    order: Array<[keyof FolderModel, string]>,
+    include: Includeable[],
+  ): Promise<Folder[]> {
+    const [[, direction]] = order;
+    const pageOrder = this.applyCollateToPlainNameSort(order).slice(0, 1);
+    const pageKeys = await this.folderModel.findAll({
+      where,
+      limit,
+      offset,
+      attributes: ['plainName'],
+      order: pageOrder,
+      raw: true,
+    });
+    if (pageKeys.length === 0) {
       return [];
     }
+    if (pageKeys.some((key) => key.plainName === null)) {
+      return this.findPageByOffset(where, limit, offset, order, include);
+    }
 
+    const [{ plainName }] = pageKeys;
+    const escape = (value: string) => this.folderModel.sequelize.escape(value);
+    const pageStart = Sequelize.literal(
+      `"FolderModel"."plain_name" COLLATE "custom_numeric" ${direction === 'DESC' ? '<=' : '>='} (${escape(plainName)} COLLATE "custom_numeric")`,
+    );
     const folders = await this.folderModel.findAll({
-      ...pageOptions,
+      where: { [Op.and]: [where, pageStart] },
+      limit,
+      include,
       subQuery: false,
-      include: [
-        ...(withoutSharings
-          ? []
-          : [
-              {
-                separate: true,
-                model: SharingModel,
-                attributes: ['type', 'id'],
-                required: false,
-              },
-            ]),
-        ...this.favoriteInclude(favoriteUserUuid),
-      ],
+      order: pageOrder,
     });
 
     return folders.map(this.toDomain.bind(this));

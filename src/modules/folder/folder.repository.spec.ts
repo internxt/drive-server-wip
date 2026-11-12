@@ -2242,8 +2242,37 @@ describe('SequelizeFolderRepository', () => {
       expect(pageQuery()).toEqual(expect.objectContaining({ limit: 2 }));
       expect(pageQuery()).not.toHaveProperty('offset');
       expect(pageQuery().where[Op.and][1].val).toMatch(
-        /BETWEEN \('a' COLLATE "custom_numeric"\) AND \('b' COLLATE "custom_numeric"\)/,
+        /<= \('b' COLLATE "custom_numeric"\)$/,
       );
+    });
+
+    it('When the user lists a folder page without sort, then subfolders are sorted by name ascending', async () => {
+      jest
+        .spyOn(folderModel, 'findAll')
+        .mockResolvedValueOnce([{ plainName: 'a' }] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100);
+
+      expect(pageQuery().order[0].val).toContain(
+        'COLLATE "custom_numeric" ASC',
+      );
+      expect(pageQuery().where[Op.and][1].val).toMatch(
+        />= \('a' COLLATE "custom_numeric"\)$/,
+      );
+    });
+
+    it('When the user lists a folder page by name, then the page follows the name index order', async () => {
+      jest
+        .spyOn(folderModel, 'findAll')
+        .mockResolvedValueOnce([{ plainName: 'a' }] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, [
+        ['plainName', SortOrder.ASC],
+      ]);
+
+      expect(pageQuery().order).toHaveLength(1);
     });
 
     it('When the listing includes deleted subfolders, then the regular offset query is used', async () => {

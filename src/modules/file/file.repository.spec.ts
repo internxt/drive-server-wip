@@ -1139,7 +1139,7 @@ describe('FileRepository', () => {
       ]);
     });
 
-    it('When sorting by plainName, then the collated sort is followed by the uuid tiebreaker', async () => {
+    it('When sorting by plainName, then the collated sort is followed by the type and uuid tiebreakers', async () => {
       jest.spyOn(fileModel, 'findAll').mockResolvedValue([]);
 
       await repository.findAllCursor(where, limit, offset, [
@@ -1147,9 +1147,10 @@ describe('FileRepository', () => {
       ]);
 
       const { order } = (fileModel.findAll as jest.Mock).mock.calls[0][0];
-      expect(order).toHaveLength(2);
+      expect(order).toHaveLength(3);
       expect(order[0].val).toContain('COLLATE "custom_numeric" DESC');
-      expect(order[1]).toEqual(['uuid', 'ASC']);
+      expect(order[1]).toEqual(['type', 'DESC']);
+      expect(order[2]).toEqual(['uuid', 'ASC']);
     });
 
     it('When the sort already includes a unique field, then no tiebreaker is appended', async () => {
@@ -2198,8 +2199,33 @@ describe('FileRepository', () => {
       expect(pageQuery()).toEqual(expect.objectContaining({ limit: 2 }));
       expect(pageQuery()).not.toHaveProperty('offset');
       expect(pageQuery().where[Op.and][1].val).toMatch(
-        /BETWEEN \('a' COLLATE "custom_numeric", 'jpg'\) AND \('b' COLLATE "custom_numeric", 'png'\)/,
+        />= \('a' COLLATE "custom_numeric", 'jpg'\)$/,
       );
+    });
+
+    it('When the user lists a folder page by name, then the page follows the name and type index order', async () => {
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([{ plainName: 'a', type: 'jpg' }] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, byName);
+
+      expect(pageQuery().order).toEqual([
+        expect.anything(),
+        ['type', SortOrder.ASC],
+      ]);
+    });
+
+    it('When files of the page are removed while it is read, then the page is still filled up to the requested limit', async () => {
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([{ plainName: 'a', type: 'jpg' }] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, byName);
+
+      expect(pageQuery()).toEqual(expect.objectContaining({ limit: 2 }));
     });
 
     it('When the folder page has files without type, then the page is fetched with the regular offset query', async () => {
@@ -2238,6 +2264,43 @@ describe('FileRepository', () => {
 
       expect(fileModel.findAll).toHaveBeenCalledTimes(1);
       expect(result).toEqual([]);
+    });
+
+    it('When the user lists a folder without sort, then files are sorted by name ascending', async () => {
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 50, 0, []);
+
+      const { order } = (fileModel.findAll as jest.Mock).mock.calls[0][0];
+      expect(order[0].val).toContain('COLLATE "custom_numeric" ASC');
+      expect(order.slice(1)).toEqual([
+        ['type', SortOrder.ASC],
+        ['uuid', 'ASC'],
+      ]);
+    });
+
+    it('When the user lists a folder page without sort, then only the files of that page are fetched', async () => {
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([{ plainName: 'a', type: 'jpg' }] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, []);
+
+      expect(pageQuery().where[Op.and][1].val).toMatch(
+        />= \('a' COLLATE "custom_numeric", 'jpg'\)$/,
+      );
+    });
+
+    it('When files are listed without sort outside a folder, then no order is applied', async () => {
+      const trashedWhere = { userId: 1, status: FileStatus.TRASHED };
+      jest.spyOn(fileModel, 'findAll').mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(trashedWhere, 50, 0, []);
+
+      expect(fileModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ order: [] }),
+      );
     });
 
     it('When the user lists files sorted by another field, then the regular offset query is used', async () => {
