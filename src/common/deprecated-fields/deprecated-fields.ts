@@ -52,6 +52,14 @@ const DEPRECATION_RULES: Record<
       minVersion: '2.7.3',
       mode: DeprecationMode.OMIT,
     },
+    [ClientEnum.DesktopMacos]: {
+      minVersion: '2.7.1',
+      mode: DeprecationMode.OMIT,
+    },
+    [ClientEnum.DesktopLinux]: {
+      minVersion: '2.7.1',
+      mode: DeprecationMode.OMIT,
+    },
   },
 };
 
