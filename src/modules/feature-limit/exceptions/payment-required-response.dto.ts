@@ -8,5 +8,13 @@ export class PaymentRequiredResponseDto {
   message: string;
 
   @ApiProperty({ enum: PaymentRequiredErrorCode })
-  error: PaymentRequiredErrorCode;
+  errorCode: PaymentRequiredErrorCode;
+
+  @ApiProperty({
+    enum: [PaymentRequiredErrorCode.FileUploadSizeExceeded],
+    required: false,
+    description:
+      'Legacy field, only present for FILE_UPLOAD_SIZE_EXCEEDED. Use errorCode instead',
+  })
+  error?: PaymentRequiredErrorCode;
 }

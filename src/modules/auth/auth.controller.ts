@@ -46,7 +46,10 @@ import { JwtToken } from './decorators/get-jwt.decorator';
 import { AuthUsecases } from './auth.usecase';
 import { ClientToPlatformMap, PlatformName } from '../../common/constants';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import {
+  PaymentRequiredErrorCode,
+  PaymentRequiredException,
+} from '../feature-limit/exceptions/payment-required.exception';
 import { Client } from '../../common/decorators/client.decorator';
 import { type ClientEnum } from '../../common/enums/platform.enum';
 import { MailService } from '../../externals/mail/mail.service';
@@ -342,6 +345,7 @@ export class AuthController {
       if (!canUserAccess)
         throw new PaymentRequiredException(
           `${platform} access not allowed for this user tier`,
+          PaymentRequiredErrorCode.FeatureNotInPlan,
         );
 
       this.logger.log(

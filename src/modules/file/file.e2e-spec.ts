@@ -28,6 +28,9 @@ import { AesService } from '../../externals/crypto/aes';
 import request from 'supertest';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { SequelizeThumbnailRepository } from '../thumbnail/thumbnail.repository';
+import { overrideUserLimit } from '../../../test/helpers/limit.helper';
+import { LimitLabels, LimitTypes } from '../feature-limit/limits.enum';
+import { PaymentRequiredErrorCode } from '../feature-limit/exceptions/payment-required.exception';
 
 describe('File module', () => {
   let app: NestExpressApplication;
@@ -845,6 +848,52 @@ describe('File module', () => {
 
       expect(response.status).toBe(HttpStatus.FORBIDDEN);
       expect(filesInFolder).toBe(0);
+    });
+
+    it('When the user uploads an empty file and their plan does not allow empty files, then it fails with an empty files error code', async () => {
+      await overrideUserLimit(app, {
+        userUuid: testUser.user.uuid,
+        label: LimitLabels.MaxZeroSizeFiles,
+        type: LimitTypes.Counter,
+        value: '0',
+      });
+      const { fileId: _fileId, ...nonEmptyFileBody } = buildCreateFileBody(
+        testUser.rootFolder?.uuid,
+      );
+      const body = { ...nonEmptyFileBody, size: 0 };
+
+      const response = await request(app.getHttpServer())
+        .post('/files')
+        .set('Authorization', `bearer ${testUser.token}`)
+        .send(body);
+
+      expect(response.status).toBe(HttpStatus.PAYMENT_REQUIRED);
+      expect(response.body).toEqual({
+        message: expect.any(String),
+        errorCode: PaymentRequiredErrorCode.EmptyFilesNotInPlan,
+      });
+    });
+
+    it('When the user uploads a file bigger than their plan allows, then it fails with the upload size error code', async () => {
+      await overrideUserLimit(app, {
+        userUuid: testUser.user.uuid,
+        label: LimitLabels.MaxUploadFileSize,
+        type: LimitTypes.Counter,
+        value: '50',
+      });
+      const body = buildCreateFileBody(testUser.rootFolder?.uuid);
+
+      const response = await request(app.getHttpServer())
+        .post('/files')
+        .set('Authorization', `bearer ${testUser.token}`)
+        .send(body);
+
+      expect(response.status).toBe(HttpStatus.PAYMENT_REQUIRED);
+      expect(response.body).toEqual({
+        message: expect.any(String),
+        error: PaymentRequiredErrorCode.FileUploadSizeExceeded,
+        errorCode: PaymentRequiredErrorCode.FileUploadSizeExceeded,
+      });
     });
   });
 

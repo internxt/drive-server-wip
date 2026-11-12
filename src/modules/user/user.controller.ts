@@ -100,7 +100,10 @@ import { GetOrCreatePublicKeysDto } from './dto/responses/get-or-create-publicke
 import { TimingConsistency } from '../auth/decorators/timing-consistency.decorator';
 import { TimingConsistencyInterceptor } from '../auth/interceptors/timing-consistency.interceptor';
 import { PlatformName } from '../../common/constants';
-import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import {
+  PaymentRequiredErrorCode,
+  PaymentRequiredException,
+} from '../feature-limit/exceptions/payment-required.exception';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
 import { CaptchaGuard } from '../auth/captcha.guard';
@@ -570,6 +573,7 @@ export class UserController {
       if (!canUserAccess) {
         throw new PaymentRequiredException(
           'CLI access not allowed for this user tier',
+          PaymentRequiredErrorCode.FeatureNotInPlan,
         );
       }
 

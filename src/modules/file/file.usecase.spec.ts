@@ -19,7 +19,10 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import {
+  PaymentRequiredErrorCode,
+  PaymentRequiredException,
+} from '../feature-limit/exceptions/payment-required.exception';
 import {
   File,
   type FileAttributes,
@@ -1470,10 +1473,12 @@ describe('FileUseCases', () => {
         .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
         .mockResolvedValue(5);
 
-      await expect(service.checkEmptyFilesLimit(userMocked)).rejects.toThrow(
-        PaymentRequiredException,
-      );
+      const result = service.checkEmptyFilesLimit(userMocked);
 
+      await expect(result).rejects.toThrow(PaymentRequiredException);
+      await expect(result).rejects.toMatchObject({
+        response: { errorCode: PaymentRequiredErrorCode.EmptyFilesNotInPlan },
+      });
       expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
         LimitLabels.MaxZeroSizeFiles,
         userMocked,

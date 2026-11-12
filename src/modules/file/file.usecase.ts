@@ -58,7 +58,10 @@ import { UserUseCases } from '../user/user.usecase';
 import { RedisService } from '../../externals/redis/redis.service';
 import { type Usage } from '../usage/usage.domain';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
-import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import {
+  PaymentRequiredErrorCode,
+  PaymentRequiredException,
+} from '../feature-limit/exceptions/payment-required.exception';
 import {
   DeleteFileVersionAction,
   GetFileVersionsAction,
@@ -419,6 +422,7 @@ export class FileUseCases {
     if (!limit || limit.value === '0') {
       throw new PaymentRequiredException(
         'You can not have empty files, upgrade your plan to get more features',
+        PaymentRequiredErrorCode.EmptyFilesNotInPlan,
       );
     }
 
