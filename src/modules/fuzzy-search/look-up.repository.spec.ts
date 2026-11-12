@@ -184,7 +184,6 @@ describe('SequelizeLookUpRepository', () => {
           rank: null,
           similarity: 0.9,
           'file.type': 'pdf',
-          'file.id': 1,
           'file.size': '1024',
           'file.bucket': 'bucket',
           'file.fileId': 'fileId',
@@ -205,7 +204,6 @@ describe('SequelizeLookUpRepository', () => {
           similarity: 0.9,
           item: {
             type: 'pdf',
-            id: 1,
             size: '1024',
             bucket: 'bucket',
             fileId: 'fileId',
@@ -213,6 +211,13 @@ describe('SequelizeLookUpRepository', () => {
           },
         },
       ]);
+    });
+
+    test('When searching, then it should not read the file id column', async () => {
+      await repository.search(userUuid, partialName);
+
+      const [sql] = sequelize.query.mock.calls[0];
+      expect(sql).not.toContain('"file.id"');
     });
   });
 

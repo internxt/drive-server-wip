@@ -42,7 +42,18 @@ export class FileModel extends Model implements FileAttributes {
   uuid: string;
 
   @AutoIncrement
-  @Column
+  @Column({
+    type: DataType.INTEGER,
+    get(this: FileModel) {
+      if (
+        getDeprecationMode(DeprecatedField.FILE_ID) === DeprecationMode.OMIT
+      ) {
+        return undefined;
+      }
+      // Clients that still read id expect a number
+      return this.getDataValue('id') ?? 0;
+    },
+  })
   id: number;
 
   @AllowNull
