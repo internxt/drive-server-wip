@@ -2214,6 +2214,22 @@ describe('FileRepository', () => {
       expect(pageQuery().order).toEqual([
         expect.anything(),
         ['type', SortOrder.ASC],
+        ['uuid', SortOrder.ASC],
+      ]);
+    });
+
+    it('When the user lists a folder page by name, then the page keys are read only from the name and type index', async () => {
+      jest
+        .spyOn(fileModel, 'findAll')
+        .mockResolvedValueOnce([{ plainName: 'a', type: 'jpg' }] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, byName);
+
+      const keysQuery = (fileModel.findAll as jest.Mock).mock.calls[0][0];
+      expect(keysQuery.order).toEqual([
+        expect.anything(),
+        ['type', SortOrder.ASC],
       ]);
     });
 

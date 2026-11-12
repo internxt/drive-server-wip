@@ -2272,7 +2272,24 @@ describe('SequelizeFolderRepository', () => {
         ['plainName', SortOrder.ASC],
       ]);
 
-      expect(pageQuery().order).toHaveLength(1);
+      expect(pageQuery().order).toEqual([
+        expect.anything(),
+        ['uuid', SortOrder.ASC],
+      ]);
+    });
+
+    it('When the user lists a folder page by name, then the page keys are read only from the name index', async () => {
+      jest
+        .spyOn(folderModel, 'findAll')
+        .mockResolvedValueOnce([{ plainName: 'a' }] as any)
+        .mockResolvedValueOnce([]);
+
+      await repository.findAllCursor(where, 2, 100, [
+        ['plainName', SortOrder.ASC],
+      ]);
+
+      const keysQuery = (folderModel.findAll as jest.Mock).mock.calls[0][0];
+      expect(keysQuery.order).toHaveLength(1);
     });
 
     it('When the listing includes deleted subfolders, then the regular offset query is used', async () => {

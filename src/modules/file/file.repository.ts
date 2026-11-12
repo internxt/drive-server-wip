@@ -862,13 +862,13 @@ export class SequelizeFileRepository implements FileRepository {
     include: Includeable[],
   ): Promise<File[]> {
     const [[, direction]] = order;
-    const pageOrder = this.byNameAndType(order).slice(0, 2);
+    const pageOrder = this.byNameAndType(order);
     const pageKeys = await this.fileModel.findAll({
       where,
       limit,
       offset,
       attributes: ['plainName', 'type'],
-      order: pageOrder,
+      order: pageOrder.slice(0, 2),
       raw: true,
     });
     if (pageKeys.length === 0) {

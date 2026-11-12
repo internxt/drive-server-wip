@@ -363,13 +363,13 @@ export class SequelizeFolderRepository implements FolderRepository {
     include: Includeable[],
   ): Promise<Folder[]> {
     const [[, direction]] = order;
-    const pageOrder = this.applyCollateToPlainNameSort(order).slice(0, 1);
+    const pageOrder = this.applyCollateToPlainNameSort(order);
     const pageKeys = await this.folderModel.findAll({
       where,
       limit,
       offset,
       attributes: ['plainName'],
-      order: pageOrder,
+      order: pageOrder.slice(0, 1),
       raw: true,
     });
     if (pageKeys.length === 0) {
