@@ -7,6 +7,10 @@ import { ReferralService } from './referral.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { Limit } from '../feature-limit/domain/limit.domain';
 import { LimitLabels, LimitTypes } from '../feature-limit/limits.enum';
+import {
+  PaymentRequiredErrorCode,
+  PaymentRequiredException,
+} from '../feature-limit/exceptions/payment-required.exception';
 
 describe('ReferralController', () => {
   let controller: ReferralController;
@@ -85,6 +89,24 @@ describe('ReferralController', () => {
         user.uuid,
         user.createdAt,
       );
+    });
+
+    it('When referral is not available for the user plan, then it fails because the feature is not in the plan', async () => {
+      const limit = Limit.build({
+        id: 'limit-id',
+        label: LimitLabels.ReferralAccess,
+        type: LimitTypes.Boolean,
+        value: 'false',
+      });
+      featureLimitService.getUserLimitByLabel.mockResolvedValue(limit);
+
+      const result = controller.generateToken(user);
+
+      await expect(result).rejects.toThrow(PaymentRequiredException);
+      await expect(result).rejects.toMatchObject({
+        response: { errorCode: PaymentRequiredErrorCode.FeatureNotInPlan },
+      });
+      expect(referralService.generateToken).not.toHaveBeenCalled();
     });
   });
 });

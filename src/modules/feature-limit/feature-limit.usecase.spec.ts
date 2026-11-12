@@ -1,7 +1,10 @@
 import { type SequelizeFeatureLimitsRepository } from './feature-limit.repository';
 import { type SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { type DeepMocked, createMock } from '@golevelup/ts-jest';
-import { PaymentRequiredException } from './exceptions/payment-required.exception';
+import {
+  PaymentRequiredErrorCode,
+  PaymentRequiredException,
+} from './exceptions/payment-required.exception';
 import { FeatureLimitUsecases } from './feature-limit.usecase';
 import { newFeatureLimit, newUser } from '../../../test/fixtures';
 import { LimitLabels, LimitTypes } from './limits.enum';
@@ -34,9 +37,12 @@ describe('FeatureLimitUsecases', () => {
       limitsRepository.findUserOverriddenLimit.mockResolvedValueOnce(null);
       limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(limit);
 
-      await expect(
-        service.enforceLimit('' as LimitLabels, user, {}),
-      ).rejects.toThrow(PaymentRequiredException);
+      const result = service.enforceLimit('' as LimitLabels, user, {});
+
+      await expect(result).rejects.toThrow(PaymentRequiredException);
+      await expect(result).rejects.toMatchObject({
+        response: { errorCode: PaymentRequiredErrorCode.FeatureNotInPlan },
+      });
     });
 
     it('When limit is boolean type and it is true, then it should not enforce limit', async () => {
@@ -66,9 +72,12 @@ describe('FeatureLimitUsecases', () => {
       );
       jest.spyOn(service, 'checkCounterLimit').mockResolvedValueOnce(true);
 
-      await expect(
-        service.enforceLimit('' as LimitLabels, user, {}),
-      ).rejects.toThrow(PaymentRequiredException);
+      const result = service.enforceLimit('' as LimitLabels, user, {});
+
+      await expect(result).rejects.toThrow(PaymentRequiredException);
+      await expect(result).rejects.toMatchObject({
+        response: { errorCode: PaymentRequiredErrorCode.PlanLimitExceeded },
+      });
     });
 
     it('When limit is counter and is not surprassed, then limit should be not be enforced', async () => {

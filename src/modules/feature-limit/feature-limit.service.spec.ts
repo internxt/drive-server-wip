@@ -15,7 +15,10 @@ import {
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { SequelizeUserRepository } from '../user/user.repository';
 import { CacheManagerService } from '../cache-manager/cache-manager.service';
-import { PaymentRequiredException } from './exceptions/payment-required.exception';
+import {
+  PaymentRequiredErrorCode,
+  PaymentRequiredException,
+} from './exceptions/payment-required.exception';
 
 describe('FeatureLimitService', () => {
   let service: FeatureLimitService;
@@ -419,9 +422,15 @@ describe('FeatureLimitService', () => {
       cacheManagerService.getTierLimit.mockResolvedValueOnce(null);
       limitsRepository.findLimitByLabelAndTier.mockResolvedValueOnce(limit);
 
-      await expect(
-        service.enforceMaxUploadFileSize(user, BigInt(200 * MB)),
-      ).rejects.toThrow(PaymentRequiredException);
+      const result = service.enforceMaxUploadFileSize(user, BigInt(200 * MB));
+
+      await expect(result).rejects.toThrow(PaymentRequiredException);
+      await expect(result).rejects.toMatchObject({
+        response: {
+          error: PaymentRequiredErrorCode.FileUploadSizeExceeded,
+          errorCode: PaymentRequiredErrorCode.FileUploadSizeExceeded,
+        },
+      });
     });
 
     it('When user has an overridden limit, then it should use it instead of tier limit', async () => {

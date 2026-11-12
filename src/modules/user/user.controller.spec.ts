@@ -59,7 +59,10 @@ import {
 } from '../../common/audit-logs/audit-logs.attributes';
 import { KlaviyoTrackingService } from '../../externals/klaviyo/klaviyo-tracking.service';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import {
+  PaymentRequiredErrorCode,
+  PaymentRequiredException,
+} from '../feature-limit/exceptions/payment-required.exception';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { CaptchaGuard } from '../auth/captcha.guard';
 import { TIMING_CONSISTENCY_KEY } from '../auth/decorators/timing-consistency.decorator';
@@ -2121,9 +2124,14 @@ describe('User Controller', () => {
     it('When user does not have CLI access, then it fails', async () => {
       featureLimitService.canUserAccessPlatform.mockResolvedValueOnce(false);
 
-      await expect(userController.cliRefresh(user)).rejects.toThrow(
-        PaymentRequiredException,
-      );
+      const result = userController.cliRefresh(user);
+
+      await expect(result).rejects.toThrow(PaymentRequiredException);
+      await expect(result).rejects.toMatchObject({
+        response: {
+          errorCode: PaymentRequiredErrorCode.FeatureNotInPlan,
+        },
+      });
     });
   });
 

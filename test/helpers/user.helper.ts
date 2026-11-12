@@ -9,6 +9,7 @@ import { type UserAttributes } from '../../src/modules/user/user.attributes';
 import { Sign } from '../../src/middlewares/passport';
 import getEnv from '../../src/config/configuration';
 import { FileModel } from '../../src/modules/file/file.model';
+import { removeUserLimitOverrides } from './limit.helper';
 
 export interface CreateTestUserOptions {
   attributes?: Partial<UserAttributes>;
@@ -111,6 +112,7 @@ export async function createTestUser(
   );
 
   const cleanup = async () => {
+    await removeUserLimitOverrides(app, user.uuid);
     await userModel.destroy({ where: { id: createdUser.id } });
     await fileModel.destroy({ where: { userId: createdUser.id } });
     await folderModel.destroy({ where: { userId: createdUser.id } });

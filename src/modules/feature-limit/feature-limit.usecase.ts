@@ -14,7 +14,10 @@ import {
   type MaxInviteesPerItemAttribute,
   type MaxSharedItemsAttribute,
 } from './domain/limits.attributes';
-import { PaymentRequiredException } from './exceptions/payment-required.exception';
+import {
+  PaymentRequiredErrorCode,
+  PaymentRequiredException,
+} from './exceptions/payment-required.exception';
 
 @Injectable()
 export class FeatureLimitUsecases {
@@ -63,6 +66,7 @@ export class FeatureLimitUsecases {
       if (limit.shouldLimitBeEnforced()) {
         throw new PaymentRequiredException(
           `Feature not available for ${limitLabel} `,
+          PaymentRequiredErrorCode.FeatureNotInPlan,
         );
       }
       return false;
@@ -70,7 +74,10 @@ export class FeatureLimitUsecases {
 
     const isLimitSurprassed = await this.checkCounterLimit(user, limit, data);
     if (isLimitSurprassed) {
-      throw new PaymentRequiredException(`Limit exceeded for ${limitLabel} `);
+      throw new PaymentRequiredException(
+        `Limit exceeded for ${limitLabel} `,
+        PaymentRequiredErrorCode.PlanLimitExceeded,
+      );
     }
     return false;
   }

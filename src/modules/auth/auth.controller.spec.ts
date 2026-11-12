@@ -21,7 +21,10 @@ import { DeleteTfaDto } from './dto/delete-tfa.dto';
 import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 import { Test } from '@nestjs/testing';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
-import { PaymentRequiredException } from '../feature-limit/exceptions/payment-required.exception';
+import {
+  PaymentRequiredErrorCode,
+  PaymentRequiredException,
+} from '../feature-limit/exceptions/payment-required.exception';
 import { PlatformName } from '../../common/constants';
 import { ClientEnum } from '../../common/enums/platform.enum';
 import { MailService } from '../../externals/mail/mail.service';
@@ -765,10 +768,17 @@ describe('AuthController', () => {
         .spyOn(featureLimitService, 'canUserAccessPlatform')
         .mockResolvedValueOnce(false);
 
-      await expect(
-        authController.cliLoginAccess(loginAccessDto, ClientEnum.Cli),
-      ).rejects.toThrow(PaymentRequiredException);
+      const result = authController.cliLoginAccess(
+        loginAccessDto,
+        ClientEnum.Cli,
+      );
 
+      await expect(result).rejects.toThrow(PaymentRequiredException);
+      await expect(result).rejects.toMatchObject({
+        response: {
+          errorCode: PaymentRequiredErrorCode.FeatureNotInPlan,
+        },
+      });
       expect(featureLimitService.canUserAccessPlatform).toHaveBeenCalledWith(
         PlatformName.CLI,
         mockUser.uuid,
@@ -797,10 +807,15 @@ describe('AuthController', () => {
         .spyOn(featureLimitService, 'canUserAccessPlatform')
         .mockResolvedValueOnce(false);
 
-      await expect(
-        authController.cliLoginAccess(loginAccessDto, ClientEnum.Rclone),
-      ).rejects.toThrow(PaymentRequiredException);
+      const result = authController.cliLoginAccess(
+        loginAccessDto,
+        ClientEnum.Rclone,
+      );
 
+      await expect(result).rejects.toThrow(PaymentRequiredException);
+      await expect(result).rejects.toMatchObject({
+        response: { errorCode: PaymentRequiredErrorCode.FeatureNotInPlan },
+      });
       expect(featureLimitService.canUserAccessPlatform).toHaveBeenCalledWith(
         PlatformName.RCLONE,
         mockUser.uuid,

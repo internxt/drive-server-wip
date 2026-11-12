@@ -13,8 +13,10 @@ import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
+  ApiPaymentRequiredResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { PaymentRequiredResponseDto } from '../../feature-limit/exceptions/payment-required-response.dto';
 import { User as UserDecorator } from '../../auth/decorators/user.decorator';
 import { User } from '../../user/user.domain';
 import { BackupUseCase } from '../backup.usecase';
@@ -31,6 +33,10 @@ import { Time } from '../../../lib/time';
 
 @ApiTags('Photos')
 @Controller('photos')
+@ApiPaymentRequiredResponse({
+  type: PaymentRequiredResponseDto,
+  description: 'Photos are not included in the user plan',
+})
 @ApplyLimit({ limitLabels: [LimitLabels.PhotosAccess] })
 @UseGuards(FeatureLimit)
 export class PhotosController {
