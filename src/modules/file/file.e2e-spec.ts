@@ -31,6 +31,7 @@ import { SequelizeThumbnailRepository } from '../thumbnail/thumbnail.repository'
 import { overrideUserLimit } from '../../../test/helpers/limit.helper';
 import { LimitLabels, LimitTypes } from '../feature-limit/limits.enum';
 import { PaymentRequiredErrorCode } from '../feature-limit/exceptions/payment-required.exception';
+import { EMPTY_FILES_LIMIT_REACHED } from './exceptions/empty-files-limit-reached.exception';
 
 describe('File module', () => {
   let app: NestExpressApplication;
@@ -871,6 +872,44 @@ describe('File module', () => {
       expect(response.body).toEqual({
         message: expect.any(String),
         errorCode: PaymentRequiredErrorCode.EmptyFilesNotInPlan,
+      });
+    });
+
+    it('When the user uploads an empty file and already has the maximum empty files of their plan, then it fails with the empty files limit error code', async () => {
+      await overrideUserLimit(app, {
+        userUuid: testUser.user.uuid,
+        label: LimitLabels.MaxZeroSizeFiles,
+        type: LimitTypes.Counter,
+        value: '1',
+      });
+      await fileRepository.create(
+        newFile({
+          attributes: {
+            folderId: testUser.rootFolder?.id,
+            folderUuid: testUser.rootFolder?.uuid,
+            userId: testUser.user.id,
+            status: FileStatus.EXISTS,
+            size: BigInt(0),
+            fileId: null,
+          },
+        }),
+      );
+      const { fileId: _fileId, ...nonEmptyFileBody } = buildCreateFileBody(
+        testUser.rootFolder?.uuid,
+      );
+      const body = { ...nonEmptyFileBody, size: 0 };
+
+      const response = await request(app.getHttpServer())
+        .post('/files')
+        .set('Authorization', `bearer ${testUser.token}`)
+        .send(body);
+
+      expect(response.status).toBe(HttpStatus.BAD_REQUEST);
+      expect(response.body).toEqual({
+        message: 'You can not have more empty files',
+        error: 'Bad Request',
+        statusCode: HttpStatus.BAD_REQUEST,
+        errorCode: EMPTY_FILES_LIMIT_REACHED,
       });
     });
 

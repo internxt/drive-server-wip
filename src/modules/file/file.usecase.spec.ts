@@ -24,6 +24,10 @@ import {
   PaymentRequiredException,
 } from '../feature-limit/exceptions/payment-required.exception';
 import {
+  EMPTY_FILES_LIMIT_REACHED,
+  EmptyFilesLimitReachedException,
+} from './exceptions/empty-files-limit-reached.exception';
+import {
   File,
   type FileAttributes,
   FileStatus,
@@ -1502,10 +1506,12 @@ describe('FileUseCases', () => {
         .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
         .mockResolvedValue(1000);
 
-      await expect(service.checkEmptyFilesLimit(userMocked)).rejects.toThrow(
-        BadRequestException,
-      );
+      const result = service.checkEmptyFilesLimit(userMocked);
 
+      await expect(result).rejects.toThrow(EmptyFilesLimitReachedException);
+      await expect(result).rejects.toMatchObject({
+        response: { errorCode: EMPTY_FILES_LIMIT_REACHED },
+      });
       expect(featureLimitService.getUserLimitByLabel).toHaveBeenCalledWith(
         LimitLabels.MaxZeroSizeFiles,
         userMocked,
@@ -1564,9 +1570,15 @@ describe('FileUseCases', () => {
         .spyOn(fileRepository, 'getZeroSizeFilesCountInWorkspaceByMember')
         .mockResolvedValue(10);
 
-      await expect(
-        service.checkWorkspaceEmptyFilesLimit(member.uuid, workspace),
-      ).rejects.toThrow(BadRequestException);
+      const result = service.checkWorkspaceEmptyFilesLimit(
+        member.uuid,
+        workspace,
+      );
+
+      await expect(result).rejects.toThrow(EmptyFilesLimitReachedException);
+      await expect(result).rejects.toMatchObject({
+        response: { errorCode: EMPTY_FILES_LIMIT_REACHED },
+      });
     });
 
     it('When workspace owner limit is NOT enforced, then it should not throw', async () => {

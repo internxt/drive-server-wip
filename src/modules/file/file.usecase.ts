@@ -62,6 +62,7 @@ import {
   PaymentRequiredErrorCode,
   PaymentRequiredException,
 } from '../feature-limit/exceptions/payment-required.exception';
+import { EmptyFilesLimitReachedException } from './exceptions/empty-files-limit-reached.exception';
 import {
   DeleteFileVersionAction,
   GetFileVersionsAction,
@@ -427,7 +428,7 @@ export class FileUseCases {
     }
 
     if (limit.shouldLimitBeEnforced({ currentCount: emptyFilesCount })) {
-      throw new BadRequestException('You can not have more empty files');
+      throw new EmptyFilesLimitReachedException();
     }
   }
 
@@ -1254,7 +1255,7 @@ export class FileUseCases {
         currentCount: zeroSizeFilesCount,
       })
     ) {
-      throw new BadRequestException(
+      throw new EmptyFilesLimitReachedException(
         'You can not have more empty files in this workspace',
       );
     }
