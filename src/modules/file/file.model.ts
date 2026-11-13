@@ -1,6 +1,5 @@
 import {
   AllowNull,
-  AutoIncrement,
   BelongsTo,
   Column,
   DataType,
@@ -20,7 +19,7 @@ import { UserModel } from '../user/user.model';
 import { SharingModel } from '../sharing/models';
 import { type Sharing } from '../sharing/sharing.domain';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
-import { Sequelize } from 'sequelize';
+import { type FindOptions, Sequelize } from 'sequelize';
 import { v7 } from 'uuid';
 import { AesService } from '../../externals/crypto/aes';
 import {
@@ -30,10 +29,21 @@ import {
 } from '../../common/deprecated-fields/deprecated-fields';
 import { FavoriteModel } from '../favorite/favorite.model';
 
+// Clients still sort by id, which is no longer stored
+export const sortByUuidInsteadOfId = (options: FindOptions) => {
+  if (!Array.isArray(options.order)) {
+    return;
+  }
+  options.order = options.order.map((item) =>
+    Array.isArray(item) && item[0] === 'id' ? ['uuid', ...item.slice(1)] : item,
+  ) as FindOptions['order'];
+};
+
 @Table({
   underscored: true,
   timestamps: true,
   tableName: 'files',
+  hooks: { beforeFind: sortByUuidInsteadOfId },
 })
 export class FileModel extends Model implements FileAttributes {
   @PrimaryKey
@@ -41,17 +51,16 @@ export class FileModel extends Model implements FileAttributes {
   @Column(DataType.UUIDV4)
   uuid: string;
 
-  @AutoIncrement
+  // Not stored anymore, kept for clients that still read id and expect a number
   @Column({
-    type: DataType.INTEGER,
-    get(this: FileModel) {
+    type: DataType.VIRTUAL,
+    get() {
       if (
         getDeprecationMode(DeprecatedField.FILE_ID) === DeprecationMode.OMIT
       ) {
         return undefined;
       }
-      // Clients that still read id expect a number
-      return this.getDataValue('id') ?? 0;
+      return 0;
     },
   })
   id: number;
