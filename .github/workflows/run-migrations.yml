@@ -1,0 +1,170 @@
+name: Run Migrations
+# pull_request_target runs this workflow and .github/scripts from master, so a PR can't alter them
+# before CODEOWNERS review; the PR's code only reaches the migrations machine through its commit sha.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    paths: ['migrations/**']
+
+permissions: {}
+
+jobs:
+  detect:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.ref == 'master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      has-new-migrations: ${{ steps.diff.outputs.has-new-migrations }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: diff
+        name: Detect added migrations
+        working-directory: pr
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff -z --no-renames --name-only --diff-filter=A "${BASE_SHA}...${HEAD_SHA}" -- migrations/ >"${RUNNER_TEMP}/added-migrations"
+          not_added=$(git diff --no-renames --name-status --diff-filter=a "${BASE_SHA}...${HEAD_SHA}" -- migrations/)
+          stop_token=$(openssl rand -hex 16)
+          echo "::stop-commands::${stop_token}"
+          tr '\0' '\n' <"${RUNNER_TEMP}/added-migrations"
+          echo "$not_added"
+          echo "::${stop_token}::"
+          if [[ -n "$not_added" ]]; then
+            echo "::error::Migrations can only be added; changing, deleting or renaming existing ones is not allowed"
+            exit 1
+          fi
+          echo "has-new-migrations=$([[ -s "${RUNNER_TEMP}/added-migrations" ]] && echo true || echo false)" >>"$GITHUB_OUTPUT"
+
+      - name: Block destructive migrations
+        if: steps.diff.outputs.has-new-migrations == 'true'
+        working-directory: pr
+        run: |
+          npm install --prefix "${RUNNER_TEMP}/checker" --ignore-scripts --no-audit --no-fund acorn@8.14.0 acorn-walk@8.3.4
+          mapfile -d '' migrations <"${RUNNER_TEMP}/added-migrations"
+          NODE_PATH="${RUNNER_TEMP}/checker/node_modules" node "${GITHUB_WORKSPACE}/.github/scripts/check-destructive-migrations.cjs" "${migrations[@]}"
+
+  migrate:
+    needs: detect
+    if: needs.detect.outputs.has-new-migrations == 'true'
+    runs-on: ubuntu-latest
+    environment: production-migrations
+    permissions:
+      contents: read
+      pull-requests: read
+    concurrency:
+      group: production-migrations
+      cancel-in-progress: false
+    timeout-minutes: 360
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - name: Check the PR is approved and its head is the triggering commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          read -r current decision < <(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid,reviewDecision --jq '"\(.headRefOid) \(.reviewDecision)"')
+          if [[ "$current" != "$HEAD_SHA" ]]; then
+            echo "::error::The PR has new commits since this run was triggered; approve the latest run instead"
+            exit 1
+          fi
+          if [[ "$decision" != APPROVED ]]; then
+            echo "::error::The PR must be approved by its required reviewers before running its migrations (review decision: ${decision:-none})"
+            exit 1
+          fi
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.MIGRATION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.MIGRATION_SSH_HOST }}
+          SSH_USER: ${{ secrets.MIGRATION_SSH_USER }}
+          SSH_KNOWN_HOSTS: ${{ secrets.MIGRATION_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" >~/.ssh/migrations_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" >~/.ssh/known_hosts
+          chmod 600 ~/.ssh/migrations_key ~/.ssh/known_hosts
+          cat >~/.ssh/config <<EOF
+          Host migrations
+            HostName ${SSH_HOST}
+            User ${SSH_USER}
+            IdentityFile ~/.ssh/migrations_key
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking yes
+            LogLevel ERROR
+            ConnectTimeout 10
+          EOF
+
+      - id: unshelve
+        name: Unshelve migrations machine
+        env:
+          OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
+          OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
+          OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
+          OVH_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
+          OVH_INSTANCE_ID: ${{ secrets.OVH_INSTANCE_ID }}
+        run: .github/scripts/ovh-instance.sh unshelve
+
+      - name: Wait for SSH
+        run: |
+          for _ in $(seq 60); do
+            ssh migrations status && exit 0
+            sleep 10
+          done
+          echo "::error::Machine did not accept SSH connections in time"
+          exit 1
+
+      - name: Run migrations
+        run: |
+          ssh migrations run "$BASE_SHA" "$HEAD_SHA"
+          while true; do
+            sleep 30
+            status=$(ssh migrations status) || continue
+            [[ "$status" != running ]] && break
+          done
+          echo "$status"
+          [[ "$(head -n1 <<<"$status")" == "done 0" ]]
+
+      - name: Shelve migrations machine
+        if: always() && steps.unshelve.outcome != 'skipped'
+        env:
+          OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
+          OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
+          OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
+          OVH_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
+          OVH_INSTANCE_ID: ${{ secrets.OVH_INSTANCE_ID }}
+        run: |
+          for _ in $(seq 5); do
+            status=$(ssh migrations status) && break
+            status=unreachable
+            sleep 10
+          done
+          case "$(head -n1 <<<"$status")" in
+            idle | "done "*) .github/scripts/ovh-instance.sh shelve ;;
+            *)
+              echo "::warning::Machine reported '${status%%$'\n'*}'; leaving it active so a running migration isn't cut off, shelve it manually once it finishes"
+              ;;
+          esac
