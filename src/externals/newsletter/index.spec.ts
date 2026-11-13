@@ -100,5 +100,67 @@ describe('NewsletterService', () => {
         expect.any(Object),
       );
     });
+
+    it('When a location is provided, then it should send it as the Klaviyo location', async () => {
+      const email = 'test@example.com';
+      jest.spyOn(httpClient, 'post').mockResolvedValueOnce({
+        data: { data: { id: 'prof_123' } },
+      } as any);
+      jest.spyOn(httpClient, 'post').mockResolvedValueOnce({} as any);
+
+      await service.subscribe(email, undefined, {
+        ip: '139.47.19.216',
+        country: 'Spain',
+        region: 'CT',
+        city: 'Barcelona',
+        timezone: 'Europe/Madrid',
+      });
+
+      expect(httpClient.post).toHaveBeenNthCalledWith(
+        1,
+        'https://a.klaviyo.com/api/profiles/',
+        {
+          data: {
+            type: 'profile',
+            attributes: {
+              email,
+              location: {
+                ip: '139.47.19.216',
+                country: 'Spain',
+                region: 'CT',
+                city: 'Barcelona',
+                timezone: 'Europe/Madrid',
+              },
+            },
+          },
+        },
+        expect.any(Object),
+      );
+    });
+
+    it('When the location could not be resolved, then it should omit the location attribute', async () => {
+      const email = 'test@example.com';
+      jest.spyOn(httpClient, 'post').mockResolvedValueOnce({
+        data: { data: { id: 'prof_123' } },
+      } as any);
+      jest.spyOn(httpClient, 'post').mockResolvedValueOnce({} as any);
+
+      await service.subscribe(email, undefined, {
+        ip: null,
+        country: undefined,
+      });
+
+      expect(httpClient.post).toHaveBeenNthCalledWith(
+        1,
+        'https://a.klaviyo.com/api/profiles/',
+        {
+          data: {
+            type: 'profile',
+            attributes: { email },
+          },
+        },
+        expect.any(Object),
+      );
+    });
   });
 });
