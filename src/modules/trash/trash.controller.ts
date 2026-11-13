@@ -50,7 +50,6 @@ import { BasicPaginationDto } from '../../common/dto/basic-pagination.dto';
 import { Requester } from '../auth/decorators/requester.decorator';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
-import { Version } from '../../common/decorators/version.decorator';
 import {
   calculateTrashExpirationDate,
   getTrashNotExpiredCutoffDate,
@@ -192,7 +191,6 @@ export class TrashController {
     @UserDecorator() user: User,
     @UserTier() tier: Tier,
     @Client() clientId: string,
-    @Version() version: string,
     @Requester() requester: User,
   ) {
     if (moveItemsDto.items.length === 0) {
@@ -205,7 +203,6 @@ export class TrashController {
     }
 
     try {
-      const fileIds: number[] = [];
       const fileUuids: string[] = [];
       const folderIds: number[] = [];
       const folderUuids: string[] = [];
@@ -213,11 +210,7 @@ export class TrashController {
       for (const item of moveItemsDto.items) {
         switch (item.type) {
           case ItemToTrashType.FILE:
-            if (item.id) {
-              fileIds.push(parseInt(item.id, 10));
-            } else {
-              fileUuids.push(item.uuid);
-            }
+            fileUuids.push(item.uuid);
             break;
           case ItemToTrashType.FOLDER:
             if (item.id) {
@@ -230,16 +223,16 @@ export class TrashController {
             throw new BadRequestException(`type ${item.type} invalid`);
         }
       }
-      if (fileIds.length !== 0) {
+      if (folderIds.length > 0) {
         this.logger.warn(
-          { fileIds },
-          `FILE_ID_USAGE: client ${clientId}, version ${version} is using fileId instead of fileUuid. Endpoint: /trash/add`,
+          { user: user.uuid, folderIds, endpoint: '/trash/add' },
+          'FOLDER_ID_USAGE: folders sent by id instead of uuid',
         );
       }
 
       await Promise.all([
-        fileIds.length > 0 || fileUuids.length > 0
-          ? this.fileUseCases.moveFilesToTrash(user, fileIds, fileUuids)
+        fileUuids.length > 0
+          ? this.fileUseCases.moveFilesToTrash(user, fileUuids)
           : Promise.resolve(),
         this.folderUseCases.moveFoldersToTrash(user, folderIds, folderUuids),
       ]);
@@ -292,7 +285,7 @@ export class TrashController {
 
   @Delete('/all')
   @ApiOperation({
-    summary: "Deletes all items from user's trash",
+    summary: 'Deletes all items from user\'s trash',
   })
   @AuditLog({
     action: AuditAction.EmptyTrashRequested,
@@ -333,7 +326,7 @@ export class TrashController {
   @Delete('/')
   @HttpCode(202)
   @ApiOperation({
-    summary: "Deletes items from user's trash",
+    summary: 'Deletes items from user\'s trash',
   })
   @GetDataFromRequest([{ sourceKey: 'body', fieldName: 'items' }])
   @WorkspacesInBehalfGuard(WorkspaceResourcesAction.DeleteItemsFromTrash)
@@ -341,8 +334,6 @@ export class TrashController {
   async deleteItems(
     @Body() deleteItemsDto: DeleteItemsDto,
     @UserDecorator() user: User,
-    @Client() clientId: string,
-    @Version() version: string,
   ) {
     const { items } = deleteItemsDto;
     this.logger.log(
@@ -353,18 +344,13 @@ export class TrashController {
       'Request to delete items from trash',
     );
 
-    const filesIds: File['id'][] = [];
     const filesUuids: File['uuid'][] = [];
     const foldersIds: Folder['id'][] = [];
     const foldersUuids: Folder['uuid'][] = [];
 
     for (const item of items) {
       if (item.type === DeleteItemType.FILE) {
-        if (item.uuid) {
-          filesUuids.push(item.uuid);
-        } else {
-          filesIds.push(parseInt(item.id, 10));
-        }
+        filesUuids.push(item.uuid);
       } else if (item.type === DeleteItemType.FOLDER) {
         if (item.uuid) {
           foldersUuids.push(item.uuid);
@@ -373,15 +359,14 @@ export class TrashController {
         }
       }
     }
-    if (filesIds.length !== 0) {
+    if (foldersIds.length > 0) {
       this.logger.warn(
-        `FILE_ID_USAGE: client ${clientId}, version ${version} is using fileId instead of fileUuid. Endpoint: /trash/`,
+        { user: user.uuid, folderIds: foldersIds, endpoint: '/trash' },
+        'FOLDER_ID_USAGE: folders sent by id instead of uuid',
       );
     }
-    const [files, filesByUuid, folders, foldersByUuid] = await Promise.all([
-      filesIds.length > 0
-        ? this.fileUseCases.getFilesByIds(user, filesIds)
-        : [],
+
+    const [files, folders, foldersByUuid] = await Promise.all([
       filesUuids.length > 0 ? this.fileUseCases.getByUuids(filesUuids) : [],
       foldersIds.length > 0
         ? this.folderUseCases.getFoldersByIds(user, foldersIds)
@@ -391,16 +376,15 @@ export class TrashController {
         : [],
     ]);
 
-    const allFiles = [...files, ...filesByUuid];
     const allFolders = [...folders, ...foldersByUuid];
 
-    await this.trashUseCases.deleteItems(user, allFiles, allFolders);
+    await this.trashUseCases.deleteItems(user, files, allFolders);
   }
 
   @Delete('/file/:fileId')
   @HttpCode(204)
   @ApiOperation({
-    summary: "Deletes a single file from user's trash",
+    summary: 'Deletes a single file from user\'s trash',
   })
   async deleteFile(
     @Param('fileId') fileId: string,
@@ -418,7 +402,7 @@ export class TrashController {
   @Delete('/folder/:folderId')
   @HttpCode(204)
   @ApiOperation({
-    summary: "Deletes a single file form user's trash",
+    summary: 'Deletes a single file form user\'s trash',
   })
   async deleteFolder(
     @Param('folderId') folderId: number,

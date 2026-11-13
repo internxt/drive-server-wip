@@ -10,7 +10,7 @@ describe('MoveItemsToTrashDto', () => {
   it('When valid data is passed, then no errors should be returned', async () => {
     const dto = plainToInstance(MoveItemsToTrashDto, {
       items: [
-        { id: '1', type: ItemToTrashType.FILE },
+        { id: '1', type: ItemToTrashType.FOLDER },
         {
           uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b',
           type: ItemToTrashType.FOLDER,
@@ -35,6 +35,17 @@ describe('MoveItemsToTrashDto', () => {
   });
 
   describe('ItemToTrash', () => {
+    it('When a file is sent by id, then should fail', async () => {
+      const item = plainToInstance(ItemToTrashDto, {
+        id: '1',
+        type: ItemToTrashType.FILE,
+      });
+
+      const errors = await validate(item);
+
+      expect(errors.length).toBeGreaterThan(0);
+    });
+
     it('When both id and uuid are provided in one item, then should fail', async () => {
       const item = plainToInstance(ItemToTrashDto, {
         id: '1',
@@ -53,11 +64,11 @@ describe('MoveItemsToTrashDto', () => {
       expect(errors.length).toBeGreaterThan(0);
     });
 
-    it('when either id or uuid are provided, then should validate successfuly ', async () => {
+    it('When a folder has id or uuid, then should validate successfully', async () => {
       const onlyIdErrors = await validate(
         plainToInstance(ItemToTrashDto, {
           id: '1',
-          type: ItemToTrashType.FILE,
+          type: ItemToTrashType.FOLDER,
         }),
       );
       const onlyUuidErrors = await validate(

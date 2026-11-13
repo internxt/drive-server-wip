@@ -97,12 +97,6 @@ interface SharingRepository {
     filters: Omit<Partial<SharingAttributes>, 'sharedWith'>,
     options?: { offset: number; limit: number; givePriorityToRole?: string },
   ): Promise<Sharing[]>;
-  findFilesSharedInWorkspaceByOwnerAndTeams(
-    ownerId: any,
-    workspaceId: any,
-    teamIds: any[],
-    options: { offset: number; limit: number; order?: [string, string][] },
-  ): Promise<Sharing[]>;
   findFoldersSharedInWorkspaceByOwnerAndTeams(
     ownerId: any,
     workspaceId: any,
@@ -530,61 +524,6 @@ export class SequelizeSharingRepository implements SharingRepository {
     }));
   }
 
-  /**
-   * @deprecated Groups by file.id instead of itemId (UUID). Use getUserRelatedSharedFilesInfo() + getFilesAndUserByUuid() instead.
-   * @see SharingService.getSharedFiles for migration example
-   */
-  async findFilesByOwnerAndSharedWithMe(
-    userId: User['uuid'],
-    offset: number,
-    limit: number,
-    orderBy?: [string, string][],
-  ): Promise<Sharing[]> {
-    const sharedFiles = await this.sharings.findAll({
-      where: {
-        [Op.or]: [{ ownerId: userId }, { sharedWith: userId }],
-      },
-      attributes: [
-        [
-          sequelize.literal('MAX("SharingModel"."encryption_key")'),
-          'encryptionKey',
-        ],
-        [sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
-      ],
-      group: ['file.id', 'file->user.id', 'SharingModel.item_id'],
-      include: [
-        {
-          model: FileModel,
-          where: {
-            status: FileStatus.EXISTS,
-          },
-          include: [
-            {
-              model: UserModel,
-              as: 'user',
-              attributes: [
-                'uuid',
-                'email',
-                'name',
-                'lastname',
-                'avatar',
-                'userId',
-                'bridgeUser',
-              ],
-            },
-          ],
-        },
-      ],
-      order: orderBy,
-      limit,
-      offset,
-    });
-
-    return sharedFiles.map((shared) => {
-      return this.toDomainFile(shared);
-    });
-  }
-
   async findSharingsBySharedWithAndAttributes(
     sharedWithValues: SharingAttributes['sharedWith'][],
     filters: Omit<Partial<SharingAttributes>, 'sharedWith'> = {},
@@ -687,82 +626,6 @@ export class SequelizeSharingRepository implements SharingRepository {
     }));
   }
 
-  /**
-   * @deprecated Groups by file.id instead of itemId (UUID). Use getTeamsRelatedSharedFilesInfo() + fileRepository.getFilesWithWorkspaceUser() instead.
-   * @see SharingService.getSharedFilesInWorkspaceByTeams for migration example
-   */
-  async findFilesSharedInWorkspaceByOwnerAndTeams(
-    ownerId: WorkspaceItemUserAttributes['createdBy'],
-    workspaceId: WorkspaceAttributes['id'],
-    teamIds: WorkspaceTeamAttributes['id'][],
-    options: { offset: number; limit: number; order?: [string, string][] },
-  ): Promise<Sharing[]> {
-    const sharedFiles = await this.sharings.findAll({
-      where: {
-        [Op.or]: [
-          {
-            sharedWith: { [Op.in]: teamIds },
-            sharedWithType: SharedWithType.WorkspaceTeam,
-          },
-          {
-            '$file->workspaceUser.created_by$': ownerId,
-          },
-        ],
-      },
-      attributes: [
-        [sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
-      ],
-      group: [
-        'SharingModel.item_id',
-        'file.id',
-        'file->workspaceUser.id',
-        'file->workspaceUser->creator.id',
-      ],
-      include: [
-        {
-          model: FileModel,
-          where: {
-            status: FileStatus.EXISTS,
-          },
-          include: [
-            {
-              model: WorkspaceItemUserModel,
-              as: 'workspaceUser',
-              required: true,
-              where: {
-                workspaceId,
-              },
-              include: [
-                {
-                  model: UserModel,
-                  as: 'creator',
-                  attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-      order: options.order,
-      limit: options.limit,
-      offset: options.offset,
-    });
-
-    return sharedFiles.map((shared) => {
-      const sharing = shared.get({ plain: true });
-      const user = sharing.file.workspaceUser?.creator;
-      delete sharing.file.user;
-
-      return Sharing.build({
-        ...sharing,
-        file: File.build({
-          ...sharing.file,
-          user: user ? User.build(user) : null,
-        }),
-      });
-    });
-  }
-
   async findFoldersSharedInWorkspaceByOwnerAndTeams(
     ownerId: WorkspaceItemUserAttributes['createdBy'],
     workspaceId: WorkspaceAttributes['id'],
@@ -844,20 +707,6 @@ export class SequelizeSharingRepository implements SharingRepository {
       folder: Folder.build({
         ...folder,
         parent: folder.parent ? Folder.build(folder.parent) : null,
-        user: user ? User.build(user) : null,
-      }),
-    });
-  }
-
-  private toDomainFile(model: SharingModel): Sharing {
-    const file = model.file.get({ plain: true });
-    const user = model.file.user.get({ plain: true });
-    delete file.user;
-
-    return Sharing.build({
-      ...model.get({ plain: true }),
-      file: File.build({
-        ...file,
         user: user ? User.build(user) : null,
       }),
     });

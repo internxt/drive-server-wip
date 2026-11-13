@@ -620,7 +620,7 @@ describe('SharingRepository', () => {
             [
               {
                 val: expect.stringContaining(
-                  `CASE WHEN "role->role"."name" = :priorityRole THEN 1 ELSE 2 END`,
+                  'CASE WHEN "role->role"."name" = :priorityRole THEN 1 ELSE 2 END',
                 ),
               },
               'ASC',
@@ -648,121 +648,6 @@ describe('SharingRepository', () => {
       );
 
       expect(result).toEqual([]);
-    });
-  });
-
-  describe('findFilesSharedInWorkspaceByOwnerAndTeams', () => {
-    const ownerId = v4();
-    const workspaceId = v4();
-    const teamIds = [v4(), v4()];
-    const offset = 0;
-    const limit = 10;
-
-    it('When called, then it should call the query with the correct owner, teams and order', async () => {
-      const orderBy: [string, string][] = [['name', 'ASC']];
-
-      const expectedQuery = {
-        where: {
-          [Op.or]: [
-            {
-              sharedWith: { [Op.in]: teamIds },
-              sharedWithType: SharedWithType.WorkspaceTeam,
-            },
-            {
-              '$file->workspaceUser.created_by$': ownerId,
-            },
-          ],
-        },
-        attributes: [
-          [Sequelize.literal('MAX("SharingModel"."created_at")'), 'createdAt'],
-        ],
-        group: [
-          'SharingModel.item_id',
-          'file.id',
-          'file->workspaceUser.id',
-          'file->workspaceUser->creator.id',
-        ],
-        include: [
-          {
-            model: FileModel,
-            where: {
-              status: FileStatus.EXISTS,
-            },
-            include: [
-              {
-                model: WorkspaceItemUserModel,
-                as: 'workspaceUser',
-                required: true,
-                where: {
-                  workspaceId,
-                },
-                include: [
-                  {
-                    model: UserModel,
-                    as: 'creator',
-                    attributes: ['uuid', 'email', 'name', 'lastname', 'avatar'],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-        order: orderBy,
-        limit,
-        offset,
-      };
-
-      await repository.findFilesSharedInWorkspaceByOwnerAndTeams(
-        ownerId,
-        workspaceId,
-        teamIds,
-        { offset, limit, order: orderBy },
-      );
-
-      expect(sharingModel.findAll).toHaveBeenCalledWith(
-        expect.objectContaining(expectedQuery),
-      );
-    });
-
-    it('When returned successfully, then it returns a folder and its creator', async () => {
-      const sharing = newSharing();
-      const file = newFile();
-      const creator = newUser();
-
-      const sharedFileWithUser = {
-        ...sharing,
-        get: jest.fn().mockReturnValue({
-          ...sharing,
-          file: {
-            ...file,
-            workspaceUser: {
-              creator,
-            },
-          },
-        }),
-      };
-
-      jest
-        .spyOn(sharingModel, 'findAll')
-        .mockResolvedValue([sharedFileWithUser] as any);
-
-      const result = await repository.findFilesSharedInWorkspaceByOwnerAndTeams(
-        ownerId,
-        workspaceId,
-        teamIds,
-        { offset, limit },
-      );
-
-      expect(result[0].file).toMatchObject({
-        ...file,
-        user: {
-          uuid: creator.uuid,
-          email: creator.email,
-          name: creator.name,
-          lastname: creator.lastname,
-          avatar: creator.avatar,
-        },
-      });
     });
   });
 

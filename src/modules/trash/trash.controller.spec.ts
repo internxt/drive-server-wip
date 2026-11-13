@@ -72,7 +72,6 @@ describe('TrashController', () => {
           user,
           undefined,
           'anyid',
-          '1.0.0',
           requester,
         ),
       ).rejects.toThrow(BadRequestException);
@@ -82,25 +81,14 @@ describe('TrashController', () => {
       const body = { items: [] };
       jest.spyOn(fileUseCases, 'moveFilesToTrash');
 
-      await controller.moveItemsToTrash(
-        body,
-        user,
-        undefined,
-        '',
-        '1.0.0',
-        requester,
-      );
+      await controller.moveItemsToTrash(body, user, undefined, '', requester);
       expect(fileUseCases.moveFilesToTrash).not.toHaveBeenCalled();
     });
 
-    it('When items are passed, then items should be deleted with their respective uuid or id', async () => {
+    it('When items are passed, then files are trashed by uuid and folders by uuid or id', async () => {
       const fileItems = [
         {
           uuid: '5bf9dca1-fd68-4864-9a16-ef36b77d063b',
-          type: ItemToTrashType.FILE,
-        },
-        {
-          id: '2',
           type: ItemToTrashType.FILE,
         },
       ];
@@ -128,19 +116,37 @@ describe('TrashController', () => {
         user,
         undefined,
         '',
-        '1.0.0',
         requester,
       );
 
-      expect(fileUseCases.moveFilesToTrash).toHaveBeenCalledWith(
-        user,
-        [parseInt(fileItems[1].id, 10)],
-        [fileItems[0].uuid],
-      );
+      expect(fileUseCases.moveFilesToTrash).toHaveBeenCalledWith(user, [
+        fileItems[0].uuid,
+      ]);
       expect(folderUseCases.moveFoldersToTrash).toHaveBeenCalledWith(
         user,
         [parseInt(folderItems[0].id)],
         [folderItems[1].uuid],
+      );
+    });
+
+    it('When folders are sent by id, then it logs the usage', async () => {
+      jest.spyOn(folderUseCases, 'moveFoldersToTrash').mockResolvedValue();
+      jest
+        .spyOn(userUseCases, 'getWorkspaceMembersByBrigeUser')
+        .mockResolvedValue([]);
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn');
+
+      await controller.moveItemsToTrash(
+        { items: [{ id: '1', type: ItemToTrashType.FOLDER }] },
+        user,
+        undefined,
+        '',
+        requester,
+      );
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        { user: user.uuid, folderIds: [1], endpoint: '/trash/add' },
+        expect.stringContaining('FOLDER_ID_USAGE'),
       );
     });
 
@@ -166,7 +172,6 @@ describe('TrashController', () => {
           user,
           undefined,
           'clientId',
-          '1.0.0',
           requester,
         ),
       ).resolves.not.toThrow();
@@ -196,7 +201,6 @@ describe('TrashController', () => {
         user,
         paidTier,
         'clientId',
-        '1.0.0',
         requester,
       );
 
@@ -227,7 +231,6 @@ describe('TrashController', () => {
         user,
         freeTier,
         'clientId',
-        '1.0.0',
         requester,
       );
 
@@ -258,7 +261,6 @@ describe('TrashController', () => {
           user,
           undefined,
           'clientId',
-          '1.0.0',
           requester,
         ),
       ).rejects.toThrow(InternalServerErrorException);
@@ -269,8 +271,7 @@ describe('TrashController', () => {
     it('When array is empty, then it should not get items', async () => {
       const deleteItemsDto: DeleteItemsDto = { items: [] };
 
-      await controller.deleteItems(deleteItemsDto, user, 'drive-web', '1.0.0');
-      expect(fileUseCases.getFilesByIds).not.toHaveBeenCalled();
+      await controller.deleteItems(deleteItemsDto, user);
       expect(folderUseCases.getFoldersByIds).not.toHaveBeenCalled();
       expect(trashUseCases.deleteItems).toHaveBeenCalled();
     });
@@ -292,15 +293,13 @@ describe('TrashController', () => {
         items: [...fileItems, ...folderItems],
       };
 
-      jest.spyOn(fileUseCases, 'getFilesByIds').mockResolvedValue([]);
       jest.spyOn(fileUseCases, 'getByUuids').mockResolvedValue([]);
       jest.spyOn(folderUseCases, 'getFoldersByIds').mockResolvedValue([]);
       jest.spyOn(folderUseCases, 'getByUuids').mockResolvedValue([]);
       jest.spyOn(trashUseCases, 'deleteItems').mockResolvedValue();
 
-      await controller.deleteItems(deleteItemsDto, user, 'drive-web', '1.0.0');
+      await controller.deleteItems(deleteItemsDto, user);
 
-      expect(fileUseCases.getFilesByIds).not.toHaveBeenCalled();
       expect(fileUseCases.getByUuids).toHaveBeenCalledWith([fileItems[0].uuid]);
       expect(folderUseCases.getFoldersByIds).not.toHaveBeenCalled();
       expect(folderUseCases.getByUuids).toHaveBeenCalledWith([
@@ -313,38 +312,31 @@ describe('TrashController', () => {
       );
     });
 
-    it('When items with IDs are passed, then items should be deleted using ID methods', async () => {
-      const fileItems = [
-        {
-          id: '2',
-          type: DeleteItemType.FILE,
-        },
-      ];
+    it('When folders with IDs are passed, then they are deleted by id', async () => {
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn');
       const folderItems = [
         {
           id: '1',
           type: DeleteItemType.FOLDER,
         },
       ];
-      const deleteItemsDto: DeleteItemsDto = {
-        items: [...fileItems, ...folderItems],
-      };
+      const deleteItemsDto: DeleteItemsDto = { items: folderItems };
 
-      jest.spyOn(fileUseCases, 'getFilesByIds').mockResolvedValue([]);
       jest.spyOn(fileUseCases, 'getByUuids').mockResolvedValue([]);
       jest.spyOn(folderUseCases, 'getFoldersByIds').mockResolvedValue([]);
       jest.spyOn(folderUseCases, 'getByUuids').mockResolvedValue([]);
       jest.spyOn(trashUseCases, 'deleteItems').mockResolvedValue();
 
-      await controller.deleteItems(deleteItemsDto, user, 'drive-web', '1.0.0');
+      await controller.deleteItems(deleteItemsDto, user);
 
-      expect(fileUseCases.getFilesByIds).toHaveBeenCalledWith(user, [
-        parseInt(fileItems[0].id),
-      ]);
       expect(fileUseCases.getByUuids).not.toHaveBeenCalled();
       expect(folderUseCases.getFoldersByIds).toHaveBeenCalledWith(user, [
         parseInt(folderItems[0].id),
       ]);
+      expect(warnSpy).toHaveBeenCalledWith(
+        { user: user.uuid, folderIds: [1], endpoint: '/trash' },
+        expect.stringContaining('FOLDER_ID_USAGE'),
+      );
       expect(folderUseCases.getByUuids).not.toHaveBeenCalled();
       expect(trashUseCases.deleteItems).toHaveBeenCalledWith(
         user,
