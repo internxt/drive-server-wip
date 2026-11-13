@@ -128,8 +128,8 @@ describe('File module', () => {
         if (createdFiles.length > 0) {
           await fileModel.destroy({
             where: {
-              id: {
-                [Op.in]: createdFiles.map((f) => f.id),
+              uuid: {
+                [Op.in]: createdFiles.map((f) => f.uuid),
               },
             },
           });
@@ -227,7 +227,7 @@ describe('File module', () => {
         const twoDaysAgo = Time.daysAgo(2);
         await fileModel.update(
           { status: 'DELETED', updatedAt: twoDaysAgo },
-          { where: { id: file.id }, silent: true },
+          { where: { uuid: file.uuid }, silent: true },
         );
 
         await fileUseCases.getUserUsedStorageIncrementally(testUser.user);
@@ -253,7 +253,7 @@ describe('File module', () => {
         // Delete the file AFTER the period (today)
         await fileModel.update(
           { status: 'DELETED', updatedAt: Time.now() },
-          { where: { id: file.id }, silent: true },
+          { where: { uuid: file.uuid }, silent: true },
         );
 
         await fileUseCases.getUserUsedStorageIncrementally(testUser.user);
@@ -380,7 +380,7 @@ describe('File module', () => {
           const yesterdayEnd = Time.endOfDay(Time.daysAgo(1));
           await fileModel.update(
             { status: 'DELETED', updatedAt: yesterdayEnd },
-            { where: { id: file.id }, silent: true },
+            { where: { uuid: file.uuid }, silent: true },
           );
 
           await fileUseCases.getUserUsedStorageIncrementally(testUser.user);
@@ -399,7 +399,7 @@ describe('File module', () => {
           const todayStart = Time.startOf(fixedSystemCurrentDate, 'day');
           await fileModel.update(
             { status: 'DELETED', updatedAt: todayStart },
-            { where: { id: file.id }, silent: true },
+            { where: { uuid: file.uuid }, silent: true },
           );
 
           await fileUseCases.getUserUsedStorageIncrementally(testUser.user);
@@ -438,7 +438,7 @@ describe('File module', () => {
     afterEach(async () => {
       if (createdFiles.length > 0) {
         await fileModel.destroy({
-          where: { id: { [Op.in]: createdFiles.map((f) => f.id) } },
+          where: { uuid: { [Op.in]: createdFiles.map((f) => f.uuid) } },
         });
         createdFiles = [];
       }
@@ -637,7 +637,7 @@ describe('File module', () => {
 
     afterEach(async () => {
       await fileModel.destroy({
-        where: { id: { [Op.in]: createdFiles.map((f) => f.id) } },
+        where: { uuid: { [Op.in]: createdFiles.map((f) => f.uuid) } },
       });
     });
 
@@ -687,7 +687,7 @@ describe('File module', () => {
     });
 
     afterEach(async () => {
-      await fileModel.destroy({ where: { id: file.id } });
+      await fileModel.destroy({ where: { uuid: file.uuid } });
     });
 
     const requestSyncedFile = async (headers: Record<string, string>) => {
