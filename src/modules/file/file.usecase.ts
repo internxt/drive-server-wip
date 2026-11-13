@@ -329,6 +329,7 @@ export class FileUseCases {
       newFileDto.type,
       folder.uuid,
       FileStatus.EXISTS,
+      { useMaster: true },
     );
     if (exists) {
       throw new ConflictException('File already exists');
@@ -1116,7 +1117,12 @@ export class FileUseCases {
       memberId: string;
     },
   ): Promise<FileDto> {
-    const file = await this.fileRepository.findByUuid(fileUuid, user.id);
+    const file = await this.fileRepository.findByUuid(
+      fileUuid,
+      user.id,
+      {},
+      { useMaster: true },
+    );
 
     if (!file) {
       throw new NotFoundException(`File ${fileUuid} not found`);
