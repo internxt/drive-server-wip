@@ -76,6 +76,12 @@ describe('getDeprecationMode', () => {
       [ClientEnum.DesktopMacos, '2.7.0', null],
       [ClientEnum.DesktopLinux, '2.7.1', DeprecationMode.OMIT],
       [ClientEnum.DesktopLinux, '2.7.0', null],
+      [ClientEnum.Cli, '1.6.3', DeprecationMode.OMIT],
+      [ClientEnum.Cli, '1.7.0', DeprecationMode.OMIT],
+      [ClientEnum.Cli, '1.6.2', null],
+      [ClientEnum.Cli, 'undefined', null],
+      [ClientEnum.CliLegacy, '1.6.3', null],
+      [ClientEnum.Rclone, 'undefined', DeprecationMode.OMIT],
       [ClientEnum.Web, '99.0.0', null],
       ['unknown-client', 'undefined', null],
     ])(
