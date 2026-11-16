@@ -1127,11 +1127,12 @@ export class FileUseCases {
     }
 
     const isFileEmpty = BigInt(newFileData.size) === BigInt(0);
+    const wasFileEmpty = BigInt(file.size) === BigInt(0);
 
     if (isFileEmpty) {
-      if (!workspaceOptions) {
+      if (!wasFileEmpty && !workspaceOptions) {
         await this.checkEmptyFilesLimit(user);
-      } else {
+      } else if (!wasFileEmpty) {
         await this.checkWorkspaceEmptyFilesLimit(
           workspaceOptions.memberId,
           workspaceOptions.workspace,
