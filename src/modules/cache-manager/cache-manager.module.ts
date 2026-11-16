@@ -31,7 +31,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 
         return {
           stores: redisStore,
-          nonBlocking: true,
+          // Tests wait for Redis writes, so data is stored before the response
+          nonBlocking: process.env.NODE_ENV !== 'test',
         };
       },
     }),
