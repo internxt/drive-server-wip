@@ -60,6 +60,13 @@ const DEPRECATION_RULES: Record<
       minVersion: '2.7.1',
       mode: DeprecationMode.OMIT,
     },
+    [ClientEnum.Cli]: {
+      minVersion: '1.6.3',
+      mode: DeprecationMode.OMIT,
+    },
+    [ClientEnum.Rclone]: {
+      mode: DeprecationMode.OMIT,
+    },
   },
 };
 
