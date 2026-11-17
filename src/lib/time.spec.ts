@@ -100,6 +100,22 @@ describe('Time class', () => {
     });
   });
 
+  describe('durationInMs()', () => {
+    it('When a duration is provided, then returns the equivalent milliseconds', () => {
+      const ms = Time.durationInMs(1, 'minute');
+
+      expect(ms).toBe(60_000);
+    });
+  });
+
+  describe('durationInSeconds()', () => {
+    it('When a duration is provided, then returns the equivalent seconds', () => {
+      const seconds = Time.durationInSeconds(7, 'day');
+
+      expect(seconds).toBe(604_800);
+    });
+  });
+
   describe('daysAgo()', () => {
     it('When days is 0, then returns current date', () => {
       const result = Time.daysAgo(0);

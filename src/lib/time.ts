@@ -1,9 +1,11 @@
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import duration from 'dayjs/plugin/duration';
 
 dayjs.extend(utc);
 dayjs.extend(isSameOrBefore);
+dayjs.extend(duration);
 
 export type TimeUnit =
   'year' | 'month' | 'week' | 'day' | 'hour' | 'minute' | 'second';
@@ -46,6 +48,14 @@ export class Time {
 
   public static secondsToMs(seconds: number): number {
     return seconds * 1000;
+  }
+
+  public static durationInMs(amount: number, unit: TimeUnit): number {
+    return dayjs.duration(amount, unit).asMilliseconds();
+  }
+
+  public static durationInSeconds(amount: number, unit: TimeUnit): number {
+    return dayjs.duration(amount, unit).asSeconds();
   }
 
   /**

@@ -26,22 +26,20 @@ export interface OutdatedClientEmailJobData {
 }
 
 export const OUTDATED_EMAIL_CONFIG = {
-  DAILY_CAP: 500,
-  MAX_EMAILS_PER_MINUTE: 50,
+  // Global limit of emails per day across all users.
+  DAILY_CAP: 200,
+  EMAILS_PER_MINUTE: 20,
   COOLDOWN_DAYS: 14,
   MAX_JOB_AGE_DAYS: 7,
 };
 
-const ONE_MINUTE_IN_MS = 60 * 1000;
-const SEVEN_DAYS_IN_SECONDS = 7 * 24 * 60 * 60;
-
 @Processor(OUTDATED_CLIENT_EMAIL_QUEUE, {
   limiter: {
-    max: OUTDATED_EMAIL_CONFIG.MAX_EMAILS_PER_MINUTE,
-    duration: ONE_MINUTE_IN_MS,
+    max: OUTDATED_EMAIL_CONFIG.EMAILS_PER_MINUTE,
+    duration: Time.durationInMs(1, 'minute'),
   },
   removeOnComplete: { count: 0 },
-  removeOnFail: { age: SEVEN_DAYS_IN_SECONDS, count: 1000 },
+  removeOnFail: { age: Time.durationInSeconds(7, 'day'), count: 1000 },
 })
 export class OutdatedClientEmailProcessor extends WorkerHost {
   private readonly logger = new Logger(OutdatedClientEmailProcessor.name);
