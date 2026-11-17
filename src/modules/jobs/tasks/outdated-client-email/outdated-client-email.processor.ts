@@ -1,6 +1,11 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import {
+  InjectQueue,
+  OnWorkerEvent,
+  Processor,
+  WorkerHost,
+} from '@nestjs/bullmq';
 import { type Job, Queue, Worker } from 'bullmq';
 import { SequelizeUserRepository } from '../../../user/user.repository';
 import { type User } from '../../../user/user.domain';
@@ -17,23 +22,26 @@ export interface OutdatedClientEmailJobData {
   version: string;
   recommendedVersion: string | null;
   sunsetAt: string | null;
+  emailSentAt?: string;
 }
 
-export const OUTDATED_CLIENT_EMAIL_CONFIG = {
+export const OUTDATED_EMAIL_CONFIG = {
   DAILY_CAP: 500,
+  MAX_EMAILS_PER_MINUTE: 50,
   COOLDOWN_DAYS: 14,
   MAX_JOB_AGE_DAYS: 7,
-  EXCLUDED_EMAIL_DOMAINS: ['@inxt.com', '@internxt.com'],
 };
 
-const { DAILY_CAP, COOLDOWN_DAYS, MAX_JOB_AGE_DAYS, EXCLUDED_EMAIL_DOMAINS } =
-  OUTDATED_CLIENT_EMAIL_CONFIG;
+const ONE_MINUTE_IN_MS = 60 * 1000;
+const SEVEN_DAYS_IN_SECONDS = 7 * 24 * 60 * 60;
 
 @Processor(OUTDATED_CLIENT_EMAIL_QUEUE, {
-  concurrency: 5,
-  limiter: { max: DAILY_CAP, duration: 24 * 60 * 60 * 1000 },
+  limiter: {
+    max: OUTDATED_EMAIL_CONFIG.MAX_EMAILS_PER_MINUTE,
+    duration: ONE_MINUTE_IN_MS,
+  },
   removeOnComplete: { count: 0 },
-  removeOnFail: { age: 7 * 24 * 60 * 60, count: 1000 },
+  removeOnFail: { age: SEVEN_DAYS_IN_SECONDS, count: 1000 },
 })
 export class OutdatedClientEmailProcessor extends WorkerHost {
   private readonly logger = new Logger(OutdatedClientEmailProcessor.name);
@@ -49,44 +57,75 @@ export class OutdatedClientEmailProcessor extends WorkerHost {
   }
 
   async process(job: Job<OutdatedClientEmailJobData>): Promise<void> {
-    if (!this.isEmailConfigured() || this.isOlderThanMaxAge(job)) {
-      return;
+    if (!this.isEmailConfigured()) {
+      return this.discard(
+        job,
+        'Outdated client email template is not configured',
+      );
+    }
+    if (this.isOlderThanMaxAge(job)) {
+      return this.discard(job, 'Outdated client email job is too old');
     }
 
     const user = await this.userRepository.findById(job.data.userId);
-    if (!user || this.isInternalUser(user)) {
+    if (!user) {
       return;
     }
 
     const [mailLimit] = await this.mailLimitRepository.findOrCreate(
       { userId: user.id, mailType: MailTypes.OutdatedClient },
-      { attemptsCount: 0, attemptsLimit: 1, lastMailSent: new Date(0) },
+      { attemptsCount: 0, attemptsLimit: 1, lastMailSent: Time.now(0) },
     );
-    if (mailLimit.wasSentInTheLastDays(COOLDOWN_DAYS)) {
+    if (mailLimit.wasSentInTheLastDays(OUTDATED_EMAIL_CONFIG.COOLDOWN_DAYS)) {
+      this.logger.log(
+        { userUuid: user.uuid },
+        'Outdated client email skipped, sent recently',
+      );
       return;
     }
 
-    await this.waitUntilTomorrowIfDailyCapReached();
+    if (!job.data.emailSentAt) {
+      await this.waitUntilTomorrowIfDailyCapReached();
+      await this.mailerService.sendOutdatedClientEmail(user.email, job.data);
+      // Lets a retry update mail_limits without sending the email again
+      await job.updateData({
+        ...job.data,
+        emailSentAt: Time.now().toISOString(),
+      });
 
-    const { client, version, recommendedVersion, sunsetAt } = job.data;
-    await this.mailerService.sendOutdatedClientEmail(user.email, {
-      client,
-      version,
-      recommendedVersion,
-      sunsetAt,
-    });
+      this.logger.log(
+        {
+          userUuid: user.uuid,
+          client: job.data.client,
+          version: job.data.version,
+        },
+        'Outdated client email sent',
+      );
+    }
 
-    mailLimit.markAsSent();
+    mailLimit.markAsSent(Time.now(job.data.emailSentAt));
     await this.mailLimitRepository.updateByUserIdAndMailType(
       user.id,
       MailTypes.OutdatedClient,
       mailLimit,
     );
+  }
 
-    this.logger.log(
-      { userUuid: user.uuid, client, version },
-      'Outdated client email sent',
+  @OnWorkerEvent('failed')
+  onFailed(job: Job<OutdatedClientEmailJobData>, error: Error) {
+    this.logger.error(
+      {
+        userId: job.data.userId,
+        attemptsMade: job.attemptsMade,
+        error: error.message,
+      },
+      'Outdated client email job failed',
     );
+  }
+
+  private async discard(job: Job, reason: string): Promise<void> {
+    await job.removeDeduplicationKey();
+    this.logger.warn({ userId: job.data.userId }, reason);
   }
 
   private isEmailConfigured(): boolean {
@@ -94,11 +133,10 @@ export class OutdatedClientEmailProcessor extends WorkerHost {
   }
 
   private isOlderThanMaxAge(job: Job): boolean {
-    return Time.daysSince(new Date(job.timestamp)) >= MAX_JOB_AGE_DAYS;
-  }
-
-  private isInternalUser(user: User): boolean {
-    return EXCLUDED_EMAIL_DOMAINS.some((domain) => user.email.endsWith(domain));
+    return (
+      Time.daysSince(Time.now(job.timestamp)) >=
+      OUTDATED_EMAIL_CONFIG.MAX_JOB_AGE_DAYS
+    );
   }
 
   // Backup for the limiter, which resets if Redis loses its state
@@ -108,12 +146,19 @@ export class OutdatedClientEmailProcessor extends WorkerHost {
       MailTypes.OutdatedClient,
       startOfToday,
     );
-    if (sentToday < DAILY_CAP) {
+
+    if (sentToday < OUTDATED_EMAIL_CONFIG.DAILY_CAP) {
       return;
     }
 
+    this.logger.warn(
+      { sentToday },
+      'Outdated client email daily cap reached, pausing queue until tomorrow',
+    );
     const startOfTomorrow = Time.dateWithTimeAdded(1, 'day', startOfToday);
-    await this.queue.rateLimit(startOfTomorrow.getTime() - Date.now());
+    await this.queue.rateLimit(
+      startOfTomorrow.getTime() - Time.now().getTime(),
+    );
     throw Worker.RateLimitError();
   }
 }

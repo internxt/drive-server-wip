@@ -1,12 +1,12 @@
 import { createMock, type DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
-import { type Logger } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getQueueToken } from '@nestjs/bullmq';
 import { type Job, type Queue, Worker } from 'bullmq';
 import {
   OutdatedClientEmailProcessor,
-  OUTDATED_CLIENT_EMAIL_CONFIG,
+  OUTDATED_EMAIL_CONFIG,
   OUTDATED_CLIENT_EMAIL_QUEUE,
   type OutdatedClientEmailJobData,
 } from './outdated-client-email.processor';
@@ -33,15 +33,29 @@ describe('OutdatedClientEmailProcessor', () => {
     recommendedVersion: '2.8.1',
     sunsetAt: '2026-12-01T00:00:00.000Z',
   };
-  const makeJob = (timestamp = Date.now()): Job<OutdatedClientEmailJobData> =>
-    ({ data: jobData, timestamp }) as Job<OutdatedClientEmailJobData>;
+  const makeJob = ({
+    timestamp = Time.now().getTime(),
+    data = jobData,
+  }: {
+    timestamp?: number;
+    data?: OutdatedClientEmailJobData;
+  } = {}): DeepMocked<Job<OutdatedClientEmailJobData>> => {
+    const job = createMock<Job<OutdatedClientEmailJobData>>({
+      data,
+      timestamp,
+    });
+    job.updateData.mockImplementation(async (newData) => {
+      job.data = newData;
+    });
+    return job;
+  };
 
   const neverSentMailLimit = () =>
     newMailLimit({
       userId: user.id,
       mailType: MailTypes.OutdatedClient,
       attemptsCount: 0,
-      lastMailSent: new Date(0),
+      lastMailSent: Time.now(0),
     });
 
   beforeEach(async () => {
@@ -80,12 +94,7 @@ describe('OutdatedClientEmailProcessor', () => {
 
       expect(mailerService.sendOutdatedClientEmail).toHaveBeenCalledWith(
         user.email,
-        {
-          client: jobData.client,
-          version: jobData.version,
-          recommendedVersion: jobData.recommendedVersion,
-          sunsetAt: jobData.sunsetAt,
-        },
+        jobData,
       );
       expect(
         mailLimitRepository.updateByUserIdAndMailType,
@@ -94,39 +103,53 @@ describe('OutdatedClientEmailProcessor', () => {
         MailTypes.OutdatedClient,
         expect.objectContaining({ attemptsCount: 1 }),
       );
+      expect(job.updateData).toHaveBeenCalledWith({
+        ...jobData,
+        emailSentAt: expect.any(String),
+      });
     });
 
-    it('When the email template is not configured, then nothing is sent', async () => {
-      configService.get.mockReturnValue('');
+    it('When the email was already sent in a previous attempt, then it is only marked as sent', async () => {
+      const emailSentAt = '2026-11-17T10:00:00.000Z';
+      const retriedJob = makeJob({ data: { ...jobData, emailSentAt } });
 
-      await processor.process(makeJob());
+      await processor.process(retriedJob);
+
+      expect(mailerService.sendOutdatedClientEmail).not.toHaveBeenCalled();
+      expect(
+        mailLimitRepository.updateByUserIdAndMailType,
+      ).toHaveBeenCalledWith(
+        user.id,
+        MailTypes.OutdatedClient,
+        expect.objectContaining({ lastMailSent: Time.now(emailSentAt) }),
+      );
+    });
+
+    it('When the email template is not configured, then nothing is sent and the user can be queued again', async () => {
+      configService.get.mockReturnValue('');
+      const job = makeJob();
+
+      await processor.process(job);
 
       expect(userRepository.findById).not.toHaveBeenCalled();
       expect(mailerService.sendOutdatedClientEmail).not.toHaveBeenCalled();
+      expect(job.removeDeduplicationKey).toHaveBeenCalled();
     });
 
-    it('When the job has been waiting for too long, then nothing is sent', async () => {
+    it('When the job has been waiting for too long, then nothing is sent and the user can be queued again', async () => {
       const oldTimestamp = Time.daysAgo(
-        OUTDATED_CLIENT_EMAIL_CONFIG.MAX_JOB_AGE_DAYS,
+        OUTDATED_EMAIL_CONFIG.MAX_JOB_AGE_DAYS,
       ).getTime();
+      const job = makeJob({ timestamp: oldTimestamp });
 
-      await processor.process(makeJob(oldTimestamp));
+      await processor.process(job);
 
       expect(mailerService.sendOutdatedClientEmail).not.toHaveBeenCalled();
+      expect(job.removeDeduplicationKey).toHaveBeenCalled();
     });
 
     it('When the user no longer exists, then nothing is sent', async () => {
       userRepository.findById.mockResolvedValue(null);
-
-      await processor.process(makeJob());
-
-      expect(mailerService.sendOutdatedClientEmail).not.toHaveBeenCalled();
-    });
-
-    it('When the user is internal, then nothing is sent', async () => {
-      userRepository.findById.mockResolvedValue(
-        newUser({ attributes: { email: 'someone@internxt.com' } }),
-      );
 
       await processor.process(makeJob());
 
@@ -143,14 +166,17 @@ describe('OutdatedClientEmailProcessor', () => {
         false,
       ]);
 
-      await processor.process(makeJob());
+      const job = makeJob();
+
+      await processor.process(job);
 
       expect(mailerService.sendOutdatedClientEmail).not.toHaveBeenCalled();
+      expect(job.removeDeduplicationKey).not.toHaveBeenCalled();
     });
 
     it('When the daily cap is already reached in the database, then the queue waits until tomorrow and nothing is sent', async () => {
       mailLimitRepository.countSentSince.mockResolvedValue(
-        OUTDATED_CLIENT_EMAIL_CONFIG.DAILY_CAP,
+        OUTDATED_EMAIL_CONFIG.DAILY_CAP,
       );
 
       await expect(processor.process(makeJob())).rejects.toThrow(
@@ -164,12 +190,35 @@ describe('OutdatedClientEmailProcessor', () => {
     it('When the email fails to send, then it is not marked as sent and the job fails to be retried', async () => {
       const sendError = new Error('SendGrid unavailable');
       mailerService.sendOutdatedClientEmail.mockRejectedValue(sendError);
+      const job = makeJob();
 
-      await expect(processor.process(makeJob())).rejects.toThrow(sendError);
+      await expect(processor.process(job)).rejects.toThrow(sendError);
 
+      expect(job.updateData).not.toHaveBeenCalled();
       expect(
         mailLimitRepository.updateByUserIdAndMailType,
       ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onFailed', () => {
+    it('When a job fails, then the failure is logged with the user and attempt', () => {
+      const errorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
+      const job = makeJob();
+      job.attemptsMade = 2;
+
+      processor.onFailed(job, new Error('SendGrid unavailable'));
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        {
+          userId: jobData.userId,
+          attemptsMade: 2,
+          error: 'SendGrid unavailable',
+        },
+        'Outdated client email job failed',
+      );
     });
   });
 });
