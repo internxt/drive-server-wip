@@ -28,6 +28,10 @@ import {
   EmptyFilesLimitReachedException,
 } from './exceptions/empty-files-limit-reached.exception';
 import {
+  FILE_NOT_REPLACEABLE,
+  FileNotReplaceableException,
+} from './exceptions/file-not-replaceable.exception';
+import {
   File,
   type FileAttributes,
   FileStatus,
@@ -3610,6 +3614,28 @@ describe('FileUseCases', () => {
         }),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it.each([FileStatus.TRASHED, FileStatus.DELETED])(
+      'When file is %s, then it should throw FileNotReplaceableException with its error code',
+      async (status) => {
+        const mockFile = newFile({ attributes: { status } });
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+
+        const result = service.replaceFile(userMocked, mockFile.uuid, {
+          fileId: 'new-id',
+          size: BigInt(100),
+        });
+
+        await expect(result).rejects.toThrow(FileNotReplaceableException);
+        await expect(result).rejects.toMatchObject({
+          response: {
+            errorCode: FILE_NOT_REPLACEABLE,
+            message: `${status} files can not be replaced`,
+          },
+        });
+        expect(fileRepository.updateByUuidAndUserId).not.toHaveBeenCalled();
+      },
+    );
 
     it('When file is versionable, then it should create versions and not delete from network', async () => {
       const mockFile = newFile({
