@@ -1,5 +1,6 @@
 import { InjectModel } from '@nestjs/sequelize';
 import { Injectable } from '@nestjs/common';
+import { Op } from 'sequelize';
 
 import {
   MailLimitModel,
@@ -46,6 +47,12 @@ export class SequelizeMailLimitRepository {
         userId,
         mailType,
       },
+    });
+  }
+
+  countSentSince(mailType: MailTypes, since: Date): Promise<number> {
+    return this.mailLimitModel.count({
+      where: { mailType, lastMailSent: { [Op.gte]: since } },
     });
   }
 

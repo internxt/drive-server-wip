@@ -56,4 +56,13 @@ export class MailLimit implements MailLimitModelAttributes {
       : 1;
     this.lastMailSent = customSentDate ?? new Date();
   }
+
+  wasSentInTheLastDays(days: number): boolean {
+    return Time.daysSince(this.lastMailSent) < days;
+  }
+
+  markAsSent(sentAt = new Date()) {
+    this.attemptsCount += 1;
+    this.lastMailSent = sentAt;
+  }
 }
