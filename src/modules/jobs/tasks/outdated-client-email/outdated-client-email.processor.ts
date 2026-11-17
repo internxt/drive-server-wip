@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
-import { type Job, type JobsOptions, Queue, Worker } from 'bullmq';
+import { type Job, Queue, Worker } from 'bullmq';
 import { SequelizeUserRepository } from '../../../user/user.repository';
 import { type User } from '../../../user/user.domain';
 import { SequelizeMailLimitRepository } from '../../../security/mail-limit/mail-limit.repository';
@@ -24,12 +24,6 @@ export const OUTDATED_CLIENT_EMAIL_CONFIG = {
   COOLDOWN_DAYS: 14,
   MAX_JOB_AGE_DAYS: 7,
   EXCLUDED_EMAIL_DOMAINS: ['@inxt.com', '@internxt.com'],
-};
-
-// attempts and backoff are job options in BullMQ, the producer passes them when adding the job
-export const OUTDATED_CLIENT_EMAIL_JOB_OPTIONS: JobsOptions = {
-  attempts: 3,
-  backoff: { type: 'exponential', delay: 60_000 },
 };
 
 const { DAILY_CAP, COOLDOWN_DAYS, MAX_JOB_AGE_DAYS, EXCLUDED_EMAIL_DOMAINS } =
