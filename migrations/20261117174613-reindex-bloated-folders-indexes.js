@@ -6,7 +6,6 @@ const indexes = [
   'folders_parent_uuid_index',
   'folders_pkey',
   'idx_folders_user_parent_numname',
-  'idx_folders_user_removed_updated',
   'idx_folders_trashed_user_updated_at',
 ];
 
