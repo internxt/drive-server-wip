@@ -131,6 +131,7 @@ export default () => ({
         process.env.SENDGRID_TEMPLATE_DRIVE_INCOMPLETE_CHECKOUT || '',
       fullStorage: process.env.SENDGRID_TEMPLATE_DRIVE_FULL_STORAGE_USERS || '',
       accountSetup: process.env.SENDGRID_TEMPLATE_DRIVE_ACCOUNT_SETUP || '',
+      outdatedClient: process.env.SENDGRID_TEMPLATE_DRIVE_OUTDATED_CLIENT || '',
     },
   },
   newsletter: {

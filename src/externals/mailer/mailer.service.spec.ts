@@ -18,6 +18,7 @@ describe('MailerService', () => {
     'mailer.name': 'Internxt',
     'mailer.sandbox': false,
     'mailer.templates.accountSetup': 'account-setup-template-id',
+    'mailer.templates.outdatedClient': 'outdated-client-template-id',
   };
 
   beforeEach(async () => {
@@ -92,6 +93,34 @@ describe('MailerService', () => {
           setupUrl: 'https://drive.internxt.com/complete-account/token',
         }),
       ).rejects.toThrow(providerError);
+    });
+  });
+
+  describe('Outdated client email', () => {
+    it('When the outdated client email is sent, then it uses the outdated client template with the client details', async () => {
+      await mailerService.sendOutdatedClientEmail('user@example.com', {
+        client: 'drive-desktop-windows',
+        version: '2.3.0',
+        recommendedVersion: '2.8.1',
+        sunsetAt: '2026-12-01T00:00:00.000Z',
+      });
+
+      expect(sendgrid.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          template_id: 'outdated-client-template-id',
+          personalizations: [
+            {
+              to: [{ email: 'user@example.com' }],
+              dynamic_template_data: {
+                client: 'drive-desktop-windows',
+                version: '2.3.0',
+                recommended_version: '2.8.1',
+                sunset_at: '2026-12-01T00:00:00.000Z',
+              },
+            },
+          ],
+        }),
+      );
     });
   });
 });

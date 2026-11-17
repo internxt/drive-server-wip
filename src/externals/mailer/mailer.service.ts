@@ -315,4 +315,30 @@ export class MailerService {
       {},
     );
   }
+
+  async sendOutdatedClientEmail(
+    email: User['email'],
+    {
+      client,
+      version,
+      recommendedVersion,
+      sunsetAt,
+    }: {
+      client: string;
+      version: string;
+      recommendedVersion: string | null;
+      sunsetAt: string | null;
+    },
+  ): Promise<void> {
+    await this.send(
+      email,
+      this.configService.get('mailer.templates.outdatedClient'),
+      {
+        client,
+        version,
+        recommended_version: recommendedVersion,
+        sunset_at: sunsetAt,
+      },
+    );
+  }
 }
