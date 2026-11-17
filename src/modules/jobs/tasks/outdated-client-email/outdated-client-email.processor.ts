@@ -29,8 +29,6 @@ export const OUTDATED_CLIENT_EMAIL_CONFIG = {
 const { DAILY_CAP, COOLDOWN_DAYS, MAX_JOB_AGE_DAYS, EXCLUDED_EMAIL_DOMAINS } =
   OUTDATED_CLIENT_EMAIL_CONFIG;
 
-// The limiter is shared by every worker of the queue, jobs over the cap keep waiting for the next window.
-// It lives in Redis, so the daily cap is also checked against Postgres in case Redis loses its state.
 @Processor(OUTDATED_CLIENT_EMAIL_QUEUE, {
   concurrency: 5,
   limiter: { max: DAILY_CAP, duration: 24 * 60 * 60 * 1000 },
@@ -103,6 +101,7 @@ export class OutdatedClientEmailProcessor extends WorkerHost {
     return EXCLUDED_EMAIL_DOMAINS.some((domain) => user.email.endsWith(domain));
   }
 
+  // Backup for the limiter, which resets if Redis loses its state
   private async waitUntilTomorrowIfDailyCapReached(): Promise<void> {
     const startOfToday = Time.startOf(Time.now(), 'day');
     const sentToday = await this.mailLimitRepository.countSentSince(
@@ -114,7 +113,6 @@ export class OutdatedClientEmailProcessor extends WorkerHost {
     }
 
     const startOfTomorrow = Time.dateWithTimeAdded(1, 'day', startOfToday);
-    // Pauses the whole queue and puts this job back, it does not count as a failed attempt
     await this.queue.rateLimit(startOfTomorrow.getTime() - Date.now());
     throw Worker.RateLimitError();
   }
