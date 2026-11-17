@@ -1,5 +1,6 @@
 import { MailLimit } from './mail-limit.domain';
 import { MailTypes } from './mailTypes';
+import { Time } from '../../../lib/time';
 
 describe('MailLimit', () => {
   const buildMailLimit = (lastMailSent: Date, attemptsCount = 1) =>
@@ -12,12 +13,9 @@ describe('MailLimit', () => {
       lastMailSent,
     });
 
-  const daysAgo = (days: number) =>
-    new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-
   describe('wasSentInTheLastDays', () => {
     it('When the mail was sent within the period, then it was sent recently', () => {
-      const mailLimit = buildMailLimit(daysAgo(3));
+      const mailLimit = buildMailLimit(Time.daysAgo(3));
 
       const wasSent = mailLimit.wasSentInTheLastDays(14);
 
@@ -25,7 +23,7 @@ describe('MailLimit', () => {
     });
 
     it('When the mail was sent before the period, then it was not sent recently', () => {
-      const mailLimit = buildMailLimit(daysAgo(15));
+      const mailLimit = buildMailLimit(Time.daysAgo(15));
 
       const wasSent = mailLimit.wasSentInTheLastDays(14);
 
