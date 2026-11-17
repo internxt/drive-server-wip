@@ -51,5 +51,15 @@ describe('MailLimit', () => {
       expect(mailLimit.attemptsCount).toBe(1);
       expect(mailLimit.lastMailSent).toEqual(sentAt);
     });
+
+    it('When marking the mail as sent without a date, then it stores the current date', () => {
+      const mailLimit = buildMailLimit(new Date(0), 0);
+      const before = Date.now();
+
+      mailLimit.markAsSent();
+
+      expect(mailLimit.attemptsCount).toBe(1);
+      expect(mailLimit.lastMailSent.getTime()).toBeGreaterThanOrEqual(before);
+    });
   });
 });
