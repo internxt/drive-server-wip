@@ -30,7 +30,6 @@ describe('OutdatedClientEmailProcessor', () => {
     userId: user.id,
     client: 'drive-desktop-windows',
     version: '2.3.0',
-    recommendedVersion: '2.8.1',
     sunsetAt: '2026-12-01T00:00:00.000Z',
   };
   const makeJob = ({

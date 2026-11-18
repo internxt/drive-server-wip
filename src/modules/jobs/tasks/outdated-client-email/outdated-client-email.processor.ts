@@ -20,7 +20,6 @@ export interface OutdatedClientEmailJobData {
   userId: User['id'];
   client: string;
   version: string;
-  recommendedVersion: string | null;
   sunsetAt: string | null;
   emailSentAt?: string;
 }

@@ -101,7 +101,6 @@ describe('MailerService', () => {
       await mailerService.sendOutdatedClientEmail('user@example.com', {
         client: 'drive-desktop-windows',
         version: '2.3.0',
-        recommendedVersion: '2.8.1',
         sunsetAt: '2026-12-01T00:00:00.000Z',
       });
 
@@ -114,7 +113,6 @@ describe('MailerService', () => {
               dynamic_template_data: {
                 client: 'drive-desktop-windows',
                 version: '2.3.0',
-                recommended_version: '2.8.1',
                 sunset_at: '2026-12-01T00:00:00.000Z',
               },
             },

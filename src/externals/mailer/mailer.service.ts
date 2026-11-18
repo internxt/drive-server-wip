@@ -321,12 +321,10 @@ export class MailerService {
     {
       client,
       version,
-      recommendedVersion,
       sunsetAt,
     }: {
       client: string;
       version: string;
-      recommendedVersion: string | null;
       sunsetAt: string | null;
     },
   ): Promise<void> {
@@ -336,7 +334,6 @@ export class MailerService {
       {
         client,
         version,
-        recommended_version: recommendedVersion,
         sunset_at: sunsetAt,
       },
     );
