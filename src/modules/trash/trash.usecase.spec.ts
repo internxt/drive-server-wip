@@ -1,5 +1,6 @@
 import { Test, type TestingModule } from '@nestjs/testing';
-import { type Logger } from '@nestjs/common';
+import { ConflictException, type Logger } from '@nestjs/common';
+import { v4 } from 'uuid';
 import { createMock } from '@golevelup/ts-jest';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
@@ -10,6 +11,10 @@ import { FavoriteUseCases } from '../favorite/favorite.usecase';
 import { newUser, newFile, newFolder } from '../../../test/fixtures';
 import { TrashEmptyRequestedEvent } from './events/trash-empty-requested.event';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
+import { type File, FileStatus } from '../file/file.domain';
+import { Folder } from '../folder/folder.domain';
+import { ItemToTrashType } from './dto/controllers/move-items-to-trash.dto';
+import { RestoreFailureReason } from './dto/controllers/restore-items-from-trash.dto';
 
 describe('Trash Use Cases', () => {
   let service: TrashUseCases,
@@ -347,6 +352,236 @@ describe('Trash Use Cases', () => {
       const result = await service.getTrashRetentionDays(user);
 
       expect(result).toBe(30);
+    });
+  });
+
+  describe('restoreItems', () => {
+    const user = newUser();
+    const documents = newFolder({ owner: user });
+    const photosOfMonday = newFolder({ owner: user });
+
+    const givenFilesOnTheServer = (files: File[]) => {
+      jest
+        .spyOn(fileUseCases, 'getByUuids')
+        .mockImplementation(async (uuids) =>
+          files.filter(({ uuid }) => uuids.includes(uuid)),
+        );
+      jest
+        .spyOn(fileUseCases, 'moveFile')
+        .mockImplementation(async (_user, fileUuid) =>
+          files.find(({ uuid }) => uuid === fileUuid),
+        );
+    };
+
+    const givenFoldersOnTheServer = (folders: Folder[]) => {
+      jest
+        .spyOn(folderUseCases, 'getByUuids')
+        .mockImplementation(async (uuids) =>
+          folders.filter(({ uuid }) => uuids.includes(uuid)),
+        );
+      jest
+        .spyOn(folderUseCases, 'moveFolder')
+        .mockImplementation(async (_user, folderUuid) =>
+          folders.find(({ uuid }) => uuid === folderUuid),
+        );
+    };
+
+    const trashedFileIn = (folder: Folder, owner = user) =>
+      newFile({
+        owner,
+        attributes: {
+          folderUuid: folder.uuid,
+          folderId: folder.id,
+          status: FileStatus.TRASHED,
+        },
+      });
+
+    const trashedFolderIn = (parent: Folder) =>
+      newFolder({
+        owner: user,
+        attributes: {
+          parentUuid: parent.uuid,
+          parentId: parent.id,
+          deleted: true,
+        },
+      });
+
+    const asItem = (item: File | Folder) => ({
+      uuid: item.uuid,
+      type:
+        item instanceof Folder ? ItemToTrashType.FOLDER : ItemToTrashType.FILE,
+    });
+
+    it('When a trashed file and a trashed folder are restored, then each goes back to the folder it was trashed from', async () => {
+      const photo = trashedFileIn(photosOfMonday);
+      const invoices = trashedFolderIn(documents);
+      givenFilesOnTheServer([photo]);
+      givenFoldersOnTheServer([documents, photosOfMonday, invoices]);
+
+      const result = await service.restoreItems(user, [
+        asItem(photo),
+        asItem(invoices),
+      ]);
+
+      expect(result).toEqual({
+        restoredFiles: [photo],
+        restoredFolders: [invoices],
+        failed: [],
+      });
+      expect(fileUseCases.moveFile).toHaveBeenCalledWith(user, photo.uuid, {
+        destinationFolder: photosOfMonday.uuid,
+      });
+      expect(folderUseCases.moveFolder).toHaveBeenCalledWith(
+        user,
+        invoices.uuid,
+        { destinationFolder: documents.uuid },
+      );
+    });
+
+    it('When the folder an item was trashed from is in the trash or deleted, then it is not restored', async () => {
+      const trashedParent = newFolder({
+        owner: user,
+        attributes: { deleted: true },
+      });
+      const deletedParent = newFolder({
+        owner: user,
+        attributes: { deleted: true, removed: true },
+      });
+      const photo = trashedFileIn(trashedParent);
+      const invoices = trashedFolderIn(deletedParent);
+      givenFilesOnTheServer([photo]);
+      givenFoldersOnTheServer([trashedParent, deletedParent, invoices]);
+
+      const result = await service.restoreItems(user, [
+        asItem(photo),
+        asItem(invoices),
+      ]);
+
+      expect(result).toEqual({
+        restoredFiles: [],
+        restoredFolders: [],
+        failed: [
+          {
+            ...asItem(invoices),
+            reason: RestoreFailureReason.ParentNotAvailable,
+          },
+          {
+            ...asItem(photo),
+            reason: RestoreFailureReason.ParentNotAvailable,
+          },
+        ],
+      });
+      expect(fileUseCases.moveFile).not.toHaveBeenCalled();
+      expect(folderUseCases.moveFolder).not.toHaveBeenCalled();
+    });
+
+    it('When a trashed folder is restored with an item trashed from it, then both go back', async () => {
+      const invoices = trashedFolderIn(documents);
+      const invoice = trashedFileIn(invoices);
+      const restoredInvoices = newFolder({
+        owner: user,
+        attributes: { uuid: invoices.uuid, parentUuid: documents.uuid },
+      });
+      givenFilesOnTheServer([invoice]);
+      givenFoldersOnTheServer([documents, invoices]);
+      jest
+        .spyOn(folderUseCases, 'moveFolder')
+        .mockResolvedValueOnce(restoredInvoices);
+
+      const result = await service.restoreItems(user, [
+        asItem(invoice),
+        asItem(invoices),
+      ]);
+
+      expect(result).toEqual({
+        restoredFiles: [invoice],
+        restoredFolders: [restoredInvoices],
+        failed: [],
+      });
+    });
+
+    it('When an item with the same name is already in its folder, then it is reported as a name conflict', async () => {
+      const report = trashedFileIn(documents);
+      givenFilesOnTheServer([report]);
+      givenFoldersOnTheServer([documents]);
+      jest
+        .spyOn(fileUseCases, 'moveFile')
+        .mockRejectedValueOnce(
+          new ConflictException(
+            'A file with the same name already exists in destination folder',
+          ),
+        );
+
+      const result = await service.restoreItems(user, [asItem(report)]);
+
+      expect(result).toEqual({
+        restoredFiles: [],
+        restoredFolders: [],
+        failed: [
+          { ...asItem(report), reason: RestoreFailureReason.NameConflict },
+        ],
+      });
+    });
+
+    it('When an item is not in the trash, does not exist or belongs to someone else, then only that item is not restored', async () => {
+      const notTrashed = newFile({
+        owner: user,
+        attributes: { folderUuid: documents.uuid },
+      });
+      const ofSomeoneElse = trashedFileIn(documents, newUser());
+      const notTrashedFolder = newFolder({
+        owner: user,
+        attributes: { parentUuid: documents.uuid },
+      });
+      const missing = { uuid: v4(), type: ItemToTrashType.FILE };
+      const report = trashedFileIn(documents);
+      givenFilesOnTheServer([notTrashed, ofSomeoneElse, report]);
+      givenFoldersOnTheServer([documents, notTrashedFolder]);
+
+      const result = await service.restoreItems(user, [
+        asItem(notTrashed),
+        asItem(ofSomeoneElse),
+        asItem(notTrashedFolder),
+        missing,
+        asItem(report),
+      ]);
+
+      expect(result).toEqual({
+        restoredFiles: [report],
+        restoredFolders: [],
+        failed: [
+          asItem(notTrashedFolder),
+          asItem(notTrashed),
+          asItem(ofSomeoneElse),
+          missing,
+        ].map((item) => ({
+          ...item,
+          reason: RestoreFailureReason.NotRestorable,
+        })),
+      });
+    });
+
+    it('When moving one item fails unexpectedly, then the rest are still restored', async () => {
+      const broken = trashedFileIn(documents);
+      const report = trashedFileIn(documents);
+      givenFilesOnTheServer([broken, report]);
+      givenFoldersOnTheServer([documents]);
+      jest
+        .spyOn(fileUseCases, 'moveFile')
+        .mockRejectedValueOnce(new Error('Connection lost'));
+
+      const result = await service.restoreItems(user, [
+        asItem(broken),
+        asItem(report),
+      ]);
+
+      expect(result).toEqual({
+        restoredFiles: [report],
+        restoredFolders: [],
+        failed: [
+          { ...asItem(broken), reason: RestoreFailureReason.NotRestorable },
+        ],
+      });
     });
   });
 });
