@@ -263,6 +263,7 @@ export class GatewayUseCases {
       bridgeUser: user.bridgeUser,
       sharedWorkspace: user.sharedWorkspace,
       backupsBucket: user.backupsBucket,
+      photosBucket: user.photosBucket,
       emailVerified: user.emailVerified,
       lastPasswordChangedAt: user.lastPasswordChangedAt,
     };

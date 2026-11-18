@@ -394,7 +394,7 @@ describe('GatewayUseCases', () => {
     });
 
     describe('getUserCredentials', () => {
-      const user = newUser();
+      const user = newUser({ attributes: { photosBucket: 'photos-bucket' } });
       const folder = newFolder();
       const mockTokens = {
         token: 'test-token',
@@ -439,6 +439,7 @@ describe('GatewayUseCases', () => {
             bridgeUser: user.bridgeUser,
             sharedWorkspace: user.sharedWorkspace,
             backupsBucket: user.backupsBucket,
+            photosBucket: 'photos-bucket',
             emailVerified: user.emailVerified,
             lastPasswordChangedAt: user.lastPasswordChangedAt,
           },

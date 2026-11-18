@@ -1205,6 +1205,8 @@ describe('User use cases', () => {
           password: hashedPassword,
           errorLoginCount: 0,
           secret_2FA: null,
+          backupsBucket: 'backups-bucket',
+          photosBucket: 'photos-bucket',
         },
       });
       const keyServer = newKeyServer({
@@ -1233,6 +1235,8 @@ describe('User use cases', () => {
       expect(result).toHaveProperty('user');
       expect(result.user).toHaveProperty('email', 'test@example.com');
       expect(result.user).toHaveProperty('bucket', folder.bucket);
+      expect(result.user).toHaveProperty('backupsBucket', 'backups-bucket');
+      expect(result.user).toHaveProperty('photosBucket', 'photos-bucket');
       expect(result).toHaveProperty('token', 'authToken');
       expect(result).toHaveProperty('newToken', 'newAuthToken');
     });
@@ -5610,6 +5614,36 @@ describe('User use cases', () => {
         );
 
         expect(result).toMatchObject(expectedCredentials);
+      });
+
+      it('When the user has backups and photos buckets, then both are returned', async () => {
+        const testUser = newUser({
+          attributes: {
+            backupsBucket: 'backups-bucket',
+            photosBucket: 'photos-bucket',
+          },
+        });
+        const folder = newFolder({ attributes: { bucket: 'user-bucket' } });
+
+        jest
+          .spyOn(userUseCases, 'getAuthTokens')
+          .mockResolvedValueOnce({ token: 't', newToken: 'nt' });
+        jest.spyOn(userUseCases, 'getAvatarUrl').mockResolvedValueOnce(null);
+        jest
+          .spyOn(userUseCases, 'getOrCreateUserRootFolderAndBucket')
+          .mockResolvedValueOnce(folder);
+        jest.spyOn(keyServerUseCases, 'findUserKeys').mockResolvedValueOnce({
+          ecc: null,
+          kyber: null,
+        } as {
+          kyber: KeyServer;
+          ecc: KeyServer;
+        });
+
+        const result = await userUseCases.getUserCredentials(testUser);
+
+        expect(result.user.backupsBucket).toBe('backups-bucket');
+        expect(result.user.photosBucket).toBe('photos-bucket');
       });
 
       it('When avatar is missing, then avatar in response should be null', async () => {

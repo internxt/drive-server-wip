@@ -84,6 +84,9 @@ export class UserDto {
   backupsBucket: string;
 
   @ApiProperty()
+  photosBucket: string;
+
+  @ApiProperty()
   avatar: string;
 
   @ApiProperty()
