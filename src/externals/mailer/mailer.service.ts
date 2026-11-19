@@ -5,6 +5,7 @@ import { type User } from '../../modules/user/user.domain';
 import { type Folder } from '../../modules/folder/folder.domain';
 import { type File } from '../../modules/file/file.domain';
 import { type Workspace } from '../../modules/workspaces/domains/workspaces.domain';
+import { Time } from '../../lib/time';
 
 type SendInvitationToSharingContext = {
   notification_message: string;
@@ -313,6 +314,29 @@ export class MailerService {
       userEmail,
       this.configService.get('mailer.templates.fullStorage'),
       {},
+    );
+  }
+
+  async sendOutdatedClientEmail(
+    email: User['email'],
+    {
+      client,
+      version,
+      sunsetAt,
+    }: {
+      client: string;
+      version: string;
+      sunsetAt: string | null;
+    },
+  ): Promise<void> {
+    await this.send(
+      email,
+      this.configService.get('mailer.templates.outdatedClient'),
+      {
+        client,
+        version,
+        sunset_at: sunsetAt ? Time.formatAsLongDate(Time.now(sunsetAt)) : null,
+      },
     );
   }
 }

@@ -37,6 +37,10 @@ import {
 import { CleanupDeletedFilesTableProcessor } from './tasks/cleanup-deleted-files-table/cleanup-deleted-files-table.processor';
 import { SequelizeDeletedFilesRepository } from './repositories/deleted-files.repository';
 import { buildBullConnectionOptions } from '../../lib/bull-connection';
+import {
+  OutdatedClientEmailProcessor,
+  OUTDATED_CLIENT_EMAIL_QUEUE,
+} from './tasks/outdated-client-email/outdated-client-email.processor';
 
 @Module({
   imports: [
@@ -54,6 +58,7 @@ import { buildBullConnectionOptions } from '../../lib/bull-connection';
       name: CLEANUP_DELETED_FILES_TABLE_QUEUE,
     }),
     BullModule.registerQueue({ name: DELETED_ITEMS_CLEANUP_QUEUE }),
+    BullModule.registerQueue({ name: OUTDATED_CLIENT_EMAIL_QUEUE }),
     FileModule,
     FolderModule,
     UserModule,
@@ -76,6 +81,7 @@ import { buildBullConnectionOptions } from '../../lib/bull-connection';
     CleanupDeletedFilesTableScheduler,
     CleanupDeletedFilesTableProcessor,
     SequelizeDeletedFilesRepository,
+    OutdatedClientEmailProcessor,
   ],
 })
 export class JobsModule {}

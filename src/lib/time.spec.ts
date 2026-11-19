@@ -100,6 +100,22 @@ describe('Time class', () => {
     });
   });
 
+  describe('durationInMs()', () => {
+    it('When a duration is provided, then returns the equivalent milliseconds', () => {
+      const ms = Time.durationInMs(1, 'minute');
+
+      expect(ms).toBe(60_000);
+    });
+  });
+
+  describe('durationInSeconds()', () => {
+    it('When a duration is provided, then returns the equivalent seconds', () => {
+      const seconds = Time.durationInSeconds(7, 'day');
+
+      expect(seconds).toBe(604_800);
+    });
+  });
+
   describe('daysAgo()', () => {
     it('When days is 0, then returns current date', () => {
       const result = Time.daysAgo(0);
@@ -143,6 +159,16 @@ describe('Time class', () => {
       expect(endOfDay.getUTCMinutes()).toBe(59);
       expect(endOfDay.getUTCSeconds()).toBe(59);
       expect(endOfDay.getUTCMilliseconds()).toBe(999);
+    });
+  });
+
+  describe('formatAsLongDate()', () => {
+    it('When formatting a date, then returns the month name, day and year in English', () => {
+      const date = new Date('2026-12-31T00:00:00.000Z');
+
+      const formatted = Time.formatAsLongDate(date);
+
+      expect(formatted).toBe('December 31, 2026');
     });
   });
 });

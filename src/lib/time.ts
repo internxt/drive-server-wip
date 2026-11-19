@@ -1,9 +1,11 @@
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import duration from 'dayjs/plugin/duration';
 
 dayjs.extend(utc);
 dayjs.extend(isSameOrBefore);
+dayjs.extend(duration);
 
 export type TimeUnit =
   'year' | 'month' | 'week' | 'day' | 'hour' | 'minute' | 'second';
@@ -48,6 +50,14 @@ export class Time {
     return seconds * 1000;
   }
 
+  public static durationInMs(amount: number, unit: TimeUnit): number {
+    return dayjs.duration(amount, unit).asMilliseconds();
+  }
+
+  public static durationInSeconds(amount: number, unit: TimeUnit): number {
+    return dayjs.duration(amount, unit).asSeconds();
+  }
+
   /**
    * Returns a new Date object set to the end of the day (23:59:59.999)
    * @param date - Optional date to use. If not provided, uses current date
@@ -70,6 +80,10 @@ export class Time {
 
   public static formatAsDateOnly(date: Date): string {
     return dayjs(date).utc().format('YYYY-MM-DD');
+  }
+
+  public static formatAsLongDate(date: Date): string {
+    return dayjs(date).utc().locale('en').format('MMMM D, YYYY');
   }
   public static isSameOrBefore(
     date1: Date,
