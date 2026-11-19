@@ -82,7 +82,8 @@ describe('getDeprecationMode', () => {
       [ClientEnum.Cli, 'undefined', null],
       [ClientEnum.CliLegacy, '1.6.3', null],
       [ClientEnum.Rclone, 'undefined', DeprecationMode.OMIT],
-      [ClientEnum.Web, '99.0.0', null],
+      [ClientEnum.Web, 'v1.1.15', DeprecationMode.OMIT],
+      [ClientEnum.Web, 'undefined', DeprecationMode.OMIT],
       ['unknown-client', 'undefined', null],
     ])(
       'When the client is %s with version %s, then it returns %s',

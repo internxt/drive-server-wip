@@ -67,6 +67,9 @@ const DEPRECATION_RULES: Record<
     [ClientEnum.Rclone]: {
       mode: DeprecationMode.OMIT,
     },
+    [ClientEnum.Web]: {
+      mode: DeprecationMode.OMIT,
+    },
   },
 };
 
