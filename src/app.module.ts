@@ -25,7 +25,7 @@ import { AppSumoModule } from './modules/app-sumo/app-sumo.module';
 import { PlanModule } from './modules/plan/plan.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { GatewayModule } from './modules/gateway/gateway.module';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { HttpGlobalExceptionFilter } from './common/filters/http-global-exception-filter.exception';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { nanoid } from 'nanoid';
@@ -36,6 +36,7 @@ import { ReferralModule } from './modules/referral/referral.module';
 import { HealthModule } from './infrastructure/health/health.module';
 import { ClientVersionModule } from './modules/client-version/client-version.module';
 import { ClientVersionGuard } from './modules/client-version/client-version.guard';
+import { OutdatedClientInterceptor } from './modules/client-version/outdated-client-notification/outdated-client.interceptor';
 import { ClsModule } from 'nestjs-cls';
 import {
   HEAVY_READ_POOL_CONNECTION,
@@ -235,6 +236,10 @@ const appName = isCronjobInstance ? 'drive-server-cronjob' : 'drive-server';
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: OutdatedClientInterceptor,
     },
   ],
 })
