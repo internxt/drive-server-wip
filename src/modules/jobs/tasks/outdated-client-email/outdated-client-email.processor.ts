@@ -26,7 +26,7 @@ export interface OutdatedClientEmailJobData {
 
 export const OUTDATED_EMAIL_CONFIG = {
   // Global limit of emails per day across all users.
-  DAILY_CAP: 200,
+  DAILY_CAP: 40,
   EMAILS_PER_MINUTE: 20,
   COOLDOWN_DAYS: 14,
   MAX_JOB_AGE_DAYS: 7,
