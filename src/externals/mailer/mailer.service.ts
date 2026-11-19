@@ -5,6 +5,7 @@ import { type User } from '../../modules/user/user.domain';
 import { type Folder } from '../../modules/folder/folder.domain';
 import { type File } from '../../modules/file/file.domain';
 import { type Workspace } from '../../modules/workspaces/domains/workspaces.domain';
+import { Time } from '../../lib/time';
 
 type SendInvitationToSharingContext = {
   notification_message: string;
@@ -334,7 +335,7 @@ export class MailerService {
       {
         client,
         version,
-        sunset_at: sunsetAt,
+        sunset_at: sunsetAt ? Time.formatAsDateOnly(Time.now(sunsetAt)) : null,
       },
     );
   }

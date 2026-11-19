@@ -113,9 +113,29 @@ describe('MailerService', () => {
               dynamic_template_data: {
                 client: 'drive-desktop-windows',
                 version: '2.3.0',
-                sunset_at: '2026-12-01T00:00:00.000Z',
+                sunset_at: '2026-12-01',
               },
             },
+          ],
+        }),
+      );
+    });
+
+    it('When the client has no sunset date, then the email is sent without it', async () => {
+      await mailerService.sendOutdatedClientEmail('user@example.com', {
+        client: 'drive-desktop-windows',
+        version: '2.3.0',
+        sunsetAt: null,
+      });
+
+      expect(sendgrid.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          personalizations: [
+            expect.objectContaining({
+              dynamic_template_data: expect.objectContaining({
+                sunset_at: null,
+              }),
+            }),
           ],
         }),
       );
