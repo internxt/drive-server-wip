@@ -111,11 +111,31 @@ describe('MailerService', () => {
             {
               to: [{ email: 'user@example.com' }],
               dynamic_template_data: {
-                client: 'drive-desktop-windows',
+                client: 'Internxt Desktop for Windows',
                 version: '2.3.0',
                 sunset_at: 'December 1, 2026',
               },
             },
+          ],
+        }),
+      );
+    });
+
+    it('When the client is unknown, then its identifier is used as the name', async () => {
+      await mailerService.sendOutdatedClientEmail('user@example.com', {
+        client: 'unknown-client',
+        version: '2.3.0',
+        sunsetAt: null,
+      });
+
+      expect(sendgrid.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          personalizations: [
+            expect.objectContaining({
+              dynamic_template_data: expect.objectContaining({
+                client: 'unknown-client',
+              }),
+            }),
           ],
         }),
       );

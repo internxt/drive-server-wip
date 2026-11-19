@@ -6,6 +6,7 @@ import { type Folder } from '../../modules/folder/folder.domain';
 import { type File } from '../../modules/file/file.domain';
 import { type Workspace } from '../../modules/workspaces/domains/workspaces.domain';
 import { Time } from '../../lib/time';
+import { ClientEnum } from '../../common/enums/platform.enum';
 
 type SendInvitationToSharingContext = {
   notification_message: string;
@@ -329,11 +330,23 @@ export class MailerService {
       sunsetAt: string | null;
     },
   ): Promise<void> {
+    const clientDisplayNames: Record<string, string> = {
+      [ClientEnum.Web]: 'Internxt Web',
+      [ClientEnum.Mobile]: 'Internxt Mobile',
+      [ClientEnum.DesktopLegacy]: 'Internxt Desktop',
+      [ClientEnum.DesktopWindows]: 'Internxt Desktop for Windows',
+      [ClientEnum.DesktopMacos]: 'Internxt Desktop for macOS',
+      [ClientEnum.DesktopLinux]: 'Internxt Desktop for Linux',
+      [ClientEnum.Cli]: 'Internxt CLI',
+      [ClientEnum.CliLegacy]: 'Internxt CLI',
+      [ClientEnum.Rclone]: 'Rclone',
+    };
+
     await this.send(
       email,
       this.configService.get('mailer.templates.outdatedClient'),
       {
-        client,
+        client: clientDisplayNames[client] ?? client,
         version,
         sunset_at: sunsetAt ? Time.formatAsLongDate(Time.now(sunsetAt)) : null,
       },
