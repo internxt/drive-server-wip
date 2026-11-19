@@ -124,7 +124,7 @@ describe('OutdatedClientEmailProcessor', () => {
       );
     });
 
-    it('When the email template is not configured, then nothing is sent and the user can be queued again', async () => {
+    it('When the email template is not configured, then nothing is sent and the user is not queued again', async () => {
       configService.get.mockReturnValue('');
       const job = makeJob();
 
@@ -132,7 +132,7 @@ describe('OutdatedClientEmailProcessor', () => {
 
       expect(userRepository.findById).not.toHaveBeenCalled();
       expect(mailerService.sendOutdatedClientEmail).not.toHaveBeenCalled();
-      expect(job.removeDeduplicationKey).toHaveBeenCalled();
+      expect(job.removeDeduplicationKey).not.toHaveBeenCalled();
     });
 
     it('When the job has been waiting for too long, then nothing is sent and the user can be queued again', async () => {

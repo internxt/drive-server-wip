@@ -1,6 +1,7 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { type Queue } from 'bullmq';
+import { LRUCache } from 'lru-cache';
 import { type User } from '../../user/user.domain';
 import { ClientVersionStatus } from '../client-version-policy.domain';
 import { ClientVersionUseCase } from '../client-version.usecase';
@@ -13,7 +14,11 @@ import { Time } from '../../../lib/time';
 
 @Injectable()
 export class OutdatedClientNotificationService {
-  private readonly logger = new Logger(OutdatedClientNotificationService.name);
+  // Skips a Redis call on every request of users queued recently by this instance
+  private readonly recentlyQueued = new LRUCache<User['uuid'], true>({
+    max: 10_000,
+    ttl: Time.durationInMs(1, 'hour'),
+  });
 
   constructor(
     private readonly clientVersionUseCase: ClientVersionUseCase,
@@ -23,7 +28,7 @@ export class OutdatedClientNotificationService {
   ) {}
 
   notifyIfOutdated(user: User, client: string, version: string): void {
-    if (!this.queue) {
+    if (!this.queue || this.recentlyQueued.has(user.uuid)) {
       return;
     }
 
@@ -51,11 +56,7 @@ export class OutdatedClientNotificationService {
           },
         },
       )
-      .catch((error) => {
-        this.logger.error(
-          { userUuid: user.uuid, error: error?.message },
-          'Error enqueuing outdated client email',
-        );
-      });
+      .then(() => this.recentlyQueued.set(user.uuid, true))
+      .catch(() => undefined);
   }
 }

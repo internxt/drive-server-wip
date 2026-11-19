@@ -1,5 +1,5 @@
 import { createMock, type DeepMocked } from '@golevelup/ts-jest';
-import { type Queue } from 'bullmq';
+import { type Job, type Queue } from 'bullmq';
 import { newUser } from '../../../../test/fixtures';
 import { ClientVersionStatus } from '../client-version-policy.domain';
 import { type ClientVersionUseCase } from '../client-version.usecase';
@@ -31,6 +31,7 @@ describe('OutdatedClientNotificationService', () => {
       compatibilityWith(ClientVersionStatus.Deprecated),
     );
     queue = createMock<Queue>();
+    queue.add.mockResolvedValue(createMock<Job>());
     service = new OutdatedClientNotificationService(
       clientVersionUseCase,
       queue,
@@ -38,7 +39,7 @@ describe('OutdatedClientNotificationService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   it('When the app version is deprecated, then the user is queued to be emailed once per cooldown', () => {
@@ -90,5 +91,37 @@ describe('OutdatedClientNotificationService', () => {
 
     expect(() => service.notifyIfOutdated(user, client, version)).not.toThrow();
     await flushPromises();
+  });
+
+  it('When the user was queued recently, then the queue is not called again', async () => {
+    service.notifyIfOutdated(user, client, version);
+    await flushPromises();
+
+    service.notifyIfOutdated(user, client, version);
+
+    expect(queue.add).toHaveBeenCalledTimes(1);
+  });
+
+  it('When the user was queued more than an hour ago, then the user is queued again', async () => {
+    const now = performance.now();
+    const nowSpy = jest.spyOn(performance, 'now').mockReturnValue(now);
+    service.notifyIfOutdated(user, client, version);
+    await flushPromises();
+    nowSpy.mockReturnValue(now + Time.durationInMs(1, 'hour') + 1);
+    await flushPromises();
+
+    service.notifyIfOutdated(user, client, version);
+
+    expect(queue.add).toHaveBeenCalledTimes(2);
+  });
+
+  it('When queuing failed, then the user is queued again on the next request', async () => {
+    queue.add.mockRejectedValueOnce(new Error('Redis is down'));
+    service.notifyIfOutdated(user, client, version);
+    await flushPromises();
+
+    service.notifyIfOutdated(user, client, version);
+
+    expect(queue.add).toHaveBeenCalledTimes(2);
   });
 });

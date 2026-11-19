@@ -54,11 +54,13 @@ export class OutdatedClientEmailProcessor extends WorkerHost {
   }
 
   async process(job: Job<OutdatedClientEmailJobData>): Promise<void> {
+    // Keeps the deduplication key so users are not queued again on every request
     if (!this.isEmailConfigured()) {
-      return this.discard(
-        job,
+      this.logger.warn(
+        { userId: job.data.userId },
         'Outdated client email template is not configured',
       );
+      return;
     }
     if (this.isOlderThanMaxAge(job)) {
       return this.discard(job, 'Outdated client email job is too old');
