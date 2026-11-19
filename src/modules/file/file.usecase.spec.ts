@@ -28,6 +28,10 @@ import {
   EmptyFilesLimitReachedException,
 } from './exceptions/empty-files-limit-reached.exception';
 import {
+  FILE_NOT_REPLACEABLE,
+  FileNotReplaceableException,
+} from './exceptions/file-not-replaceable.exception';
+import {
   File,
   type FileAttributes,
   FileStatus,
@@ -3611,6 +3615,28 @@ describe('FileUseCases', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
+    it.each([FileStatus.TRASHED, FileStatus.DELETED])(
+      'When file is %s, then it should throw FileNotReplaceableException with its error code',
+      async (status) => {
+        const mockFile = newFile({ attributes: { status } });
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+
+        const result = service.replaceFile(userMocked, mockFile.uuid, {
+          fileId: 'new-id',
+          size: BigInt(100),
+        });
+
+        await expect(result).rejects.toThrow(FileNotReplaceableException);
+        await expect(result).rejects.toMatchObject({
+          response: {
+            errorCode: FILE_NOT_REPLACEABLE,
+            message: `${status} files can not be replaced`,
+          },
+        });
+        expect(fileRepository.updateByUuidAndUserId).not.toHaveBeenCalled();
+      },
+    );
+
     it('When file is versionable, then it should create versions and not delete from network', async () => {
       const mockFile = newFile({
         attributes: {
@@ -3911,7 +3937,7 @@ describe('FileUseCases', () => {
 
       it('When replacing with an empty file whose size arrives as a plain number, then it should set fileId to null', async () => {
         const mockFile = newFile({
-          attributes: { fileId: null, size: BigInt(0) },
+          attributes: { fileId: 'old-file-id', size: BigInt(100) },
         });
         const replaceData = { fileId: '', size: 0 as unknown as bigint };
 
@@ -3932,6 +3958,61 @@ describe('FileUseCases', () => {
           userMocked.id,
           expect.objectContaining({ fileId: null }),
         );
+      });
+
+      it('When replacing an already empty file with an empty file and the limit is reached, then it should not check the limit', async () => {
+        const mockFile = newFile({
+          attributes: { fileId: null, size: BigInt(0) },
+        });
+        const replaceData = { fileId: '', size: 0 as unknown as bigint };
+
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+          .mockResolvedValue(1000);
+        jest.spyOn(service, 'checkEmptyFilesLimit');
+        jest
+          .spyOn(service, 'isFileVersionable')
+          .mockResolvedValue({ versionable: false, limits: null });
+        const updateSpy = jest
+          .spyOn(fileRepository, 'updateByUuidAndUserId')
+          .mockResolvedValue();
+
+        await service.replaceFile(userMocked, mockFile.uuid, replaceData);
+
+        expect(service.checkEmptyFilesLimit).not.toHaveBeenCalled();
+        expect(
+          featureLimitService.enforceMaxUploadFileSize,
+        ).not.toHaveBeenCalled();
+        expect(updateSpy).toHaveBeenCalledWith(
+          mockFile.uuid,
+          userMocked.id,
+          expect.objectContaining({ fileId: null }),
+        );
+      });
+
+      it('When replacing a non-empty file with an empty file and the limit is reached, then it should throw EmptyFilesLimitReachedException', async () => {
+        const mockFile = newFile({
+          attributes: { fileId: 'old-file-id', size: BigInt(100) },
+        });
+        const replaceData = { fileId: '', size: 0 as unknown as bigint };
+        const mockLimit = newFeatureLimit({
+          label: LimitLabels.MaxZeroSizeFiles,
+          type: LimitTypes.Counter,
+          value: '1000',
+        });
+
+        jest.spyOn(fileRepository, 'findByUuid').mockResolvedValue(mockFile);
+        jest
+          .spyOn(featureLimitService, 'getUserLimitByLabel')
+          .mockResolvedValue(mockLimit);
+        jest
+          .spyOn(fileRepository, 'getZeroSizeFilesCountByUser')
+          .mockResolvedValue(1000);
+
+        await expect(
+          service.replaceFile(userMocked, mockFile.uuid, replaceData),
+        ).rejects.toThrow(EmptyFilesLimitReachedException);
       });
 
       it('When replacing with empty file and limit does not exist, then it should throw', async () => {

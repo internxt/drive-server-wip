@@ -63,6 +63,7 @@ import {
   PaymentRequiredException,
 } from '../feature-limit/exceptions/payment-required.exception';
 import { EmptyFilesLimitReachedException } from './exceptions/empty-files-limit-reached.exception';
+import { FileNotReplaceableException } from './exceptions/file-not-replaceable.exception';
 import {
   DeleteFileVersionAction,
   GetFileVersionsAction,
@@ -1123,15 +1124,18 @@ export class FileUseCases {
     }
 
     if (file.status != FileStatus.EXISTS) {
-      throw new BadRequestException(`${file.status} files can not be replaced`);
+      throw new FileNotReplaceableException(
+        `${file.status} files can not be replaced`,
+      );
     }
 
     const isFileEmpty = BigInt(newFileData.size) === BigInt(0);
+    const wasFileEmpty = BigInt(file.size) === BigInt(0);
 
     if (isFileEmpty) {
-      if (!workspaceOptions) {
+      if (!wasFileEmpty && !workspaceOptions) {
         await this.checkEmptyFilesLimit(user);
-      } else {
+      } else if (!wasFileEmpty) {
         await this.checkWorkspaceEmptyFilesLimit(
           workspaceOptions.memberId,
           workspaceOptions.workspace,

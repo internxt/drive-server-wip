@@ -32,6 +32,7 @@ import { overrideUserLimit } from '../../../test/helpers/limit.helper';
 import { LimitLabels, LimitTypes } from '../feature-limit/limits.enum';
 import { PaymentRequiredErrorCode } from '../feature-limit/exceptions/payment-required.exception';
 import { EMPTY_FILES_LIMIT_REACHED } from './exceptions/empty-files-limit-reached.exception';
+import { FILE_NOT_REPLACEABLE } from './exceptions/file-not-replaceable.exception';
 
 describe('File module', () => {
   let app: NestExpressApplication;
@@ -933,6 +934,32 @@ describe('File module', () => {
         error: PaymentRequiredErrorCode.FileUploadSizeExceeded,
         errorCode: PaymentRequiredErrorCode.FileUploadSizeExceeded,
       });
+    });
+  });
+
+  describe('PUT /files/:uuid', () => {
+    it('When the user replaces a trashed file, then it fails with the file not replaceable error code', async () => {
+      const file = await createUserFile(testUser);
+      await fileRepository.updateByUuidAndUserId(file.uuid, testUser.user.id, {
+        status: FileStatus.TRASHED,
+      });
+
+      const response = await request(app.getHttpServer())
+        .put(`/files/${file.uuid}`)
+        .set('Authorization', `bearer ${testUser.token}`)
+        .send({ fileId: v4().substring(0, 24), size: 100 });
+      const storedFile = await fileModel.findOne({
+        where: { uuid: file.uuid },
+      });
+
+      expect(response.status).toBe(HttpStatus.BAD_REQUEST);
+      expect(response.body).toEqual({
+        message: `${FileStatus.TRASHED} files can not be replaced`,
+        error: 'Bad Request',
+        statusCode: HttpStatus.BAD_REQUEST,
+        errorCode: FILE_NOT_REPLACEABLE,
+      });
+      expect(storedFile.fileId).toBe(file.fileId);
     });
   });
 
