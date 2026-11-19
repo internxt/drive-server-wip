@@ -81,6 +81,10 @@ export class Time {
   public static formatAsDateOnly(date: Date): string {
     return dayjs(date).utc().format('YYYY-MM-DD');
   }
+
+  public static formatAsLongDate(date: Date): string {
+    return dayjs(date).utc().locale('en').format('MMMM D, YYYY');
+  }
   public static isSameOrBefore(
     date1: Date,
     date2: Date,

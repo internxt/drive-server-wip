@@ -113,7 +113,7 @@ describe('MailerService', () => {
               dynamic_template_data: {
                 client: 'drive-desktop-windows',
                 version: '2.3.0',
-                sunset_at: '2026-12-01',
+                sunset_at: 'December 1, 2026',
               },
             },
           ],

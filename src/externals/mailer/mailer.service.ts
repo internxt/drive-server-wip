@@ -335,7 +335,7 @@ export class MailerService {
       {
         client,
         version,
-        sunset_at: sunsetAt ? Time.formatAsDateOnly(Time.now(sunsetAt)) : null,
+        sunset_at: sunsetAt ? Time.formatAsLongDate(Time.now(sunsetAt)) : null,
       },
     );
   }

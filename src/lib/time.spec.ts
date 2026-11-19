@@ -161,4 +161,14 @@ describe('Time class', () => {
       expect(endOfDay.getUTCMilliseconds()).toBe(999);
     });
   });
+
+  describe('formatAsLongDate()', () => {
+    it('When formatting a date, then returns the month name, day and year in English', () => {
+      const date = new Date('2026-12-31T00:00:00.000Z');
+
+      const formatted = Time.formatAsLongDate(date);
+
+      expect(formatted).toBe('December 31, 2026');
+    });
+  });
 });
