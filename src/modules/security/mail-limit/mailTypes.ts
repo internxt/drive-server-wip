@@ -9,4 +9,5 @@ export enum MailTypes {
   IncompleteCheckout = 'incomplete_checkout',
   InactiveUsers = 'inactive_users',
   FullStorage = 'full_storage',
+  OutdatedClient = 'outdated_client',
 }
