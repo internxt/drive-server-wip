@@ -1133,27 +1133,6 @@ describe('FolderUseCases', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('When the folder name already exists in the same location, then it should throw', async () => {
-      const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
-      const existingFolder = newFolder({
-        attributes: { parentId: parentFolder.id, plainName: folderName },
-      });
-
-      jest
-        .spyOn(folderRepository, 'findOne')
-        .mockResolvedValueOnce(parentFolder);
-      jest
-        .spyOn(folderRepository, 'findByParentUuid')
-        .mockResolvedValueOnce([existingFolder]);
-
-      await expect(
-        service.createFolder(userMocked, {
-          plainName: folderName,
-          parentFolderUuid: parentFolder.uuid,
-        }),
-      ).rejects.toThrow(ConflictException);
-    });
-
     it('When new folder is valid, then it should create and return the new folder successfully', async () => {
       const parentFolder = newFolder({ attributes: { userId: userMocked.id } });
       const encryptedFolderName = 'encrypted-folder-name';
@@ -1172,9 +1151,10 @@ describe('FolderUseCases', () => {
       jest
         .spyOn(folderRepository, 'findOne')
         .mockResolvedValueOnce(parentFolder);
-      jest
-        .spyOn(folderRepository, 'findByParentUuid')
-        .mockResolvedValueOnce([]);
+      const findByParentUuidSpy = jest.spyOn(
+        folderRepository,
+        'findByParentUuid',
+      );
 
       jest
         .spyOn(cryptoService, 'encryptName')
@@ -1195,10 +1175,8 @@ describe('FolderUseCases', () => {
         expect.objectContaining({ uuid: parentFolder.uuid }),
         { useMaster: true },
       );
-      expect(folderRepository.findByParentUuid).toHaveBeenCalledWith(
-        parentFolder.uuid,
-        { plainName: folderName, deleted: false, removed: false },
-      );
+      // Duplicates are rejected by the unique index, mapped to 409 by UniqueConstraintFilter
+      expect(findByParentUuidSpy).not.toHaveBeenCalled();
       expect(result).toEqual(newFolderCreated);
     });
   });

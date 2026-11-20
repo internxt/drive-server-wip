@@ -421,21 +421,6 @@ export class FolderUseCases {
       throw new BadRequestException('Invalid folder name');
     }
 
-    const foldersWithSameName = await this.folderRepository.findByParentUuid(
-      parentFolder.uuid,
-      {
-        plainName: newFolderDto.plainName,
-        deleted: false,
-        removed: false,
-      },
-    );
-
-    if (foldersWithSameName.length > 0) {
-      throw new ConflictException(
-        'Folder with the same name already exists in this location',
-      );
-    }
-
     const encryptedFolderName = this.cryptoService.encryptName(
       newFolderDto.plainName,
       parentFolder.id,
