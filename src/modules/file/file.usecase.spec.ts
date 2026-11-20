@@ -56,6 +56,7 @@ import { SharingService } from '../sharing/sharing.service';
 import { SharingItemType } from '../sharing/sharing.domain';
 import { type CreateFileDto } from './dto/create-file.dto';
 import { type UpdateFileMetaDto } from './dto/update-file-meta.dto';
+import { type Thumbnail } from '../thumbnail/thumbnail.domain';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
 import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
@@ -320,6 +321,28 @@ describe('FileUseCases', () => {
 
       expect(id).toBe(mockFile.id);
       expect(uuid).toBe(mockFile.uuid);
+    });
+  });
+
+  describe('getFirstThumbnail', () => {
+    it('When the file has thumbnails, then it returns the first one', async () => {
+      const thumbnail = { id: 1 } as Thumbnail;
+      jest
+        .spyOn(thumbnailUseCases, 'findAll')
+        .mockResolvedValue([thumbnail, { id: 2 } as Thumbnail]);
+
+      const result = await service.getFirstThumbnail('file-uuid');
+
+      expect(thumbnailUseCases.findAll).toHaveBeenCalledWith({
+        fileUuid: 'file-uuid',
+      });
+      expect(result).toBe(thumbnail);
+    });
+
+    it('When the file has no thumbnails, then it returns null', async () => {
+      jest.spyOn(thumbnailUseCases, 'findAll').mockResolvedValue([]);
+
+      await expect(service.getFirstThumbnail('file-uuid')).resolves.toBeNull();
     });
   });
 
