@@ -1566,6 +1566,21 @@ describe('WorkspacesUsecases', () => {
   });
 
   describe('changeUserRole', () => {
+    it('When the team belongs to another workspace, then error is thrown and role is not changed', async () => {
+      const team = newWorkspaceTeam({ workspaceId: v4() });
+      jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
+      jest
+        .spyOn(teamRepository, 'getTeamUser')
+        .mockResolvedValue(newWorkspaceTeamUser({ teamId: team.id }));
+
+      const result = service.changeUserRole(v4(), team.id, 'userId', {
+        role: WorkspaceRole.MANAGER,
+      });
+
+      await expect(result).rejects.toThrow(NotFoundException);
+      expect(teamRepository.updateById).not.toHaveBeenCalled();
+    });
+
     it('When team does not exist, then error is thrown', async () => {
       jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(null);
 
@@ -1579,7 +1594,7 @@ describe('WorkspacesUsecases', () => {
     it('When user is not part of team, then error is thrown', async () => {
       jest
         .spyOn(teamRepository, 'getTeamById')
-        .mockResolvedValue(newWorkspaceTeam());
+        .mockResolvedValue(newWorkspaceTeam({ workspaceId: 'workspaceId' }));
       jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(null);
 
       await expect(
@@ -1592,7 +1607,7 @@ describe('WorkspacesUsecases', () => {
     it('When user does not exist, then error is thrown', async () => {
       jest
         .spyOn(teamRepository, 'getTeamById')
-        .mockResolvedValue(newWorkspaceTeam());
+        .mockResolvedValue(newWorkspaceTeam({ workspaceId: 'workspaceId' }));
       jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(
         new WorkspaceTeamUser({
           id: '',
@@ -1613,7 +1628,7 @@ describe('WorkspacesUsecases', () => {
 
     it('When a member of the team is upgrade to manager, then it works', async () => {
       const member = newUser();
-      const team = newWorkspaceTeam();
+      const team = newWorkspaceTeam({ workspaceId: 'workspaceId' });
 
       jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
       jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(
@@ -1639,7 +1654,7 @@ describe('WorkspacesUsecases', () => {
     it('When a team manager role is changed to member, then the owner is assigned as manager', async () => {
       const manager = newUser();
       const workspaceOwner = newUser();
-      const team = newWorkspaceTeam({ manager: manager });
+      const team = newWorkspaceTeam({ manager, workspaceId: 'workspaceId' });
       const workspace = newWorkspace({ owner: workspaceOwner });
 
       jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
@@ -1667,7 +1682,7 @@ describe('WorkspacesUsecases', () => {
     it('When user is already manager and tries to update their role to manager, then it does nothing ', async () => {
       const manager = newUser();
       const workspaceOwner = newUser();
-      const team = newWorkspaceTeam({ manager: manager });
+      const team = newWorkspaceTeam({ manager, workspaceId: 'workspaceId' });
       const workspace = newWorkspace({ owner: workspaceOwner });
 
       jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
@@ -1692,7 +1707,7 @@ describe('WorkspacesUsecases', () => {
 
     it('When user is already member and tries to update their role to member, then it does nothing', async () => {
       const member = newUser();
-      const team = newWorkspaceTeam();
+      const team = newWorkspaceTeam({ workspaceId: 'workspaceId' });
 
       jest.spyOn(teamRepository, 'getTeamById').mockResolvedValue(team);
       jest.spyOn(teamRepository, 'getTeamUser').mockResolvedValue(
@@ -4723,6 +4738,11 @@ describe('WorkspacesUsecases', () => {
           await expect(
             service.addMemberToTeam(team.id, user.uuid),
           ).rejects.toThrow(BadRequestException);
+          expect(workspaceRepository.findWorkspaceUser).toHaveBeenCalledWith({
+            workspaceId: team.workspaceId,
+            memberId: user.uuid,
+            deactivated: false,
+          });
         });
 
         it('When user is already part of team, then it should throw', async () => {
@@ -4934,6 +4954,11 @@ describe('WorkspacesUsecases', () => {
           await expect(
             service.changeTeamManager(team.id, user.uuid),
           ).rejects.toThrow(BadRequestException);
+          expect(workspaceRepository.findWorkspaceUser).toHaveBeenCalledWith({
+            workspaceId: team.workspaceId,
+            memberId: user.uuid,
+            deactivated: false,
+          });
         });
 
         it('When user is not part of team, then it should throw', async () => {
@@ -4995,9 +5020,22 @@ describe('WorkspacesUsecases', () => {
             .spyOn(service, 'getAndValidateNonDefaultTeamWorkspace')
             .mockRejectedValueOnce(new BadRequestException());
 
-          await expect(service.deleteTeam(teamId)).rejects.toThrow(
-            BadRequestException,
-          );
+          await expect(
+            service.deleteTeam('workspace-id', teamId),
+          ).rejects.toThrow(BadRequestException);
+        });
+
+        it('When the team belongs to another workspace, then it should throw and not delete it', async () => {
+          const otherWorkspace = newWorkspace();
+          const team = newWorkspaceTeam({ workspaceId: otherWorkspace.id });
+          jest
+            .spyOn(service, 'getAndValidateNonDefaultTeamWorkspace')
+            .mockResolvedValueOnce({ team, workspace: otherWorkspace });
+
+          const result = service.deleteTeam(v4(), team.id);
+
+          await expect(result).rejects.toThrow(BadRequestException);
+          expect(teamRepository.deleteTeamById).not.toHaveBeenCalled();
         });
 
         it('When a team is deleted, then it should resolve', async () => {
@@ -5011,7 +5049,7 @@ describe('WorkspacesUsecases', () => {
             .spyOn(workspaceRepository, 'findOne')
             .mockResolvedValue(workspace);
 
-          await service.deleteTeam(team.id);
+          await service.deleteTeam(workspace.id, team.id);
           expect(teamRepository.deleteTeamById).toHaveBeenCalledWith(team.id);
         });
       });
