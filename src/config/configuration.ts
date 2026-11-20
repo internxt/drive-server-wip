@@ -1,4 +1,4 @@
-export default () => ({
+const configuration = () => ({
   environment: process.env.NODE_ENV,
   isDevelopment: process.env.NODE_ENV === 'development',
   isProduction: process.env.NODE_ENV === 'production',
@@ -43,6 +43,7 @@ export default () => ({
     cryptoSecret: process.env.CRYPTO_SECRET,
     cryptoSecret2: process.env.CRYPTO_SECRET2,
     jwt: process.env.JWT_SECRET,
+    publicSharingNavigation: process.env.PUBLIC_SHARING_NAVIGATION_JWT_SECRET,
     gateway: process.env.GATEWAY_SECRET,
     driveGateway: process.env.DRIVE_GATEWAY_PUBLIC_SECRET,
     captcha: process.env.RECAPTCHA_V3,
@@ -193,3 +194,21 @@ export default () => ({
   executeCronjobs: process.env.EXECUTE_JOBS === 'true',
   healthCheckToken: process.env.HEALTH_CHECK_TOKEN,
 });
+
+export default configuration;
+
+export const assertPublicSharingNavigationSecret = (
+  secrets: Pick<
+    ReturnType<typeof configuration>['secrets'],
+    'jwt' | 'publicSharingNavigation'
+  >,
+): void => {
+  if (!secrets.publicSharingNavigation) {
+    throw new Error('PUBLIC_SHARING_NAVIGATION_JWT_SECRET is required');
+  }
+  if (secrets.publicSharingNavigation === secrets.jwt) {
+    throw new Error(
+      'PUBLIC_SHARING_NAVIGATION_JWT_SECRET must differ from JWT_SECRET',
+    );
+  }
+};
