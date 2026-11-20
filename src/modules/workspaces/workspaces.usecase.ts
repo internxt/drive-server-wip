@@ -2626,7 +2626,7 @@ export class WorkspacesUsecases {
       this.teamRepository.getTeamUser(userUuid, teamId),
     ]);
 
-    if (!team || team.workspaceId !== workspaceId) {
+    if (team?.workspaceId !== workspaceId) {
       throw new NotFoundException('Team not found.');
     }
 
