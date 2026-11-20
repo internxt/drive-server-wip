@@ -48,6 +48,9 @@ export class UserResponseDto {
   backupsBucket: string;
 
   @ApiProperty()
+  photosBucket: string;
+
+  @ApiProperty()
   avatar: string;
 
   @ApiProperty()
