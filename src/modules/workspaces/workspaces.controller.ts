@@ -258,9 +258,11 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async deleteTeam(
+    @Param('workspaceId', ValidateUUIDPipe)
+    workspaceId: WorkspaceAttributes['id'],
     @Param('teamId', ValidateUUIDPipe) teamId: WorkspaceTeamAttributes['id'],
   ) {
-    return this.workspaceUseCases.deleteTeam(teamId);
+    return this.workspaceUseCases.deleteTeam(workspaceId, teamId);
   }
 
   @Post('/teams/:teamId/user/:userUuid')

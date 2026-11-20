@@ -2399,6 +2399,7 @@ export class WorkspacesUsecases {
     const { team } = await this.getAndValidateNonDefaultTeamWorkspace(teamId);
 
     const workspaceUser = await this.workspaceRepository.findWorkspaceUser({
+      workspaceId: team.workspaceId,
       memberId,
       deactivated: false,
     });
@@ -2549,6 +2550,7 @@ export class WorkspacesUsecases {
     const { team } = await this.getAndValidateNonDefaultTeamWorkspace(teamId);
 
     const workspaceUser = await this.workspaceRepository.findWorkspaceUser({
+      workspaceId: team.workspaceId,
       memberId: managerId,
       deactivated: false,
     });
@@ -2568,8 +2570,15 @@ export class WorkspacesUsecases {
     await this.teamRepository.updateById(team.id, { managerId });
   }
 
-  async deleteTeam(teamId: WorkspaceTeam['id']) {
-    await this.getAndValidateNonDefaultTeamWorkspace(teamId);
+  async deleteTeam(
+    workspaceId: WorkspaceAttributes['id'],
+    teamId: WorkspaceTeam['id'],
+  ) {
+    const { team } = await this.getAndValidateNonDefaultTeamWorkspace(teamId);
+
+    if (team.workspaceId !== workspaceId) {
+      throw new BadRequestException('Team not found');
+    }
 
     await this.teamRepository.deleteTeamById(teamId);
   }
@@ -2617,7 +2626,7 @@ export class WorkspacesUsecases {
       this.teamRepository.getTeamUser(userUuid, teamId),
     ]);
 
-    if (!team) {
+    if (team?.workspaceId !== workspaceId) {
       throw new NotFoundException('Team not found.');
     }
 
