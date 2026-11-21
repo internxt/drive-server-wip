@@ -42,7 +42,9 @@ import {
   type File,
   type FileAttributes,
 } from '../file/file.domain';
+import { type Environment } from '@internxt/inxt-js';
 import { type Folder } from '../folder/folder.domain';
+import { type Thumbnail } from '../thumbnail/thumbnail.domain';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
 import { type GetInviteDto } from './dto/get-invites.dto';
 import { type BridgeService } from '../../externals/bridge/bridge.service';
@@ -3668,6 +3670,300 @@ describe('Sharing Use Cases', () => {
       arrange({ encryptedPassword });
 
       await expect(list(null, 'wrong')).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('public shared file download access', () => {
+    const owner = newUser();
+    const rootFolder = newFolder({ owner });
+    const code =
+      '8ab1d0725b61e0f1f95a466aeeecc0be53e3a18c0feb09d659b666017505c796';
+    const encryptedPassword =
+      'jeH++sl4x/RmjambJlUs0Y5ugKWdb8ZcwDGS4bhM7emeibsxWXaKtoA673iVY6wbk/pk+WRXQH/qlAi91j+ReQ3Cn9odACF9DoRU81g2dXDJV679MRjbttUMFRo/vWS2PUaKjmm8JQ==';
+    const file = newFile({
+      owner,
+      folder: rootFolder,
+      attributes: { size: BigInt(10), bucket: 'bucket', fileId: 'network-id' },
+    });
+    const thumbnail = {
+      bucketId: 'thumb-bucket',
+      bucketFile: 'thumb-file',
+    } as Thumbnail;
+    const network = createMock<Environment>();
+
+    const arrange = (
+      overrides: {
+        sharing?: Sharing | null;
+        file?: File | null;
+        ancestors?: Folder[];
+        thumbnail?: Thumbnail | null;
+      } = {},
+    ) => {
+      const sharing =
+        overrides.sharing === undefined
+          ? newSharing({
+              owner,
+              item: rootFolder,
+              sharingType: SharingType.Public,
+            })
+          : overrides.sharing;
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      fileRepository.findByUuid.mockResolvedValue(
+        overrides.file === undefined ? file : overrides.file,
+      );
+      folderUseCases.getFolderAncestors.mockResolvedValue(
+        overrides.ancestors ?? [rootFolder],
+      );
+      fileUsecases.getFirstThumbnail.mockResolvedValue(
+        overrides.thumbnail === undefined ? thumbnail : overrides.thumbnail,
+      );
+      fileUsecases.getEncryptionKeyFromFile.mockResolvedValue('file-key');
+      network.createFileToken.mockResolvedValue('pull-token');
+      bridgeService.createNetworkEnvironment.mockReturnValue(network);
+      return sharing;
+    };
+
+    beforeEach(() => {
+      network.createFileToken.mockClear();
+    });
+
+    describe.each([
+      ['getPublicSharedFileDownloadAccess'],
+      ['getPublicSharedThumbnailDownloadAccess'],
+    ] as const)('%s', (method) => {
+      const requestAccess = (sharing: Sharing | null, password?: string) =>
+        sharingService[method](
+          sharing?.id ?? v4(),
+          file.uuid,
+          code,
+          password ?? null,
+        );
+
+      it('When the sharing is a private one, then it throws not found and mints nothing', async () => {
+        const sharing = arrange({
+          sharing: newSharing({ owner, item: rootFolder }),
+        });
+
+        await expect(requestAccess(sharing)).rejects.toThrow(NotFoundException);
+        expect(network.createFileToken).not.toHaveBeenCalled();
+      });
+
+      it('When the sharing does not exist, then it throws not found', async () => {
+        arrange({ sharing: null });
+
+        await expect(requestAccess(null)).rejects.toThrow(NotFoundException);
+      });
+
+      it('When the sharing is a file sharing, then it throws not found', async () => {
+        const sharing = arrange({
+          sharing: newSharing({
+            owner,
+            item: file,
+            sharingType: SharingType.Public,
+          }),
+        });
+
+        await expect(requestAccess(sharing)).rejects.toThrow(NotFoundException);
+      });
+
+      it('When the sharing is password protected and no password is sent, then it throws password needed and mints nothing', async () => {
+        const sharing = arrange({
+          sharing: newSharing({
+            owner,
+            item: rootFolder,
+            sharingType: SharingType.Public,
+            encryptedPassword,
+          }),
+        });
+
+        await expect(requestAccess(sharing)).rejects.toThrow(
+          PasswordNeededError,
+        );
+        expect(network.createFileToken).not.toHaveBeenCalled();
+      });
+
+      it('When the password is wrong, then it throws forbidden and mints nothing', async () => {
+        const sharing = arrange({
+          sharing: newSharing({
+            owner,
+            item: rootFolder,
+            sharingType: SharingType.Public,
+            encryptedPassword,
+          }),
+        });
+
+        await expect(requestAccess(sharing, 'wrong')).rejects.toThrow(
+          ForbiddenException,
+        );
+        expect(network.createFileToken).not.toHaveBeenCalled();
+      });
+
+      it('When the file does not exist, then it throws not found', async () => {
+        const sharing = arrange({ file: null });
+
+        await expect(requestAccess(sharing)).rejects.toThrow(NotFoundException);
+      });
+
+      it('When the file is trashed, then it throws not found', async () => {
+        const sharing = arrange({
+          file: newFile({ owner, attributes: { status: FileStatus.TRASHED } }),
+        });
+
+        await expect(requestAccess(sharing)).rejects.toThrow(NotFoundException);
+      });
+
+      it('When the file is outside the shared folder, then it throws not found and mints nothing', async () => {
+        const sharing = arrange({ ancestors: [newFolder({ owner })] });
+
+        await expect(requestAccess(sharing)).rejects.toThrow(NotFoundException);
+        expect(network.createFileToken).not.toHaveBeenCalled();
+      });
+
+      const trashed = { deleted: true, deletedAt: new Date() };
+      const removed = { removed: true, removedAt: new Date() };
+
+      test.each([
+        ['an intermediate folder is trashed', false, trashed],
+        ['the shared root is trashed', true, trashed],
+        ['an intermediate folder is removed', false, removed],
+        ['the shared root is removed', true, removed],
+      ])(
+        'When %s, then it throws not found and mints nothing',
+        async (_label, isRoot, attributes) => {
+          const root = newFolder({
+            owner,
+            attributes: {
+              uuid: rootFolder.uuid,
+              ...(isRoot ? attributes : {}),
+            },
+          });
+          const middle = newFolder({
+            owner,
+            attributes: {
+              parentUuid: root.uuid,
+              ...(isRoot ? {} : attributes),
+            },
+          });
+          const leaf = newFolder({
+            owner,
+            attributes: { parentUuid: middle.uuid },
+          });
+          const sharing = arrange({
+            file: newFile({ owner, folder: leaf }),
+            ancestors: [leaf, middle, root],
+          });
+
+          await expect(requestAccess(sharing)).rejects.toThrow(
+            NotFoundException,
+          );
+          expect(network.createFileToken).not.toHaveBeenCalled();
+        },
+      );
+
+      it('When the file is nested several levels below the shared root, then it returns the access', async () => {
+        const middle = newFolder({
+          owner,
+          attributes: { parentUuid: rootFolder.uuid },
+        });
+        const leaf = newFolder({
+          owner,
+          attributes: { parentUuid: middle.uuid },
+        });
+        const sharing = arrange({
+          file: newFile({ owner, folder: leaf }),
+          ancestors: [leaf, middle, rootFolder],
+        });
+
+        const result = await requestAccess(sharing);
+
+        expect(result.token).toBe('pull-token');
+      });
+
+      it('When the file is inside the shared folder, then it returns only bucket, file id, key and token', async () => {
+        const sharing = arrange();
+        const isThumbnail = method === 'getPublicSharedThumbnailDownloadAccess';
+
+        const result = await requestAccess(sharing);
+
+        expect(result).toStrictEqual({
+          bucket: isThumbnail ? thumbnail.bucketId : file.bucket,
+          fileId: isThumbnail ? thumbnail.bucketFile : file.fileId,
+          encryptionKey: 'file-key',
+          token: 'pull-token',
+        });
+        expect(network.createFileToken).toHaveBeenCalledWith(
+          result.bucket,
+          result.fileId,
+          'PULL',
+        );
+        expect(fileRepository.findByUuid).toHaveBeenCalledWith(
+          file.uuid,
+          owner.id,
+        );
+        expect(folderUseCases.getFolderAncestors).toHaveBeenCalledWith(
+          owner,
+          file.folderUuid,
+        );
+        expect(fileUsecases.getEncryptionKeyFromFile).toHaveBeenCalledWith(
+          expect.objectContaining({
+            bucket: result.bucket,
+            fileId: result.fileId,
+          }),
+          sharing.encryptionKey,
+          code,
+          network,
+          sharing.encryptionAlgorithm === 'inxt-v3',
+        );
+      });
+
+      it('When the sharing is password protected and the password is correct, then it returns the access', async () => {
+        const sharing = arrange({
+          sharing: newSharing({
+            owner,
+            item: rootFolder,
+            sharingType: SharingType.Public,
+            encryptedPassword,
+          }),
+        });
+
+        const result = await requestAccess(sharing, 'example');
+
+        expect(result.token).toBe('pull-token');
+      });
+    });
+
+    it('When the file is empty, then file download access throws not found', async () => {
+      const emptyFile = newFile({
+        owner,
+        folder: rootFolder,
+        attributes: { size: BigInt(0) },
+      });
+      const sharing = arrange({ file: emptyFile });
+
+      await expect(
+        sharingService.getPublicSharedFileDownloadAccess(
+          sharing.id,
+          emptyFile.uuid,
+          code,
+          null,
+        ),
+      ).rejects.toThrow(NotFoundException);
+      expect(network.createFileToken).not.toHaveBeenCalled();
+    });
+
+    it('When the file has no thumbnail, then thumbnail download access throws not found', async () => {
+      const sharing = arrange({ thumbnail: null });
+
+      await expect(
+        sharingService.getPublicSharedThumbnailDownloadAccess(
+          sharing.id,
+          file.uuid,
+          code,
+          null,
+        ),
+      ).rejects.toThrow(NotFoundException);
+      expect(network.createFileToken).not.toHaveBeenCalled();
     });
   });
 

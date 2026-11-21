@@ -119,6 +119,13 @@ export interface PublicNavigationTokenPayload {
   owner: { id: User['id']; uuid: User['uuid'] };
 }
 
+export interface PublicSharedFileDownloadAccess {
+  bucket: string;
+  fileId: string;
+  encryptionKey: string;
+  token: string;
+}
+
 export type SharingInfo = Pick<
   User,
   'name' | 'lastname' | 'uuid' | 'avatar' | 'email'
@@ -547,6 +554,153 @@ export class SharingService {
       },
       '1d',
       getEnv().secrets.publicSharingNavigation,
+    );
+  }
+
+  /**
+   * Walks from the file's folder up to the shared root. Any trashed or removed
+   * folder on the way (root included), or a root that is never reached, is not reachable.
+   */
+  private isReachableFromSharedRoot(
+    ancestors: Folder[],
+    file: File,
+    sharedRootUuid: Folder['uuid'],
+  ): boolean {
+    const byUuid = new Map(ancestors.map((folder) => [folder.uuid, folder]));
+    let current = byUuid.get(file.folderUuid);
+
+    while (current) {
+      if (current.isTrashed() || current.isRemoved()) {
+        return false;
+      }
+      if (current.uuid === sharedRootUuid) {
+        return true;
+      }
+      const next = byUuid.get(current.parentUuid);
+      byUuid.delete(current.uuid);
+      current = next;
+    }
+
+    return false;
+  }
+
+  private async getFileForPublicDownloadAccess(
+    sharingId: Sharing['id'],
+    fileUuid: File['uuid'],
+    code: string,
+    plainPassword: string | null,
+  ) {
+    const sharing = await this.sharingRepository.findOneSharing({
+      id: sharingId,
+    });
+
+    if (!sharing?.isPublic() || sharing.itemType !== 'folder') {
+      throw new NotFoundException();
+    }
+
+    this.assertPublicSharingPassword(sharing, code, plainPassword);
+
+    const owner = await this.usersUsecases.getUser(sharing.ownerId);
+    const file = await this.fileRepository.findByUuid(fileUuid, owner.id);
+
+    if (file?.status !== FileStatus.EXISTS) {
+      throw new NotFoundException();
+    }
+
+    const ancestors = await this.folderUsecases.getFolderAncestors(
+      owner,
+      file.folderUuid,
+    );
+
+    if (!this.isReachableFromSharedRoot(ancestors, file, sharing.itemId)) {
+      throw new NotFoundException();
+    }
+
+    const network = this.bridgeService.createNetworkEnvironment(
+      owner.bridgeUser,
+      owner.userId,
+    );
+
+    return { sharing, file, network };
+  }
+
+  private async buildPublicDownloadAccess(
+    sharing: Sharing,
+    keyFile: File,
+    code: string,
+    network: ReturnType<BridgeService['createNetworkEnvironment']>,
+  ): Promise<PublicSharedFileDownloadAccess> {
+    const [encryptionKey, token] = await Promise.all([
+      this.fileUsecases.getEncryptionKeyFromFile(
+        keyFile,
+        sharing.encryptionKey,
+        code,
+        network,
+        sharing.encryptionAlgorithm === NEW_SHARING_VERSION,
+      ),
+      network.createFileToken(keyFile.bucket, keyFile.fileId, 'PULL'),
+    ]);
+
+    return {
+      bucket: keyFile.bucket,
+      fileId: keyFile.fileId,
+      encryptionKey,
+      token,
+    };
+  }
+
+  async getPublicSharedFileDownloadAccess(
+    sharingId: Sharing['id'],
+    fileUuid: File['uuid'],
+    code: string,
+    plainPassword: string | null,
+  ): Promise<PublicSharedFileDownloadAccess> {
+    const { sharing, file, network } =
+      await this.getFileForPublicDownloadAccess(
+        sharingId,
+        fileUuid,
+        code,
+        plainPassword,
+      );
+
+    if (file.isEmpty()) {
+      throw new NotFoundException();
+    }
+
+    return this.buildPublicDownloadAccess(sharing, file, code, network);
+  }
+
+  async getPublicSharedThumbnailDownloadAccess(
+    sharingId: Sharing['id'],
+    fileUuid: File['uuid'],
+    code: string,
+    plainPassword: string | null,
+  ): Promise<PublicSharedFileDownloadAccess> {
+    const { sharing, file, network } =
+      await this.getFileForPublicDownloadAccess(
+        sharingId,
+        fileUuid,
+        code,
+        plainPassword,
+      );
+
+    const thumbnail = await this.fileUsecases.getFirstThumbnail(file.uuid);
+
+    if (!thumbnail) {
+      throw new NotFoundException();
+    }
+
+    const thumbnailAsFile = File.build({
+      ...file,
+      bucket: thumbnail.bucketId,
+      fileId: thumbnail.bucketFile,
+    });
+
+    return this.buildPublicDownloadAccess(
+      sharing,
+      thumbnailAsFile,
+      code,
+      network,
     );
   }
 

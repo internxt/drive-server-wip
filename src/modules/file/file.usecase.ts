@@ -37,6 +37,7 @@ import { getPathFileData } from '../../lib/path';
 import { isStringEmpty } from '../../lib/validators';
 import { type FileModel } from './file.model';
 import { ThumbnailUseCases } from '../thumbnail/thumbnail.usecase';
+import { type Thumbnail } from '../thumbnail/thumbnail.domain';
 import { UsageService } from '../usage/usage.service';
 import { Time } from '../../lib/time';
 import { FileSyncCursorDto } from './utils/file-cursor.util';
@@ -117,6 +118,13 @@ export class FileUseCases {
     private readonly favoriteUsecases: FavoriteUseCases,
     private readonly favoriteRepository: SequelizeFavoriteRepository,
   ) {}
+
+  async getFirstThumbnail(
+    fileUuid: FileAttributes['uuid'],
+  ): Promise<Thumbnail | null> {
+    const [thumbnail] = await this.thumbnailUsecases.findAll({ fileUuid });
+    return thumbnail ?? null;
+  }
 
   getByUuid(uuid: FileAttributes['uuid']): Promise<File> {
     return this.fileRepository.findById(uuid);

@@ -876,6 +876,42 @@ describe('SharingController', () => {
     });
   });
 
+  describe.each([
+    ['getPublicSharedFileDownloadAccess'],
+    ['getPublicSharedThumbnailDownloadAccess'],
+  ] as const)('%s', (method) => {
+    test('When requesting access, then it decodes the password and calls the service', async () => {
+      const access = {
+        bucket: 'b',
+        fileId: 'f',
+        encryptionKey: 'k',
+        token: 't',
+      };
+      jest.spyOn(sharingService, method).mockResolvedValue(access);
+
+      const result = await controller[method](
+        'sharing-id',
+        'file-uuid',
+        'code',
+        'my%20pass',
+      );
+
+      expect(result).toBe(access);
+      expect(sharingService[method]).toHaveBeenCalledWith(
+        'sharing-id',
+        'file-uuid',
+        'code',
+        'my pass',
+      );
+    });
+
+    test('When requesting access without code, then it throws bad request', () => {
+      expect(() => controller[method]('s', 'f', undefined, null)).toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
   describe('getSharedFoldersWithAUser', () => {
     it('When getting shared folders with user, then it returns folders', async () => {
       const expectedFolders = [folder];
