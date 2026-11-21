@@ -148,6 +148,10 @@ export class File implements FileAttributes {
     return this.status === FileStatus.DELETED || this.removed;
   }
 
+  isTrashed(): boolean {
+    return this.status === FileStatus.TRASHED;
+  }
+
   isEmpty(): boolean {
     return BigInt(this.size) === BigInt(0);
   }

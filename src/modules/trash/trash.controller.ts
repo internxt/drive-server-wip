@@ -36,6 +36,10 @@ import {
   DeleteItemType,
 } from './dto/controllers/delete-item.dto';
 import {
+  RestoreItemsFromTrashDto,
+  RestoreItemsFromTrashResponseDto,
+} from './dto/controllers/restore-items-from-trash.dto';
+import {
   type Folder,
   type SortableFolderAttributes,
 } from '../folder/folder.domain';
@@ -281,6 +285,58 @@ export class TrashController {
         error: 'Internal Server Error',
       });
     }
+  }
+
+  @Post('restore')
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'Restore trashed files and folders to the folders they were trashed from',
+  })
+  @ApiOkResponse({
+    description: 'Items restored, and items that could not be restored',
+    type: RestoreItemsFromTrashResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'Any item is invalid' })
+  @GetDataFromRequest([{ sourceKey: 'body', fieldName: 'items' }])
+  @WorkspacesInBehalfGuard(WorkspaceResourcesAction.RestoreItemsFromTrash)
+  async restoreItems(
+    @Body() { items }: RestoreItemsFromTrashDto,
+    @UserDecorator() user: User,
+    @Client() clientId: string,
+    @Requester() requester: User,
+  ): Promise<RestoreItemsFromTrashResponseDto> {
+    const { restoredFiles, restoredFolders, failed } =
+      await this.trashUseCases.restoreItems(user, items);
+
+    for (const file of restoredFiles) {
+      this.storageNotificationService.fileUpdated({
+        payload: file,
+        user: requester,
+        clientId,
+      });
+    }
+    for (const folder of restoredFolders) {
+      this.storageNotificationService.folderUpdated({
+        payload: { ...folder, status: folder.getFolderStatus() },
+        user: requester,
+        clientId,
+      });
+    }
+
+    return {
+      restored: [
+        ...restoredFiles.map(({ uuid }) => ({
+          uuid,
+          type: ItemToTrashType.FILE,
+        })),
+        ...restoredFolders.map(({ uuid }) => ({
+          uuid,
+          type: ItemToTrashType.FOLDER,
+        })),
+      ],
+      failed,
+    };
   }
 
   @Delete('/all')
