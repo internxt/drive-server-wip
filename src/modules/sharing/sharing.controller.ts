@@ -60,6 +60,7 @@ import { WorkspacesInBehalfGuard } from '../workspaces/guards/workspaces-resourc
 import { GetDataFromRequest } from '../../common/extract-data-from-request';
 import { WorkspaceLogAction } from '../workspaces/decorators/workspace-log-action.decorator';
 import { WorkspaceLogGlobalActionType } from '../workspaces/attributes/workspace-logs.attributes';
+import { type File } from '../file/file.domain';
 import { ValidateUUIDPipe } from '../../common/pipes/validate-uuid.pipe';
 import { ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
 import getEnv from '../../config/configuration';
@@ -410,6 +411,69 @@ export class SharingController {
       user,
       page,
       perPage,
+    );
+  }
+
+  @Get('/public/:sharingId/files/:fileUuid/download-access')
+  @Public()
+  @ApiOperation({
+    summary: 'Get download access for a file inside a public folder sharing',
+  })
+  @ApiParam({ name: 'sharingId', type: String })
+  @ApiParam({ name: 'fileUuid', type: String })
+  @ApiQuery({ name: 'code', description: 'Link code', type: String })
+  @ApiHeader({
+    name: 'x-share-password',
+    description: 'URI Encoded password to get access to the sharing',
+    required: false,
+  })
+  @ApiOkResponse({ description: 'Bucket, file id, encryption key and token' })
+  getPublicSharedFileDownloadAccess(
+    @Param('sharingId', ValidateUUIDPipe) sharingId: Sharing['id'],
+    @Param('fileUuid', ValidateUUIDPipe) fileUuid: File['uuid'],
+    @Query('code') code: string,
+    @Headers('x-share-password') password: string | null,
+  ) {
+    if (!code) {
+      throw new BadRequestException('Code is required');
+    }
+    return this.sharingService.getPublicSharedFileDownloadAccess(
+      sharingId,
+      fileUuid,
+      code,
+      password ? decodeURIComponent(password) : null,
+    );
+  }
+
+  @Get('/public/:sharingId/files/:fileUuid/thumbnail-download-access')
+  @Public()
+  @ApiOperation({
+    summary:
+      'Get download access for the thumbnail of a file inside a public folder sharing',
+  })
+  @ApiParam({ name: 'sharingId', type: String })
+  @ApiParam({ name: 'fileUuid', type: String })
+  @ApiQuery({ name: 'code', description: 'Link code', type: String })
+  @ApiHeader({
+    name: 'x-share-password',
+    description: 'URI Encoded password to get access to the sharing',
+    required: false,
+  })
+  @ApiOkResponse({ description: 'Bucket, file id, encryption key and token' })
+  getPublicSharedThumbnailDownloadAccess(
+    @Param('sharingId', ValidateUUIDPipe) sharingId: Sharing['id'],
+    @Param('fileUuid', ValidateUUIDPipe) fileUuid: File['uuid'],
+    @Query('code') code: string,
+    @Headers('x-share-password') password: string | null,
+  ) {
+    if (!code) {
+      throw new BadRequestException('Code is required');
+    }
+    return this.sharingService.getPublicSharedThumbnailDownloadAccess(
+      sharingId,
+      fileUuid,
+      code,
+      password ? decodeURIComponent(password) : null,
     );
   }
 
