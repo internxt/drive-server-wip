@@ -13,13 +13,16 @@ import {
   SwaggerModule,
 } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import configuration from './config/configuration';
+import configuration, {
+  assertPublicSharingNavigationSecret,
+} from './config/configuration';
 import { TransformInterceptor } from './lib/transform.interceptor';
 import { RequestLoggerInterceptor } from './middlewares/requests-logger.interceptor';
 import { NewRelicInterceptor } from './lib/newrelic.interceptor';
 import { asyncLocalStorageMiddleware } from './common/async-local-storage/async-local-storage';
 
 const config = configuration();
+assertPublicSharingNavigationSecret(config.secrets);
 const APP_PORT = config.port || 3000;
 
 async function bootstrap() {

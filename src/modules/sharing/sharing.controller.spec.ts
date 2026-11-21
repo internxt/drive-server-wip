@@ -779,6 +779,7 @@ describe('SharingController', () => {
         folder.uuid,
         'token',
         'code',
+        'my%20pass',
         0,
         50,
       );
@@ -788,6 +789,7 @@ describe('SharingController', () => {
         folder.uuid,
         'token',
         'code',
+        'my pass',
         0,
         50,
       );
@@ -814,6 +816,7 @@ describe('SharingController', () => {
         folder.uuid,
         'token',
         'code',
+        null,
         0,
         50,
       );
@@ -822,6 +825,51 @@ describe('SharingController', () => {
       expect(sharingService.getFoldersFromPublicFolder).toHaveBeenCalledWith(
         folder.uuid,
         'token',
+        'code',
+        null,
+        0,
+        50,
+      );
+    });
+  });
+
+  describe('getPublicShareFiles without a code', () => {
+    test('When there is no code, then it throws bad request', async () => {
+      await expect(
+        controller.getPublicShareFiles(
+          'folder-uuid',
+          'token',
+          undefined,
+          null,
+          0,
+          50,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getPublicSharedFolders without a code', () => {
+    test('When there is no code, then it still delegates to the service', async () => {
+      const expectedResult = { items: [] };
+      jest
+        .spyOn(sharingService, 'getFoldersFromPublicFolder')
+        .mockResolvedValue(expectedResult as any);
+
+      const result = await controller.getPublicSharedFolders(
+        'folder-uuid',
+        'token',
+        undefined,
+        null,
+        0,
+        50,
+      );
+
+      expect(result).toBe(expectedResult);
+      expect(sharingService.getFoldersFromPublicFolder).toHaveBeenCalledWith(
+        'folder-uuid',
+        'token',
+        undefined,
+        null,
         0,
         50,
       );
