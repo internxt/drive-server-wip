@@ -34,6 +34,7 @@ import { type UpdateSharingRoleDto } from './dto/update-sharing-role.dto';
 import getEnv from '../../config/configuration';
 import {
   generateTokenWithPlainSecret,
+  verifyToken,
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
 import {
@@ -108,6 +109,14 @@ export class PasswordNeededError extends ForbiddenException {
     super('Password Needed for protected sharings');
     Object.setPrototypeOf(this, PasswordNeededError.prototype);
   }
+}
+
+export interface PublicNavigationTokenPayload {
+  sharingId: Sharing['id'];
+  sharedRootFolderId: Folder['uuid'];
+  parentFolderId: Folder['uuid'] | null;
+  folder: { uuid: Folder['uuid']; id: Folder['id'] };
+  owner: { id: User['id']; uuid: User['uuid'] };
 }
 
 export type SharingInfo = Pick<
@@ -216,16 +225,7 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
-    if (sharing.isProtected() && !plainPassword) {
-      throw new PasswordNeededError();
-    }
-
-    if (sharing.isProtected()) {
-      const decryptedPassword = aes.decrypt(sharing.encryptedPassword, code);
-      if (decryptedPassword !== plainPassword) {
-        throw new ForbiddenException();
-      }
-    }
+    this.assertPublicSharingPassword(sharing, code, plainPassword);
 
     const response: Partial<PublicSharingInfo> = { ...sharing };
 
@@ -454,9 +454,107 @@ export class SharingService {
     );
   }
 
+  private assertPublicSharingPassword(
+    sharing: Sharing,
+    code: string,
+    plainPassword?: string | null,
+  ): void {
+    if (!sharing.isProtected()) {
+      return;
+    }
+
+    if (!plainPassword) {
+      throw new PasswordNeededError();
+    }
+
+    if (!code) {
+      throw new ForbiddenException();
+    }
+
+    const decryptedPassword = aes.decrypt(sharing.encryptedPassword, code);
+    if (decryptedPassword !== plainPassword) {
+      throw new ForbiddenException();
+    }
+  }
+
+  private verifyPublicNavigationToken(
+    token: string,
+  ): PublicNavigationTokenPayload {
+    let decoded: PublicNavigationTokenPayload | string;
+    try {
+      decoded = verifyToken<PublicNavigationTokenPayload>(
+        token,
+        getEnv().secrets.publicSharingNavigation,
+      );
+    } catch {
+      throw new ForbiddenException('Invalid token');
+    }
+
+    if (typeof decoded === 'string' || !decoded?.sharingId) {
+      throw new ForbiddenException('Invalid token');
+    }
+
+    return decoded;
+  }
+
+  private async resolvePublicFolderSharing(
+    folderId: Folder['uuid'],
+    token: string | null,
+    code: string,
+    plainPassword: string | null,
+  ): Promise<{
+    sharing: Sharing;
+    decoded: PublicNavigationTokenPayload | null;
+  }> {
+    const decoded = token ? this.verifyPublicNavigationToken(token) : null;
+
+    const sharing = await this.sharingRepository.findOneSharing(
+      decoded
+        ? { id: decoded.sharingId, type: SharingType.Public }
+        : { itemId: folderId, itemType: 'folder', type: SharingType.Public },
+    );
+
+    if (!sharing) {
+      throw decoded
+        ? new ForbiddenException('Invalid token')
+        : new NotFoundException();
+    }
+
+    this.assertPublicSharingPassword(sharing, code, plainPassword);
+
+    return { sharing, decoded };
+  }
+
+  private generatePublicNavigationToken(
+    sharing: Sharing,
+    folder: Folder,
+    parentFolder: Folder | null,
+    owner: User,
+  ): string {
+    return generateTokenWithPlainSecret(
+      {
+        sharingId: sharing.id,
+        sharedRootFolderId: sharing.itemId,
+        parentFolderId: parentFolder?.uuid || null,
+        folder: {
+          uuid: folder.uuid,
+          id: folder.id,
+        },
+        owner: {
+          id: owner.id,
+          uuid: owner.uuid,
+        },
+      },
+      '1d',
+      getEnv().secrets.publicSharingNavigation,
+    );
+  }
+
   async getFoldersFromPublicFolder(
     folderId: Folder['uuid'],
     token: string | null,
+    code: string,
+    plainPassword: string | null,
     page: number,
     perPage: number,
   ): Promise<GetFoldersReponse> {
@@ -504,33 +602,12 @@ export class SharingService {
 
     const requestedFolderIsSharedRootFolder = !token;
 
-    const decoded = requestedFolderIsSharedRootFolder
-      ? null
-      : (verifyWithDefaultSecret(token) as
-          | {
-              sharedRootFolderId: Folder['uuid'];
-              parentFolderId: Folder['parent']['uuid'];
-              folder: {
-                uuid: Folder['uuid'];
-                id: Folder['id'];
-              };
-              owner: {
-                id: User['id'];
-                uuid: User['uuid'];
-              };
-            }
-          | string);
-
-    if (typeof decoded === 'string') {
-      throw new ForbiddenException('Invalid token');
-    }
-
-    const sharing = await this.sharingRepository.findOneSharing({
-      itemId: requestedFolderIsSharedRootFolder
-        ? folderId
-        : decoded.sharedRootFolderId,
-      itemType: 'folder',
-    });
+    const { sharing, decoded } = await this.resolvePublicFolderSharing(
+      folderId,
+      token,
+      code,
+      plainPassword,
+    );
 
     const owner = await this.usersUsecases.getUser(sharing.ownerId);
 
@@ -564,21 +641,11 @@ export class SharingService {
         networkPass: owner.userId,
         networkUser: owner.bridgeUser,
       },
-      token: generateTokenWithPlainSecret(
-        {
-          sharedRootFolderId: sharing.itemId,
-          parentFolderId: parentFolder?.uuid || null,
-          folder: {
-            uuid: folder.uuid,
-            id: folder.id,
-          },
-          owner: {
-            id: owner.id,
-            uuid: owner.uuid,
-          },
-        },
-        '1d',
-        getEnv().secrets.jwt,
+      token: this.generatePublicNavigationToken(
+        sharing,
+        folder,
+        parentFolder,
+        owner,
       ),
       bucket: ownerRootFolder.bucket,
       encryptionKey: sharing.encryptionKey,
@@ -595,6 +662,7 @@ export class SharingService {
     folderId: Folder['uuid'],
     token: string | null,
     code: string,
+    plainPassword: string | null,
     page: number,
     perPage: number,
   ): Promise<GetFilesResponse> {
@@ -629,37 +697,12 @@ export class SharingService {
 
     const requestedFolderIsSharedRootFolder = !token;
 
-    const decoded = requestedFolderIsSharedRootFolder
-      ? null
-      : (verifyWithDefaultSecret(token) as
-          | {
-              sharedRootFolderId: Folder['uuid'];
-              parentFolderId: Folder['parent']['uuid'];
-              folder: {
-                uuid: Folder['uuid'];
-                id: Folder['id'];
-              };
-              owner: {
-                id: User['id'];
-                uuid: User['uuid'];
-              };
-            }
-          | string);
-
-    if (typeof decoded === 'string') {
-      throw new ForbiddenException('Invalid token');
-    }
-
-    const sharing = await this.sharingRepository.findOneSharing({
-      itemId: requestedFolderIsSharedRootFolder
-        ? folderId
-        : decoded.sharedRootFolderId,
-      itemType: 'folder',
-    });
-
-    if (!sharing) {
-      throw new NotFoundException();
-    }
+    const { sharing, decoded } = await this.resolvePublicFolderSharing(
+      folderId,
+      token,
+      code,
+      plainPassword,
+    );
 
     const owner = await this.usersUsecases.getUser(sharing.ownerId);
 
@@ -710,21 +753,11 @@ export class SharingService {
         networkPass: owner.userId,
         networkUser: owner.bridgeUser,
       },
-      token: generateTokenWithPlainSecret(
-        {
-          sharedRootFolderId: sharing.itemId,
-          parentFolderId: parentFolder?.uuid || null,
-          folder: {
-            uuid: folder.uuid,
-            id: folder.id,
-          },
-          owner: {
-            id: owner.id,
-            uuid: owner.uuid,
-          },
-        },
-        '1d',
-        getEnv().secrets.jwt,
+      token: this.generatePublicNavigationToken(
+        sharing,
+        folder,
+        parentFolder,
+        owner,
       ),
       bucket: ownerRootFolder.bucket,
       encryptionKey: null,

@@ -440,18 +440,29 @@ export class SharingController {
     description: 'Token that authorizes the access to the shared content',
     type: String,
   })
+  @ApiQuery({ name: 'code', description: 'Link code', type: String })
+  @ApiHeader({
+    name: 'x-share-password',
+    description: 'URI Encoded password to get access to the sharing',
+    required: false,
+  })
   @ApiOkResponse({ description: 'Get all items inside a shared folder' })
   async getPublicShareFiles(
     @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
     @Query('token') token: string,
     @Query('code') code: string,
+    @Headers('x-share-password') password: string | null,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
   ): Promise<GetFilesResponse | { error: string }> {
+    if (!code) {
+      throw new BadRequestException('Code is required');
+    }
     return this.sharingService.getFilesFromPublicFolder(
       sharedFolderId,
       token,
       code,
+      password ? decodeURIComponent(password) : null,
       page,
       perPage,
     );
@@ -484,17 +495,27 @@ export class SharingController {
     description: 'Token that authorizes the access to the shared content',
     type: String,
   })
+  @ApiQuery({ name: 'code', description: 'Link code', type: String })
+  @ApiHeader({
+    name: 'x-share-password',
+    description: 'URI Encoded password to get access to the sharing',
+    required: false,
+  })
   @ApiOkResponse({ description: 'Get all items inside a shared folder' })
   async getPublicSharedFolders(
     @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
     @Query('token') token: string,
     @Query('code') code: string,
+    @Headers('x-share-password') password: string | null,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
   ) {
+    // shortcut: code is optional here so deployed web clients keep working, rollout step 3 makes it required
     return this.sharingService.getFoldersFromPublicFolder(
       sharedFolderId,
       token,
+      code,
+      password ? decodeURIComponent(password) : null,
       page,
       perPage,
     );
