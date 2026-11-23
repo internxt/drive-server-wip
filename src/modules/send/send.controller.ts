@@ -19,6 +19,7 @@ import { SendUseCases } from './send.usecase';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateSendLinkDto } from './dto/create-send-link.dto';
 import { CaptchaGuard } from '../auth/captcha.guard';
+import { SendNetworkTokenResponseDto } from './dto/send-network-token-response.dto';
 @ApiTags('Sends')
 @Controller('links')
 export class SendController {
@@ -84,6 +85,18 @@ export class SendController {
       Logger.error('Error while creating send link:' + err.message);
       throw err;
     }
+  }
+
+  @UseGuards(CaptchaGuard)
+  @Post('/network-token')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Get a temporary token to upload and download send files',
+  })
+  @ApiOkResponse({ type: SendNetworkTokenResponseDto })
+  @Public()
+  getNetworkToken(): Promise<SendNetworkTokenResponseDto> {
+    return this.sendUseCases.getNetworkToken();
   }
 
   @Get('/:linkId')

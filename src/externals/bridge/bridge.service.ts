@@ -108,6 +108,19 @@ export class BridgeService {
     return res.data;
   }
 
+  generateNetworkToken(userUuid: string, expiresInSeconds: number): string {
+    const secret = this.configService.get('secrets.bridgeJwt');
+
+    return signWithExpiry(
+      { uuid: userUuid },
+      Buffer.from(secret, 'base64').toString('utf8'),
+      {
+        algorithm: 'RS256',
+        expiresIn: expiresInSeconds,
+      },
+    );
+  }
+
   get networkUrl(): string {
     return this.configService.get('apis.storage.url');
   }

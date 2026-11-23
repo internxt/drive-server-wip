@@ -9,6 +9,8 @@ import { HttpClient } from '../http/http.service';
 import { BridgeService } from './bridge.service';
 import { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { CryptoModule } from '../crypto/crypto.module';
+import { generateKeyPairSync } from 'crypto';
+import { verify, type JwtPayload } from 'jsonwebtoken';
 
 describe('Bridge Service', () => {
   let service: BridgeService;
@@ -88,7 +90,8 @@ describe('Bridge Service', () => {
         {
           headers: {
             'Content-Type': 'application/json',
-            Authorization: 'Basic ZmFrZUBpbnRlcm54dC5jb206MzYxMjEzNDY4Mzk0OTQ0Mjk3NDM=',
+            Authorization:
+              'Basic ZmFrZUBpbnRlcm54dC5jb206MzYxMjEzNDY4Mzk0OTQ0Mjk3NDM=',
             'internxt-client': testUrl,
           },
         },
@@ -171,6 +174,35 @@ describe('Bridge Service', () => {
       jest.spyOn(httpClient, 'get').mockRejectedValueOnce(new Error());
 
       await expect(service.confirmDeactivation(token)).rejects.toThrow();
+    });
+  });
+  describe('network tokens', () => {
+    const { privateKey, publicKey } = generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    const decode = (token: string) =>
+      verify(token, publicKey, {
+        algorithms: ['RS256'],
+      }) as JwtPayload;
+
+    beforeEach(() => {
+      jest
+        .spyOn(configService, 'get')
+        .mockImplementation((key: string) =>
+          key === 'secrets.bridgeJwt'
+            ? Buffer.from(privateKey).toString('base64')
+            : undefined,
+        );
+    });
+
+    it('When a network token is generated, then it is only valid for the given user', () => {
+      const token = service.generateNetworkToken('user-uuid', 60);
+
+      const payload = decode(token);
+      expect(payload).toMatchObject({ uuid: 'user-uuid' });
+      expect(payload.exp - payload.iat).toBe(60);
     });
   });
 });

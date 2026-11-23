@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -16,6 +17,12 @@ import { CryptoService } from '../../externals/crypto/crypto.service';
 import { type SendLinkItemDto } from './dto/create-send-link.dto';
 import { NewsletterService } from '../../externals/newsletter';
 import { ConfigService } from '@nestjs/config';
+import { BridgeService } from '../../externals/bridge/bridge.service';
+import { Time } from '../../lib/time';
+import { UserUseCases } from '../user/user.usecase';
+import { FolderUseCases } from '../folder/folder.usecase';
+
+const NETWORK_TOKEN_TTL_HOURS = 2;
 
 @Injectable()
 export class SendUseCases {
@@ -27,7 +34,37 @@ export class SendUseCases {
     private readonly cryptoService: CryptoService,
     private readonly newsletterService: NewsletterService,
     private readonly configService: ConfigService,
+    private readonly bridgeService: BridgeService,
+    private readonly userUseCases: UserUseCases,
+    private readonly folderUseCases: FolderUseCases,
   ) {}
+
+  async getNetworkToken(): Promise<{
+    token: string;
+    bucketId: string;
+    expiresAt: Date;
+  }> {
+    const userUuid = this.configService.get<string>('send.bridgeUserUuid');
+    const user = await this.userUseCases.findByUuid(userUuid);
+    const rootFolder = user
+      ? await this.folderUseCases.getUserRootFolder(user)
+      : null;
+
+    if (!rootFolder) {
+      this.logger.error({ userUuid }, 'Send account root folder not found');
+      throw new InternalServerErrorException();
+    }
+
+    const bucketId = rootFolder.bucket;
+    const expiresAt = Time.dateWithTimeAdded(NETWORK_TOKEN_TTL_HOURS, 'hour');
+
+    const token = this.bridgeService.generateNetworkToken(
+      userUuid,
+      Time.durationInSeconds(NETWORK_TOKEN_TTL_HOURS, 'hour'),
+    );
+
+    return { token, bucketId, expiresAt };
+  }
 
   async getById(id: SendLinkAttributes['id']) {
     if (!validate(id)) {
