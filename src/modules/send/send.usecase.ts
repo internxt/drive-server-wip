@@ -23,6 +23,7 @@ import { UserUseCases } from '../user/user.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 
 const NETWORK_TOKEN_TTL_HOURS = 2;
+const NETWORK_TOKEN_USERNAME = 'network-token';
 
 @Injectable()
 export class SendUseCases {
@@ -40,9 +41,10 @@ export class SendUseCases {
   ) {}
 
   async getNetworkToken(): Promise<{
+    user: string;
     token: string;
     bucketId: string;
-    expiresAt: Date;
+    expiresIn: number;
   }> {
     const userUuid = this.configService.get<string>('send.bridgeUserUuid');
     const user = await this.userUseCases.findByUuid(userUuid);
@@ -56,14 +58,10 @@ export class SendUseCases {
     }
 
     const bucketId = rootFolder.bucket;
-    const expiresAt = Time.dateWithTimeAdded(NETWORK_TOKEN_TTL_HOURS, 'hour');
+    const expiresIn = Time.durationInSeconds(NETWORK_TOKEN_TTL_HOURS, 'hour');
+    const token = this.bridgeService.generateNetworkToken(userUuid, expiresIn);
 
-    const token = this.bridgeService.generateNetworkToken(
-      userUuid,
-      Time.durationInSeconds(NETWORK_TOKEN_TTL_HOURS, 'hour'),
-    );
-
-    return { token, bucketId, expiresAt };
+    return { user: NETWORK_TOKEN_USERNAME, token, bucketId, expiresIn };
   }
 
   async getById(id: SendLinkAttributes['id']) {

@@ -473,12 +473,7 @@ describe('Send Use Cases', () => {
     const rootFolder = newFolder({ attributes: { bucket: 'send-bucket-id' } });
 
     beforeEach(() => {
-      jest.useFakeTimers().setSystemTime(Time.now('2026-01-01T00:00:00Z'));
       jest.spyOn(configService, 'get').mockReturnValue(sendUser.uuid);
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
     });
 
     it('When a network token is requested, then it is scoped to the send account bucket', async () => {
@@ -498,9 +493,10 @@ describe('Send Use Cases', () => {
         Time.durationInSeconds(2, 'hour'),
       );
       expect(result).toEqual({
+        user: 'network-token',
         token: 'token',
         bucketId: 'send-bucket-id',
-        expiresAt: Time.dateWithTimeAdded(2, 'hour'),
+        expiresIn: Time.durationInSeconds(2, 'hour'),
       });
     });
 
