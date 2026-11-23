@@ -1,4 +1,8 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { getModelToken } from '@nestjs/sequelize';
 import { Test, type TestingModule } from '@nestjs/testing';
@@ -18,12 +22,22 @@ import {
 } from './send-link.repository';
 import { SendUseCases } from './send.usecase';
 import { createMock } from '@golevelup/ts-jest';
+import { ConfigService } from '@nestjs/config';
+import { BridgeService } from '../../externals/bridge/bridge.service';
+import { Time } from '../../lib/time';
+import { UserUseCases } from '../user/user.usecase';
+import { FolderUseCases } from '../folder/folder.usecase';
+import { newFolder, newUser } from '../../../test/fixtures';
 
 describe('Send Use Cases', () => {
   let service: SendUseCases,
     notificationService,
     sendRepository,
-    newsletterService;
+    newsletterService,
+    bridgeService: BridgeService,
+    configService: ConfigService,
+    userUseCases: UserUseCases,
+    folderUseCases: FolderUseCases;
   const userMock = User.build({
     id: 2,
     userId: 'userId',
@@ -93,6 +107,10 @@ describe('Send Use Cases', () => {
     notificationService = module.get<NotificationService>(NotificationService);
     sendRepository = module.get<SendRepository>(SequelizeSendRepository);
     newsletterService = module.get<NewsletterService>(NewsletterService);
+    bridgeService = module.get<BridgeService>(BridgeService);
+    configService = module.get<ConfigService>(ConfigService);
+    userUseCases = module.get<UserUseCases>(UserUseCases);
+    folderUseCases = module.get<FolderUseCases>(FolderUseCases);
     jest.spyOn(newsletterService, 'subscribe').mockResolvedValue(undefined);
   });
 
@@ -448,6 +466,56 @@ describe('Send Use Cases', () => {
       expect(() =>
         service.unlockLink(protectedSendLink, 'valid-password'),
       ).not.toThrow();
+    });
+  });
+  describe('Get network token', () => {
+    const sendUser = newUser();
+    const rootFolder = newFolder({ attributes: { bucket: 'send-bucket-id' } });
+
+    beforeEach(() => {
+      jest.spyOn(configService, 'get').mockReturnValue(sendUser.uuid);
+    });
+
+    it('When a network token is requested, then it is scoped to the send account bucket', async () => {
+      jest.spyOn(userUseCases, 'findByUuid').mockResolvedValue(sendUser);
+      jest
+        .spyOn(folderUseCases, 'getUserRootFolder')
+        .mockResolvedValue(rootFolder);
+      jest
+        .spyOn(bridgeService, 'generateNetworkToken')
+        .mockReturnValue('token');
+
+      const result = await service.getNetworkToken();
+
+      expect(folderUseCases.getUserRootFolder).toHaveBeenCalledWith(sendUser);
+      expect(bridgeService.generateNetworkToken).toHaveBeenCalledWith(
+        sendUser.uuid,
+        'send-bucket-id',
+        Time.durationInSeconds(90, 'minute'),
+      );
+      expect(result).toEqual({
+        user: 'network-token',
+        token: 'token',
+        bucketId: 'send-bucket-id',
+        expiresIn: Time.durationInSeconds(90, 'minute'),
+      });
+    });
+
+    it('When the send account does not exist, then it fails', async () => {
+      jest.spyOn(userUseCases, 'findByUuid').mockResolvedValue(null);
+
+      await expect(service.getNetworkToken()).rejects.toThrow(
+        InternalServerErrorException,
+      );
+    });
+
+    it('When the send account has no root folder, then it fails', async () => {
+      jest.spyOn(userUseCases, 'findByUuid').mockResolvedValue(sendUser);
+      jest.spyOn(folderUseCases, 'getUserRootFolder').mockResolvedValue(null);
+
+      await expect(service.getNetworkToken()).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
   });
 });

@@ -17,6 +17,7 @@ import {
 import { SendController } from './send.controller';
 import { SendUseCases } from './send.usecase';
 import { FileModel } from '../file/file.model';
+import { BridgeModule } from '../../externals/bridge/bridge.module';
 import { CaptchaService } from '../../externals/captcha/captcha.service';
 
 @Module({
@@ -34,6 +35,7 @@ import { CaptchaService } from '../../externals/captcha/captcha.service';
     NotificationModule,
     CryptoModule,
     HttpClientModule,
+    BridgeModule,
   ],
   controllers: [SendController],
   providers: [

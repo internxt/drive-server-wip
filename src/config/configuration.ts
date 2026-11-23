@@ -44,6 +44,7 @@ export default () => ({
     cryptoSecret2: process.env.CRYPTO_SECRET2,
     jwt: process.env.JWT_SECRET,
     gateway: process.env.GATEWAY_SECRET,
+    bridgeJwt: process.env.BRIDGE_JWT_SECRET,
     driveGateway: process.env.DRIVE_GATEWAY_PUBLIC_SECRET,
     captcha: process.env.RECAPTCHA_V3,
     jitsiSecret: process.env.JITSI_SECRET,
@@ -142,6 +143,9 @@ export default () => ({
     apiKey: process.env.KLAVIYO_MAILER_API_KEY,
     baseUrl: process.env.KLAVIYO_URL,
     sendListId: process.env.KLAVIYO_SEND_LIST_ID,
+  },
+  send: {
+    bridgeUserUuid: process.env.SEND_BRIDGE_USER_UUID,
   },
   sentry: {
     dsn: process.env.SENTRY_DSN,
