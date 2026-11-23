@@ -188,11 +188,15 @@ describe('Bridge Service', () => {
         );
     });
 
-    it('When a network token is generated, then it is only valid for the given user', () => {
-      const token = service.generateNetworkToken('user-uuid', 60);
+    it('When a network token is generated, then it is only valid for the given user and bucket', () => {
+      const token = service.generateNetworkToken('user-uuid', 'bucket-id', 60);
 
       const payload = decode(token);
-      expect(payload).toMatchObject({ uuid: 'user-uuid' });
+      expect(payload).toMatchObject({
+        uuid: 'user-uuid',
+        bucket: 'bucket-id',
+        aud: 'bridge-network',
+      });
       expect(payload.exp - payload.iat).toBe(60);
     });
   });

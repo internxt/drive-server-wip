@@ -62,7 +62,11 @@ export class SendUseCases {
       NETWORK_TOKEN_TTL_MINUTES,
       'minute',
     );
-    const token = this.bridgeService.generateNetworkToken(userUuid, expiresIn);
+    const token = this.bridgeService.generateNetworkToken(
+      userUuid,
+      bucketId,
+      expiresIn,
+    );
 
     return { user: NETWORK_TOKEN_USERNAME, token, bucketId, expiresIn };
   }
