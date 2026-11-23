@@ -9,7 +9,6 @@ import { HttpClient } from '../http/http.service';
 import { BridgeService } from './bridge.service';
 import { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { CryptoModule } from '../crypto/crypto.module';
-import { generateKeyPairSync } from 'crypto';
 import { verify, type JwtPayload } from 'jsonwebtoken';
 
 describe('Bridge Service', () => {
@@ -177,23 +176,15 @@ describe('Bridge Service', () => {
     });
   });
   describe('network tokens', () => {
-    const { privateKey, publicKey } = generateKeyPairSync('rsa', {
-      modulusLength: 2048,
-      publicKeyEncoding: { type: 'spki', format: 'pem' },
-      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-    });
+    const secret = 'network-secret';
     const decode = (token: string) =>
-      verify(token, publicKey, {
-        algorithms: ['RS256'],
-      }) as JwtPayload;
+      verify(token, secret, { algorithms: ['HS256'] }) as JwtPayload;
 
     beforeEach(() => {
       jest
         .spyOn(configService, 'get')
         .mockImplementation((key: string) =>
-          key === 'secrets.bridgeJwt'
-            ? Buffer.from(privateKey).toString('base64')
-            : undefined,
+          key === 'secrets.bridgeJwt' ? secret : undefined,
         );
     });
 

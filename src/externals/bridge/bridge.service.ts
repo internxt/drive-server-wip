@@ -109,15 +109,10 @@ export class BridgeService {
   }
 
   generateNetworkToken(userUuid: string, expiresInSeconds: number): string {
-    const secret = this.configService.get('secrets.bridgeJwt');
-
     return signWithExpiry(
       { uuid: userUuid },
-      Buffer.from(secret, 'base64').toString('utf8'),
-      {
-        algorithm: 'RS256',
-        expiresIn: expiresInSeconds,
-      },
+      this.configService.get('secrets.bridgeJwt'),
+      { algorithm: 'HS256', expiresIn: expiresInSeconds },
     );
   }
 

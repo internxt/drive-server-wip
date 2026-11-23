@@ -490,13 +490,13 @@ describe('Send Use Cases', () => {
       expect(folderUseCases.getUserRootFolder).toHaveBeenCalledWith(sendUser);
       expect(bridgeService.generateNetworkToken).toHaveBeenCalledWith(
         sendUser.uuid,
-        Time.durationInSeconds(2, 'hour'),
+        Time.durationInSeconds(90, 'minute'),
       );
       expect(result).toEqual({
         user: 'network-token',
         token: 'token',
         bucketId: 'send-bucket-id',
-        expiresIn: Time.durationInSeconds(2, 'hour'),
+        expiresIn: Time.durationInSeconds(90, 'minute'),
       });
     });
 

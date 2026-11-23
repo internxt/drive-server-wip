@@ -22,7 +22,7 @@ import { Time } from '../../lib/time';
 import { UserUseCases } from '../user/user.usecase';
 import { FolderUseCases } from '../folder/folder.usecase';
 
-const NETWORK_TOKEN_TTL_HOURS = 2;
+const NETWORK_TOKEN_TTL_MINUTES = 90;
 const NETWORK_TOKEN_USERNAME = 'network-token';
 
 @Injectable()
@@ -58,7 +58,10 @@ export class SendUseCases {
     }
 
     const bucketId = rootFolder.bucket;
-    const expiresIn = Time.durationInSeconds(NETWORK_TOKEN_TTL_HOURS, 'hour');
+    const expiresIn = Time.durationInSeconds(
+      NETWORK_TOKEN_TTL_MINUTES,
+      'minute',
+    );
     const token = this.bridgeService.generateNetworkToken(userUuid, expiresIn);
 
     return { user: NETWORK_TOKEN_USERNAME, token, bucketId, expiresIn };

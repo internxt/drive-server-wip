@@ -44,7 +44,7 @@ export default () => ({
     cryptoSecret2: process.env.CRYPTO_SECRET2,
     jwt: process.env.JWT_SECRET,
     gateway: process.env.GATEWAY_SECRET,
-    bridgeJwt: process.env.BRIDGE_JWT_PRIVATE_KEY,
+    bridgeJwt: process.env.BRIDGE_JWT_SECRET,
     driveGateway: process.env.DRIVE_GATEWAY_PUBLIC_SECRET,
     captcha: process.env.RECAPTCHA_V3,
     jitsiSecret: process.env.JITSI_SECRET,
