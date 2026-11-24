@@ -322,7 +322,13 @@ export class BridgeService {
       );
     } catch (error) {
       Logger.error(
-        `[BRIDGE_SERVICE/DEACTIVATION_EMAIL]: There was an error while trying to send deactivation email for user ${user.uuid}. Error: ${error.message}`,
+        {
+          category: 'BRIDGE_SERVICE/DEACTIVATION_EMAIL',
+          userUuid: user.uuid,
+          error: error.message,
+          status: error.response?.status,
+        },
+        'There was an error while trying to send deactivation email',
       );
       throw error;
     }

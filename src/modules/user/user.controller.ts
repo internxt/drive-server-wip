@@ -1247,7 +1247,8 @@ export class UserController {
   async confirmUserDeactivation(@Body() body: ConfirmAccountDeactivationDto) {
     const { token } = body;
     this.logger.log(
-      '[DEACTIVATION] User account deactivation confirmation started',
+      { category: 'DEACTIVATION' },
+      'User account deactivation confirmation started',
     );
 
     try {
