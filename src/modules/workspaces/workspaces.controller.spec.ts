@@ -4,7 +4,9 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { WorkspacesController } from './workspaces.controller';
+import { WorkspaceGuard } from './guards/workspaces.guard';
 import { type WorkspacesUsecases } from './workspaces.usecase';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
 import {
@@ -132,6 +134,22 @@ describe('Workspace Controller', () => {
   });
 
   describe('GET /:workspaceId/invitations', () => {
+    it('When workspace invites are requested, then only the workspace owner can access them', () => {
+      const guards = Reflect.getMetadata(
+        GUARDS_METADATA,
+        WorkspacesController.prototype.getWorkspacePendingInvitations,
+      );
+      const accessControl = Reflect.getMetadata(
+        'accessControl',
+        WorkspacesController.prototype.getWorkspacePendingInvitations,
+      );
+
+      expect(guards).toContain(WorkspaceGuard);
+      expect(accessControl).toEqual(
+        expect.objectContaining({ requiredRole: WorkspaceRole.OWNER }),
+      );
+    });
+
     it('When workspace invites are requested, then it should return successfully', async () => {
       const user = newUser();
       const anotherUser = newUser();

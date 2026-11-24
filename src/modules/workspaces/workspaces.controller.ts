@@ -482,6 +482,7 @@ export class WorkspacesController {
   @ApiOkResponse({
     description: 'Workspace pending invitations',
   })
+  @UseGuards(WorkspaceGuard)
   @WorkspaceRequiredAccess(AccessContext.WORKSPACE, WorkspaceRole.OWNER)
   async getWorkspacePendingInvitations(
     @Query() pagination: WorkspaceInvitationsPagination,
