@@ -45,6 +45,7 @@ import { SharingNotFoundException } from './exception/sharing-not-found.exceptio
 import { SharingAccessTokenInvalidException } from './exception/sharing-access-token-invalid.exception';
 import { type GetInviteDto } from './dto/get-invites.dto';
 import { type BridgeService } from '../../externals/bridge/bridge.service';
+import { MailerService } from '../../externals/mailer/mailer.service';
 
 jest.mock('../../lib/jwt');
 jest.mock('../../externals/mailer/mailer.service', () => ({
@@ -1641,6 +1642,8 @@ describe('Sharing Use Cases', () => {
     });
 
     it('When owner creates invite with pre-created user, then it creates the invite with expiration', async () => {
+      const originalJwtSecret = process.env.JWT_SECRET;
+      process.env.JWT_SECRET = 'guest-invite-test-secret';
       const preCreatedUser = newPreCreatedUser();
       usersUsecases.findByEmail.mockResolvedValue(null);
       usersUsecases.findPreCreatedByEmail.mockResolvedValue(preCreatedUser);
@@ -1653,7 +1656,19 @@ describe('Sharing Use Cases', () => {
 
       await sharingService.createInvite(owner, createInviteDto);
 
+      process.env.JWT_SECRET = originalJwtSecret;
       expect(sharingRepository.createInvite).toHaveBeenCalled();
+      const mailer = (MailerService as unknown as jest.Mock).mock.results.at(
+        -1,
+      ).value;
+      expect(mailer.sendInvitationToSharingGuestEmail).toHaveBeenCalledWith(
+        owner.email,
+        preCreatedUser.email,
+        expect.any(String),
+        expect.objectContaining({
+          signUpUrl: expect.stringContaining('&token='),
+        }),
+      );
     });
 
     it('When owner tries to share with themselves, then it throws OwnerCannotBeSharedWithError', async () => {

@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { v4, validate as validateUuid } from 'uuid';
+import { signGuestInviteToken } from './guest-invite-token';
 
 import {
   type Item,
@@ -1154,6 +1155,12 @@ export class SharingService {
 
     if (isUserPreCreated) {
       const encodedUserEmail = encodeURIComponent(userJoining.email);
+      const encodedToken = encodeURIComponent(
+        signGuestInviteToken({
+          invitationId: createdInvite.id,
+          email: userJoining.email,
+        }),
+      );
       try {
         await new MailerService(
           this.configService,
@@ -1166,7 +1173,7 @@ export class SharingService {
               'clients.drive.web',
             )}/shared-guest?invitation=${
               createdInvite.id
-            }&email=${encodedUserEmail}`,
+            }&email=${encodedUserEmail}&token=${encodedToken}`,
             message: createInviteDto.notificationMessage || '',
           },
         );

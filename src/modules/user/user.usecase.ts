@@ -746,14 +746,8 @@ export class UserUseCases {
       return;
     }
 
-    const defaultPass = this.configService.get('users.preCreatedPassword');
-    const { privateKey: encPrivateKey, privateKyberKey: encPrivateKyberKey } =
-      preCreatedUser;
-
-    const privateKey = aes.decrypt(encPrivateKey, defaultPass);
-    const privateKyberKey = encPrivateKyberKey
-      ? aes.decrypt(encPrivateKyberKey, defaultPass)
-      : null;
+    const { privateKey, privateKyberKey } =
+      this.decryptPreCreatedUserKeys(preCreatedUser);
 
     const invites = await this.sharingRepository.getInvitesBySharedwith(
       preCreatedUser.uuid,
@@ -762,28 +756,17 @@ export class UserUseCases {
     const invitesToUpdate: SharingInvite[] = [];
 
     for (const invite of invites) {
-      const { encryptionKey } = invite;
+      const reEncrypted = await this.reEncryptInviteForNewUser(invite, {
+        privateKey,
+        privateKyberKey,
+        newUserUuid,
+        newPublicKey,
+        newPublicKyberKey,
+      });
 
-      if (invite.isHybrid() && (!newPublicKyberKey || !privateKyberKey)) {
-        await this.sharingRepository.deleteInvite(invite);
-        continue;
+      if (reEncrypted) {
+        invitesToUpdate.push(reEncrypted);
       }
-
-      const newEncryptedEncryptionKey =
-        await this.asymmetricEncryptionService.reEncryptHybridCiphertext({
-          ciphertextInBase64: encryptionKey,
-          privateKeyInBase64: privateKey,
-          privateKyberKeyInBase64: invite.isHybrid() ? privateKyberKey : null,
-          newPublicKeyInBase64: newPublicKey,
-          newPublicKyberKeyInBase64: invite.isHybrid()
-            ? newPublicKyberKey
-            : null,
-        });
-
-      invite.encryptionKey = newEncryptedEncryptionKey;
-      invite.sharedWith = newUserUuid;
-
-      invitesToUpdate.push(invite);
     }
 
     await this.sharingRepository.bulkUpdate(invitesToUpdate);
@@ -803,6 +786,94 @@ export class UserUseCases {
     }
 
     await this.preCreatedUserRepository.deleteByUuid(preCreatedUser.uuid);
+  }
+
+  async replacePreCreatedUserInvitation(
+    email: string,
+    inviteId: SharingInvite['id'],
+    newUserUuid: User['uuid'],
+    newPublicKey: string,
+    newPublicKyberKey?: string,
+  ): Promise<boolean> {
+    const [preCreatedUser, invite] = await Promise.all([
+      this.preCreatedUserRepository.findByUsername(email),
+      this.sharingRepository.getInviteById(inviteId),
+    ]);
+
+    if (!preCreatedUser || !invite) {
+      return false;
+    }
+
+    if (invite.sharedWith !== preCreatedUser.uuid) {
+      return false;
+    }
+
+    const { privateKey, privateKyberKey } =
+      this.decryptPreCreatedUserKeys(preCreatedUser);
+
+    const reEncrypted = await this.reEncryptInviteForNewUser(invite, {
+      privateKey,
+      privateKyberKey,
+      newUserUuid,
+      newPublicKey,
+      newPublicKyberKey,
+    });
+
+    if (!reEncrypted) {
+      return false;
+    }
+
+    await this.sharingRepository.bulkUpdate([reEncrypted]);
+
+    return true;
+  }
+
+  private decryptPreCreatedUserKeys(preCreatedUser: PreCreatedUser) {
+    const defaultPass = this.configService.get('users.preCreatedPassword');
+    const { privateKey: encPrivateKey, privateKyberKey: encPrivateKyberKey } =
+      preCreatedUser;
+
+    return {
+      privateKey: aes.decrypt(encPrivateKey, defaultPass),
+      privateKyberKey: encPrivateKyberKey
+        ? aes.decrypt(encPrivateKyberKey, defaultPass)
+        : null,
+    };
+  }
+
+  private async reEncryptInviteForNewUser(
+    invite: SharingInvite,
+    keys: {
+      privateKey: string;
+      privateKyberKey: string | null;
+      newUserUuid: User['uuid'];
+      newPublicKey: string;
+      newPublicKyberKey?: string;
+    },
+  ): Promise<SharingInvite | null> {
+    if (
+      invite.isHybrid() &&
+      (!keys.newPublicKyberKey || !keys.privateKyberKey)
+    ) {
+      await this.sharingRepository.deleteInvite(invite);
+      return null;
+    }
+
+    invite.encryptionKey =
+      await this.asymmetricEncryptionService.reEncryptHybridCiphertext({
+        ciphertextInBase64: invite.encryptionKey,
+        privateKeyInBase64: keys.privateKey,
+        privateKyberKeyInBase64: invite.isHybrid()
+          ? keys.privateKyberKey
+          : null,
+        newPublicKeyInBase64: keys.newPublicKey,
+        newPublicKyberKeyInBase64: invite.isHybrid()
+          ? keys.newPublicKyberKey
+          : null,
+      });
+    invite.sharedWith = keys.newUserUuid;
+
+    return invite;
   }
 
   async replacePreCreatedUserWorkspaceInvitations(

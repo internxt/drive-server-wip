@@ -61,9 +61,10 @@ import { v4, validate } from 'uuid';
 import { CryptoService } from '../../externals/crypto/crypto.service';
 import { PreCreateUserDto } from './dto/pre-create-user.dto';
 import { RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
+import { SharingService } from '../sharing/sharing.service';
+import { decodeGuestInviteToken } from '../sharing/guest-invite-token';
 import { CompleteAccountSetupDto } from './dto/complete-account-setup.dto';
 import { AccountSetupPendingException } from './exception/account-setup-pending.exception';
-import { SharingService } from '../sharing/sharing.service';
 import { CreateAttemptChangeEmailDto } from './dto/create-attempt-change-email.dto';
 import { RequestAccountUnblock } from './dto/account-unblock.dto';
 import { ResendAccountSetupEmailDto } from './dto/resend-account-setup-email.dto';
@@ -163,15 +164,6 @@ export class UserController {
           ecc,
         },
       );
-
-      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
-        await this.userUseCases.replacePreCreatedUser(
-          response.user.email,
-          response.user.uuid,
-          keys.ecc.publicKey,
-          keys.kyber?.publicKey,
-        );
-      }
 
       this.notificationsService.add(new SignUpSuccessEvent(response.user, req));
 
@@ -295,8 +287,10 @@ export class UserController {
     @Body() bodyDto: RegisterPreCreatedUserDto,
     @Req() req: Request,
   ) {
-    const { invitationId, ...createUserDto } = bodyDto;
+    const { invitationId, token, ...createUserDto } = bodyDto;
     const email = createUserDto.email.toLowerCase();
+    const guestInvite = token ? decodeGuestInviteToken(token) : null;
+    const isEmailProven = guestInvite?.email === email;
 
     try {
       const preCreatedUser =
@@ -308,7 +302,10 @@ export class UserController {
 
       await this.rejectPendingAccountSetup(email);
 
-      const userCreated = await this.userUseCases.createUser(createUserDto);
+      const userCreated = await this.userUseCases.createUser({
+        ...createUserDto,
+        emailVerified: isEmailProven,
+      });
 
       const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
         createUserDto.keys,
@@ -327,41 +324,31 @@ export class UserController {
         },
       );
 
-      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
-        await this.userUseCases.replacePreCreatedUser(
-          userCreated.user.email,
-          userCreated.user.uuid,
-          keys.ecc.publicKey,
-          keys.kyber?.publicKey,
-        );
-      }
+      await this.handOverGuestInvitations(
+        userCreated.user,
+        keys,
+        isEmailProven ? guestInvite.invitationId : invitationId,
+        isEmailProven,
+      );
 
       this.notificationsService.add(
         new SignUpSuccessEvent(userCreated.user, req),
       );
 
-      // TODO: Move to EventBus
-      this.userUseCases
-        .sendWelcomeVerifyEmailEmail(createUserDto.email, {
-          userUuid: userCreated.uuid,
-        })
-        .catch((err) => {
-          this.logger.error(
-            `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
-              (err as Error).message
-            }, EMAIL: ${createUserDto.email}, STACK: ${(err as Error).stack}`,
-          );
-        });
-
-      await this.sharingService
-        .acceptInvite(userCreated.user, invitationId, {})
-        .catch((err) => {
-          this.logger.error(
-            `[AUTH/REGISTER-PRE-CREATED-USER/AUTO-ACCEPT-INVITE] ERROR: ${
-              (err as Error).message
-            }, EMAIL: ${createUserDto.email}, STACK: ${(err as Error).stack}`,
-          );
-        });
+      if (!isEmailProven) {
+        // TODO: Move to EventBus
+        this.userUseCases
+          .sendWelcomeVerifyEmailEmail(createUserDto.email, {
+            userUuid: userCreated.uuid,
+          })
+          .catch((err) => {
+            this.logger.error(
+              `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
+                (err as Error).message
+              }, EMAIL: ${createUserDto.email}, STACK: ${(err as Error).stack}`,
+            );
+          });
+      }
 
       return this.toSignUpResponse(userCreated, keys, false);
     } catch (err) {
@@ -437,6 +424,50 @@ export class UserController {
       );
 
       throw new InternalServerErrorException();
+    }
+  }
+
+  private async handOverGuestInvitations(
+    user: User,
+    keys: CreatedUserKeys,
+    invitationId: string | undefined,
+    isEmailProven: boolean,
+  ) {
+    if (!keys.ecc?.publicKey) {
+      return;
+    }
+
+    try {
+      if (isEmailProven) {
+        await this.userUseCases.replacePreCreatedUser(
+          user.email,
+          user.uuid,
+          keys.ecc.publicKey,
+          keys.kyber?.publicKey,
+        );
+      } else if (invitationId) {
+        const handedOver =
+          await this.userUseCases.replacePreCreatedUserInvitation(
+            user.email,
+            invitationId,
+            user.uuid,
+            keys.ecc.publicKey,
+            keys.kyber?.publicKey,
+          );
+
+        if (!handedOver) {
+          return;
+        }
+      }
+
+      if (invitationId) {
+        await this.sharingService.acceptInvite(user, invitationId, {});
+      }
+    } catch (err) {
+      this.logger.error(
+        { userUuid: user.uuid, invitationId, err },
+        '[AUTH/REGISTER-PRE-CREATED-USER] Could not hand over invitations',
+      );
     }
   }
 

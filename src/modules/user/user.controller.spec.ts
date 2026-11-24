@@ -34,6 +34,8 @@ import { UserKeysEncryptVersions } from '../keyserver/key-server.domain';
 import { type UpdatePasswordDto } from './dto/update-password.dto';
 import { type CreateUserDto } from './dto/create-user.dto';
 import { type RegisterPreCreatedUserDto } from './dto/register-pre-created-user.dto';
+import { decodeGuestInviteToken } from '../sharing/guest-invite-token';
+import { SharingService } from '../sharing/sharing.service';
 import { type CompleteAccountSetupDto } from './dto/complete-account-setup.dto';
 import { AccountSetupPendingException } from './exception/account-setup-pending.exception';
 import { SignUpSuccessEvent } from '../../externals/notifications/events/sign-up-success.event';
@@ -101,6 +103,10 @@ jest.mock('../../lib/jwt', () => {
   };
 });
 
+jest.mock('../sharing/guest-invite-token', () => ({
+  decodeGuestInviteToken: jest.fn(),
+}));
+
 describe('User Controller', () => {
   let userController: UserController;
   let userUseCases: DeepMocked<UserUseCases>;
@@ -110,6 +116,7 @@ describe('User Controller', () => {
   let auditLogService: DeepMocked<AuditLogService>;
   let klaviyoService: KlaviyoTrackingService;
   let featureLimitService: DeepMocked<FeatureLimitService>;
+  let sharingService: DeepMocked<SharingService>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -126,6 +133,7 @@ describe('User Controller', () => {
     auditLogService = moduleRef.get(AuditLogService);
     klaviyoService = moduleRef.get(KlaviyoTrackingService);
     featureLimitService = moduleRef.get(FeatureLimitService);
+    sharingService = moduleRef.get(SharingService);
     userUseCases.hasPendingAccountSetup.mockResolvedValue(false);
   });
 
@@ -999,7 +1007,7 @@ describe('User Controller', () => {
       });
     });
 
-    it('When the user is created and ecc keys are found, then it should try to replace pre created user invitations', async () => {
+    it('When the user is created, then the pending invitations are not handed over until the email is verified', async () => {
       const existentEccKey = newKeyServer({ userId: mockUser.id });
 
       const createUserDto: CreateUserDto = {
@@ -1019,7 +1027,7 @@ describe('User Controller', () => {
 
       await userController.createUser(createUserDto, req, clientId);
 
-      expect(userUseCases.replacePreCreatedUser).toHaveBeenCalled();
+      expect(userUseCases.replacePreCreatedUser).not.toHaveBeenCalled();
     });
 
     it('When referral code is invalid, then it fails', async () => {
@@ -1161,6 +1169,124 @@ describe('User Controller', () => {
         privateKey: newKeys.ecc.privateKey,
         revocationKey: newKeys.ecc.revocationKey,
         keys: newKeys,
+      });
+    });
+
+    describe('Handing over invitations', () => {
+      const ecc = newKeyServer({ userId: mockUser.id });
+      const kyber = newKeyServer({
+        userId: mockUser.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      const baseDto: RegisterPreCreatedUserDto = {
+        name: 'My',
+        lastname: 'Internxt',
+        email: preCreatedUser.email,
+        password: 'hashed password',
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+      };
+
+      beforeEach(() => {
+        userUseCases.findPreCreatedByEmail.mockResolvedValue(preCreatedUser);
+        userUseCases.createUser.mockResolvedValue(mockCreateUserResponse);
+        keyServerUseCases.addKeysToUser.mockResolvedValue({ ecc, kyber });
+        userUseCases.sendWelcomeVerifyEmailEmail.mockResolvedValue(undefined);
+      });
+
+      it('When the user signs up from the email link, then all invitations are handed over and the email is verified', async () => {
+        const invitationId = v4();
+        jest
+          .mocked(decodeGuestInviteToken)
+          .mockReturnValueOnce({ invitationId, email: preCreatedUser.email });
+
+        await userController.registerPreCreatedUser(
+          { ...baseDto, invitationId, token: 'email-token' },
+          req,
+        );
+
+        expect(userUseCases.createUser).toHaveBeenCalledWith(
+          expect.objectContaining({ emailVerified: true }),
+        );
+        expect(userUseCases.replacePreCreatedUser).toHaveBeenCalledWith(
+          mockUser.email,
+          mockUser.uuid,
+          ecc.publicKey,
+          kyber.publicKey,
+        );
+        expect(sharingService.acceptInvite).toHaveBeenCalledWith(
+          mockCreateUserResponse.user,
+          invitationId,
+          {},
+        );
+        expect(userUseCases.sendWelcomeVerifyEmailEmail).not.toHaveBeenCalled();
+      });
+
+      it('When the email link belongs to another email, then only the linked invitation is handed over', async () => {
+        const invitationId = v4();
+        jest.mocked(decodeGuestInviteToken).mockReturnValueOnce({
+          invitationId,
+          email: 'someone-else@internxt.com',
+        });
+        userUseCases.replacePreCreatedUserInvitation.mockResolvedValueOnce(
+          true,
+        );
+
+        await userController.registerPreCreatedUser(
+          { ...baseDto, invitationId, token: 'email-token' },
+          req,
+        );
+
+        expect(userUseCases.createUser).toHaveBeenCalledWith(
+          expect.objectContaining({ emailVerified: false }),
+        );
+        expect(userUseCases.replacePreCreatedUser).not.toHaveBeenCalled();
+        expect(userUseCases.replacePreCreatedUserInvitation).toHaveBeenCalled();
+      });
+
+      it('When the user signs up without the email token, then only the linked invitation is handed over and accepted', async () => {
+        const invitationId = v4();
+        userUseCases.replacePreCreatedUserInvitation.mockResolvedValueOnce(
+          true,
+        );
+
+        await userController.registerPreCreatedUser(
+          { ...baseDto, invitationId },
+          req,
+        );
+
+        expect(userUseCases.createUser).toHaveBeenCalledWith(
+          expect.objectContaining({ emailVerified: false }),
+        );
+        expect(userUseCases.replacePreCreatedUser).not.toHaveBeenCalled();
+        expect(
+          userUseCases.replacePreCreatedUserInvitation,
+        ).toHaveBeenCalledWith(
+          mockUser.email,
+          invitationId,
+          mockUser.uuid,
+          ecc.publicKey,
+          kyber.publicKey,
+        );
+        expect(sharingService.acceptInvite).toHaveBeenCalledWith(
+          mockCreateUserResponse.user,
+          invitationId,
+          {},
+        );
+        expect(userUseCases.sendWelcomeVerifyEmailEmail).toHaveBeenCalled();
+      });
+
+      it('When the linked invitation is not for this email, then it is not accepted', async () => {
+        userUseCases.replacePreCreatedUserInvitation.mockResolvedValueOnce(
+          false,
+        );
+
+        await userController.registerPreCreatedUser(
+          { ...baseDto, invitationId: v4() },
+          req,
+        );
+
+        expect(sharingService.acceptInvite).not.toHaveBeenCalled();
       });
     });
 

@@ -3091,6 +3091,107 @@ describe('User use cases', () => {
     });
   });
 
+  describe('replacePreCreatedUserInvitation', () => {
+    const buildInvite = (sharedWith: string) =>
+      SharingInvite.build({
+        id: v4(),
+        type: 'OWNER',
+        roleId: v4(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        encryptionAlgorithm: 'ecc',
+        encryptionKey: 'encrypted-key',
+        sharedWith,
+        itemId: v4(),
+        itemType: 'file',
+      });
+
+    beforeEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('When the invitation belongs to the pre-created user, then only that invitation is handed over', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      const invite = buildInvite(preCreatedUser.uuid);
+      const newUserUuid = v4();
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValueOnce(preCreatedUser);
+      jest
+        .spyOn(sharingRepository, 'getInviteById')
+        .mockResolvedValueOnce(invite);
+      jest.spyOn(configService, 'get').mockReturnValueOnce('default-pass');
+      jest.spyOn(aes, 'decrypt').mockReturnValue('decrypted-private-key');
+      jest
+        .spyOn(asymmetricEncryptionService, 'reEncryptHybridCiphertext')
+        .mockResolvedValueOnce('new-encrypted-key');
+      const bulkUpdateSpy = jest
+        .spyOn(sharingRepository, 'bulkUpdate')
+        .mockResolvedValueOnce(undefined);
+      const deleteSpy = jest.spyOn(preCreatedUsersRepository, 'deleteByUuid');
+
+      const handedOver = await userUseCases.replacePreCreatedUserInvitation(
+        preCreatedUser.email,
+        invite.id,
+        newUserUuid,
+        'new-public-key',
+      );
+
+      expect(handedOver).toBe(true);
+      expect(bulkUpdateSpy).toHaveBeenCalledWith([
+        expect.objectContaining({
+          id: invite.id,
+          sharedWith: newUserUuid,
+          encryptionKey: 'new-encrypted-key',
+        }),
+      ]);
+      expect(sharingRepository.getInvitesBySharedwith).not.toHaveBeenCalled();
+      expect(deleteSpy).not.toHaveBeenCalled();
+    });
+
+    it('When the invitation belongs to someone else, then nothing is handed over', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      const invite = buildInvite(v4());
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValueOnce(preCreatedUser);
+      jest
+        .spyOn(sharingRepository, 'getInviteById')
+        .mockResolvedValueOnce(invite);
+      const bulkUpdateSpy = jest.spyOn(sharingRepository, 'bulkUpdate');
+
+      const handedOver = await userUseCases.replacePreCreatedUserInvitation(
+        preCreatedUser.email,
+        invite.id,
+        v4(),
+        'new-public-key',
+      );
+
+      expect(handedOver).toBe(false);
+      expect(bulkUpdateSpy).not.toHaveBeenCalled();
+    });
+
+    it('When the invitation does not exist, then nothing is handed over', async () => {
+      jest
+        .spyOn(preCreatedUsersRepository, 'findByUsername')
+        .mockResolvedValueOnce(newPreCreatedUser());
+      jest
+        .spyOn(sharingRepository, 'getInviteById')
+        .mockResolvedValueOnce(null);
+      const bulkUpdateSpy = jest.spyOn(sharingRepository, 'bulkUpdate');
+
+      const handedOver = await userUseCases.replacePreCreatedUserInvitation(
+        'invitee@internxt.com',
+        v4(),
+        v4(),
+        'new-public-key',
+      );
+
+      expect(handedOver).toBe(false);
+      expect(bulkUpdateSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('replacePreCreatedUser', () => {
     beforeEach(() => {
       jest.restoreAllMocks();
