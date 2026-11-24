@@ -1889,8 +1889,7 @@ describe('User use cases', () => {
 
       expect(bridgeService.sendDeactivationEmail).toHaveBeenCalledWith(
         user,
-        expect.any(String),
-        expect.any(String),
+        `${configService.get('clients.drive.web')}/deactivations`,
       );
       expect(mailLimit.increaseTodayAttempts).toHaveBeenCalled();
       expect(mailLimit.attemptsCount).toEqual(currentAttemptsCount + 1);

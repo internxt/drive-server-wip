@@ -2079,16 +2079,11 @@ export class UserUseCases {
       );
     }
 
-    const deactivator = crypto.randomBytes(256).toString('hex');
     const deactivationUrl = `${this.configService.get(
       'clients.drive.web',
-    )}/deactivations/${deactivator}`;
+    )}/deactivations`;
 
-    await this.networkService.sendDeactivationEmail(
-      user,
-      deactivationUrl,
-      deactivator,
-    );
+    await this.networkService.sendDeactivationEmail(user, deactivationUrl);
 
     mailLimit.increaseTodayAttempts();
 

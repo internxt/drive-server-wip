@@ -10,6 +10,7 @@ import { BridgeService } from './bridge.service';
 import { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { CryptoModule } from '../crypto/crypto.module';
 import { verify, type JwtPayload } from 'jsonwebtoken';
+import { generateKeyPairSync } from 'crypto';
 
 describe('Bridge Service', () => {
   let service: BridgeService;
@@ -100,10 +101,25 @@ describe('Bridge Service', () => {
 
   describe('sendDeactivationEmail', () => {
     const testBridgeApiUrl = 'bridge.test.com';
-    const deactivationRedirectUrl = 'http://example.com/redirect';
-    const deactivator = 'user';
+    const deactivationRedirectUrl = 'http://example.com/deactivations';
+    const { publicKey, privateKey } = generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    const config = {
+      'apis.storage.url': testBridgeApiUrl,
+      'secrets.gateway': Buffer.from(privateKey).toString('base64'),
+      isDevelopment: false,
+    };
 
-    it('When deactivation email is being requested, it should make the request successfully', async () => {
+    beforeEach(() => {
+      jest
+        .spyOn(configService, 'get')
+        .mockImplementation((key: string) => config[key]);
+    });
+
+    it('When the deactivation email is requested, then it calls the bridge gateway with a signed token', async () => {
       const response: AxiosResponse<void> = {
         data: null,
         status: 200,
@@ -111,33 +127,27 @@ describe('Bridge Service', () => {
         config: {} as InternalAxiosRequestConfig,
         statusText: 'OK',
       };
+      jest.spyOn(httpClient, 'post').mockResolvedValueOnce(response);
 
-      jest.spyOn(configService, 'get').mockReturnValue(testBridgeApiUrl);
-      jest.spyOn(httpClient, 'delete').mockResolvedValueOnce(response);
+      await service.sendDeactivationEmail(mockedUser, deactivationRedirectUrl);
 
-      await service.sendDeactivationEmail(
-        mockedUser,
-        deactivationRedirectUrl,
-        deactivator,
+      expect(httpClient.post).toHaveBeenCalledTimes(1);
+      const [url, body, params] = (httpClient.post as jest.Mock).mock.calls[0];
+      expect(url).toBe(
+        `${testBridgeApiUrl}/v2/gateway/users/${mockedUser.uuid}/deactivation`,
       );
-
-      expect(httpClient.delete).toHaveBeenCalledTimes(1);
-      expect(httpClient.delete).toHaveBeenCalledWith(
-        `${testBridgeApiUrl}/users/${mockedUser.email}?redirect=${deactivationRedirectUrl}&deactivator=${deactivator}`,
-        expect.any(Object),
-      );
+      expect(body).toStrictEqual({ redirect: deactivationRedirectUrl });
+      const token = params.headers.Authorization.replace('Bearer ', '');
+      expect(() =>
+        verify(token, publicKey, { algorithms: ['RS256'] }),
+      ).not.toThrow();
     });
 
-    it('When deactivation email fails, it should throw', async () => {
-      jest.spyOn(configService, 'get').mockReturnValue(testBridgeApiUrl);
-      jest.spyOn(httpClient, 'delete').mockRejectedValueOnce(new Error());
+    it('When the request to bridge fails, then it throws', async () => {
+      jest.spyOn(httpClient, 'post').mockRejectedValueOnce(new Error());
 
       await expect(
-        service.sendDeactivationEmail(
-          mockedUser,
-          deactivationRedirectUrl,
-          deactivator,
-        ),
+        service.sendDeactivationEmail(mockedUser, deactivationRedirectUrl),
       ).rejects.toThrow();
     });
   });

@@ -297,30 +297,33 @@ export class BridgeService {
   }
 
   async sendDeactivationEmail(
-    user: Pick<User, 'bridgeUser' | 'userId' | 'email'>,
+    user: Pick<User, 'uuid'>,
     deactivationRedirectUrl: string,
-    deactivator: string,
   ): Promise<void> {
     try {
-      const bridgeApiUrl = this.configService.get('apis.storage.url');
+      const jwt = signToken(
+        '5m',
+        this.configService.get('secrets.gateway'),
+        this.configService.get('isDevelopment'),
+      );
 
       const params = {
         headers: {
           'Content-Type': 'application/json',
-          ...this.authorizationHeaders(user.bridgeUser, user.userId),
+          Authorization: `Bearer ${jwt}`,
           ...this.clientHeader(),
         },
       };
 
-      await this.httpClient.delete(
-        `${bridgeApiUrl}/users/${user.email}?redirect=${deactivationRedirectUrl}&deactivator=${deactivator}`,
+      await this.httpClient.post(
+        `${this.networkUrl}/v2/gateway/users/${user.uuid}/deactivation`,
+        { redirect: deactivationRedirectUrl },
         params,
       );
     } catch (error) {
-      Logger.error(`
-        [BRIDGE_SERVICE/DEACTIVATION_EMAIL]: There was an error while trying to send deactivation email Error: ${JSON.stringify(
-          error,
-        )}`);
+      Logger.error(
+        `[BRIDGE_SERVICE/DEACTIVATION_EMAIL]: There was an error while trying to send deactivation email for user ${user.uuid}. Error: ${error.message}`,
+      );
       throw error;
     }
   }
