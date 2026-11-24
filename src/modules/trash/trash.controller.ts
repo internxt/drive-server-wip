@@ -298,7 +298,7 @@ export class TrashController {
       new Logger().error(
         `[TRASH/EMPTY_TRASH] ERROR: ${
           (error as Error).message
-        } USER: ${JSON.stringify(user)} STACK: ${(error as Error).stack}`,
+        } USER: ${user.uuid} STACK: ${(error as Error).stack}`,
       );
 
       throw new InternalServerErrorException();
@@ -316,7 +316,7 @@ export class TrashController {
       new Logger().error(
         `[TRASH/REQUEST_EMPTY_TRASH] ERROR: ${
           (error as Error).message
-        } USER: ${JSON.stringify(user)} STACK: ${(error as Error).stack}`,
+        } USER: ${user.uuid} STACK: ${(error as Error).stack}`,
       );
 
       throw new InternalServerErrorException();
