@@ -1549,6 +1549,75 @@ describe('User use cases', () => {
       });
     });
 
+    it('When the email is verified, then the pending invitations are handed over to the user', async () => {
+      const user = newUser();
+      const ecc = newKeyServer({
+        userId: user.id,
+        encryptVersion: UserKeysEncryptVersions.Ecc,
+      });
+      const kyber = newKeyServer({
+        userId: user.id,
+        encryptVersion: UserKeysEncryptVersions.Kyber,
+      });
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(user.uuid);
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValue({ ecc, kyber });
+      const replaceSpy = jest
+        .spyOn(userUseCases, 'replacePreCreatedUser')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.verifyUserEmail('validToken');
+
+      expect(replaceSpy).toHaveBeenCalledWith(
+        user.email,
+        user.uuid,
+        ecc.publicKey,
+        kyber.publicKey,
+      );
+    });
+
+    it('When the user has no encryption keys, then the invitations are not handed over', async () => {
+      const user = newUser();
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(user.uuid);
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValue({ ecc: null, kyber: null });
+      const replaceSpy = jest.spyOn(userUseCases, 'replacePreCreatedUser');
+
+      await userUseCases.verifyUserEmail('validToken');
+
+      expect(replaceSpy).not.toHaveBeenCalled();
+    });
+
+    it('When handing over the invitations fails, then the email is still verified', async () => {
+      const user = newUser();
+      const ecc = newKeyServer({ userId: user.id });
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(user.uuid);
+      const updateSpy = jest
+        .spyOn(userRepository, 'updateByUuid')
+        .mockResolvedValue(undefined);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest
+        .spyOn(keyServerUseCases, 'findUserKeys')
+        .mockResolvedValue({ ecc, kyber: null });
+      jest
+        .spyOn(userUseCases, 'replacePreCreatedUser')
+        .mockRejectedValue(new Error('boom'));
+
+      await expect(
+        userUseCases.verifyUserEmail('validToken'),
+      ).resolves.toBeUndefined();
+
+      expect(updateSpy).toHaveBeenCalledWith(user.uuid, {
+        emailVerified: true,
+      });
+    });
+
     it('When the verificationToken is invalid, then it should throw BadRequestException', async () => {
       const verificationToken = 'invalidToken';
       jest.spyOn(cryptoService, 'decryptText').mockImplementation(() => {

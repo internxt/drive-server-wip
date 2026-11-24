@@ -1973,6 +1973,36 @@ export class UserUseCases {
     await this.userRepository.updateByUuid(userUuid, {
       emailVerified: true,
     });
+
+    await this.handOverPreCreatedInvitations(userUuid);
+  }
+
+  private async handOverPreCreatedInvitations(userUuid: User['uuid']) {
+    try {
+      const user = await this.userRepository.findByUuid(userUuid);
+
+      if (!user) {
+        return;
+      }
+
+      const { ecc, kyber } = await this.keyServerUseCases.findUserKeys(user.id);
+
+      if (!ecc?.publicKey) {
+        return;
+      }
+
+      await this.replacePreCreatedUser(
+        user.email,
+        user.uuid,
+        ecc.publicKey,
+        kyber?.publicKey,
+      );
+    } catch (error) {
+      Logger.error(
+        { userUuid, err: error },
+        '[AUTH/EMAIL_VERIFICATION] Could not hand over pre-created invitations',
+      );
+    }
   }
 
   async sendAccountEmailVerification(user: User) {
