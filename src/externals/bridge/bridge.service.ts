@@ -213,7 +213,7 @@ export class BridgeService {
         uuid: ${uuid}
         bytes: ${bytes}
    
-      AddStorage Error: ${JSON.stringify(error)}
+      AddStorage Error: ${error.message}, STATUS: ${error.response?.status}
       `);
     }
   }
@@ -236,9 +236,7 @@ export class BridgeService {
       );
     } catch (error) {
       Logger.error(`
-      [BRIDGESERVICE/SETSTORAGE]: There was an error while trying to set user storage space Error: ${JSON.stringify(
-        error,
-      )}
+      [BRIDGESERVICE/SETSTORAGE]: There was an error while trying to set user storage space Error: ${error.message}, STATUS: ${error.response?.status}
       `);
       throw error;
     }

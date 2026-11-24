@@ -597,7 +597,7 @@ export class UserUseCases {
       const error = {
         message: err.message,
         stack: err.stack ?? 'NO STACK',
-        body: newUser,
+        email,
       };
 
       Logger.error(`[SIGNUP/ROOT_FOLDER/ERROR]: ${JSON.stringify(error)}`);
@@ -1967,9 +1967,7 @@ export class UserUseCases {
       Logger.error(
         `[AUTH/EMAIL_VERIFICATION] Error while validating verificationToken: ${err.message}`,
       );
-      throw new BadRequestException(
-        `Could not verify this verificationToken: "${verificationToken}"`,
-      );
+      throw new BadRequestException('Could not verify this verificationToken');
     }
 
     await this.userRepository.updateByUuid(userUuid, {

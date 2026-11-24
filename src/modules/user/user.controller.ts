@@ -184,9 +184,7 @@ export class UserController {
           this.logger.error(
             `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
               (err as Error).message
-            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-              (err as Error).stack
-            }`,
+            }, EMAIL: ${createUserDto.email}, STACK: ${(err as Error).stack}`,
           );
         });
 
@@ -203,9 +201,7 @@ export class UserController {
       this.logger.error(
         `[AUTH/REGISTER] ERROR: ${
           (err as Error).message
-        }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-          (err as Error).stack
-        }`,
+        }, EMAIL: ${createUserDto.email}, STACK: ${(err as Error).stack}`,
       );
 
       throw new InternalServerErrorException();
@@ -353,9 +349,7 @@ export class UserController {
           this.logger.error(
             `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
               (err as Error).message
-            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-              (err as Error).stack
-            }`,
+            }, EMAIL: ${createUserDto.email}, STACK: ${(err as Error).stack}`,
           );
         });
 
@@ -365,9 +359,7 @@ export class UserController {
           this.logger.error(
             `[AUTH/REGISTER-PRE-CREATED-USER/AUTO-ACCEPT-INVITE] ERROR: ${
               (err as Error).message
-            }, BODY ${JSON.stringify(createUserDto)}, STACK: ${
-              (err as Error).stack
-            }`,
+            }, EMAIL: ${createUserDto.email}, STACK: ${(err as Error).stack}`,
           );
         });
 
@@ -388,10 +380,9 @@ export class UserController {
       this.logger.error(
         `[AUTH/REGISTER-PRE-CREATED-USER] ERROR: ${
           (err as Error).message
-        }, BODY ${JSON.stringify({
-          ...createUserDto,
-          invitationId,
-        })}, STACK: ${(err as Error).stack}`,
+        }, EMAIL: ${createUserDto.email}, INVITATION: ${invitationId}, STACK: ${
+          (err as Error).stack
+        }`,
       );
       throw err;
     }
@@ -665,9 +656,7 @@ export class UserController {
       Logger.error(
         `[AUTH/UPDATEPASSWORD] ERROR: ${
           (err as Error).message
-        }, BODY ${JSON.stringify(updatePasswordDto)}, STACK: ${
-          (err as Error).stack
-        }`,
+        }, USER: ${user.uuid}, STACK: ${(err as Error).stack}`,
       );
       throw err;
     }
@@ -693,10 +682,7 @@ export class UserController {
       this.logger.error(
         `[RECOVER_ACCOUNT_REQUEST] ERROR: ${
           (err as Error).message
-        }, BODY ${JSON.stringify({
-          ...body,
-          user: { email: body.email },
-        })}, STACK: ${(err as Error).stack}`,
+        }, EMAIL: ${body.email}, STACK: ${(err as Error).stack}`,
       );
 
       throw err;
@@ -721,10 +707,7 @@ export class UserController {
         this.logger.error(
           `[UNBLOCK_ACCOUNT_REQUEST] ERROR: ${
             (err as Error).message
-          }, BODY ${JSON.stringify({
-            ...body,
-            user: { email: body.email },
-          })}, STACK: ${(err as Error).stack}`,
+          }, EMAIL: ${body.email}, STACK: ${(err as Error).stack}`,
         );
       }
 
@@ -851,10 +834,7 @@ export class UserController {
       this.logger.error(
         `[RECOVER_ACCOUNT] ERROR: ${
           (err as Error).message
-        }, BODY ${JSON.stringify({
-          ...body,
-          user: { uuid: decodedData.userUuid },
-        })}, STACK: ${(err as Error).stack}`,
+        }, USER: ${decodedData.userUuid}, STACK: ${(err as Error).stack}`,
       );
       throw err;
     }
@@ -927,10 +907,7 @@ export class UserController {
       this.logger.error(
         `[RECOVER_ACCOUNT] ERROR: ${
           (err as Error).message
-        }, BODY ${JSON.stringify({
-          ...body,
-          user: { uuid: decodedData.userUuid },
-        })}, STACK: ${(err as Error).stack}`,
+        }, USER: ${decodedData.userUuid}, STACK: ${(err as Error).stack}`,
       );
       throw err;
     }
@@ -944,9 +921,7 @@ export class UserController {
     summary: 'Recover accocunt with legacy backup file',
   })
   async requestLegacyAccountRecovery(@Body() body: LegacyRecoverAccountDto) {
-    Logger.log(
-      `[RECOVER_ACCOUNT] Requesting legacy account recovery with token: ${body.token}`,
-    );
+    Logger.log('[RECOVER_ACCOUNT] Requesting legacy account recovery');
     const { token } = body;
 
     const decodedToken =
@@ -1260,7 +1235,7 @@ export class UserController {
       return { deactivatedUser };
     } catch (err) {
       this.logger.error(
-        { err, token },
+        { err },
         '[DEACTIVATION] Error confirming deactivation',
       );
       throw err;
