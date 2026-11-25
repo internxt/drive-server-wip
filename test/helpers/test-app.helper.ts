@@ -27,6 +27,10 @@ class MockBridgeService {
   async deleteFile() {
     return;
   }
+
+  createNetworkEnvironment() {
+    return {};
+  }
 }
 
 class MockMailerService {

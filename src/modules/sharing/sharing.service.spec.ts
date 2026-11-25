@@ -3160,7 +3160,11 @@ describe('Sharing Use Cases', () => {
     const folder = newFolder({ owner });
     const parentFolder = newFolder({ owner });
     folder.parentId = parentFolder.id;
-    const sharing = newSharing({ owner, item: folder });
+    const sharing = newSharing({
+      owner,
+      item: folder,
+      sharingType: SharingType.Public,
+    });
     const page = 0;
     const perPage = 10;
 
@@ -3219,11 +3223,11 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('When navigation credentials are invalid, then it fails', async () => {
-      folderUseCases.getByUuid.mockResolvedValue(folder);
-      folderUseCases.getFolder.mockResolvedValue(parentFolder);
-      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(
-        'invalid-string',
+    it('When the navigation token is invalid or expired, then it is forbidden', async () => {
+      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockImplementationOnce(
+        () => {
+          throw new Error('jwt expired');
+        },
       );
 
       await expect(
@@ -3257,7 +3261,7 @@ describe('Sharing Use Cases', () => {
           page,
           perPage,
         ),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('When user tries to navigate to an unrelated folder, then it fails', async () => {
@@ -3282,7 +3286,47 @@ describe('Sharing Use Cases', () => {
           page,
           perPage,
         ),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('When the folder is only shared privately, then it is not found', async () => {
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      folderUseCases.getFolder.mockResolvedValue(parentFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+
+      await expect(
+        sharingService.getFoldersFromPublicFolder(
+          folder.uuid,
+          null,
+          page,
+          perPage,
+        ),
+      ).rejects.toThrow(NotFoundException);
+      expect(sharingRepository.findOneSharing).toHaveBeenCalledWith({
+        itemId: folder.uuid,
+        itemType: 'folder',
+        type: SharingType.Public,
+      });
+      expect(usersUsecases.getUser).not.toHaveBeenCalled();
+    });
+
+    it('When a folder that is not shared is in the trash, then it is not found without revealing its state', async () => {
+      const trashedFolder = newFolder({
+        owner,
+        attributes: { deleted: true },
+      });
+      folderUseCases.getByUuid.mockResolvedValue(trashedFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+
+      await expect(
+        sharingService.getFoldersFromPublicFolder(
+          trashedFolder.uuid,
+          null,
+          page,
+          perPage,
+        ),
+      ).rejects.toThrow(NotFoundException);
+      expect(folderUseCases.getByUuid).not.toHaveBeenCalled();
     });
 
     it('When folder has no parent, then parent fields are null', async () => {
@@ -3290,7 +3334,11 @@ describe('Sharing Use Cases', () => {
         owner,
         attributes: { parentId: null },
       });
-      const noParentSharing = newSharing({ owner, item: noParentFolder });
+      const noParentSharing = newSharing({
+        owner,
+        item: noParentFolder,
+        sharingType: SharingType.Public,
+      });
 
       folderUseCases.getByUuid.mockResolvedValue(noParentFolder);
       sharingRepository.findOneSharing.mockResolvedValue(noParentSharing);
@@ -3317,7 +3365,11 @@ describe('Sharing Use Cases', () => {
     const folder = newFolder({ owner });
     const parentFolder = newFolder({ owner });
     folder.parentId = parentFolder.id;
-    const sharing = newSharing({ owner, item: folder });
+    const sharing = newSharing({
+      owner,
+      item: folder,
+      sharingType: SharingType.Public,
+    });
     const code = 'encryption-code';
     const page = 0;
     const perPage = 10;
@@ -3418,7 +3470,7 @@ describe('Sharing Use Cases', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('When sharing is not found, then it fails', async () => {
+    it('When the folder is only shared privately, then it is not found', async () => {
       folderUseCases.getByUuid.mockResolvedValue(folder);
       folderUseCases.getFolder.mockResolvedValue(parentFolder);
       sharingRepository.findOneSharing.mockResolvedValue(null);
@@ -3432,13 +3484,38 @@ describe('Sharing Use Cases', () => {
           perPage,
         ),
       ).rejects.toThrow(NotFoundException);
+      expect(sharingRepository.findOneSharing).toHaveBeenCalledWith({
+        itemId: folder.uuid,
+        itemType: 'folder',
+        type: SharingType.Public,
+      });
     });
 
-    it('When navigation credentials are invalid, then it fails', async () => {
-      folderUseCases.getByUuid.mockResolvedValue(folder);
-      folderUseCases.getFolder.mockResolvedValue(parentFolder);
-      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(
-        'invalid-string',
+    it('When a folder that is not shared is in the trash, then it is not found without revealing its state', async () => {
+      const trashedFolder = newFolder({
+        owner,
+        attributes: { deleted: true },
+      });
+      folderUseCases.getByUuid.mockResolvedValue(trashedFolder);
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+
+      await expect(
+        sharingService.getFilesFromPublicFolder(
+          trashedFolder.uuid,
+          null,
+          code,
+          page,
+          perPage,
+        ),
+      ).rejects.toThrow(NotFoundException);
+      expect(folderUseCases.getByUuid).not.toHaveBeenCalled();
+    });
+
+    it('When the navigation token is invalid or expired, then it is forbidden', async () => {
+      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockImplementationOnce(
+        () => {
+          throw new Error('jwt expired');
+        },
       );
 
       await expect(

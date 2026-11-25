@@ -442,7 +442,7 @@ export class SharingController {
   })
   @ApiOkResponse({ description: 'Get all items inside a shared folder' })
   async getPublicShareFiles(
-    @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
+    @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
     @Query('token') token: string,
     @Query('code') code: string,
     @Query('page') page = 0,
@@ -486,7 +486,7 @@ export class SharingController {
   })
   @ApiOkResponse({ description: 'Get all items inside a shared folder' })
   async getPublicSharedFolders(
-    @Param('sharedFolderId') sharedFolderId: Folder['uuid'],
+    @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
     @Query('token') token: string,
     @Query('code') code: string,
     @Query('page') page = 0,
