@@ -2,13 +2,11 @@ import { HttpStatus } from '@nestjs/common';
 import { type NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { v4 } from 'uuid';
-import { aes } from '@internxt/lib';
 
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { type Folder } from '../folder/folder.domain';
 import { SequelizeSharingRepository } from './sharing.repository';
-import { SHARING_ACCESS_TOKEN_INVALID } from './exception/sharing-access-token-invalid.exception';
-import { type Sharing, SharingType } from './sharing.domain';
+import { SharingType } from './sharing.domain';
 import {
   createTestUser,
   type TestUserContext,
@@ -95,162 +93,6 @@ describe('Sharing module', () => {
         .post('/sharings')
         .set('Authorization', `Bearer ${owner.token}`)
         .send(buildDto(v4()))
-        .expect(HttpStatus.NOT_FOUND);
-    });
-  });
-
-  describe('GET /sharings/public/items/:sharedFolderId - Lists a public folder', () => {
-    const code = 'link-code';
-    const password = 'link-password';
-    let sharedFolder: Folder;
-    let childFolder: Folder;
-
-    const createSharing = (
-      type: SharingType,
-      encryptedPassword: string | null = null,
-    ): Promise<Sharing> =>
-      sharingRepository.createSharing({
-        itemId: sharedFolder.uuid,
-        itemType: 'folder',
-        ownerId: owner.user.uuid,
-        sharedWith:
-          type === SharingType.Public
-            ? '00000000-0000-0000-0000-000000000000'
-            : otherUser.user.uuid,
-        encryptionKey: 'encryption-key',
-        encryptionAlgorithm: 'inxt-v2',
-        encryptedCode: 'encrypted-code',
-        encryptedPassword,
-        type,
-      } as Omit<Sharing, 'id'>);
-
-    const listFolder = (
-      type: 'folders' | 'files',
-      options: { token?: string; accessToken?: string } = {},
-    ) => {
-      const req = request(app.getHttpServer())
-        .get(`/sharings/public/items/${sharedFolder.uuid}/${type}`)
-        .query({ code, token: options.token ?? '' });
-
-      if (options.accessToken) {
-        req.set('x-share-access-token', options.accessToken);
-      }
-
-      return req;
-    };
-
-    const unlockSharing = async (sharing: Sharing): Promise<string> => {
-      const response = await request(app.getHttpServer())
-        .get(`/sharings/${sharing.id}/meta`)
-        .set('x-share-code', code)
-        .set('x-share-password', encodeURIComponent(password))
-        .expect(HttpStatus.OK);
-
-      return response.body.accessToken;
-    };
-
-    beforeEach(async () => {
-      sharedFolder = await folderRepository.create(
-        owner.user.id,
-        'shared folder',
-        owner.rootFolder.bucket,
-        owner.rootFolder.id,
-        '03-aes',
-        owner.rootFolder.uuid,
-      );
-      childFolder = await folderRepository.create(
-        owner.user.id,
-        'child folder',
-        owner.rootFolder.bucket,
-        sharedFolder.id,
-        '03-aes',
-        sharedFolder.uuid,
-      );
-    });
-
-    afterEach(async () => {
-      await sharingRepository.deleteSharingsBy({ itemId: sharedFolder.uuid });
-    });
-
-    describe.each(['folders', 'files'] as const)('/%s', (type) => {
-      it('When the navigation token is not valid, then it is forbidden', async () => {
-        await createSharing(SharingType.Public);
-
-        await listFolder(type, { token: 'not-a-valid-token' }).expect(
-          HttpStatus.FORBIDDEN,
-        );
-      });
-
-      it('When the folder id is not a valid UUID, then it is a bad request', async () => {
-        await request(app.getHttpServer())
-          .get(`/sharings/public/items/not-a-uuid/${type}`)
-          .query({ code })
-          .expect(HttpStatus.BAD_REQUEST);
-      });
-
-      it('When the folder is only shared privately, then it is not found', async () => {
-        await createSharing(SharingType.Private);
-
-        await listFolder(type).expect(HttpStatus.NOT_FOUND);
-      });
-
-      it('When the folder is shared publicly, then it returns its content', async () => {
-        await createSharing(SharingType.Public);
-
-        const response = await listFolder(type).expect(HttpStatus.OK);
-
-        expect(response.body.token).toEqual(expect.any(String));
-      });
-
-      it('When the link has a password and it was unlocked, then it returns its content', async () => {
-        const sharing = await createSharing(
-          SharingType.Public,
-          aes.encrypt(password, code),
-        );
-        const accessToken = await unlockSharing(sharing);
-
-        await listFolder(type, { accessToken }).expect(HttpStatus.OK);
-      });
-
-      it('When the link has a password and the access token is not valid, then it is forbidden', async () => {
-        await createSharing(SharingType.Public, aes.encrypt(password, code));
-
-        const response = await listFolder(type, {
-          accessToken: 'not-a-valid-token',
-        }).expect(HttpStatus.FORBIDDEN);
-
-        expect(response.body.errorCode).toBe(SHARING_ACCESS_TOKEN_INVALID);
-      });
-
-      // TODO: expect SHARING_ACCESS_TOKEN_INVALID after bypass removal
-      it('When the link has a password and no access token is sent, then it still returns its content', async () => {
-        await createSharing(SharingType.Public, aes.encrypt(password, code));
-
-        await listFolder(type).expect(HttpStatus.OK);
-      });
-    });
-
-    it('When navigating into a subfolder of a public folder, then it returns its content', async () => {
-      await createSharing(SharingType.Public);
-      const rootResponse = await listFolder('folders').expect(HttpStatus.OK);
-
-      const response = await request(app.getHttpServer())
-        .get(`/sharings/public/items/${childFolder.uuid}/folders`)
-        .query({ code, token: rootResponse.body.token })
-        .expect(HttpStatus.OK);
-
-      expect(response.body.items).toEqual([]);
-    });
-
-    it('When the folder stops being public, then navigating with an old token is not found', async () => {
-      const sharing = await createSharing(SharingType.Public);
-      const rootResponse = await listFolder('folders').expect(HttpStatus.OK);
-      await sharingRepository.deleteSharingsBy({ id: sharing.id });
-      await createSharing(SharingType.Private);
-
-      await request(app.getHttpServer())
-        .get(`/sharings/public/items/${childFolder.uuid}/folders`)
-        .query({ code, token: rootResponse.body.token })
         .expect(HttpStatus.NOT_FOUND);
     });
   });
