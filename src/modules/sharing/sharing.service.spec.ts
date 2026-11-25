@@ -3220,10 +3220,12 @@ describe('Sharing Use Cases', () => {
       expect(result.role).toBe('NONE');
     });
 
-    it('When folder is trashed, then it throws', async () => {
+    it('When the shared folder is in the trash, then it is not found', async () => {
       const trashedFolder = newFolder({
+        owner,
         attributes: { deleted: true, deletedAt: new Date() },
       });
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
       folderUseCases.getByUuid.mockResolvedValue(trashedFolder);
 
       await expect(
@@ -3233,13 +3235,16 @@ describe('Sharing Use Cases', () => {
           page,
           perPage,
         ),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toThrow(NotFoundException);
+      expect(usersUsecases.getUser).not.toHaveBeenCalled();
     });
 
-    it('When folder is removed, then it throws', async () => {
+    it('When the shared folder is removed, then it is not found', async () => {
       const removedFolder = newFolder({
+        owner,
         attributes: { removed: true, removedAt: new Date() },
       });
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
       folderUseCases.getByUuid.mockResolvedValue(removedFolder);
 
       await expect(
@@ -3249,7 +3254,8 @@ describe('Sharing Use Cases', () => {
           page,
           perPage,
         ),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toThrow(NotFoundException);
+      expect(usersUsecases.getUser).not.toHaveBeenCalled();
     });
 
     it('When the navigation token is invalid or expired, then it is forbidden', async () => {
@@ -3595,10 +3601,12 @@ describe('Sharing Use Cases', () => {
       expect(result.items).toHaveLength(2);
     });
 
-    it('When folder is trashed, then it throws', async () => {
+    it('When the shared folder is in the trash, then it is not found', async () => {
       const trashedFolder = newFolder({
+        owner,
         attributes: { deleted: true, deletedAt: new Date() },
       });
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
       folderUseCases.getByUuid.mockResolvedValue(trashedFolder);
 
       await expect(
@@ -3609,13 +3617,16 @@ describe('Sharing Use Cases', () => {
           page,
           perPage,
         ),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toThrow(NotFoundException);
+      expect(usersUsecases.getUser).not.toHaveBeenCalled();
     });
 
-    it('When folder is removed, then it throws', async () => {
+    it('When the shared folder is removed, then it is not found', async () => {
       const removedFolder = newFolder({
+        owner,
         attributes: { removed: true, removedAt: new Date() },
       });
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
       folderUseCases.getByUuid.mockResolvedValue(removedFolder);
 
       await expect(
@@ -3626,7 +3637,8 @@ describe('Sharing Use Cases', () => {
           page,
           perPage,
         ),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toThrow(NotFoundException);
+      expect(usersUsecases.getUser).not.toHaveBeenCalled();
     });
 
     it('When the folder is only shared privately, then it is not found', async () => {
