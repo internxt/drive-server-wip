@@ -7,6 +7,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { v4 } from 'uuid';
+import { aes } from '@internxt/lib';
+import { sign } from 'jsonwebtoken';
 
 import {
   newFile,
@@ -32,12 +34,14 @@ import {
   type Role,
   SharedWithType,
   SharingActionName,
+  type Sharing,
   type SharingAttributes,
   SharingItemType,
   SharingType,
 } from './sharing.domain';
 import { FileStatus, type FileAttributes } from '../file/file.domain';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
+import { SharingAccessTokenInvalidException } from './exception/sharing-access-token-invalid.exception';
 import { type GetInviteDto } from './dto/get-invites.dto';
 import { type BridgeService } from '../../externals/bridge/bridge.service';
 
@@ -87,6 +91,9 @@ describe('Sharing Use Cases', () => {
       };
       return configValues[key] || 'default-value';
     });
+    config.getOrThrow.mockImplementation((key: string) =>
+      key === 'secrets.jwt' ? 'test-jwt-secret' : 'default-value',
+    );
 
     sharingService = new SharingService(
       sharingRepository,
@@ -375,7 +382,29 @@ describe('Sharing Use Cases', () => {
         correctPassword,
       );
 
-      expect(publicSharing).toStrictEqual({ ...sharing, item: folder });
+      expect(publicSharing).toStrictEqual({
+        ...sharing,
+        item: folder,
+        accessToken: expect.any(String),
+      });
+    });
+
+    it('When the sharing is not password protected, then no access token is returned', async () => {
+      const sharing = newSharing({
+        owner,
+        item: folder,
+        sharingType: SharingType.Public,
+      });
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+
+      const publicSharing = await sharingService.getPublicSharingById(
+        sharing.id,
+        code,
+      );
+
+      expect(publicSharing.accessToken).toBeNull();
     });
 
     it('When user tries to access to password protected with incorrect password, then it fails', async () => {
@@ -3358,6 +3387,136 @@ describe('Sharing Use Cases', () => {
       expect(result.parent.uuid).toBeNull();
       expect(result.parent.name).toBeNull();
     });
+    describe('When the public folder is password protected', () => {
+      const password = 'link-password';
+      const linkCode = 'link-code';
+      const protectedSharing = newSharing({
+        owner,
+        item: folder,
+        sharingType: SharingType.Public,
+        encryptedPassword: aes.encrypt(password, linkCode),
+      });
+
+      const getAccessToken = async (sharingToUnlock: Sharing) => {
+        sharingRepository.findOneSharing.mockResolvedValueOnce(sharingToUnlock);
+        const { accessToken } = await sharingService.getPublicSharingById(
+          sharingToUnlock.id,
+          linkCode,
+          password,
+        );
+        return accessToken;
+      };
+
+      beforeEach(() => {
+        folderUseCases.getByUuid.mockResolvedValue(folder);
+        folderUseCases.getFolder.mockResolvedValue(parentFolder);
+        sharingRepository.findOneSharing.mockResolvedValue(protectedSharing);
+        usersUsecases.getUser.mockResolvedValue(owner);
+        folderUseCases.getFoldersWithParent.mockResolvedValue([]);
+        folderUseCases.getFolderByUserId.mockResolvedValue(
+          newFolder({ owner, attributes: { bucket: 'test-bucket' } }),
+        );
+      });
+
+      it('When the link was unlocked with its password, then it returns the content', async () => {
+        const accessToken = await getAccessToken(protectedSharing);
+
+        const result = await sharingService.getFoldersFromPublicFolder(
+          folder.uuid,
+          null,
+          page,
+          perPage,
+          accessToken,
+        );
+
+        expect(result.items).toHaveLength(0);
+      });
+
+      it('When the access was granted for another link, then it is forbidden', async () => {
+        const otherSharing = newSharing({
+          owner,
+          item: newFolder({ owner }),
+          sharingType: SharingType.Public,
+          encryptedPassword: aes.encrypt(password, linkCode),
+        });
+        const accessToken = await getAccessToken(otherSharing);
+
+        await expect(
+          sharingService.getFoldersFromPublicFolder(
+            folder.uuid,
+            null,
+            page,
+            perPage,
+            accessToken,
+          ),
+        ).rejects.toThrow(SharingAccessTokenInvalidException);
+      });
+
+      it('When the password changed after the link was unlocked, then it is forbidden', async () => {
+        const accessToken = await getAccessToken(protectedSharing);
+        const sharingWithNewPassword = newSharing({
+          owner,
+          item: folder,
+          sharingType: SharingType.Public,
+          encryptedPassword: aes.encrypt('new-password', linkCode),
+        });
+        sharingWithNewPassword.id = protectedSharing.id;
+        sharingRepository.findOneSharing.mockResolvedValue(
+          sharingWithNewPassword,
+        );
+
+        await expect(
+          sharingService.getFoldersFromPublicFolder(
+            folder.uuid,
+            null,
+            page,
+            perPage,
+            accessToken,
+          ),
+        ).rejects.toThrow(SharingAccessTokenInvalidException);
+      });
+
+      it('When the access token is not valid, then it is forbidden', async () => {
+        await expect(
+          sharingService.getFoldersFromPublicFolder(
+            folder.uuid,
+            null,
+            page,
+            perPage,
+            'not-a-valid-token',
+          ),
+        ).rejects.toThrow(SharingAccessTokenInvalidException);
+      });
+
+      it('When a navigation token is sent as access token, then it is forbidden', async () => {
+        const navigationToken = sign(
+          { sharedRootFolderId: folder.uuid },
+          'test-jwt-secret',
+        );
+
+        await expect(
+          sharingService.getFoldersFromPublicFolder(
+            folder.uuid,
+            null,
+            page,
+            perPage,
+            navigationToken,
+          ),
+        ).rejects.toThrow(SharingAccessTokenInvalidException);
+      });
+
+      // TODO: expect SharingAccessTokenInvalidException after bypass removal
+      it('When no access token is sent, then it still returns the content', async () => {
+        const result = await sharingService.getFoldersFromPublicFolder(
+          folder.uuid,
+          null,
+          page,
+          perPage,
+        );
+
+        expect(result.items).toHaveLength(0);
+      });
+    });
   });
 
   describe('getFilesFromPublicFolder', () => {
@@ -3553,6 +3712,73 @@ describe('Sharing Use Cases', () => {
           perPage,
         ),
       ).rejects.toThrow(NotFoundException);
+    });
+    describe('When the public folder is password protected', () => {
+      const password = 'link-password';
+      const linkCode = 'link-code';
+      const protectedSharing = newSharing({
+        owner,
+        item: folder,
+        sharingType: SharingType.Public,
+        encryptedPassword: aes.encrypt(password, linkCode),
+      });
+
+      beforeEach(() => {
+        folderUseCases.getByUuid.mockResolvedValue(folder);
+        folderUseCases.getFolder.mockResolvedValue(parentFolder);
+        sharingRepository.findOneSharing.mockResolvedValue(protectedSharing);
+        usersUsecases.getUser.mockResolvedValue(owner);
+        fileUsecases.getFiles.mockResolvedValue([]);
+        folderUseCases.getFolderByUserId.mockResolvedValue(
+          newFolder({ owner, attributes: { bucket: 'test-bucket' } }),
+        );
+      });
+
+      it('When the link was unlocked with its password, then it returns the content', async () => {
+        const { accessToken } = await sharingService.getPublicSharingById(
+          protectedSharing.id,
+          linkCode,
+          password,
+        );
+
+        const result = await sharingService.getFilesFromPublicFolder(
+          folder.uuid,
+          null,
+          linkCode,
+          page,
+          perPage,
+          accessToken,
+        );
+
+        expect(result.items).toHaveLength(0);
+      });
+
+      it('When the access token is not valid, then it is forbidden', async () => {
+        await expect(
+          sharingService.getFilesFromPublicFolder(
+            folder.uuid,
+            null,
+            linkCode,
+            page,
+            perPage,
+            'not-a-valid-token',
+          ),
+        ).rejects.toThrow(SharingAccessTokenInvalidException);
+        expect(fileUsecases.getFiles).not.toHaveBeenCalled();
+      });
+
+      // TODO: expect SharingAccessTokenInvalidException after bypass removal
+      it('When no access token is sent, then it still returns the content', async () => {
+        const result = await sharingService.getFilesFromPublicFolder(
+          folder.uuid,
+          null,
+          linkCode,
+          page,
+          perPage,
+        );
+
+        expect(result.items).toHaveLength(0);
+      });
     });
   });
 

@@ -8,6 +8,7 @@ import {
   NotFoundException,
   forwardRef,
 } from '@nestjs/common';
+import { createHash, createHmac, timingSafeEqual } from 'crypto';
 import { v4, validate as validateUuid } from 'uuid';
 
 import {
@@ -36,6 +37,7 @@ import {
   generateTokenWithPlainSecret,
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
+import { verify } from 'jsonwebtoken';
 import {
   type FileWithSharedInfo,
   type FolderWithSharedInfo,
@@ -46,12 +48,13 @@ import {
 import { type GetInviteDto, type GetInvitesDto } from './dto/get-invites.dto';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '../../externals/mailer/mailer.service';
-import { Sign } from '../../middlewares/passport';
+import { Sign, signWithExpiry } from '../../middlewares/passport';
 import { type CreateSharingDto } from './dto/create-sharing.dto';
 import { aes } from '@internxt/lib';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
+import { SharingAccessTokenInvalidException } from './exception/sharing-access-token-invalid.exception';
 import { type Workspace } from '../workspaces/domains/workspaces.domain';
 import { type WorkspaceTeamAttributes } from '../workspaces/attributes/workspace-team.attributes';
 import { type ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
@@ -132,11 +135,13 @@ type PublicSharingInfo = Pick<
   | 'createdAt'
   | 'updatedAt'
   | 'type'
-> & { item: Item; itemToken: string };
+> & { item: Item; itemToken: string; accessToken: string | null };
 
 type SharingItemInfo = Pick<Item, 'plainName' | 'type' | 'size'>;
 
 const NEW_SHARING_VERSION = 'inxt-v3';
+const PUBLIC_SHARING_ACCESS_TOKEN_DURATION = '4h';
+const PUBLIC_SHARING_ACCESS_TOKEN_ALGORITHM = 'HS256';
 
 type PublicFolderNavigation = {
   sharedRootFolderId: Folder['uuid'];
@@ -145,8 +150,13 @@ type PublicFolderNavigation = {
   owner: Pick<User, 'id' | 'uuid'>;
 };
 
+const sha256 = (value: string): Buffer =>
+  createHash('sha256').update(value).digest();
+
 @Injectable()
 export class SharingService {
+  private readonly logger = new Logger('SHARING/SERVICE');
+
   constructor(
     private readonly sharingRepository: SequelizeSharingRepository,
     private readonly fileRepository: SequelizeFileRepository,
@@ -223,18 +233,10 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
-    if (sharing.isProtected() && !plainPassword) {
-      throw new PasswordNeededError();
-    }
-
-    if (sharing.isProtected()) {
-      const decryptedPassword = aes.decrypt(sharing.encryptedPassword, code);
-      if (decryptedPassword !== plainPassword) {
-        throw new ForbiddenException();
-      }
-    }
+    this.assertSharingPasswordIsValid(sharing, code, plainPassword);
 
     const response: Partial<PublicSharingInfo> = { ...sharing };
+    response.accessToken = this.signPublicSharingAccessToken(sharing);
 
     const owner = await this.usersUsecases.getUser(sharing.ownerId);
 
@@ -291,6 +293,53 @@ export class SharingService {
     response['item'] = item;
 
     return response as PublicSharingInfo;
+  }
+
+  private assertSharingPasswordIsValid(
+    sharing: Sharing,
+    code: string,
+    plainPassword?: string,
+  ): void {
+    if (!sharing.isProtected()) {
+      return;
+    }
+
+    if (!plainPassword) {
+      throw new PasswordNeededError();
+    }
+
+    let decryptedPassword: string;
+    try {
+      decryptedPassword = aes.decrypt(sharing.encryptedPassword, code);
+    } catch {
+      throw new ForbiddenException();
+    }
+
+    if (!timingSafeEqual(sha256(decryptedPassword), sha256(plainPassword))) {
+      throw new ForbiddenException();
+    }
+  }
+
+  private signPublicSharingAccessToken(sharing: Sharing): string | null {
+    if (!sharing.isProtected()) {
+      return null;
+    }
+
+    return signWithExpiry(
+      {},
+      this.getPublicSharingAccessKey(sharing.encryptedPassword),
+      {
+        subject: sharing.id,
+        expiresIn: PUBLIC_SHARING_ACCESS_TOKEN_DURATION,
+        algorithm: PUBLIC_SHARING_ACCESS_TOKEN_ALGORITHM,
+      },
+    );
+  }
+
+  private getPublicSharingAccessKey(encryptedPassword: string): Buffer {
+    return createHmac('sha256', this.configService.getOrThrow('secrets.jwt'))
+      .update(`public-sharing-access:${encryptedPassword}`)
+      .digest();
   }
 
   async getPublicSharingItemInfo(id: Sharing['id']): Promise<SharingItemInfo> {
@@ -466,10 +515,12 @@ export class SharingService {
     token: string | null,
     page: number,
     perPage: number,
+    accessToken?: string,
   ): Promise<GetFoldersReponse> {
     const { sharing, folder, owner, response } = await this.resolvePublicFolder(
       folderId,
       token,
+      accessToken,
     );
 
     const folders = await this.folderUsecases.getFoldersWithParent(
@@ -496,10 +547,12 @@ export class SharingService {
     code: string,
     page: number,
     perPage: number,
+    accessToken?: string,
   ): Promise<GetFilesResponse> {
     const { sharing, folder, owner, response } = await this.resolvePublicFolder(
       folderId,
       token,
+      accessToken,
     );
 
     const files = await this.fileUsecases.getFiles(
@@ -536,6 +589,7 @@ export class SharingService {
   private async resolvePublicFolder(
     folderId: Folder['uuid'],
     navigationToken: string | null,
+    accessToken?: string,
   ) {
     let navigation: PublicFolderNavigation | null = null;
     if (navigationToken) {
@@ -557,6 +611,8 @@ export class SharingService {
     if (!sharing) {
       throw new NotFoundException();
     }
+
+    this.assertPublicFolderAccessIsGranted(sharing, accessToken);
 
     const folder = await this.folderUsecases.getByUuid(folderId);
 
@@ -618,6 +674,37 @@ export class SharingService {
         role: 'NONE',
       },
     };
+  }
+
+  private assertPublicFolderAccessIsGranted(
+    sharing: Sharing,
+    accessToken?: string,
+  ): void {
+    if (!sharing.isProtected()) {
+      return;
+    }
+
+    // TODO: remove bypass once web sends x-share-access-token
+    if (!accessToken) {
+      this.logger.warn(
+        { sharingId: sharing.id },
+        'Protected public folder listed without access token',
+      );
+      return;
+    }
+
+    try {
+      verify(
+        accessToken,
+        this.getPublicSharingAccessKey(sharing.encryptedPassword),
+        {
+          subject: sharing.id,
+          algorithms: [PUBLIC_SHARING_ACCESS_TOKEN_ALGORITHM],
+        },
+      );
+    } catch {
+      throw new SharingAccessTokenInvalidException();
+    }
   }
 
   async getFoldersInSharedFolder(

@@ -440,6 +440,12 @@ export class SharingController {
     description: 'Token that authorizes the access to the shared content',
     type: String,
   })
+  @ApiHeader({
+    name: 'x-share-access-token',
+    description:
+      'Access token returned by the sharing meta of protected sharings',
+    required: false,
+  })
   @ApiOkResponse({ description: 'Get all items inside a shared folder' })
   async getPublicShareFiles(
     @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
@@ -447,6 +453,7 @@ export class SharingController {
     @Query('code') code: string,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
+    @Headers('x-share-access-token') accessToken?: string,
   ): Promise<GetFilesResponse | { error: string }> {
     return this.sharingService.getFilesFromPublicFolder(
       sharedFolderId,
@@ -454,6 +461,7 @@ export class SharingController {
       code,
       page,
       perPage,
+      accessToken,
     );
   }
 
@@ -484,19 +492,26 @@ export class SharingController {
     description: 'Token that authorizes the access to the shared content',
     type: String,
   })
+  @ApiHeader({
+    name: 'x-share-access-token',
+    description:
+      'Access token returned by the sharing meta of protected sharings',
+    required: false,
+  })
   @ApiOkResponse({ description: 'Get all items inside a shared folder' })
   async getPublicSharedFolders(
     @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
     @Query('token') token: string,
-    @Query('code') code: string,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
+    @Headers('x-share-access-token') accessToken?: string,
   ) {
     return this.sharingService.getFoldersFromPublicFolder(
       sharedFolderId,
       token,
       page,
       perPage,
+      accessToken,
     );
   }
 

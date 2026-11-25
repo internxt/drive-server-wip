@@ -2,10 +2,12 @@ import { HttpStatus } from '@nestjs/common';
 import { type NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { v4 } from 'uuid';
+import { aes } from '@internxt/lib';
 
 import { SequelizeFolderRepository } from '../folder/folder.repository';
 import { type Folder } from '../folder/folder.domain';
 import { SequelizeSharingRepository } from './sharing.repository';
+import { SHARING_ACCESS_TOKEN_INVALID } from './exception/sharing-access-token-invalid.exception';
 import { type Sharing, SharingType } from './sharing.domain';
 import {
   createTestUser,
@@ -99,10 +101,14 @@ describe('Sharing module', () => {
 
   describe('GET /sharings/public/items/:sharedFolderId - Lists a public folder', () => {
     const code = 'link-code';
+    const password = 'link-password';
     let sharedFolder: Folder;
     let childFolder: Folder;
 
-    const createSharing = (type: SharingType): Promise<Sharing> =>
+    const createSharing = (
+      type: SharingType,
+      encryptedPassword: string | null = null,
+    ): Promise<Sharing> =>
       sharingRepository.createSharing({
         itemId: sharedFolder.uuid,
         itemType: 'folder',
@@ -114,16 +120,34 @@ describe('Sharing module', () => {
         encryptionKey: 'encryption-key',
         encryptionAlgorithm: 'inxt-v2',
         encryptedCode: 'encrypted-code',
+        encryptedPassword,
         type,
       } as Omit<Sharing, 'id'>);
 
     const listFolder = (
       type: 'folders' | 'files',
-      options: { token?: string } = {},
-    ) =>
-      request(app.getHttpServer())
+      options: { token?: string; accessToken?: string } = {},
+    ) => {
+      const req = request(app.getHttpServer())
         .get(`/sharings/public/items/${sharedFolder.uuid}/${type}`)
         .query({ code, token: options.token ?? '' });
+
+      if (options.accessToken) {
+        req.set('x-share-access-token', options.accessToken);
+      }
+
+      return req;
+    };
+
+    const unlockSharing = async (sharing: Sharing): Promise<string> => {
+      const response = await request(app.getHttpServer())
+        .get(`/sharings/${sharing.id}/meta`)
+        .query({ code })
+        .set('x-share-password', encodeURIComponent(password))
+        .expect(HttpStatus.OK);
+
+      return response.body.accessToken;
+    };
 
     beforeEach(async () => {
       sharedFolder = await folderRepository.create(
@@ -176,6 +200,33 @@ describe('Sharing module', () => {
         const response = await listFolder(type).expect(HttpStatus.OK);
 
         expect(response.body.token).toEqual(expect.any(String));
+      });
+
+      it('When the link has a password and it was unlocked, then it returns its content', async () => {
+        const sharing = await createSharing(
+          SharingType.Public,
+          aes.encrypt(password, code),
+        );
+        const accessToken = await unlockSharing(sharing);
+
+        await listFolder(type, { accessToken }).expect(HttpStatus.OK);
+      });
+
+      it('When the link has a password and the access token is not valid, then it is forbidden', async () => {
+        await createSharing(SharingType.Public, aes.encrypt(password, code));
+
+        const response = await listFolder(type, {
+          accessToken: 'not-a-valid-token',
+        }).expect(HttpStatus.FORBIDDEN);
+
+        expect(response.body.errorCode).toBe(SHARING_ACCESS_TOKEN_INVALID);
+      });
+
+      // TODO: expect SHARING_ACCESS_TOKEN_INVALID after bypass removal
+      it('When the link has a password and no access token is sent, then it still returns its content', async () => {
+        await createSharing(SharingType.Public, aes.encrypt(password, code));
+
+        await listFolder(type).expect(HttpStatus.OK);
       });
     });
 
