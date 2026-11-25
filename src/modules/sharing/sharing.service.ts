@@ -8,6 +8,7 @@ import {
   NotFoundException,
   forwardRef,
 } from '@nestjs/common';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { v4, validate as validateUuid } from 'uuid';
 
 import {
@@ -36,6 +37,7 @@ import {
   generateTokenWithPlainSecret,
   verifyWithDefaultSecret,
 } from '../../lib/jwt';
+import { verify } from 'jsonwebtoken';
 import {
   type FileWithSharedInfo,
   type FolderWithSharedInfo,
@@ -46,12 +48,13 @@ import {
 import { type GetInviteDto, type GetInvitesDto } from './dto/get-invites.dto';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '../../externals/mailer/mailer.service';
-import { Sign } from '../../middlewares/passport';
+import { Sign, signWithExpiry } from '../../middlewares/passport';
 import { type CreateSharingDto } from './dto/create-sharing.dto';
 import { aes } from '@internxt/lib';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { SequelizeUserReferralsRepository } from '../user/user-referrals.repository';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
+import { SharingAccessTokenInvalidException } from './exception/sharing-access-token-invalid.exception';
 import { type Workspace } from '../workspaces/domains/workspaces.domain';
 import { type WorkspaceTeamAttributes } from '../workspaces/attributes/workspace-team.attributes';
 import { type ItemSharingInfoDto } from './dto/response/get-item-sharing-info.dto';
@@ -132,11 +135,23 @@ type PublicSharingInfo = Pick<
   | 'createdAt'
   | 'updatedAt'
   | 'type'
-> & { item: Item; itemToken: string };
+> & { item: Item; itemToken: string; accessToken: string | null };
 
 type SharingItemInfo = Pick<Item, 'plainName' | 'type' | 'size'>;
 
 const NEW_SHARING_VERSION = 'inxt-v3';
+const PUBLIC_SHARING_ACCESS_TOKEN_DURATION = '1d';
+const PUBLIC_SHARING_ACCESS_TOKEN_ALGORITHM = 'HS256';
+
+type PublicFolderNavigation = {
+  sharedRootFolderId: Folder['uuid'];
+  parentFolderId: Folder['uuid'] | null;
+  folder: Pick<Folder, 'uuid' | 'id'>;
+  owner: Pick<User, 'id' | 'uuid'>;
+};
+
+const sha256 = (value: string): Buffer =>
+  createHash('sha256').update(value).digest();
 
 @Injectable()
 export class SharingService {
@@ -216,18 +231,10 @@ export class SharingService {
       throw new ForbiddenException();
     }
 
-    if (sharing.isProtected() && !plainPassword) {
-      throw new PasswordNeededError();
-    }
-
-    if (sharing.isProtected()) {
-      const decryptedPassword = aes.decrypt(sharing.encryptedPassword, code);
-      if (decryptedPassword !== plainPassword) {
-        throw new ForbiddenException();
-      }
-    }
+    this.assertSharingPasswordIsValid(sharing, code, plainPassword);
 
     const response: Partial<PublicSharingInfo> = { ...sharing };
+    response.accessToken = this.signPublicSharingAccessToken(sharing);
 
     const owner = await this.usersUsecases.getUser(sharing.ownerId);
 
@@ -284,6 +291,53 @@ export class SharingService {
     response['item'] = item;
 
     return response as PublicSharingInfo;
+  }
+
+  private assertSharingPasswordIsValid(
+    sharing: Sharing,
+    code: string,
+    plainPassword?: string,
+  ): void {
+    if (!sharing.isProtected()) {
+      return;
+    }
+
+    if (!plainPassword) {
+      throw new PasswordNeededError();
+    }
+
+    let decryptedPassword: string;
+    try {
+      decryptedPassword = aes.decrypt(sharing.encryptedPassword, code);
+    } catch {
+      throw new ForbiddenException();
+    }
+
+    if (!timingSafeEqual(sha256(decryptedPassword), sha256(plainPassword))) {
+      throw new ForbiddenException();
+    }
+  }
+
+  private signPublicSharingAccessToken(sharing: Sharing): string | null {
+    if (!sharing.isProtected()) {
+      return null;
+    }
+
+    return signWithExpiry(
+      {},
+      this.getPublicSharingAccessKey(sharing.encryptedPassword),
+      {
+        subject: sharing.id,
+        expiresIn: PUBLIC_SHARING_ACCESS_TOKEN_DURATION,
+        algorithm: PUBLIC_SHARING_ACCESS_TOKEN_ALGORITHM,
+      },
+    );
+  }
+
+  private getPublicSharingAccessKey(encryptedPassword: string): Buffer {
+    return createHmac('sha256', this.configService.getOrThrow('secrets.jwt'))
+      .update(`public-sharing-access:${encryptedPassword}`)
+      .digest();
   }
 
   async getPublicSharingItemInfo(id: Sharing['id']): Promise<SharingItemInfo> {
@@ -459,135 +513,32 @@ export class SharingService {
     token: string | null,
     page: number,
     perPage: number,
+    accessToken?: string,
   ): Promise<GetFoldersReponse> {
-    const getFolderContent = async (
-      userId: User['id'],
-      folderId: Folder['id'],
-    ) => {
-      const folders = (
-        await this.folderUsecases.getFoldersWithParent(
-          userId,
-          {
-            parentId: folderId,
-            deleted: false,
-            removed: false,
-          },
-          {
-            limit: perPage,
-            offset: page * perPage,
-          },
-        )
-      ).map((folder) => {
-        return {
-          ...folder,
-          encryptionKey: null,
-          dateShared: null,
-          sharedWithMe: null,
-        };
-      }) as FolderWithSharedInfo[];
+    const { sharing, folder, owner } = await this.getAuthorizedPublicFolder(
+      folderId,
+      token,
+      accessToken,
+    );
 
-      return folders;
-    };
-    const folder = await this.folderUsecases.getByUuid(folderId);
-
-    if (folder.isTrashed()) {
-      throw new SharedFolderInTheTrashError();
-    }
-
-    if (folder.isRemoved()) {
-      throw new SharedFolderRemovedError();
-    }
-
-    const parentFolder = folder.parentId
-      ? await this.folderUsecases.getFolder(folder.parentId)
-      : null;
-
-    const requestedFolderIsSharedRootFolder = !token;
-
-    const decoded = requestedFolderIsSharedRootFolder
-      ? null
-      : (verifyWithDefaultSecret(token) as
-          | {
-              sharedRootFolderId: Folder['uuid'];
-              parentFolderId: Folder['parent']['uuid'];
-              folder: {
-                uuid: Folder['uuid'];
-                id: Folder['id'];
-              };
-              owner: {
-                id: User['id'];
-                uuid: User['uuid'];
-              };
-            }
-          | string);
-
-    if (typeof decoded === 'string') {
-      throw new ForbiddenException('Invalid token');
-    }
-
-    const sharing = await this.sharingRepository.findOneSharing({
-      itemId: requestedFolderIsSharedRootFolder
-        ? folderId
-        : decoded.sharedRootFolderId,
-      itemType: 'folder',
-    });
-
-    const owner = await this.usersUsecases.getUser(sharing.ownerId);
-
-    if (!requestedFolderIsSharedRootFolder) {
-      const navigationUp = folder.uuid === decoded.parentFolderId;
-      const navigationDown = folder.parentId === decoded.folder.id;
-      const navigationUpFromSharedFolder =
-        navigationUp && decoded.sharedRootFolderId === decoded.folder.uuid;
-
-      if (navigationUpFromSharedFolder) {
-        throw new ForbiddenException(
-          'User does not have access to this folder',
-        );
-      }
-
-      if (!navigationDown && !navigationUp) {
-        throw new ForbiddenException(
-          'User does not have access to this folder',
-        );
-      }
-    }
-
-    const [ownerRootFolder, items] = await Promise.all([
-      this.folderUsecases.getFolderByUserId(owner.rootFolderId, owner.id),
-      getFolderContent(owner.id, folder.id),
+    const [folders, meta] = await Promise.all([
+      this.folderUsecases.getFoldersWithParent(
+        owner.id,
+        { parentId: folder.id, deleted: false, removed: false },
+        { limit: perPage, offset: page * perPage },
+      ),
+      this.getPublicFolderListingMeta(sharing, folder, owner),
     ]);
 
     return {
-      items,
-      credentials: {
-        networkPass: owner.userId,
-        networkUser: owner.bridgeUser,
-      },
-      token: generateTokenWithPlainSecret(
-        {
-          sharedRootFolderId: sharing.itemId,
-          parentFolderId: parentFolder?.uuid || null,
-          folder: {
-            uuid: folder.uuid,
-            id: folder.id,
-          },
-          owner: {
-            id: owner.id,
-            uuid: owner.uuid,
-          },
-        },
-        '1d',
-        getEnv().secrets.jwt,
-      ),
-      bucket: ownerRootFolder.bucket,
+      ...meta,
+      items: folders.map((subfolder) => ({
+        ...subfolder,
+        encryptionKey: null,
+        dateShared: null,
+        sharedWithMe: null,
+      })) as FolderWithSharedInfo[],
       encryptionKey: sharing.encryptionKey,
-      parent: {
-        uuid: parentFolder?.uuid || null,
-        name: parentFolder?.plainName || null,
-      },
-      name: folder.name,
-      role: 'NONE',
     };
   }
 
@@ -597,89 +548,21 @@ export class SharingService {
     code: string,
     page: number,
     perPage: number,
+    accessToken?: string,
   ): Promise<GetFilesResponse> {
-    const getFilesFromFolder = (
-      userId: User['id'],
-      folderUuid: Folder['uuid'],
-    ) =>
+    const { sharing, folder, owner } = await this.getAuthorizedPublicFolder(
+      folderId,
+      token,
+      accessToken,
+    );
+
+    const [files, meta] = await Promise.all([
       this.fileUsecases.getFiles(
-        userId,
-        {
-          folderUuid,
-          status: FileStatus.EXISTS,
-        },
-        {
-          limit: perPage,
-          offset: page * perPage,
-        },
-      );
-    const folder = await this.folderUsecases.getByUuid(folderId);
-
-    if (folder.isTrashed()) {
-      throw new SharedFolderInTheTrashError();
-    }
-
-    if (folder.isRemoved()) {
-      throw new SharedFolderRemovedError();
-    }
-
-    const parentFolder = folder.parentId
-      ? await this.folderUsecases.getFolder(folder.parentId)
-      : null;
-
-    const requestedFolderIsSharedRootFolder = !token;
-
-    const decoded = requestedFolderIsSharedRootFolder
-      ? null
-      : (verifyWithDefaultSecret(token) as
-          | {
-              sharedRootFolderId: Folder['uuid'];
-              parentFolderId: Folder['parent']['uuid'];
-              folder: {
-                uuid: Folder['uuid'];
-                id: Folder['id'];
-              };
-              owner: {
-                id: User['id'];
-                uuid: User['uuid'];
-              };
-            }
-          | string);
-
-    if (typeof decoded === 'string') {
-      throw new ForbiddenException('Invalid token');
-    }
-
-    const sharing = await this.sharingRepository.findOneSharing({
-      itemId: requestedFolderIsSharedRootFolder
-        ? folderId
-        : decoded.sharedRootFolderId,
-      itemType: 'folder',
-    });
-
-    if (!sharing) {
-      throw new NotFoundException();
-    }
-
-    const owner = await this.usersUsecases.getUser(sharing.ownerId);
-
-    if (!requestedFolderIsSharedRootFolder) {
-      const navigationUp = folder.uuid === decoded.parentFolderId;
-      const navigationDown = folder.parentId === decoded.folder.id;
-      const insideTheSharedRootFolder =
-        decoded.sharedRootFolderId === decoded.folder.uuid;
-
-      if (
-        (!navigationDown && !navigationUp) ||
-        (navigationUp && insideTheSharedRootFolder)
-      ) {
-        throw new NotFoundException();
-      }
-    }
-
-    const [ownerRootFolder, files] = await Promise.all([
-      this.folderUsecases.getFolderByUserId(owner.rootFolderId, owner.id),
-      getFilesFromFolder(owner.id, folder.uuid),
+        owner.id,
+        { folderUuid: folder.uuid, status: FileStatus.EXISTS },
+        { limit: perPage, offset: page * perPage },
+      ),
+      this.getPublicFolderListingMeta(sharing, folder, owner),
     ]);
 
     const network = this.bridgeService.createNetworkEnvironment(
@@ -704,30 +587,91 @@ export class SharingService {
       })),
     )) as FileWithSharedInfo[];
 
+    return { ...meta, items, encryptionKey: null };
+  }
+
+  private async getAuthorizedPublicFolder(
+    folderId: Folder['uuid'],
+    navigationToken: string | null,
+    accessToken?: string,
+  ) {
+    let navigation: PublicFolderNavigation | null = null;
+    if (navigationToken) {
+      try {
+        navigation = verifyWithDefaultSecret(
+          navigationToken,
+        ) as PublicFolderNavigation;
+      } catch {
+        throw new ForbiddenException('Invalid token');
+      }
+    }
+
+    const sharing = await this.sharingRepository.findOneSharing({
+      itemId: navigation ? navigation.sharedRootFolderId : folderId,
+      itemType: 'folder',
+      type: SharingType.Public,
+    });
+
+    if (!sharing) {
+      throw new NotFoundException();
+    }
+
+    this.assertPublicFolderAccessIsGranted(sharing, accessToken);
+
+    const folder = await this.folderUsecases.getByUuid(folderId);
+
+    if (navigation) {
+      const isGoingDown = folder.parentId === navigation.folder.id;
+      const isGoingUp = folder.uuid === navigation.parentFolderId;
+      const isLeavingTheSharedFolder =
+        isGoingUp && navigation.folder.uuid === navigation.sharedRootFolderId;
+
+      if ((!isGoingDown && !isGoingUp) || isLeavingTheSharedFolder) {
+        throw new NotFoundException();
+      }
+    }
+
+    if (folder.isTrashed()) {
+      throw new SharedFolderInTheTrashError();
+    }
+
+    if (folder.isRemoved()) {
+      throw new SharedFolderRemovedError();
+    }
+
+    const owner = await this.usersUsecases.getUser(sharing.ownerId);
+
+    return { sharing, folder, owner };
+  }
+
+  private async getPublicFolderListingMeta(
+    sharing: Sharing,
+    folder: Folder,
+    owner: User,
+  ) {
+    const [parentFolder, ownerRootFolder] = await Promise.all([
+      folder.parentId ? this.folderUsecases.getFolder(folder.parentId) : null,
+      this.folderUsecases.getFolderByUserId(owner.rootFolderId, owner.id),
+    ]);
+
+    const nextNavigation: PublicFolderNavigation = {
+      sharedRootFolderId: sharing.itemId,
+      parentFolderId: parentFolder?.uuid || null,
+      folder: { uuid: folder.uuid, id: folder.id },
+      owner: { id: owner.id, uuid: owner.uuid },
+    };
+
     return {
-      items,
       credentials: {
         networkPass: owner.userId,
         networkUser: owner.bridgeUser,
       },
       token: generateTokenWithPlainSecret(
-        {
-          sharedRootFolderId: sharing.itemId,
-          parentFolderId: parentFolder?.uuid || null,
-          folder: {
-            uuid: folder.uuid,
-            id: folder.id,
-          },
-          owner: {
-            id: owner.id,
-            uuid: owner.uuid,
-          },
-        },
+        nextNavigation,
         '1d',
         getEnv().secrets.jwt,
       ),
       bucket: ownerRootFolder.bucket,
-      encryptionKey: null,
       parent: {
         uuid: parentFolder?.uuid || null,
         name: parentFolder?.plainName || null,
@@ -735,6 +679,33 @@ export class SharingService {
       name: folder.name,
       role: 'NONE',
     };
+  }
+
+  private assertPublicFolderAccessIsGranted(
+    sharing: Sharing,
+    accessToken?: string,
+  ): void {
+    if (!sharing.isProtected()) {
+      return;
+    }
+
+    // TODO: remove bypass once web sends x-share-access-token
+    if (!accessToken) {
+      return;
+    }
+
+    try {
+      verify(
+        accessToken,
+        this.getPublicSharingAccessKey(sharing.encryptedPassword),
+        {
+          subject: sharing.id,
+          algorithms: [PUBLIC_SHARING_ACCESS_TOKEN_ALGORITHM],
+        },
+      );
+    } catch {
+      throw new SharingAccessTokenInvalidException();
+    }
   }
 
   async getFoldersInSharedFolder(

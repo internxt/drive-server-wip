@@ -33,6 +33,8 @@ async function bootstrap() {
         'internxt-version',
         'internxt-client',
         'x-share-password',
+        'x-share-code',
+        'x-share-access-token',
         'X-Internxt-Captcha',
         'x-internxt-workspace',
         'internxt-resources-token',

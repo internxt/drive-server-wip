@@ -59,6 +59,7 @@ describe('SharingController', () => {
         type: SharingType.Public,
         item: file,
         itemToken: 'token',
+        accessToken: null,
       };
 
       jest
@@ -101,6 +102,7 @@ describe('SharingController', () => {
         type: SharingType.Public,
         item: file,
         itemToken: 'token',
+        accessToken: null,
       };
 
       jest
@@ -790,6 +792,7 @@ describe('SharingController', () => {
         'code',
         0,
         50,
+        undefined,
       );
     });
   });
@@ -813,7 +816,6 @@ describe('SharingController', () => {
       const result = await controller.getPublicSharedFolders(
         folder.uuid,
         'token',
-        'code',
         0,
         50,
       );
@@ -824,6 +826,51 @@ describe('SharingController', () => {
         'token',
         0,
         50,
+        undefined,
+      );
+    });
+  });
+
+  describe('Listing a password protected public folder', () => {
+    it('When an access token is sent, then it is used to list folders and files', async () => {
+      jest
+        .spyOn(sharingService, 'getFoldersFromPublicFolder')
+        .mockResolvedValue({} as any);
+      jest
+        .spyOn(sharingService, 'getFilesFromPublicFolder')
+        .mockResolvedValue({} as any);
+
+      await controller.getPublicSharedFolders(
+        folder.uuid,
+        'token',
+        0,
+        50,
+        'access-token',
+      );
+      await controller.getPublicShareFiles(
+        folder.uuid,
+        'token',
+        undefined,
+        0,
+        50,
+        'code',
+        'access-token',
+      );
+
+      expect(sharingService.getFoldersFromPublicFolder).toHaveBeenCalledWith(
+        folder.uuid,
+        'token',
+        0,
+        50,
+        'access-token',
+      );
+      expect(sharingService.getFilesFromPublicFolder).toHaveBeenCalledWith(
+        folder.uuid,
+        'token',
+        'code',
+        0,
+        50,
+        'access-token',
       );
     });
   });
