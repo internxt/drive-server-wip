@@ -140,7 +140,7 @@ type PublicSharingInfo = Pick<
 type SharingItemInfo = Pick<Item, 'plainName' | 'type' | 'size'>;
 
 const NEW_SHARING_VERSION = 'inxt-v3';
-const PUBLIC_SHARING_ACCESS_TOKEN_DURATION = '4h';
+const PUBLIC_SHARING_ACCESS_TOKEN_DURATION = '1d';
 const PUBLIC_SHARING_ACCESS_TOKEN_ALGORITHM = 'HS256';
 
 type PublicFolderNavigation = {
@@ -155,8 +155,6 @@ const sha256 = (value: string): Buffer =>
 
 @Injectable()
 export class SharingService {
-  private readonly logger = new Logger('SHARING/SERVICE');
-
   constructor(
     private readonly sharingRepository: SequelizeSharingRepository,
     private readonly fileRepository: SequelizeFileRepository,
@@ -686,10 +684,6 @@ export class SharingService {
 
     // TODO: remove bypass once web sends x-share-access-token
     if (!accessToken) {
-      this.logger.warn(
-        { sharingId: sharing.id },
-        'Protected public folder listed without access token',
-      );
       return;
     }
 

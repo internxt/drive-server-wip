@@ -103,7 +103,7 @@ export class SharingController {
     @Headers('x-share-code') headerCode?: string,
   ) {
     // TODO: drop code query param once clients send x-share-code
-    const code = headerCode ?? queryCode;
+    const code = headerCode || queryCode;
     if (!code) {
       throw new BadRequestException('Code is required');
     }
@@ -470,7 +470,7 @@ export class SharingController {
     @Headers('x-share-access-token') accessToken?: string,
   ): Promise<GetFilesResponse | { error: string }> {
     // TODO: drop code query param once clients send x-share-code
-    const code = headerCode ?? queryCode;
+    const code = headerCode || queryCode;
     return this.sharingService.getFilesFromPublicFolder(
       sharedFolderId,
       token,
