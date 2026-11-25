@@ -14,6 +14,7 @@ import {
   type TestUserContext,
 } from '../../../test/helpers/user.helper';
 import { createTestApp } from '../../../test/helpers/test-app.helper';
+import { Time } from '../../lib/time';
 
 describe('Sharing module', () => {
   let app: NestExpressApplication;
@@ -108,9 +109,10 @@ describe('Sharing module', () => {
     const createSharing = (
       type: SharingType,
       encryptedPassword: string | null = null,
+      itemId: Folder['uuid'] = sharedFolder.uuid,
     ): Promise<Sharing> =>
       sharingRepository.createSharing({
-        itemId: sharedFolder.uuid,
+        itemId,
         itemType: 'folder',
         ownerId: owner.user.uuid,
         sharedWith:
@@ -169,7 +171,8 @@ describe('Sharing module', () => {
     });
 
     afterEach(async () => {
-      await sharingRepository.deleteSharingsBy({ itemId: sharedFolder.uuid });
+      jest.restoreAllMocks();
+      await sharingRepository.deleteSharingsBy({ ownerId: owner.user.uuid });
     });
 
     describe.each(['folders', 'files'] as const)('/%s', (type) => {
@@ -202,6 +205,13 @@ describe('Sharing module', () => {
         expect(response.body.token).toEqual(expect.any(String));
       });
 
+      it('When the folder is shared both privately and publicly, then the public link returns its content', async () => {
+        await createSharing(SharingType.Private);
+        await createSharing(SharingType.Public);
+
+        await listFolder(type).expect(HttpStatus.OK);
+      });
+
       it('When the link has a password and it was unlocked, then it returns its content', async () => {
         const sharing = await createSharing(
           SharingType.Public,
@@ -218,6 +228,23 @@ describe('Sharing module', () => {
         const response = await listFolder(type, {
           accessToken: 'not-a-valid-token',
         }).expect(HttpStatus.FORBIDDEN);
+
+        expect(response.body.errorCode).toBe(SHARING_ACCESS_TOKEN_INVALID);
+      });
+
+      it('When the link has a password and the access token has expired, then it is forbidden', async () => {
+        const sharing = await createSharing(
+          SharingType.Public,
+          aes.encrypt(password, code),
+        );
+        const accessToken = await unlockSharing(sharing);
+        jest
+          .spyOn(Date, 'now')
+          .mockReturnValue(Time.dateWithTimeAdded(25, 'hour').getTime());
+
+        const response = await listFolder(type, { accessToken }).expect(
+          HttpStatus.FORBIDDEN,
+        );
 
         expect(response.body.errorCode).toBe(SHARING_ACCESS_TOKEN_INVALID);
       });
@@ -321,17 +348,11 @@ describe('Sharing module', () => {
         '03-aes',
         owner.rootFolder.uuid,
       );
-      const otherSharing = await sharingRepository.createSharing({
-        itemId: otherFolder.uuid,
-        itemType: 'folder',
-        ownerId: owner.user.uuid,
-        sharedWith: '00000000-0000-0000-0000-000000000000',
-        encryptionKey: 'encryption-key',
-        encryptionAlgorithm: 'inxt-v2',
-        encryptedCode: 'encrypted-code',
-        encryptedPassword: aes.encrypt(password, code),
-        type: SharingType.Public,
-      } as Omit<Sharing, 'id'>);
+      const otherSharing = await createSharing(
+        SharingType.Public,
+        aes.encrypt(password, code),
+        otherFolder.uuid,
+      );
       const accessToken = await unlockSharing(otherSharing);
       await createSharing(SharingType.Public, aes.encrypt(password, code));
 
@@ -340,7 +361,6 @@ describe('Sharing module', () => {
       );
 
       expect(response.body.errorCode).toBe(SHARING_ACCESS_TOKEN_INVALID);
-      await sharingRepository.deleteSharingsBy({ id: otherSharing.id });
     });
 
     it('When the password changed after the link was unlocked, then it is forbidden', async () => {

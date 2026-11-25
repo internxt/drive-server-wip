@@ -23,6 +23,7 @@ import {
   publicUser,
 } from '../../../test/fixtures';
 import * as jwtUtils from '../../lib/jwt';
+import { Time } from '../../lib/time';
 import { PasswordNeededError, SharingService } from './sharing.service';
 import { type SequelizeSharingRepository } from './sharing.repository';
 import { type FolderUseCases } from '../folder/folder.usecase';
@@ -3424,6 +3425,10 @@ describe('Sharing Use Cases', () => {
         );
       });
 
+      afterEach(() => {
+        jest.restoreAllMocks();
+      });
+
       it('When the link was unlocked with its password, then it returns the content', async () => {
         const accessToken = await getAccessToken(protectedSharing);
 
@@ -3470,6 +3475,23 @@ describe('Sharing Use Cases', () => {
         sharingRepository.findOneSharing.mockResolvedValue(
           sharingWithNewPassword,
         );
+
+        await expect(
+          sharingService.getFoldersFromPublicFolder(
+            folder.uuid,
+            null,
+            page,
+            perPage,
+            accessToken,
+          ),
+        ).rejects.toThrow(SharingAccessTokenInvalidException);
+      });
+
+      it('When the access token has expired, then it is forbidden', async () => {
+        const accessToken = await getAccessToken(protectedSharing);
+        jest
+          .spyOn(Date, 'now')
+          .mockReturnValue(Time.dateWithTimeAdded(25, 'hour').getTime());
 
         await expect(
           sharingService.getFoldersFromPublicFolder(
@@ -3746,6 +3768,10 @@ describe('Sharing Use Cases', () => {
         );
       });
 
+      afterEach(() => {
+        jest.restoreAllMocks();
+      });
+
       it('When the link was unlocked with its password, then it returns the content', async () => {
         const { accessToken } = await sharingService.getPublicSharingById(
           protectedSharing.id,
@@ -3763,6 +3789,29 @@ describe('Sharing Use Cases', () => {
         );
 
         expect(result.items).toHaveLength(0);
+      });
+
+      it('When the access token has expired, then it is forbidden', async () => {
+        const { accessToken } = await sharingService.getPublicSharingById(
+          protectedSharing.id,
+          linkCode,
+          password,
+        );
+        jest
+          .spyOn(Date, 'now')
+          .mockReturnValue(Time.dateWithTimeAdded(25, 'hour').getTime());
+
+        await expect(
+          sharingService.getFilesFromPublicFolder(
+            folder.uuid,
+            null,
+            linkCode,
+            page,
+            perPage,
+            accessToken,
+          ),
+        ).rejects.toThrow(SharingAccessTokenInvalidException);
+        expect(fileUsecases.getFiles).not.toHaveBeenCalled();
       });
 
       it('When the access token is not valid, then it is forbidden', async () => {
