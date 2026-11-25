@@ -35,8 +35,14 @@ import {
   type SharingAttributes,
   SharingItemType,
   SharingType,
+  type Sharing,
 } from './sharing.domain';
-import { FileStatus, type FileAttributes } from '../file/file.domain';
+import {
+  FileStatus,
+  type File,
+  type FileAttributes,
+} from '../file/file.domain';
+import { type Folder } from '../folder/folder.domain';
 import { SharingNotFoundException } from './exception/sharing-not-found.exception';
 import { type GetInviteDto } from './dto/get-invites.dto';
 import { type BridgeService } from '../../externals/bridge/bridge.service';
@@ -3161,6 +3167,7 @@ describe('Sharing Use Cases', () => {
     const parentFolder = newFolder({ owner });
     folder.parentId = parentFolder.id;
     const sharing = newSharing({ owner, item: folder });
+    const code = 'encryption-code';
     const page = 0;
     const perPage = 10;
 
@@ -3178,6 +3185,8 @@ describe('Sharing Use Cases', () => {
 
       const result = await sharingService.getFoldersFromPublicFolder(
         folder.uuid,
+        null,
+        code,
         null,
         page,
         perPage,
@@ -3197,6 +3206,8 @@ describe('Sharing Use Cases', () => {
         sharingService.getFoldersFromPublicFolder(
           trashedFolder.uuid,
           null,
+          code,
+          null,
           page,
           perPage,
         ),
@@ -3213,6 +3224,8 @@ describe('Sharing Use Cases', () => {
         sharingService.getFoldersFromPublicFolder(
           removedFolder.uuid,
           null,
+          code,
+          null,
           page,
           perPage,
         ),
@@ -3222,14 +3235,14 @@ describe('Sharing Use Cases', () => {
     it('When navigation credentials are invalid, then it fails', async () => {
       folderUseCases.getByUuid.mockResolvedValue(folder);
       folderUseCases.getFolder.mockResolvedValue(parentFolder);
-      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(
-        'invalid-string',
-      );
+      (jwtUtils.verifyToken as jest.Mock).mockReturnValue('invalid-string');
 
       await expect(
         sharingService.getFoldersFromPublicFolder(
           folder.uuid,
           'some-token',
+          code,
+          null,
           page,
           perPage,
         ),
@@ -3238,6 +3251,7 @@ describe('Sharing Use Cases', () => {
 
     it('When user tries to navigate above the shared folder, then it fails', async () => {
       const decoded = {
+        sharingId: sharing.id,
         sharedRootFolderId: folder.uuid,
         parentFolderId: folder.uuid,
         folder: { uuid: folder.uuid, id: folder.id },
@@ -3248,12 +3262,14 @@ describe('Sharing Use Cases', () => {
       folderUseCases.getFolder.mockResolvedValue(parentFolder);
       sharingRepository.findOneSharing.mockResolvedValue(sharing);
       usersUsecases.getUser.mockResolvedValue(owner);
-      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
+      (jwtUtils.verifyToken as jest.Mock).mockReturnValue(decoded);
 
       await expect(
         sharingService.getFoldersFromPublicFolder(
           folder.uuid,
           'some-token',
+          code,
+          null,
           page,
           perPage,
         ),
@@ -3263,6 +3279,7 @@ describe('Sharing Use Cases', () => {
     it('When user tries to navigate to an unrelated folder, then it fails', async () => {
       const unrelatedFolder = newFolder({ owner });
       const decoded = {
+        sharingId: sharing.id,
         sharedRootFolderId: sharing.itemId,
         parentFolderId: v4(),
         folder: { uuid: unrelatedFolder.uuid, id: unrelatedFolder.id },
@@ -3273,12 +3290,14 @@ describe('Sharing Use Cases', () => {
       folderUseCases.getFolder.mockResolvedValue(parentFolder);
       sharingRepository.findOneSharing.mockResolvedValue(sharing);
       usersUsecases.getUser.mockResolvedValue(owner);
-      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
+      (jwtUtils.verifyToken as jest.Mock).mockReturnValue(decoded);
 
       await expect(
         sharingService.getFoldersFromPublicFolder(
           folder.uuid,
           'some-token',
+          code,
+          null,
           page,
           perPage,
         ),
@@ -3302,6 +3321,8 @@ describe('Sharing Use Cases', () => {
 
       const result = await sharingService.getFoldersFromPublicFolder(
         noParentFolder.uuid,
+        null,
+        code,
         null,
         page,
         perPage,
@@ -3339,6 +3360,7 @@ describe('Sharing Use Cases', () => {
         folder.uuid,
         null,
         code,
+        null,
         page,
         perPage,
       );
@@ -3369,6 +3391,7 @@ describe('Sharing Use Cases', () => {
         folder.uuid,
         null,
         code,
+        null,
         page,
         perPage,
       );
@@ -3395,6 +3418,7 @@ describe('Sharing Use Cases', () => {
           trashedFolder.uuid,
           null,
           code,
+          null,
           page,
           perPage,
         ),
@@ -3412,6 +3436,7 @@ describe('Sharing Use Cases', () => {
           removedFolder.uuid,
           null,
           code,
+          null,
           page,
           perPage,
         ),
@@ -3428,6 +3453,7 @@ describe('Sharing Use Cases', () => {
           folder.uuid,
           null,
           code,
+          null,
           page,
           perPage,
         ),
@@ -3437,15 +3463,14 @@ describe('Sharing Use Cases', () => {
     it('When navigation credentials are invalid, then it fails', async () => {
       folderUseCases.getByUuid.mockResolvedValue(folder);
       folderUseCases.getFolder.mockResolvedValue(parentFolder);
-      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(
-        'invalid-string',
-      );
+      (jwtUtils.verifyToken as jest.Mock).mockReturnValue('invalid-string');
 
       await expect(
         sharingService.getFilesFromPublicFolder(
           folder.uuid,
           'some-token',
           code,
+          null,
           page,
           perPage,
         ),
@@ -3455,6 +3480,7 @@ describe('Sharing Use Cases', () => {
     it('When user tries to navigate to an unrelated folder, then it fails', async () => {
       const unrelatedFolder = newFolder({ owner });
       const decoded = {
+        sharingId: sharing.id,
         sharedRootFolderId: sharing.itemId,
         parentFolderId: v4(),
         folder: { uuid: unrelatedFolder.uuid, id: unrelatedFolder.id },
@@ -3465,17 +3491,183 @@ describe('Sharing Use Cases', () => {
       folderUseCases.getFolder.mockResolvedValue(parentFolder);
       sharingRepository.findOneSharing.mockResolvedValue(sharing);
       usersUsecases.getUser.mockResolvedValue(owner);
-      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReturnValue(decoded);
+      (jwtUtils.verifyToken as jest.Mock).mockReturnValue(decoded);
 
       await expect(
         sharingService.getFilesFromPublicFolder(
           folder.uuid,
           'some-token',
           code,
+          null,
           page,
           perPage,
         ),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe.each([
+    'getFoldersFromPublicFolder',
+    'getFilesFromPublicFolder',
+  ] as const)('%s access checks', (method) => {
+    const owner = newUser();
+    const folder = newFolder({ owner });
+    const code =
+      '8ab1d0725b61e0f1f95a466aeeecc0be53e3a18c0feb09d659b666017505c796';
+    const navigationSecret = 'navigation-secret';
+    const correctPassword = 'example';
+    const encryptedPassword =
+      'jeH++sl4x/RmjambJlUs0Y5ugKWdb8ZcwDGS4bhM7emeibsxWXaKtoA673iVY6wbk/pk+WRXQH/qlAi91j+ReQ3Cn9odACF9DoRU81g2dXDJV679MRjbttUMFRo/vWS2PUaKjmm8JQ==';
+
+    beforeEach(() => {
+      process.env.PUBLIC_SHARING_NAVIGATION_JWT_SECRET = navigationSecret;
+      (jwtUtils.verifyToken as jest.Mock).mockReset();
+      (jwtUtils.verifyWithDefaultSecret as jest.Mock).mockReset();
+      (jwtUtils.generateTokenWithPlainSecret as jest.Mock).mockReset();
+    });
+
+    const arrange = (sharingParams = {}) => {
+      const sharing = newSharing({
+        owner,
+        item: folder,
+        sharingType: SharingType.Public,
+        ...sharingParams,
+      });
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      sharingRepository.findOneSharing.mockResolvedValue(sharing);
+      usersUsecases.getUser.mockResolvedValue(owner);
+      folderUseCases.getFoldersWithParent.mockResolvedValue([]);
+      fileUsecases.getFiles.mockResolvedValue([]);
+      folderUseCases.getFolderByUserId.mockResolvedValue(newFolder({ owner }));
+      return sharing;
+    };
+
+    const list = (token: string | null, password: string | null = null) =>
+      sharingService[method](folder.uuid, token, code, password, 0, 10);
+
+    it('When listing the root, then it only looks for a public sharing', async () => {
+      arrange();
+
+      await list(null);
+
+      expect(sharingRepository.findOneSharing).toHaveBeenCalledWith({
+        itemId: folder.uuid,
+        itemType: 'folder',
+        type: SharingType.Public,
+      });
+    });
+
+    it('When there is no public sharing for the root, then it throws not found', async () => {
+      arrange();
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+
+      await expect(list(null)).rejects.toThrow(NotFoundException);
+    });
+
+    it('When listing the root, then it returns a token signed with the navigation secret and the sharing id', async () => {
+      const sharing = arrange();
+
+      await list(null);
+
+      expect(jwtUtils.generateTokenWithPlainSecret).toHaveBeenCalledWith(
+        expect.objectContaining({ sharingId: sharing.id }),
+        '1d',
+        navigationSecret,
+      );
+    });
+
+    it('When the token is not signed with the navigation secret, then it throws forbidden and mints nothing', async () => {
+      arrange();
+      (jwtUtils.verifyToken as jest.Mock).mockImplementation(() => {
+        throw new Error('invalid signature');
+      });
+
+      await expect(list('private-flow-token')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(jwtUtils.verifyToken).toHaveBeenCalledWith(
+        'private-flow-token',
+        navigationSecret,
+      );
+      expect(jwtUtils.verifyWithDefaultSecret).not.toHaveBeenCalled();
+      expect(sharingRepository.findOneSharing).not.toHaveBeenCalled();
+      expect(jwtUtils.generateTokenWithPlainSecret).not.toHaveBeenCalled();
+    });
+
+    it('When the token carries no sharing id, then it throws forbidden', async () => {
+      arrange();
+      (jwtUtils.verifyToken as jest.Mock).mockReturnValue({
+        sharedRootFolderId: folder.uuid,
+      });
+
+      await expect(list('token')).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When the sharing of the token is gone or no longer public, then it throws forbidden and mints nothing', async () => {
+      const sharing = arrange();
+      (jwtUtils.verifyToken as jest.Mock).mockReturnValue({
+        sharingId: sharing.id,
+      });
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+
+      await expect(list('token')).rejects.toThrow(ForbiddenException);
+      expect(sharingRepository.findOneSharing).toHaveBeenCalledWith({
+        id: sharing.id,
+        type: SharingType.Public,
+      });
+      expect(jwtUtils.generateTokenWithPlainSecret).not.toHaveBeenCalled();
+    });
+
+    it('When there is no code and the sharing is password protected, then it throws forbidden', async () => {
+      arrange({ encryptedPassword });
+
+      await expect(
+        sharingService[method](
+          folder.uuid,
+          null,
+          undefined,
+          correctPassword,
+          0,
+          10,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('When there is no code and the sharing has no password, then it lists', async () => {
+      arrange();
+
+      const result = await sharingService[method](
+        folder.uuid,
+        null,
+        undefined,
+        null,
+        0,
+        10,
+      );
+
+      expect(result.items).toStrictEqual([]);
+      expect(result.role).toBe('NONE');
+    });
+
+    it('When the sharing is password protected and the password is correct, then it lists', async () => {
+      arrange({ encryptedPassword });
+
+      const result = await list(null, correctPassword);
+
+      expect(result.items).toStrictEqual([]);
+      expect(result.role).toBe('NONE');
+    });
+
+    it('When the sharing is password protected and no password is sent, then it throws password needed', async () => {
+      arrange({ encryptedPassword });
+
+      await expect(list(null)).rejects.toThrow(PasswordNeededError);
+    });
+
+    it('When the sharing is password protected and the password is wrong, then it throws forbidden', async () => {
+      arrange({ encryptedPassword });
+
+      await expect(list(null, 'wrong')).rejects.toThrow(ForbiddenException);
     });
   });
 
