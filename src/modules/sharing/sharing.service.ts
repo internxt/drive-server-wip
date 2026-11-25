@@ -515,20 +515,23 @@ export class SharingService {
     perPage: number,
     accessToken?: string,
   ): Promise<GetFoldersReponse> {
-    const { sharing, folder, owner, response } = await this.resolvePublicFolder(
+    const { sharing, folder, owner } = await this.getAuthorizedPublicFolder(
       folderId,
       token,
       accessToken,
     );
 
-    const folders = await this.folderUsecases.getFoldersWithParent(
-      owner.id,
-      { parentId: folder.id, deleted: false, removed: false },
-      { limit: perPage, offset: page * perPage },
-    );
+    const [folders, meta] = await Promise.all([
+      this.folderUsecases.getFoldersWithParent(
+        owner.id,
+        { parentId: folder.id, deleted: false, removed: false },
+        { limit: perPage, offset: page * perPage },
+      ),
+      this.getPublicFolderListingMeta(sharing, folder, owner),
+    ]);
 
     return {
-      ...response,
+      ...meta,
       items: folders.map((subfolder) => ({
         ...subfolder,
         encryptionKey: null,
@@ -547,17 +550,20 @@ export class SharingService {
     perPage: number,
     accessToken?: string,
   ): Promise<GetFilesResponse> {
-    const { sharing, folder, owner, response } = await this.resolvePublicFolder(
+    const { sharing, folder, owner } = await this.getAuthorizedPublicFolder(
       folderId,
       token,
       accessToken,
     );
 
-    const files = await this.fileUsecases.getFiles(
-      owner.id,
-      { folderUuid: folder.uuid, status: FileStatus.EXISTS },
-      { limit: perPage, offset: page * perPage },
-    );
+    const [files, meta] = await Promise.all([
+      this.fileUsecases.getFiles(
+        owner.id,
+        { folderUuid: folder.uuid, status: FileStatus.EXISTS },
+        { limit: perPage, offset: page * perPage },
+      ),
+      this.getPublicFolderListingMeta(sharing, folder, owner),
+    ]);
 
     const network = this.bridgeService.createNetworkEnvironment(
       owner.bridgeUser,
@@ -581,10 +587,10 @@ export class SharingService {
       })),
     )) as FileWithSharedInfo[];
 
-    return { ...response, items, encryptionKey: null };
+    return { ...meta, items, encryptionKey: null };
   }
 
-  private async resolvePublicFolder(
+  private async getAuthorizedPublicFolder(
     folderId: Folder['uuid'],
     navigationToken: string | null,
     accessToken?: string,
@@ -633,14 +639,20 @@ export class SharingService {
       throw new SharedFolderRemovedError();
     }
 
-    const [owner, parentFolder] = await Promise.all([
-      this.usersUsecases.getUser(sharing.ownerId),
+    const owner = await this.usersUsecases.getUser(sharing.ownerId);
+
+    return { sharing, folder, owner };
+  }
+
+  private async getPublicFolderListingMeta(
+    sharing: Sharing,
+    folder: Folder,
+    owner: User,
+  ) {
+    const [parentFolder, ownerRootFolder] = await Promise.all([
       folder.parentId ? this.folderUsecases.getFolder(folder.parentId) : null,
+      this.folderUsecases.getFolderByUserId(owner.rootFolderId, owner.id),
     ]);
-    const ownerRootFolder = await this.folderUsecases.getFolderByUserId(
-      owner.rootFolderId,
-      owner.id,
-    );
 
     const nextNavigation: PublicFolderNavigation = {
       sharedRootFolderId: sharing.itemId,
@@ -650,27 +662,22 @@ export class SharingService {
     };
 
     return {
-      sharing,
-      folder,
-      owner,
-      response: {
-        credentials: {
-          networkPass: owner.userId,
-          networkUser: owner.bridgeUser,
-        },
-        token: generateTokenWithPlainSecret(
-          nextNavigation,
-          '1d',
-          getEnv().secrets.jwt,
-        ),
-        bucket: ownerRootFolder.bucket,
-        parent: {
-          uuid: parentFolder?.uuid || null,
-          name: parentFolder?.plainName || null,
-        },
-        name: folder.name,
-        role: 'NONE',
+      credentials: {
+        networkPass: owner.userId,
+        networkUser: owner.bridgeUser,
       },
+      token: generateTokenWithPlainSecret(
+        nextNavigation,
+        '1d',
+        getEnv().secrets.jwt,
+      ),
+      bucket: ownerRootFolder.bucket,
+      parent: {
+        uuid: parentFolder?.uuid || null,
+        name: parentFolder?.plainName || null,
+      },
+      name: folder.name,
+      role: 'NONE',
     };
   }
 
