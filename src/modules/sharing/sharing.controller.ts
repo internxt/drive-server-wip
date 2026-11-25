@@ -90,12 +90,20 @@ export class SharingController {
     name: 'x-share-password',
     description: 'URI Encoded password to get access to the sharing',
   })
+  @ApiHeader({
+    name: 'x-share-code',
+    description: 'Sharing code (falls back to the code query param)',
+    required: false,
+  })
   @ApiOkResponse({ description: 'Get sharing metadata' })
   async getPublicSharing(
     @Param('sharingId', ValidateUUIDPipe) sharingId: Sharing['id'],
-    @Query('code') code: string,
+    @Query('code') queryCode: string,
     @Headers('x-share-password') password: string | null,
+    @Headers('x-share-code') headerCode?: string,
   ) {
+    // TODO: drop code query param once clients send x-share-code
+    const code = headerCode ?? queryCode;
     if (!code) {
       throw new BadRequestException('Code is required');
     }
@@ -446,15 +454,23 @@ export class SharingController {
       'Access token returned by the sharing meta of protected sharings',
     required: false,
   })
+  @ApiHeader({
+    name: 'x-share-code',
+    description: 'Sharing code (falls back to the code query param)',
+    required: false,
+  })
   @ApiOkResponse({ description: 'Get all items inside a shared folder' })
   async getPublicShareFiles(
     @Param('sharedFolderId', ValidateUUIDPipe) sharedFolderId: Folder['uuid'],
     @Query('token') token: string,
-    @Query('code') code: string,
+    @Query('code') queryCode: string,
     @Query('page') page = 0,
     @Query('perPage') perPage = 50,
+    @Headers('x-share-code') headerCode?: string,
     @Headers('x-share-access-token') accessToken?: string,
   ): Promise<GetFilesResponse | { error: string }> {
+    // TODO: drop code query param once clients send x-share-code
+    const code = headerCode ?? queryCode;
     return this.sharingService.getFilesFromPublicFolder(
       sharedFolderId,
       token,

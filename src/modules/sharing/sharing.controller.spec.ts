@@ -850,9 +850,10 @@ describe('SharingController', () => {
       await controller.getPublicShareFiles(
         folder.uuid,
         'token',
-        'code',
+        undefined,
         0,
         50,
+        'code',
         'access-token',
       );
 

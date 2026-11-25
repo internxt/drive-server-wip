@@ -142,7 +142,7 @@ describe('Sharing module', () => {
     const unlockSharing = async (sharing: Sharing): Promise<string> => {
       const response = await request(app.getHttpServer())
         .get(`/sharings/${sharing.id}/meta`)
-        .query({ code })
+        .set('x-share-code', code)
         .set('x-share-password', encodeURIComponent(password))
         .expect(HttpStatus.OK);
 
