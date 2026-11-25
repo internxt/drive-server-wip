@@ -631,12 +631,8 @@ export class SharingService {
       }
     }
 
-    if (folder.isTrashed()) {
-      throw new SharedFolderInTheTrashError();
-    }
-
-    if (folder.isRemoved()) {
-      throw new SharedFolderRemovedError();
+    if (folder.isTrashed() || folder.isRemoved()) {
+      throw new NotFoundException();
     }
 
     const owner = await this.usersUsecases.getUser(sharing.ownerId);
