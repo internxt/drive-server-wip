@@ -115,7 +115,7 @@ export class User implements UserAttributes {
     return this.hasBackupsEnabled() && bucket === this.backupsBucket;
   }
 
-  hasPhotosEnabled(): boolean {
+  hasPhotosBucket(): boolean {
     return !!this.photosBucket;
   }
 

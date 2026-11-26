@@ -1165,12 +1165,18 @@ describe('BackupUseCase', () => {
       attributes: { photosBucket: v4() },
     });
 
-    it('When photos are not activated, then it should throw BadRequestException', async () => {
-      const userWithoutPhotos = newUser({ attributes: { photosBucket: null } });
+    it('When the user has Photos but no devices yet, then it returns an empty list', async () => {
+      const userWithoutPhotosBucket = newUser({
+        attributes: { photosBucket: null },
+      });
+      const getFolders = jest.spyOn(folderUseCases, 'getFoldersByUserId');
 
-      await expect(
-        backupUseCase.getPhotoDevicesAsFolder(userWithoutPhotos),
-      ).rejects.toThrow(BadRequestException);
+      const result = await backupUseCase.getPhotoDevicesAsFolder(
+        userWithoutPhotosBucket,
+      );
+
+      expect(result).toEqual([]);
+      expect(getFolders).not.toHaveBeenCalled();
     });
 
     it('When photos are activated, then it should return all photo devices as folders', async () => {
