@@ -68,8 +68,8 @@ describe('SharingController', () => {
 
       const result = await controller.getPublicSharing(
         sharingId,
-        code,
         password,
+        code,
       );
 
       expect(result).toBe(expectedSharing);
@@ -109,7 +109,7 @@ describe('SharingController', () => {
         .spyOn(sharingService, 'getPublicSharingById')
         .mockResolvedValue(expectedSharing);
 
-      await controller.getPublicSharing(sharingId, code, encodedPassword);
+      await controller.getPublicSharing(sharingId, encodedPassword, code);
 
       expect(sharingService.getPublicSharingById).toHaveBeenCalledWith(
         sharingId,
@@ -780,9 +780,9 @@ describe('SharingController', () => {
       const result = await controller.getPublicShareFiles(
         folder.uuid,
         'token',
-        'code',
         0,
         50,
+        'code',
       );
 
       expect(result).toBe(expectedResult);
@@ -850,7 +850,6 @@ describe('SharingController', () => {
       await controller.getPublicShareFiles(
         folder.uuid,
         'token',
-        undefined,
         0,
         50,
         'code',

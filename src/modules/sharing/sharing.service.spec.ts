@@ -3533,16 +3533,15 @@ describe('Sharing Use Cases', () => {
         ).rejects.toThrow(SharingAccessTokenInvalidException);
       });
 
-      // TODO: expect SharingAccessTokenInvalidException after bypass removal
-      it('When no access token is sent, then it still returns the content', async () => {
-        const result = await sharingService.getFoldersFromPublicFolder(
-          folder.uuid,
-          null,
-          page,
-          perPage,
-        );
-
-        expect(result.items).toHaveLength(0);
+      it('When no access token is sent, then it is forbidden', async () => {
+        await expect(
+          sharingService.getFoldersFromPublicFolder(
+            folder.uuid,
+            null,
+            page,
+            perPage,
+          ),
+        ).rejects.toThrow(SharingAccessTokenInvalidException);
       });
     });
   });
@@ -3828,17 +3827,17 @@ describe('Sharing Use Cases', () => {
         expect(fileUsecases.getFiles).not.toHaveBeenCalled();
       });
 
-      // TODO: expect SharingAccessTokenInvalidException after bypass removal
-      it('When no access token is sent, then it still returns the content', async () => {
-        const result = await sharingService.getFilesFromPublicFolder(
-          folder.uuid,
-          null,
-          linkCode,
-          page,
-          perPage,
-        );
-
-        expect(result.items).toHaveLength(0);
+      it('When no access token is sent, then it is forbidden', async () => {
+        await expect(
+          sharingService.getFilesFromPublicFolder(
+            folder.uuid,
+            null,
+            linkCode,
+            page,
+            perPage,
+          ),
+        ).rejects.toThrow(SharingAccessTokenInvalidException);
+        expect(fileUsecases.getFiles).not.toHaveBeenCalled();
       });
     });
   });
