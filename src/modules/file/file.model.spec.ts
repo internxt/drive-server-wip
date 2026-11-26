@@ -1,4 +1,3 @@
-import { type FindOptions } from 'sequelize';
 import { v7 } from 'uuid';
 import { Sequelize } from 'sequelize-typescript';
 import { heavyReadPoolModels } from '../../config/heavy-read-pool-connection';
@@ -7,11 +6,7 @@ import {
   DeprecationMode,
   getDeprecationMode,
 } from '../../common/deprecated-fields/deprecated-fields';
-import {
-  deriveFileIdFromUuid,
-  FileModel,
-  sortByUuidInsteadOfId,
-} from './file.model';
+import { deriveFileIdFromUuid, FileModel } from './file.model';
 
 jest.mock('../../common/deprecated-fields/deprecated-fields', () => ({
   ...jest.requireActual('../../common/deprecated-fields/deprecated-fields'),
@@ -88,24 +83,6 @@ describe('FileModel', () => {
       const columnType = idAttribute.type['key'];
 
       expect(columnType).toBe('VIRTUAL');
-    });
-  });
-
-  describe('sorting', () => {
-    it('When files are sorted by id, then they are sorted by uuid', () => {
-      const options = {
-        order: [
-          ['id', 'DESC'],
-          ['size', 'ASC'],
-        ],
-      };
-
-      sortByUuidInsteadOfId(options as FindOptions);
-
-      expect(options.order).toEqual([
-        ['uuid', 'DESC'],
-        ['size', 'ASC'],
-      ]);
     });
   });
 });

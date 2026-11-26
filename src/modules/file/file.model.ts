@@ -19,7 +19,7 @@ import { UserModel } from '../user/user.model';
 import { SharingModel } from '../sharing/models';
 import { type Sharing } from '../sharing/sharing.domain';
 import { WorkspaceItemUserModel } from '../workspaces/models/workspace-items-users.model';
-import { type FindOptions, Sequelize } from 'sequelize';
+import { Sequelize } from 'sequelize';
 import { v7 } from 'uuid';
 import { AesService } from '../../externals/crypto/aes';
 import {
@@ -28,16 +28,6 @@ import {
   getDeprecationMode,
 } from '../../common/deprecated-fields/deprecated-fields';
 import { FavoriteModel } from '../favorite/favorite.model';
-
-// Clients still sort by id, which is no longer stored
-export const sortByUuidInsteadOfId = (options: FindOptions) => {
-  if (!Array.isArray(options.order)) {
-    return;
-  }
-  options.order = options.order.map((item) =>
-    Array.isArray(item) && item[0] === 'id' ? ['uuid', ...item.slice(1)] : item,
-  ) as FindOptions['order'];
-};
 
 // Legacy clients key files by id, so it must be stable and differ between a user's files.
 // The last uuid segment is random in v4 and mostly random in v7.
@@ -48,7 +38,6 @@ export const deriveFileIdFromUuid = (uuid: string): number =>
   underscored: true,
   timestamps: true,
   tableName: 'files',
-  hooks: { beforeFind: sortByUuidInsteadOfId },
 })
 export class FileModel extends Model implements FileAttributes {
   @PrimaryKey
