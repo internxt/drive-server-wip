@@ -915,6 +915,14 @@ describe('FileUseCases', () => {
         newFileDto.folderUuid,
         { useMaster: true },
       );
+      expect(fileRepository.findByPlainNameAndFolderId).toHaveBeenCalledWith(
+        userMocked.id,
+        newFileDto.plainName,
+        newFileDto.type,
+        folder.uuid,
+        FileStatus.EXISTS,
+        { useMaster: true },
+      );
       expect(result).toEqual(createdFile);
       expect(expireUsageSpy).toHaveBeenCalledWith(userMocked.uuid);
     });
@@ -3486,6 +3494,8 @@ describe('FileUseCases', () => {
       expect(fileRepository.findByUuid).toHaveBeenCalledWith(
         mockFile.uuid,
         userMocked.id,
+        {},
+        { useMaster: true },
       );
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
         mockFile.uuid,
@@ -3582,6 +3592,8 @@ describe('FileUseCases', () => {
       expect(fileRepository.findByUuid).toHaveBeenCalledWith(
         mockFile.uuid,
         userMocked.id,
+        {},
+        { useMaster: true },
       );
       expect(fileRepository.updateByUuidAndUserId).toHaveBeenCalledWith(
         mockFile.uuid,

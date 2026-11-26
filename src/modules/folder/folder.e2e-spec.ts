@@ -51,7 +51,7 @@ describe('Folder module', () => {
     await app.close();
   });
 
-  const makeRequest = (method: 'get' | 'post', url: string) => {
+  const makeRequest = (method: 'get' | 'post' | 'put', url: string) => {
     return request(app.getHttpServer())
       [method](url)
       .set('Authorization', `bearer ${testUser.token}`);
@@ -85,6 +85,99 @@ describe('Folder module', () => {
       await makeRequest('post', '/folders/')
         .send(createFolderDto)
         .expect(HttpStatus.NOT_FOUND);
+    });
+
+    it('When a folder with the same name already exists in the location, then it should return a conflict', async () => {
+      const createFolderDto = {
+        plainName: 'Duplicated folder',
+        parentFolderUuid: testUser.rootFolder.uuid,
+      };
+      await makeRequest('post', '/folders/')
+        .send(createFolderDto)
+        .expect(HttpStatus.CREATED);
+
+      const response = await makeRequest('post', '/folders/')
+        .send(createFolderDto)
+        .expect(HttpStatus.CONFLICT);
+
+      expect(response.body.message).toBe(
+        'A folder with this name already exists in this location',
+      );
+    });
+
+    it('When the folder with the same name is trashed, then it should be created', async () => {
+      const plainName = 'Trashed folder';
+      await folderRepository.createWithAttributes(
+        newFolder({
+          attributes: {
+            plainName,
+            parentId: testUser.rootFolder.id,
+            parentUuid: testUser.rootFolder.uuid,
+            userId: testUser.user.id,
+            deleted: true,
+            deletedAt: new Date(),
+          },
+        }),
+      );
+
+      await makeRequest('post', '/folders/')
+        .send({ plainName, parentFolderUuid: testUser.rootFolder.uuid })
+        .expect(HttpStatus.CREATED);
+    });
+  });
+
+  describe('PUT /folders/:uuid/meta - Renames a folder', () => {
+    let folderToRename: Folder;
+    const siblingName = 'Sibling folder';
+
+    beforeEach(async () => {
+      await makeRequest('post', '/folders/')
+        .send({
+          plainName: siblingName,
+          parentFolderUuid: testUser.rootFolder.uuid,
+        })
+        .expect(HttpStatus.CREATED);
+      const response = await makeRequest('post', '/folders/')
+        .send({
+          plainName: 'Folder to rename',
+          parentFolderUuid: testUser.rootFolder.uuid,
+        })
+        .expect(HttpStatus.CREATED);
+      folderToRename = response.body;
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('When a folder is renamed to the name of a sibling, then it should return a conflict', async () => {
+      const response = await makeRequest(
+        'put',
+        `/folders/${folderToRename.uuid}/meta`,
+      )
+        .send({ plainName: siblingName })
+        .expect(HttpStatus.CONFLICT);
+
+      expect(response.body.message).toBe(
+        'A folder with this name already exists in this location',
+      );
+    });
+
+    it('When the duplicate check misses the sibling, then the unique index should still return a conflict', async () => {
+      jest
+        .spyOn(folderRepository, 'findByParentUuid')
+        .mockResolvedValueOnce([]);
+
+      const response = await makeRequest(
+        'put',
+        `/folders/${folderToRename.uuid}/meta`,
+      )
+        .send({ plainName: siblingName })
+        .expect(HttpStatus.CONFLICT);
+
+      expect(response.body.message).toBe(
+        'A folder with this name already exists in this location',
+      );
     });
   });
 
