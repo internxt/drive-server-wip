@@ -132,7 +132,8 @@ describe('Sharing module', () => {
     ) => {
       const req = request(app.getHttpServer())
         .get(`/sharings/public/items/${sharedFolder.uuid}/${type}`)
-        .query({ code, token: options.token ?? '' });
+        .set('x-share-code', code)
+        .query({ token: options.token ?? '' });
 
       if (options.accessToken) {
         req.set('x-share-access-token', options.accessToken);
@@ -429,23 +430,13 @@ describe('Sharing module', () => {
       expect(response.body).toMatchObject({ id: sharing.id });
     });
 
-    it('When the code is sent as query param, then it returns the sharing', async () => {
+    it('When the code is only sent as query param, then it is a bad request', async () => {
       const sharing = await createSharing();
 
       await request(app.getHttpServer())
         .get(`/sharings/${sharing.id}/meta`)
         .query({ code })
-        .expect(HttpStatus.OK);
-    });
-
-    it('When the code header is empty, then it uses the query param', async () => {
-      const sharing = await createSharing();
-
-      await request(app.getHttpServer())
-        .get(`/sharings/${sharing.id}/meta`)
-        .set('x-share-code', '')
-        .query({ code })
-        .expect(HttpStatus.OK);
+        .expect(HttpStatus.BAD_REQUEST);
     });
 
     it('When no code is sent, then it is a bad request', async () => {
