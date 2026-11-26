@@ -295,7 +295,7 @@ export class UserController {
     @Body() bodyDto: RegisterPreCreatedUserDto,
     @Req() req: Request,
   ) {
-    const { invitationId, ...createUserDto } = bodyDto;
+    const { invitationId, token, ...createUserDto } = bodyDto;
     const email = createUserDto.email.toLowerCase();
 
     try {
@@ -308,7 +308,15 @@ export class UserController {
 
       await this.rejectPendingAccountSetup(email);
 
-      const userCreated = await this.userUseCases.createUser(createUserDto);
+      const emailVerified = await this.userUseCases.isInvitedEmailTokenValid(
+        token,
+        preCreatedUser,
+      );
+
+      const userCreated = await this.userUseCases.createUser({
+        ...createUserDto,
+        emailVerified,
+      });
 
       const { ecc, kyber } = this.keyServerUseCases.parseKeysInput(
         createUserDto.keys,

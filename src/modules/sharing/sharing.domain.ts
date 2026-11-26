@@ -2,10 +2,10 @@ import type { File } from '../file/file.domain';
 import type { Folder } from '../folder/folder.domain';
 import type { User } from '../user/user.domain';
 import type { WorkspaceTeam } from '../workspaces/domains/workspace-team.domain';
+import { Time } from '../../lib/time';
 
 export const HYBRID_ALGORITHM = 'hybrid';
 export const HYBRID_ALGORITHM_WITH_BUCKET_KEY = 'hybrid-v2';
-
 
 export type Item = File | Folder;
 type ItemId = File['uuid'] | Folder['uuid'];
@@ -143,7 +143,10 @@ export class Sharing implements SharingAttributes {
   }
 
   isHybrid(): boolean {
-    return this.encryptionAlgorithm === HYBRID_ALGORITHM || this.encryptionAlgorithm === HYBRID_ALGORITHM_WITH_BUCKET_KEY;
+    return (
+      this.encryptionAlgorithm === HYBRID_ALGORITHM ||
+      this.encryptionAlgorithm === HYBRID_ALGORITHM_WITH_BUCKET_KEY
+    );
   }
 
   isProtected(): boolean {
@@ -272,12 +275,19 @@ export class SharingInvite implements SharingInviteAttributes {
     return this.type === 'SELF';
   }
 
-  isSharedWith(user: User): boolean {
+  isSharedWith(user: Pick<User, 'uuid'>): boolean {
     return user.uuid === this.sharedWith;
   }
 
+  isExpired(): boolean {
+    return !!this.expirationAt && this.expirationAt <= Time.now();
+  }
+
   isHybrid(): boolean {
-    return this.encryptionAlgorithm === HYBRID_ALGORITHM || this.encryptionAlgorithm === HYBRID_ALGORITHM_WITH_BUCKET_KEY;
+    return (
+      this.encryptionAlgorithm === HYBRID_ALGORITHM ||
+      this.encryptionAlgorithm === HYBRID_ALGORITHM_WITH_BUCKET_KEY
+    );
   }
 
   toJSON(): SharingInviteAttributes {

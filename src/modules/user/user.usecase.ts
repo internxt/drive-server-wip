@@ -99,6 +99,7 @@ import {
   ACCOUNT_SETUP_TOKEN_ACTION,
   buildAccountSetupUrl,
 } from './account-setup-link';
+import { decodeInvitedEmailToken } from './invited-email-token';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -837,6 +838,32 @@ export class UserUseCases {
     await this.workspaceRepository.bulkUpdateInvitesKeysAndUsers(
       invitationsUpdated,
     );
+  }
+
+  async isInvitedEmailTokenValid(
+    token: string | undefined,
+    preCreatedUser: PreCreatedUser,
+  ): Promise<boolean> {
+    const decoded = token ? decodeInvitedEmailToken(token) : null;
+
+    if (decoded?.email !== preCreatedUser.email) {
+      return false;
+    }
+
+    if (decoded.type === 'workspace') {
+      const invite = await this.workspaceRepository.findInvite({
+        id: decoded.invitationId,
+        invitedUser: preCreatedUser.uuid,
+      });
+
+      return !!invite;
+    }
+
+    const invite = await this.sharingRepository.getInviteById(
+      decoded.invitationId,
+    );
+
+    return !!invite?.isSharedWith(preCreatedUser) && !invite.isExpired();
   }
 
   async preCreateUser(

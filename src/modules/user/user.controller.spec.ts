@@ -1187,6 +1187,64 @@ describe('User Controller', () => {
       expect(userUseCases.replacePreCreatedUser).not.toHaveBeenCalled();
     });
 
+    it('When the token of the invitation email is valid, then the account is created with the email verified', async () => {
+      const dto: RegisterPreCreatedUserDto = {
+        name: 'My',
+        lastname: 'Internxt',
+        email: preCreatedUser.email,
+        password: 'hashed password',
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+        invitationId: v4(),
+        token: 'invited-email-token',
+      };
+      userUseCases.findPreCreatedByEmail.mockResolvedValueOnce(preCreatedUser);
+      userUseCases.isInvitedEmailTokenValid.mockResolvedValueOnce(true);
+      userUseCases.createUser.mockResolvedValueOnce(mockCreateUserResponse);
+      keyServerUseCases.addKeysToUser.mockResolvedValueOnce({
+        kyber: null,
+        ecc: null,
+      });
+
+      await userController.registerPreCreatedUser(dto, req);
+
+      expect(userUseCases.isInvitedEmailTokenValid).toHaveBeenCalledWith(
+        'invited-email-token',
+        preCreatedUser,
+      );
+      expect(userUseCases.createUser).toHaveBeenCalledWith(
+        expect.objectContaining({ emailVerified: true }),
+      );
+      expect(userUseCases.createUser).toHaveBeenCalledWith(
+        expect.not.objectContaining({ token: expect.anything() }),
+      );
+    });
+
+    it('When the token of the invitation email is not valid, then the account is created with the email not verified', async () => {
+      const dto: RegisterPreCreatedUserDto = {
+        name: 'My',
+        lastname: 'Internxt',
+        email: preCreatedUser.email,
+        password: 'hashed password',
+        mnemonic: 'mnemonic',
+        salt: 'salt',
+        invitationId: v4(),
+      };
+      userUseCases.findPreCreatedByEmail.mockResolvedValueOnce(preCreatedUser);
+      userUseCases.isInvitedEmailTokenValid.mockResolvedValueOnce(false);
+      userUseCases.createUser.mockResolvedValueOnce(mockCreateUserResponse);
+      keyServerUseCases.addKeysToUser.mockResolvedValueOnce({
+        kyber: null,
+        ecc: null,
+      });
+
+      await userController.registerPreCreatedUser(dto, req);
+
+      expect(userUseCases.createUser).toHaveBeenCalledWith(
+        expect.objectContaining({ emailVerified: false }),
+      );
+    });
+
     it('When pre-created user is not found, then it fails', async () => {
       const dto: RegisterPreCreatedUserDto = {
         name: 'Test',
