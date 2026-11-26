@@ -522,7 +522,9 @@ export class BackupUseCase {
   }
 
   async getPhotoDevicesAsFolder(user: User) {
-    this.verifyUserHasPhotosEnabled(user);
+    if (!user.hasPhotosBucket()) {
+      return [];
+    }
 
     const folders = await this.folderUsecases.getFoldersByUserId(user.id, {
       bucket: user.photosBucket,
@@ -591,12 +593,6 @@ export class BackupUseCase {
       throw new BadRequestException(
         `${folder.uuid} is not a valid photos device`,
       );
-    }
-  }
-
-  private verifyUserHasPhotosEnabled(user: User) {
-    if (!user.hasPhotosEnabled()) {
-      throw new BadRequestException('Photos is not enabled for this user');
     }
   }
 
