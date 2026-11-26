@@ -1,10 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { type Request } from 'express';
 
 import { SignUpSuccessEvent } from '../events/sign-up-success.event';
-import { NewsletterService } from '../../newsletter';
+import {
+  type NewsletterProfileLocation,
+  NewsletterService,
+} from '../../newsletter';
 import { Ids } from '../../logger/ids';
 import { SignUpErrorEvent } from '../events/sign-up-error.event';
+import { getLocation } from '../../../lib/location';
+import { getClientIp } from '../../../lib/request-ip';
 
 @Injectable()
 export class AuthListener {
@@ -13,7 +19,7 @@ export class AuthListener {
   constructor(private readonly newsletterService: NewsletterService) {}
 
   @OnEvent(SignUpSuccessEvent.id)
-  handleSignUpSuccess({ user }: SignUpSuccessEvent) {
+  handleSignUpSuccess({ user, req }: SignUpSuccessEvent) {
     const { email, uuid } = user;
 
     this.logger.log({
@@ -23,7 +29,7 @@ export class AuthListener {
     });
 
     this.newsletterService
-      .subscribe(email)
+      .subscribe(email, undefined, this.buildNewsletterLocation(req))
       .then(() => {
         this.logger.log({
           user: uuid,
@@ -49,5 +55,17 @@ export class AuthListener {
       entity: { email },
       message: `${err.message}. ${err.stack}`,
     });
+  }
+
+  private buildNewsletterLocation(
+    req?: Request,
+  ): NewsletterProfileLocation | undefined {
+    if (!req) {
+      return undefined;
+    }
+
+    const ip = getClientIp(req);
+
+    return { ip, ...getLocation(ip) };
   }
 }
