@@ -249,11 +249,12 @@ describe('Sharing module', () => {
         expect(response.body.errorCode).toBe(SHARING_ACCESS_TOKEN_INVALID);
       });
 
-      // TODO: expect SHARING_ACCESS_TOKEN_INVALID after bypass removal
-      it('When the link has a password and no access token is sent, then it still returns its content', async () => {
+      it('When the link has a password and no access token is sent, then it is forbidden', async () => {
         await createSharing(SharingType.Public, aes.encrypt(password, code));
 
-        await listFolder(type).expect(HttpStatus.OK);
+        const response = await listFolder(type).expect(HttpStatus.FORBIDDEN);
+
+        expect(response.body.errorCode).toBe(SHARING_ACCESS_TOKEN_INVALID);
       });
     });
 

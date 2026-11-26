@@ -685,11 +685,6 @@ export class SharingService {
       return;
     }
 
-    // TODO: remove bypass once web sends x-share-access-token
-    if (!accessToken) {
-      return;
-    }
-
     try {
       verify(
         accessToken,
