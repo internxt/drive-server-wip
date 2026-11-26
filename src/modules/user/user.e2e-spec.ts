@@ -13,6 +13,10 @@ import { FolderModel } from '../folder/folder.model';
 import { FileModel } from '../file/file.model';
 import { KeyServerModel } from '../keyserver/key-server.model';
 import { CryptoService } from '../../externals/crypto/crypto.service';
+import { TierModel } from '../feature-limit/models/tier.model';
+import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
+import { Op } from 'sequelize';
+import { createTestUser } from '../../../test/helpers/user.helper';
 
 describe('User Registration E2E', () => {
   let app: NestExpressApplication;
@@ -20,6 +24,8 @@ describe('User Registration E2E', () => {
   let folderModel: typeof FolderModel;
   let fileModel: typeof FileModel;
   let keyServerModel: typeof KeyServerModel;
+  let tierModel: typeof TierModel;
+  let featureLimitsRepository: SequelizeFeatureLimitsRepository;
   let cryptoService: CryptoService;
   let createdUserIds: number[] = [];
 
@@ -37,6 +43,8 @@ describe('User Registration E2E', () => {
     folderModel = app.get(getModelToken(FolderModel));
     fileModel = app.get(getModelToken(FileModel));
     keyServerModel = app.get(getModelToken(KeyServerModel));
+    tierModel = app.get(getModelToken(TierModel));
+    featureLimitsRepository = app.get(SequelizeFeatureLimitsRepository);
     cryptoService = app.get(CryptoService);
   });
 
@@ -177,6 +185,28 @@ describe('User Registration E2E', () => {
     });
 
     describe('All user resources are created correctly after registration', () => {
+      it('When registration data includes fields not allowed at signup, then they are ignored', async () => {
+        const freeTier = await featureLimitsRepository.getFreeTier();
+        const paidTier = await tierModel.findOne({
+          where: { id: { [Op.ne]: freeTier.id } },
+        });
+        const registrationData = await generateValidRegistrationData();
+        const encryptedData = {
+          ...encryptRegistrationData(registrationData),
+          tierId: paidTier.id,
+          emailVerified: true,
+        };
+
+        await registerUser(encryptedData).expect(HttpStatus.CREATED);
+
+        const createdUser = await userModel.findOne({
+          where: { email: registrationData.email },
+        });
+        createdUserIds.push(createdUser.id);
+        expect(createdUser.tierId).toBe(freeTier.id);
+        expect(createdUser.emailVerified).toBe(false);
+      });
+
       it('When registration is successful, then root folder is created', async () => {
         const registrationData = await generateValidRegistrationData();
         const encryptedData = encryptRegistrationData(registrationData);
@@ -282,6 +312,41 @@ describe('User Registration E2E', () => {
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
         );
       });
+    });
+  });
+
+  describe('PATCH /users/profile - Profile update', () => {
+    it('When the update includes fields not allowed, then only the name and lastname change', async () => {
+      const freeTier = await featureLimitsRepository.getFreeTier();
+      const paidTier = await tierModel.findOne({
+        where: { id: { [Op.ne]: freeTier.id } },
+      });
+      const testUser = await createTestUser(app, {
+        attributes: { tierId: freeTier.id, emailVerified: false },
+      });
+      const originalEmail = testUser.user.email;
+
+      await request(app.getHttpServer())
+        .patch('/users/profile')
+        .set('Authorization', `Bearer ${testUser.token}`)
+        .send({
+          name: 'New name',
+          lastname: 'New lastname',
+          email: 'another-email@test.com',
+          tierId: paidTier.id,
+          emailVerified: true,
+        })
+        .expect(HttpStatus.OK);
+
+      const updatedUser = await userModel.findOne({
+        where: { uuid: testUser.user.uuid },
+      });
+      await testUser.cleanup();
+      expect(updatedUser.name).toBe('New name');
+      expect(updatedUser.lastname).toBe('New lastname');
+      expect(updatedUser.email).toBe(originalEmail);
+      expect(updatedUser.tierId).toBe(freeTier.id);
+      expect(updatedUser.emailVerified).toBe(false);
     });
   });
 });

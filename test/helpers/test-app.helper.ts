@@ -89,7 +89,9 @@ export async function createTestApp(
     app.set('query parser', 'extended');
   }
   if (enableValidationPipe) {
-    app.useGlobalPipes(new ValidationPipe({ transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ transform: true, whitelist: true }),
+    );
   }
   if (enableTransformInterceptor) {
     app.useGlobalInterceptors(new TransformInterceptor());
