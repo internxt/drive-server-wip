@@ -54,6 +54,7 @@ import {
   newWorkspace,
   newWorkspaceUser,
   newPreCreatedUser,
+  newPreCreatedUserCheckout,
 } from '../../../test/fixtures';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
@@ -85,6 +86,8 @@ import { AsymmetricEncryptionService } from '../../externals/asymmetric-encrypti
 import { KyberProvider } from '../../externals/asymmetric-encryption/providers/kyber.provider';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
+import { SequelizePreCreatedUserCheckoutRepository } from './pre-created-user-checkout.repository';
+import { type PreCreatedUserCheckout } from './pre-created-user-checkout.domain';
 import { SequelizeReferralRepository } from './referrals.repository';
 import { SequelizeUserReferralsRepository } from './user-referrals.repository';
 import { NotificationService } from '../../externals/notifications/notification.service';
@@ -141,6 +144,7 @@ describe('User use cases', () => {
   let loggerMock: DeepMocked<Logger>;
   let sharingRepository: SequelizeSharingRepository;
   let preCreatedUsersRepository: SequelizePreCreatedUsersRepository;
+  let preCreatedUserCheckoutRepository: SequelizePreCreatedUserCheckoutRepository;
   let asymmetricEncryptionService: AsymmetricEncryptionService;
   let workspaceUseCases: WorkspacesUsecases;
   let paymentsService: DeepMocked<PaymentsService>;
@@ -239,6 +243,9 @@ describe('User use cases', () => {
       moduleRef.get<SequelizePreCreatedUsersRepository>(
         SequelizePreCreatedUsersRepository,
       );
+    preCreatedUserCheckoutRepository = moduleRef.get(
+      SequelizePreCreatedUserCheckoutRepository,
+    );
     asymmetricEncryptionService = moduleRef.get<AsymmetricEncryptionService>(
       AsymmetricEncryptionService,
     );
@@ -2306,7 +2313,7 @@ describe('User use cases', () => {
     });
   });
 
-  describe('Completing the account setup of a pre-created user', () => {
+  describe('Completing the account setup after the checkout', () => {
     const jwtSecret = 'account-setup-test-secret';
     const originalJwtSecret = process.env.JWT_SECRET;
     const paidTierId = v4();
@@ -2324,6 +2331,7 @@ describe('User use cases', () => {
     };
 
     let preCreatedUser: ReturnType<typeof newPreCreatedUser>;
+    let checkout: PreCreatedUserCheckout;
     let rootFolder: Folder;
     let createdUserRow: User;
 
@@ -2369,9 +2377,13 @@ describe('User use cases', () => {
       const setupEmailSentAt = new Date();
       setupEmailSentAt.setMilliseconds(0);
       preCreatedUser = newPreCreatedUser();
-      preCreatedUser.setupEmailSentAt = setupEmailSentAt;
-      preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
-      preCreatedUser.tierId = paidTierId;
+      checkout = newPreCreatedUserCheckout({
+        networkUuid: preCreatedUser.uuid,
+        email: preCreatedUser.email,
+        status: PreCreatedUserStatus.PendingSetup,
+        tierId: paidTierId,
+        setupEmailSentAt,
+      });
 
       rootFolder = newFolder();
       createdUserRow = newUser({
@@ -2384,8 +2396,8 @@ describe('User use cases', () => {
       rootFolder.userId = createdUserRow.id;
 
       jest
-        .spyOn(preCreatedUsersRepository, 'findByUuid')
-        .mockResolvedValue(preCreatedUser);
+        .spyOn(preCreatedUserCheckoutRepository, 'findByNetworkUuid')
+        .mockResolvedValue(checkout);
       jest
         .spyOn(preCreatedUsersRepository, 'findByUsername')
         .mockResolvedValue(preCreatedUser);
@@ -2432,7 +2444,7 @@ describe('User use cases', () => {
     it('When the token is valid, then the user is created with the pre-created uuid, its paid tier and a verified email', async () => {
       const token = signSetupToken(
         preCreatedUser.uuid,
-        preCreatedUser.setupEmailSentAt,
+        checkout.setupEmailSentAt,
       );
 
       const result = await userUseCases.completeAccountSetup(
@@ -2453,6 +2465,9 @@ describe('User use cases', () => {
         createdUserRow.id,
         { ecc: eccKeys, kyber: kyberKeys },
       );
+      expect(
+        preCreatedUserCheckoutRepository.deleteByNetworkUuid,
+      ).toHaveBeenCalledWith(checkout.networkUuid);
       expect(preCreatedUsersRepository.deleteByUuid).toHaveBeenCalledTimes(1);
       expect(preCreatedUsersRepository.deleteByUuid).toHaveBeenCalledWith(
         preCreatedUser.uuid,
@@ -2460,11 +2475,11 @@ describe('User use cases', () => {
       expect(userRepository.deleteBy).not.toHaveBeenCalled();
     });
 
-    it('When the pre-created user has no plan stored, then the user gets the free tier', async () => {
-      preCreatedUser.tierId = null;
+    it('When the checkout has no plan stored, then the user gets the free tier', async () => {
+      checkout.tierId = null;
       const token = signSetupToken(
         preCreatedUser.uuid,
-        preCreatedUser.setupEmailSentAt,
+        checkout.setupEmailSentAt,
       );
 
       await userUseCases.completeAccountSetup(setupRequest(token));
@@ -2498,7 +2513,7 @@ describe('User use cases', () => {
         );
       const token = signSetupToken(
         preCreatedUser.uuid,
-        preCreatedUser.setupEmailSentAt,
+        checkout.setupEmailSentAt,
       );
 
       await userUseCases.completeAccountSetup(setupRequest(token));
@@ -2513,11 +2528,11 @@ describe('User use cases', () => {
 
     it('When the account setup was already completed, then the token is rejected as invalid', async () => {
       jest
-        .spyOn(preCreatedUsersRepository, 'findByUuid')
+        .spyOn(preCreatedUserCheckoutRepository, 'findByNetworkUuid')
         .mockResolvedValue(null);
       const token = signSetupToken(
         preCreatedUser.uuid,
-        preCreatedUser.setupEmailSentAt,
+        checkout.setupEmailSentAt,
       );
 
       await expect(
@@ -2529,14 +2544,13 @@ describe('User use cases', () => {
     it.each([
       PreCreatedUserStatus.Cancelled,
       PreCreatedUserStatus.AwaitingPayment,
-      null,
     ])(
-      'When the pre-created user status is %s, then the token is rejected as invalid so a cancelled plan cannot complete the setup',
+      'When the checkout status is %s, then the token is rejected as invalid so a cancelled plan cannot complete the setup',
       async (status) => {
-        preCreatedUser.status = status;
+        checkout.status = status;
         const token = signSetupToken(
           preCreatedUser.uuid,
-          preCreatedUser.setupEmailSentAt,
+          checkout.setupEmailSentAt,
         );
 
         await expect(
@@ -2549,7 +2563,7 @@ describe('User use cases', () => {
 
     it('When a newer setup email was sent, then the old token is rejected as expired', async () => {
       const previousEmailSentAt = new Date(
-        preCreatedUser.setupEmailSentAt.getTime() - 60_000,
+        checkout.setupEmailSentAt.getTime() - 60_000,
       );
       const token = signSetupToken(preCreatedUser.uuid, previousEmailSentAt);
 
@@ -2561,7 +2575,7 @@ describe('User use cases', () => {
 
     it('When the token is past its expiration, then it is rejected as expired', async () => {
       const sixDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
-      preCreatedUser.setupEmailSentAt = sixDaysAgo;
+      checkout.setupEmailSentAt = sixDaysAgo;
       const token = signSetupToken(preCreatedUser.uuid, sixDaysAgo);
 
       await expect(
@@ -2573,7 +2587,7 @@ describe('User use cases', () => {
     it('When the token was issued in the same second as the setup email, then it is accepted', async () => {
       const token = signSetupToken(
         preCreatedUser.uuid,
-        preCreatedUser.setupEmailSentAt,
+        checkout.setupEmailSentAt,
       );
 
       const result = await userUseCases.completeAccountSetup(
@@ -2586,7 +2600,7 @@ describe('User use cases', () => {
     it('When the token has an invalid signature, then it is rejected as invalid', async () => {
       const token = signSetupToken(
         preCreatedUser.uuid,
-        preCreatedUser.setupEmailSentAt,
+        checkout.setupEmailSentAt,
       );
       const tamperedToken = `${token}tampered`;
 
@@ -2607,7 +2621,7 @@ describe('User use cases', () => {
       const token = signJwt(
         {
           payload: { uuid: preCreatedUser.uuid, action: 'recover-account' },
-          iat: Math.floor(preCreatedUser.setupEmailSentAt.getTime() / 1000),
+          iat: Math.floor(checkout.setupEmailSentAt.getTime() / 1000),
         },
         jwtSecret,
         { expiresIn: '5d' } as any,
@@ -2619,8 +2633,8 @@ describe('User use cases', () => {
       expect(userRepository.create).not.toHaveBeenCalled();
     });
 
-    it('When the pre-created user never received a setup email, then the token is rejected as invalid', async () => {
-      preCreatedUser.setupEmailSentAt = null;
+    it('When the checkout never received a setup email, then the token is rejected as invalid', async () => {
+      checkout.setupEmailSentAt = null;
       const token = signSetupToken(preCreatedUser.uuid, new Date());
 
       await expect(
@@ -2635,7 +2649,7 @@ describe('User use cases', () => {
         .mockReturnValue({ ecc: null, kyber: null });
       const token = signSetupToken(
         preCreatedUser.uuid,
-        preCreatedUser.setupEmailSentAt,
+        checkout.setupEmailSentAt,
       );
 
       await expect(
@@ -2659,7 +2673,7 @@ describe('User use cases', () => {
         .mockRejectedValue(new Error('Database unavailable'));
       const token = signSetupToken(
         preCreatedUser.uuid,
-        preCreatedUser.setupEmailSentAt,
+        checkout.setupEmailSentAt,
       );
 
       const result = await userUseCases.completeAccountSetup(
@@ -2683,7 +2697,7 @@ describe('User use cases', () => {
         .mockResolvedValue({ ecc: null, kyber: null });
       const token = signSetupToken(
         preCreatedUser.uuid,
-        preCreatedUser.setupEmailSentAt,
+        checkout.setupEmailSentAt,
       );
 
       const result = await userUseCases.completeAccountSetup(
@@ -2700,83 +2714,69 @@ describe('User use cases', () => {
   });
 
   describe('Checking whether an email has a paid account pending setup', () => {
-    it('When the email belongs to a paid pre-created user whose setup email was sent, then the setup is pending', async () => {
-      const preCreatedUser = newPreCreatedUser();
-      preCreatedUser.setupEmailSentAt = new Date();
-      preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
+    const givenCheckout = (checkout: PreCreatedUserCheckout | null) =>
       jest
-        .spyOn(preCreatedUsersRepository, 'findByUsername')
-        .mockResolvedValue(preCreatedUser);
+        .spyOn(preCreatedUserCheckoutRepository, 'findByEmail')
+        .mockResolvedValue(checkout);
+
+    it('When the checkout is paid and its setup email was sent, then the setup is pending', async () => {
+      const checkout = newPreCreatedUserCheckout({
+        setupEmailSentAt: new Date(),
+        status: PreCreatedUserStatus.PendingSetup,
+      });
+      givenCheckout(checkout);
 
       const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
-        preCreatedUser.email,
+        checkout.email,
       );
 
       expect(hasPendingSetup).toBe(true);
     });
 
-    it('When the pre-created user started a checkout but has not paid yet, then no setup is pending', async () => {
-      const preCreatedUser = newPreCreatedUser();
-      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUsername')
-        .mockResolvedValue(preCreatedUser);
+    it('When the checkout started but has not been paid yet, then no setup is pending', async () => {
+      const checkout = newPreCreatedUserCheckout({
+        status: PreCreatedUserStatus.AwaitingPayment,
+      });
+      givenCheckout(checkout);
 
       const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
-        preCreatedUser.email,
+        checkout.email,
       );
 
       expect(hasPendingSetup).toBe(false);
     });
 
     it('When the checkout paid and the tier was already applied but the setup email has not been sent yet, then the setup is pending', async () => {
-      const preCreatedUser = newPreCreatedUser();
-      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
-      preCreatedUser.tierId = 'fake-tier-id';
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUsername')
-        .mockResolvedValue(preCreatedUser);
+      const checkout = newPreCreatedUserCheckout({
+        status: PreCreatedUserStatus.AwaitingPayment,
+        tierId: 'fake-tier-id',
+      });
+      givenCheckout(checkout);
 
       const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
-        preCreatedUser.email,
+        checkout.email,
       );
 
       expect(hasPendingSetup).toBe(true);
     });
 
     it('When the subscription was cancelled before completing the setup, then no setup is pending even if the email was sent', async () => {
-      const preCreatedUser = newPreCreatedUser();
-      preCreatedUser.setupEmailSentAt = new Date();
-      preCreatedUser.status = PreCreatedUserStatus.Cancelled;
-      preCreatedUser.tierId = 'fake-tier-id';
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUsername')
-        .mockResolvedValue(preCreatedUser);
+      const checkout = newPreCreatedUserCheckout({
+        setupEmailSentAt: new Date(),
+        status: PreCreatedUserStatus.Cancelled,
+        tierId: 'fake-tier-id',
+      });
+      givenCheckout(checkout);
 
       const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
-        preCreatedUser.email,
+        checkout.email,
       );
 
       expect(hasPendingSetup).toBe(false);
     });
 
-    it('When the email belongs to a user pre-created by an invitation, then no setup is pending', async () => {
-      const preCreatedUser = newPreCreatedUser();
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUsername')
-        .mockResolvedValue(preCreatedUser);
-
-      const hasPendingSetup = await userUseCases.hasPendingAccountSetup(
-        preCreatedUser.email,
-      );
-
-      expect(hasPendingSetup).toBe(false);
-    });
-
-    it('When the email is not pre-created, then no setup is pending', async () => {
-      jest
-        .spyOn(preCreatedUsersRepository, 'findByUsername')
-        .mockResolvedValue(null);
+    it('When the email has no checkout, for example because it was only invited, then no setup is pending', async () => {
+      givenCheckout(null);
 
       const hasPendingSetup =
         await userUseCases.hasPendingAccountSetup('new@internxt.com');
@@ -4665,7 +4665,6 @@ describe('User use cases', () => {
         publicKyberKey: createdUser.publicKyberKey.toString(),
         publicKey: createdUser.publicKey.toString(),
         password: createdUser.password.toString(),
-        status: null,
       });
       expect(isPreCreated).toBe(true);
     });
@@ -6083,26 +6082,26 @@ describe('User use cases', () => {
       count: number;
       lastSentAt: Date;
     }) => {
-      const preCreatedUser = newPreCreatedUser();
-      preCreatedUser.setupEmailSentAt = resends?.lastSentAt ?? oneHourAgo;
-      preCreatedUser.status = PreCreatedUserStatus.PendingSetup;
-      preCreatedUser.setupEmailResendCount = resends?.count ?? 0;
-      return preCreatedUser;
+      return newPreCreatedUserCheckout({
+        setupEmailSentAt: resends?.lastSentAt ?? oneHourAgo,
+        status: PreCreatedUserStatus.PendingSetup,
+        setupEmailResendCount: resends?.count ?? 0,
+      });
     };
 
     const givenEmailBelongsTo = ({
       registeredUser = null,
-      preCreatedUser = null,
+      checkout = null,
     }: {
       registeredUser?: User | null;
-      preCreatedUser?: ReturnType<typeof newPreCreatedUser> | null;
+      checkout?: PreCreatedUserCheckout | null;
     }) => {
       jest
         .spyOn(userRepository, 'findByUsername')
         .mockResolvedValue(registeredUser);
       jest
-        .spyOn(preCreatedUsersRepository, 'findByUsername')
-        .mockResolvedValue(preCreatedUser);
+        .spyOn(preCreatedUserCheckoutRepository, 'findByEmail')
+        .mockResolvedValue(checkout);
     };
 
     const sentSetupToken = (): string => {
@@ -6114,7 +6113,7 @@ describe('User use cases', () => {
 
     const storedUpdate = () => {
       const [, , update] = jest.mocked(
-        preCreatedUsersRepository.updateByUuidAndStatus,
+        preCreatedUserCheckoutRepository.updateByNetworkUuidAndStatus,
       ).mock.calls[0];
       return update;
     };
@@ -6130,7 +6129,7 @@ describe('User use cases', () => {
     beforeEach(() => {
       jest.useFakeTimers({ now });
       jest
-        .spyOn(preCreatedUsersRepository, 'updateByUuidAndStatus')
+        .spyOn(preCreatedUserCheckoutRepository, 'updateByNetworkUuidAndStatus')
         .mockResolvedValue(true);
     });
 
@@ -6139,14 +6138,14 @@ describe('User use cases', () => {
     });
 
     it('When the email has a paid account pending setup, then a new setup link is emailed with a token issued at the resend', async () => {
-      const preCreatedUser = pendingSetupUser();
-      givenEmailBelongsTo({ preCreatedUser });
+      const checkout = pendingSetupUser();
+      givenEmailBelongsTo({ checkout });
 
-      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+      await userUseCases.resendAccountSetupEmail(checkout.email);
 
       const { setupEmailSentAt } = storedUpdate();
       expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledWith(
-        preCreatedUser.email,
+        checkout.email,
         {
           setupUrl: expect.stringContaining('/complete-account/'),
         },
@@ -6156,19 +6155,19 @@ describe('User use cases', () => {
         iat: number;
       };
       expect(decoded.payload).toEqual({
-        uuid: preCreatedUser.uuid,
+        uuid: checkout.networkUuid,
         action: ACCOUNT_SETUP_TOKEN_ACTION,
       });
       expect(decoded.iat).toBe(Math.floor(setupEmailSentAt.getTime() / 1000));
     });
 
     it('When a token from the resend is used to complete the setup, then it is accepted, and the previous link is rejected as expired', async () => {
-      const preCreatedUser = pendingSetupUser();
-      givenEmailBelongsTo({ preCreatedUser });
+      const checkout = pendingSetupUser();
+      givenEmailBelongsTo({ checkout });
       const previousToken = signJwt(
         {
           payload: {
-            uuid: preCreatedUser.uuid,
+            uuid: checkout.networkUuid,
             action: ACCOUNT_SETUP_TOKEN_ACTION,
           },
           iat: Math.floor(oneHourAgo.getTime() / 1000),
@@ -6177,14 +6176,14 @@ describe('User use cases', () => {
         { expiresIn: '5d' } as any,
       );
 
-      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+      await userUseCases.resendAccountSetupEmail(checkout.email);
       const newToken = sentSetupToken();
       const { setupEmailSentAt } = storedUpdate();
-      preCreatedUser.setupEmailSentAt = setupEmailSentAt;
+      checkout.setupEmailSentAt = setupEmailSentAt;
 
       jest
-        .spyOn(preCreatedUsersRepository, 'findByUuid')
-        .mockResolvedValue(preCreatedUser);
+        .spyOn(preCreatedUserCheckoutRepository, 'findByNetworkUuid')
+        .mockResolvedValue(checkout);
       jest
         .spyOn(keyServerUseCases, 'parseKeysInput')
         .mockReturnValue({ ecc: null, kyber: null });
@@ -6201,18 +6200,18 @@ describe('User use cases', () => {
     });
 
     it('When the setup email is resent, then it counts towards today\'s limit together with the new link', async () => {
-      const preCreatedUser = pendingSetupUser({
+      const checkout = pendingSetupUser({
         count: 2,
         lastSentAt: oneHourAgo,
       });
-      givenEmailBelongsTo({ preCreatedUser });
+      givenEmailBelongsTo({ checkout });
 
-      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+      await userUseCases.resendAccountSetupEmail(checkout.email);
 
       expect(
-        preCreatedUsersRepository.updateByUuidAndStatus,
+        preCreatedUserCheckoutRepository.updateByNetworkUuidAndStatus,
       ).toHaveBeenCalledWith(
-        preCreatedUser.uuid,
+        checkout.networkUuid,
         PreCreatedUserStatus.PendingSetup,
         {
           status: PreCreatedUserStatus.PendingSetup,
@@ -6223,13 +6222,13 @@ describe('User use cases', () => {
     });
 
     it('When the last email was sent on a previous day, then the daily count starts again', async () => {
-      const preCreatedUser = pendingSetupUser({
+      const checkout = pendingSetupUser({
         count: 5,
         lastSentAt: yesterday,
       });
-      givenEmailBelongsTo({ preCreatedUser });
+      givenEmailBelongsTo({ checkout });
 
-      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+      await userUseCases.resendAccountSetupEmail(checkout.email);
 
       expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledTimes(1);
       expect(storedUpdate()).toMatchObject({
@@ -6238,86 +6237,85 @@ describe('User use cases', () => {
     });
 
     it('When the daily limit of resends is reached, then no email is sent and the current link keeps working', async () => {
-      const preCreatedUser = pendingSetupUser({
+      const checkout = pendingSetupUser({
         count: 5,
         lastSentAt: oneHourAgo,
       });
-      givenEmailBelongsTo({ preCreatedUser });
+      givenEmailBelongsTo({ checkout });
 
       await expect(
-        userUseCases.resendAccountSetupEmail(preCreatedUser.email),
+        userUseCases.resendAccountSetupEmail(checkout.email),
       ).resolves.toBeUndefined();
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
       expect(
-        preCreatedUsersRepository.updateByUuidAndStatus,
+        preCreatedUserCheckoutRepository.updateByNetworkUuidAndStatus,
       ).not.toHaveBeenCalled();
     });
 
     it('When the email cannot be sent, then the current link keeps working and the resend is not counted', async () => {
-      const preCreatedUser = pendingSetupUser({
+      const checkout = pendingSetupUser({
         count: 1,
         lastSentAt: oneHourAgo,
       });
-      givenEmailBelongsTo({ preCreatedUser });
+      givenEmailBelongsTo({ checkout });
       jest
         .spyOn(mailerService, 'sendAccountSetupEmail')
         .mockRejectedValue(new Error('Email provider unavailable'));
 
       await expect(
-        userUseCases.resendAccountSetupEmail(preCreatedUser.email),
+        userUseCases.resendAccountSetupEmail(checkout.email),
       ).rejects.toThrow('Email provider unavailable');
 
-      expect(preCreatedUsersRepository.updateByUuid).toHaveBeenCalledWith(
-        preCreatedUser.uuid,
-        {
-          status: PreCreatedUserStatus.PendingSetup,
-          setupEmailSentAt: oneHourAgo,
-          setupEmailResendCount: 1,
-        },
-      );
+      expect(
+        preCreatedUserCheckoutRepository.updateByNetworkUuid,
+      ).toHaveBeenCalledWith(checkout.networkUuid, {
+        status: PreCreatedUserStatus.PendingSetup,
+        setupEmailSentAt: oneHourAgo,
+        setupEmailResendCount: 1,
+      });
     });
 
     it('When the buyer paid but the first setup email failed, then it is sent and the account becomes pending setup so the new link completes it', async () => {
-      const preCreatedUser = pendingSetupUser();
-      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
-      preCreatedUser.tierId = v4();
-      givenEmailBelongsTo({ preCreatedUser });
+      const checkout = pendingSetupUser();
+      checkout.status = PreCreatedUserStatus.AwaitingPayment;
+      checkout.tierId = v4();
+      givenEmailBelongsTo({ checkout });
 
-      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+      await userUseCases.resendAccountSetupEmail(checkout.email);
 
       expect(mailerService.sendAccountSetupEmail).toHaveBeenCalledTimes(1);
       expect(
-        preCreatedUsersRepository.updateByUuidAndStatus,
+        preCreatedUserCheckoutRepository.updateByNetworkUuidAndStatus,
       ).toHaveBeenCalledWith(
-        preCreatedUser.uuid,
+        checkout.networkUuid,
         PreCreatedUserStatus.AwaitingPayment,
         expect.objectContaining({ status: PreCreatedUserStatus.PendingSetup }),
       );
     });
 
     it('When the buyer started a checkout but has not paid, then no setup email is sent', async () => {
-      const preCreatedUser = pendingSetupUser();
-      preCreatedUser.status = PreCreatedUserStatus.AwaitingPayment;
-      preCreatedUser.tierId = null;
-      givenEmailBelongsTo({ preCreatedUser });
+      const checkout = pendingSetupUser();
+      checkout.status = PreCreatedUserStatus.AwaitingPayment;
+      checkout.tierId = null;
+      givenEmailBelongsTo({ checkout });
 
-      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+      await userUseCases.resendAccountSetupEmail(checkout.email);
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
       expect(
-        preCreatedUsersRepository.updateByUuidAndStatus,
+        preCreatedUserCheckoutRepository.updateByNetworkUuidAndStatus,
       ).not.toHaveBeenCalled();
     });
 
     it('When the status changes at the same time, for example to cancelled, then nothing is sent', async () => {
-      const preCreatedUser = pendingSetupUser();
-      givenEmailBelongsTo({ preCreatedUser });
+      const checkout = pendingSetupUser();
+      givenEmailBelongsTo({ checkout });
       jest
-        .spyOn(preCreatedUsersRepository, 'updateByUuidAndStatus')
+        .spyOn(preCreatedUserCheckoutRepository, 'updateByNetworkUuidAndStatus')
         .mockResolvedValue(false);
 
-      await userUseCases.resendAccountSetupEmail(preCreatedUser.email);
+      await userUseCases.resendAccountSetupEmail(checkout.email);
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
     });
@@ -6325,7 +6323,7 @@ describe('User use cases', () => {
     it('When the email belongs to a registered user, then no setup email is sent', async () => {
       givenEmailBelongsTo({
         registeredUser: newUser(),
-        preCreatedUser: pendingSetupUser(),
+        checkout: pendingSetupUser(),
       });
 
       await expect(
@@ -6346,7 +6344,7 @@ describe('User use cases', () => {
     });
 
     it('When the email was only invited to a shared item or workspace, then no setup email is sent', async () => {
-      givenEmailBelongsTo({ preCreatedUser: newPreCreatedUser() });
+      givenEmailBelongsTo({ checkout: null });
 
       await expect(
         userUseCases.resendAccountSetupEmail('invited@internxt.com'),
@@ -6358,7 +6356,7 @@ describe('User use cases', () => {
     it('When the subscription was cancelled before completing the setup, then no setup email is sent', async () => {
       const cancelledUser = pendingSetupUser();
       cancelledUser.status = PreCreatedUserStatus.Cancelled;
-      givenEmailBelongsTo({ preCreatedUser: cancelledUser });
+      givenEmailBelongsTo({ checkout: cancelledUser });
 
       await expect(
         userUseCases.resendAccountSetupEmail(cancelledUser.email),
@@ -6366,7 +6364,7 @@ describe('User use cases', () => {
 
       expect(mailerService.sendAccountSetupEmail).not.toHaveBeenCalled();
       expect(
-        preCreatedUsersRepository.updateByUuidAndStatus,
+        preCreatedUserCheckoutRepository.updateByNetworkUuidAndStatus,
       ).not.toHaveBeenCalled();
     });
   });

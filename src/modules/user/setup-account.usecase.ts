@@ -5,21 +5,16 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  PreCreatedUserStatus,
-  type PreCreatedUserAttributes,
-} from './pre-created-users.attributes';
-import { UserUseCases } from './user.usecase';
+import { UniqueConstraintError } from 'sequelize';
+import { type PreCreatedUserCheckoutAttributes } from './pre-created-user-checkout.attributes';
+import { PreCreatedUserStatus } from './pre-created-users.attributes';
+import { type PreCreatedUserCheckout } from './pre-created-user-checkout.domain';
+import { SequelizePreCreatedUserCheckoutRepository } from './pre-created-user-checkout.repository';
 import { BridgeService } from '../../externals/bridge/bridge.service';
 import { MailerService } from '../../externals/mailer/mailer.service';
-import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { SequelizeUserRepository } from './user.repository';
 import { FeatureLimitService } from '../feature-limit/feature-limit.service';
 import { PreCreateUserForCheckoutResponseDto } from '../gateway/dto/pre-create-user-for-checkout.dto';
-import { type PreCreatedUser } from './pre-created-user.domain';
-import { UniqueConstraintError } from 'sequelize';
-import { SequelizeSharingRepository } from '../sharing/sharing.repository';
-import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import { PreCreatedUserNotFoundException } from './exception/pre-created-user-not-found.exception';
 import { buildAccountSetupUrl } from './account-setup-link';
 
@@ -27,17 +22,14 @@ import { buildAccountSetupUrl } from './account-setup-link';
 export class SetupCheckoutAccountUseCase {
   constructor(
     private readonly userRepository: SequelizeUserRepository,
-    private readonly preCreatedUserRepository: SequelizePreCreatedUsersRepository,
+    private readonly preCreatedUserCheckoutRepository: SequelizePreCreatedUserCheckoutRepository,
     private readonly mailerService: MailerService,
     private readonly networkService: BridgeService,
-    private readonly userUseCases: UserUseCases,
     private readonly featureLimitService: FeatureLimitService,
-    private readonly sharingRepository: SequelizeSharingRepository,
-    private readonly workspaceRepository: SequelizeWorkspaceRepository,
   ) {}
 
   async getOrCreate(
-    rawEmail: PreCreatedUserAttributes['email'],
+    rawEmail: PreCreatedUserCheckoutAttributes['email'],
   ): Promise<PreCreateUserForCheckoutResponseDto> {
     const email = rawEmail.toLowerCase();
 
@@ -46,67 +38,71 @@ export class SetupCheckoutAccountUseCase {
       throw new ConflictException('User already registered');
     }
 
-    const existentPreCreatedUser =
-      await this.preCreatedUserRepository.findByUsername(email);
+    const checkout =
+      await this.preCreatedUserCheckoutRepository.findByEmail(email);
 
-    if (this.hasCheckoutAlreadyStarted(existentPreCreatedUser)) {
-      return {
-        uuid: existentPreCreatedUser.uuid,
-        status: existentPreCreatedUser.status,
-      };
+    if (checkout?.hasStarted()) {
+      return this.toResponse(checkout);
     }
 
     const { uuid } = await this.networkService.createUser(email);
 
-    if (existentPreCreatedUser) {
-      await this.adoptPreCreatedUserForCheckout(existentPreCreatedUser, uuid);
+    if (checkout) {
+      await this.preCreatedUserCheckoutRepository.updateByNetworkUuid(
+        checkout.networkUuid,
+        {
+          networkUuid: uuid,
+          status: PreCreatedUserStatus.AwaitingPayment,
+          tierId: null,
+        },
+      );
 
       return { uuid, status: PreCreatedUserStatus.AwaitingPayment };
     }
 
-    return this.preCreateUserForCheckout(email, uuid);
+    return this.createPreCreatedUserCheckout(email, uuid);
   }
 
   async get(
-    rawEmail: PreCreatedUserAttributes['email'],
+    rawEmail: PreCreatedUserCheckoutAttributes['email'],
   ): Promise<PreCreateUserForCheckoutResponseDto> {
-    const preCreatedUser = await this.preCreatedUserRepository.findByUsername(
+    const checkout = await this.preCreatedUserCheckoutRepository.findByEmail(
       rawEmail.toLowerCase(),
     );
 
-    if (!preCreatedUser) {
+    if (!checkout) {
       throw new PreCreatedUserNotFoundException();
     }
 
-    return {
-      uuid: preCreatedUser.uuid,
-      status: preCreatedUser.status,
-    };
+    return this.toResponse(checkout);
   }
 
   async sendAccountEmail(
-    uuid: PreCreatedUserAttributes['uuid'],
+    networkUuid: PreCreatedUserCheckoutAttributes['networkUuid'],
     planName?: string,
   ): Promise<void> {
-    const preCreatedUser = await this.preCreatedUserRepository.findByUuid(uuid);
+    const checkout =
+      await this.preCreatedUserCheckoutRepository.findByNetworkUuid(
+        networkUuid,
+      );
 
-    if (!preCreatedUser) {
-      const registeredUser = await this.userRepository.findByUuid(uuid);
+    if (!checkout) {
+      const registeredUser = await this.userRepository.findByUuid(networkUuid);
       if (!registeredUser) {
         throw new NotFoundException('User not found');
       }
       return;
     }
 
-    if (preCreatedUser.status !== PreCreatedUserStatus.AwaitingPayment) {
+    if (!checkout.isAwaitingPayment()) {
       return;
     }
 
-    await this.sendAccountSetupEmail(preCreatedUser, planName);
+    await this.sendAccountSetupEmail(checkout, planName);
   }
 
   async update(
-    uuid: string,
+    networkUuid: PreCreatedUserCheckoutAttributes['networkUuid'],
     {
       newStorageSpaceBytes,
       newTierId,
@@ -117,11 +113,17 @@ export class SetupCheckoutAccountUseCase {
       status?: PreCreatedUserStatus;
     },
   ) {
-    const updateData: Partial<Omit<PreCreatedUserAttributes, 'id'>> = {};
-    const preCreatedUser = await this.preCreatedUserRepository.findByUuid(uuid);
-    if (!preCreatedUser) {
+    const checkout =
+      await this.preCreatedUserCheckoutRepository.findByNetworkUuid(
+        networkUuid,
+      );
+    if (!checkout) {
       throw new PreCreatedUserNotFoundException();
     }
+
+    const update: Partial<
+      Pick<PreCreatedUserCheckoutAttributes, 'tierId' | 'status'>
+    > = {};
 
     if (newTierId !== undefined) {
       const tier = await this.featureLimitService.getTier(newTierId);
@@ -130,120 +132,85 @@ export class SetupCheckoutAccountUseCase {
         throw new BadRequestException(`Tier with ID ${newTierId} not found`);
       }
 
-      updateData.tierId = newTierId;
+      update.tierId = newTierId;
     }
 
     if (status !== undefined) {
-      updateData.status = status;
+      update.status = status;
     }
 
-    await this.preCreatedUserRepository.updateByUuid(uuid, updateData);
+    await this.preCreatedUserCheckoutRepository.updateByNetworkUuid(
+      networkUuid,
+      update,
+    );
 
     if (!newStorageSpaceBytes) {
       return;
     }
 
-    await this.networkService.setStorage(
-      preCreatedUser.username,
-      newStorageSpaceBytes,
-    );
+    await this.networkService.setStorage(checkout.email, newStorageSpaceBytes);
   }
 
-  private hasCheckoutAlreadyStarted(
-    preCreatedUser: PreCreatedUser | null,
-  ): preCreatedUser is PreCreatedUser & {
-    status:
-      PreCreatedUserStatus.AwaitingPayment | PreCreatedUserStatus.PendingSetup;
-  } {
-    return (
-      preCreatedUser?.status === PreCreatedUserStatus.AwaitingPayment ||
-      preCreatedUser?.status === PreCreatedUserStatus.PendingSetup
-    );
+  private toResponse(
+    checkout: PreCreatedUserCheckout,
+  ): PreCreateUserForCheckoutResponseDto {
+    return {
+      uuid: checkout.networkUuid,
+      status: checkout.status,
+    };
   }
 
-  private async preCreateUserForCheckout(
-    email: PreCreatedUserAttributes['email'],
-    uuid: PreCreatedUserAttributes['uuid'],
+  private async createPreCreatedUserCheckout(
+    email: PreCreatedUserCheckoutAttributes['email'],
+    networkUuid: PreCreatedUserCheckoutAttributes['networkUuid'],
   ): Promise<PreCreateUserForCheckoutResponseDto> {
     try {
-      const [preCreatedUser] = await this.userUseCases.preCreateUser(
-        { email },
-        uuid,
-        PreCreatedUserStatus.AwaitingPayment,
-      );
+      const checkout = await this.preCreatedUserCheckoutRepository.create({
+        networkUuid,
+        email,
+        status: PreCreatedUserStatus.AwaitingPayment,
+      });
 
-      return { uuid, status: preCreatedUser.status };
+      return this.toResponse(checkout);
     } catch (error) {
       if (!(error instanceof UniqueConstraintError)) {
         throw error;
       }
 
-      const concurrentPreCreatedUser =
-        await this.preCreatedUserRepository.findByUsername(email);
+      const concurrentPreCreatedUserCheckout =
+        await this.preCreatedUserCheckoutRepository.findByEmail(email);
 
-      if (!concurrentPreCreatedUser) {
+      if (!concurrentPreCreatedUserCheckout) {
         throw error;
       }
 
-      return {
-        uuid: concurrentPreCreatedUser.uuid,
-        status: concurrentPreCreatedUser.status,
-      };
+      return this.toResponse(concurrentPreCreatedUserCheckout);
     }
-  }
-
-  private async adoptPreCreatedUserForCheckout(
-    preCreatedUser: PreCreatedUser,
-    networkUuid: PreCreatedUserAttributes['uuid'],
-  ): Promise<void> {
-    if (preCreatedUser.uuid !== networkUuid) {
-      await this.reassignPreCreatedUserUuid(preCreatedUser.uuid, networkUuid);
-    }
-
-    await this.preCreatedUserRepository.updateByUuid(networkUuid, {
-      status: PreCreatedUserStatus.AwaitingPayment,
-      tierId: null,
-    });
-  }
-
-  private async reassignPreCreatedUserUuid(
-    currentUuid: PreCreatedUserAttributes['uuid'],
-    newUuid: PreCreatedUserAttributes['uuid'],
-  ): Promise<void> {
-    await this.sharingRepository.updateAllUserSharedWith(currentUuid, {
-      sharedWith: newUuid,
-    });
-    await this.workspaceRepository.updateInvitesBy(
-      { invitedUser: currentUuid },
-      { invitedUser: newUuid },
-    );
-    await this.preCreatedUserRepository.updateByUuid(currentUuid, {
-      uuid: newUuid,
-    });
   }
 
   private async sendAccountSetupEmail(
-    preCreatedUser: PreCreatedUser,
+    checkout: PreCreatedUserCheckout,
     planName?: string,
   ): Promise<void> {
-    const { uuid, email } = preCreatedUser;
+    const { networkUuid, email } = checkout;
     const sentAt = new Date();
 
-    const isClaimed = await this.preCreatedUserRepository.updateByUuidAndStatus(
-      uuid,
-      PreCreatedUserStatus.AwaitingPayment,
-      {
-        status: PreCreatedUserStatus.PendingSetup,
-        setupEmailSentAt: sentAt,
-        setupEmailResendCount: 0,
-      },
-    );
+    const isClaimed =
+      await this.preCreatedUserCheckoutRepository.updateByNetworkUuidAndStatus(
+        networkUuid,
+        PreCreatedUserStatus.AwaitingPayment,
+        {
+          status: PreCreatedUserStatus.PendingSetup,
+          setupEmailSentAt: sentAt,
+          setupEmailResendCount: 0,
+        },
+      );
 
     if (!isClaimed) {
       return;
     }
 
-    const { setupUrl } = buildAccountSetupUrl(uuid, sentAt);
+    const { setupUrl } = buildAccountSetupUrl(networkUuid, sentAt);
 
     try {
       await this.mailerService.sendAccountSetupEmail(email, {
@@ -251,24 +218,28 @@ export class SetupCheckoutAccountUseCase {
         setupUrl,
       });
     } catch (error) {
-      await this.rollbackSetupEmailSent(preCreatedUser);
+      await this.rollbackSetupEmailSent(checkout);
 
       throw error;
     }
   }
 
   private async rollbackSetupEmailSent(
-    preCreatedUser: PreCreatedUser,
+    checkout: PreCreatedUserCheckout,
   ): Promise<void> {
     try {
-      await this.preCreatedUserRepository.updateByUuid(preCreatedUser.uuid, {
-        status: PreCreatedUserStatus.AwaitingPayment,
-        setupEmailSentAt: preCreatedUser.setupEmailSentAt,
-        setupEmailResendCount: preCreatedUser.setupEmailResendCount,
-      });
-    } catch (releaseError) {
+      await this.preCreatedUserCheckoutRepository.updateByNetworkUuid(
+        checkout.networkUuid,
+        {
+          status: PreCreatedUserStatus.AwaitingPayment,
+          setupEmailSentAt: checkout.setupEmailSentAt,
+          setupEmailResendCount: checkout.setupEmailResendCount,
+        },
+      );
+    } catch (error) {
       Logger.error(
-        `[ACCOUNT_SETUP/SEND_EMAIL] Could not roll back the setup email sent to pre-created user ${preCreatedUser.uuid}: ${(releaseError as Error).message}`,
+        { networkUuid: checkout.networkUuid, err: error },
+        '[ACCOUNT_SETUP/SEND_EMAIL] Could not roll back the setup email sent',
       );
     }
   }

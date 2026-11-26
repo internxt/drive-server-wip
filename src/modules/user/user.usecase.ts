@@ -49,13 +49,13 @@ import { FileUseCases } from '../file/file.usecase';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import { AvatarService } from '../../externals/avatar/avatar.service';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
+import { SequelizePreCreatedUserCheckoutRepository } from './pre-created-user-checkout.repository';
+import { type PreCreatedUserCheckoutAttributes } from './pre-created-user-checkout.attributes';
 import { type PreCreateUserDto } from './dto/pre-create-user.dto';
 import { type CompleteAccountSetupDto } from './dto/complete-account-setup.dto';
 import { aes } from '@internxt/lib';
-import {
-  PreCreatedUserStatus,
-  type PreCreatedUserAttributes,
-} from './pre-created-users.attributes';
+import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
+import { PreCreatedUserStatus } from './pre-created-users.attributes';
 import { type PreCreatedUser } from './pre-created-user.domain';
 import { SequelizeSharingRepository } from '../sharing/sharing.repository';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
@@ -153,6 +153,7 @@ export class UserUseCases {
   constructor(
     private readonly userRepository: SequelizeUserRepository,
     private readonly preCreatedUserRepository: SequelizePreCreatedUsersRepository,
+    private readonly preCreatedUserCheckoutRepository: SequelizePreCreatedUserCheckoutRepository,
     private readonly sharedWorkspaceRepository: SequelizeSharedWorkspaceRepository,
     private readonly referralsRepository: SequelizeReferralRepository,
     private readonly userReferralsRepository: SequelizeUserReferralsRepository,
@@ -207,12 +208,12 @@ export class UserUseCases {
   }
 
   async hasPendingAccountSetup(
-    email: PreCreatedUserAttributes['email'],
+    email: PreCreatedUserCheckoutAttributes['email'],
   ): Promise<boolean> {
-    const preCreatedUser =
-      await this.preCreatedUserRepository.findByUsername(email);
+    const checkout =
+      await this.preCreatedUserCheckoutRepository.findByEmail(email);
 
-    return preCreatedUser?.hasPendingAccountSetup() ?? false;
+    return checkout?.hasPendingAccountSetup() ?? false;
   }
 
   findByUuids(uuids: User['uuid'][]): Promise<User[]> {
@@ -289,59 +290,64 @@ export class UserUseCases {
   }
 
   async resendAccountSetupEmail(
-    email: PreCreatedUserAttributes['email'],
+    email: PreCreatedUserCheckoutAttributes['email'],
   ): Promise<void> {
     const registeredUser = await this.userRepository.findByUsername(email);
     if (registeredUser) {
       return;
     }
 
-    const preCreatedUser =
-      await this.preCreatedUserRepository.findByUsername(email);
-    if (!preCreatedUser?.hasPendingAccountSetup()) {
+    const checkout =
+      await this.preCreatedUserCheckoutRepository.findByEmail(email);
+    if (!checkout?.hasPendingAccountSetup()) {
       return;
     }
 
     const sentAt = new Date();
-    const lastSentAt = preCreatedUser.setupEmailSentAt;
+    const lastSentAt = checkout.setupEmailSentAt;
     const resendsToday =
       lastSentAt && Time.isToday(lastSentAt)
-        ? preCreatedUser.setupEmailResendCount
+        ? checkout.setupEmailResendCount
         : 0;
 
     if (resendsToday >= ACCOUNT_SETUP_EMAIL_RESENDS_PER_DAY) {
       Logger.warn(
-        `[ACCOUNT_SETUP/RESEND] Daily limit reached for pre-created user ${preCreatedUser.uuid}`,
+        { networkUuid: checkout.networkUuid },
+        '[ACCOUNT_SETUP/RESEND] Daily limit reached',
       );
       return;
     }
 
-    const isClaimed = await this.preCreatedUserRepository.updateByUuidAndStatus(
-      preCreatedUser.uuid,
-      preCreatedUser.status,
-      {
-        status: PreCreatedUserStatus.PendingSetup,
-        setupEmailSentAt: sentAt,
-        setupEmailResendCount: resendsToday + 1,
-      },
-    );
+    const isClaimed =
+      await this.preCreatedUserCheckoutRepository.updateByNetworkUuidAndStatus(
+        checkout.networkUuid,
+        checkout.status,
+        {
+          status: PreCreatedUserStatus.PendingSetup,
+          setupEmailSentAt: sentAt,
+          setupEmailResendCount: resendsToday + 1,
+        },
+      );
 
     if (!isClaimed) {
       return;
     }
 
-    const { setupUrl } = buildAccountSetupUrl(preCreatedUser.uuid, sentAt);
+    const { setupUrl } = buildAccountSetupUrl(checkout.networkUuid, sentAt);
 
     try {
-      await this.mailerService.sendAccountSetupEmail(preCreatedUser.email, {
+      await this.mailerService.sendAccountSetupEmail(checkout.email, {
         setupUrl,
       });
     } catch (error) {
-      await this.preCreatedUserRepository.updateByUuid(preCreatedUser.uuid, {
-        status: preCreatedUser.status,
-        setupEmailSentAt: preCreatedUser.setupEmailSentAt,
-        setupEmailResendCount: preCreatedUser.setupEmailResendCount,
-      });
+      await this.preCreatedUserCheckoutRepository.updateByNetworkUuid(
+        checkout.networkUuid,
+        {
+          status: checkout.status,
+          setupEmailSentAt: checkout.setupEmailSentAt,
+          setupEmailResendCount: checkout.setupEmailResendCount,
+        },
+      );
 
       throw error;
     }
@@ -656,23 +662,18 @@ export class UserUseCases {
 
   async completeAccountSetup({ token, ...setup }: CompleteAccountSetupDto) {
     const { uuid, issuedAt } = this.decodeAccountSetupToken(token);
-    const preCreatedUser = await this.preCreatedUserRepository.findByUuid(uuid);
+    const checkout =
+      await this.preCreatedUserCheckoutRepository.findByNetworkUuid(uuid);
 
-    if (!preCreatedUser) {
+    if (!checkout?.isPendingSetup()) {
       throw new ForbiddenException('Invalid token');
     }
 
-    if (preCreatedUser.status !== PreCreatedUserStatus.PendingSetup) {
+    if (!checkout.setupEmailSentAt) {
       throw new ForbiddenException('Invalid token');
     }
 
-    if (!preCreatedUser.setupEmailSentAt) {
-      throw new ForbiddenException('Invalid token');
-    }
-
-    const lastSentAt = Math.floor(
-      preCreatedUser.setupEmailSentAt.getTime() / 1000,
-    );
+    const lastSentAt = Math.floor(checkout.setupEmailSentAt.getTime() / 1000);
 
     if (issuedAt < lastSentAt) {
       throw new ForbiddenException('Token expired');
@@ -690,8 +691,8 @@ export class UserUseCases {
 
     const createdUser = await this.createUser({
       ...setup,
-      email: preCreatedUser.email,
-      tierId: preCreatedUser.tierId ?? undefined,
+      email: checkout.email,
+      tierId: checkout.tierId ?? undefined,
       emailVerified: true,
     });
 
@@ -700,8 +701,11 @@ export class UserUseCases {
       { ecc, kyber },
     );
 
+    await this.preCreatedUserCheckoutRepository.deleteByNetworkUuid(
+      checkout.networkUuid,
+    );
     await this.movePreCreatedUserToCreatedUser(
-      preCreatedUser,
+      checkout.email,
       createdUser.uuid,
       keys,
     );
@@ -710,14 +714,14 @@ export class UserUseCases {
   }
 
   private async movePreCreatedUserToCreatedUser(
-    preCreatedUser: PreCreatedUser,
+    email: User['email'],
     createdUserUuid: User['uuid'],
     keys: Awaited<ReturnType<KeyServerUseCases['addKeysToUser']>>,
   ): Promise<void> {
     if (keys.ecc) {
       try {
         await this.replacePreCreatedUser(
-          preCreatedUser.email,
+          email,
           createdUserUuid,
           keys.ecc.publicKey,
           keys.kyber?.publicKey,
@@ -725,12 +729,18 @@ export class UserUseCases {
         return;
       } catch (error) {
         Logger.error(
-          `[ACCOUNT_SETUP/COMPLETE] Could not move the invitations of pre-created user ${preCreatedUser.uuid}: ${(error as Error).message}`,
+          { userUuid: createdUserUuid, err: error },
+          '[ACCOUNT_SETUP/COMPLETE] Could not move the invitations of the pre-created user',
         );
       }
     }
 
-    await this.preCreatedUserRepository.deleteByUuid(preCreatedUser.uuid);
+    const preCreatedUser =
+      await this.preCreatedUserRepository.findByUsername(email);
+
+    if (preCreatedUser) {
+      await this.preCreatedUserRepository.deleteByUuid(preCreatedUser.uuid);
+    }
   }
 
   async replacePreCreatedUser(
@@ -839,11 +849,7 @@ export class UserUseCases {
     );
   }
 
-  async preCreateUser(
-    newUser: PreCreateUserDto,
-    uuid: PreCreatedUserAttributes['uuid'] = v4(),
-    status?: PreCreatedUserStatus,
-  ): Promise<
+  async preCreateUser(newUser: PreCreateUserDto): Promise<
     [
       {
         id: number;
@@ -853,7 +859,6 @@ export class UserUseCases {
         publicKyberKey: string;
         publicKey: string;
         password: string;
-        status?: PreCreatedUserStatus;
       },
       boolean,
     ]
@@ -908,7 +913,7 @@ export class UserUseCases {
 
     const user = await this.preCreatedUserRepository.create({
       email,
-      uuid,
+      uuid: v4(),
       password: hashObj.hash,
       hKey: Buffer.from(hashObj.salt),
       username: email,
@@ -919,7 +924,6 @@ export class UserUseCases {
       publicKyberKey: publicKyberKeyBase64,
       revocationKey: revocationCertificate,
       encryptVersion: UserKeysEncryptVersions.Ecc,
-      status,
     });
 
     return [
@@ -928,7 +932,6 @@ export class UserUseCases {
         publicKyberKey: user.publicKyberKey.toString(),
         publicKey: user.publicKey.toString(),
         password: user.password.toString(),
-        status: user.status,
       },
       true,
     ];

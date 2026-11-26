@@ -1,8 +1,6 @@
 import { type UserKeysEncryptVersions } from '../keyserver/key-server.domain';
-import {
-  PreCreatedUserStatus,
-  type PreCreatedUserAttributes,
-} from './pre-created-users.attributes';
+import { type PreCreatedUserAttributes } from './pre-created-users.attributes';
+import { type PreCreatedUserStatus } from './pre-created-users.attributes';
 
 export class PreCreatedUser implements PreCreatedUserAttributes {
   id: number;
@@ -62,18 +60,6 @@ export class PreCreatedUser implements PreCreatedUserAttributes {
 
   static build(user: PreCreatedUserAttributes): PreCreatedUser {
     return new PreCreatedUser(user);
-  }
-
-  isPendingSetup(): boolean {
-    return this.status === PreCreatedUserStatus.PendingSetup;
-  }
-
-  hasPendingAccountSetup(): boolean {
-    const hasPaidBeforeTheSetupEmail =
-      this.status === PreCreatedUserStatus.AwaitingPayment &&
-      this.tierId != null;
-
-    return this.isPendingSetup() || hasPaidBeforeTheSetupEmail;
   }
 
   toJSON() {
