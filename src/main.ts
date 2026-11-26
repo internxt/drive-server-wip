@@ -55,7 +55,7 @@ async function bootstrap() {
   app.set('trust proxy', enableTrustProxy);
   // Express v5 changed this to 'simple' by default, we need the same behavior as v4
   app.set('query parser', 'extended');
-  app.useGlobalPipes(new ValidationPipe({ transform: true }));
+  app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalInterceptors(new NewRelicInterceptor());
 
