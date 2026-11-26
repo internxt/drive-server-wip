@@ -6,6 +6,9 @@ import {
 import { Chance } from 'chance';
 import { Folder } from '../src/modules/folder/folder.domain';
 import { User } from '../src/modules/user/user.domain';
+import { PreCreatedUserCheckout } from '../src/modules/user/pre-created-user-checkout.domain';
+import { type PreCreatedUserCheckoutAttributes } from '../src/modules/user/pre-created-user-checkout.attributes';
+import { PreCreatedUserStatus } from '../src/modules/user/pre-created-users.attributes';
 import {
   Permission,
   Role,
@@ -247,6 +250,19 @@ export const newUser = (params?: {
 
   return user;
 };
+
+export const newPreCreatedUserCheckout = (
+  attributes?: Partial<PreCreatedUserCheckoutAttributes>,
+): PreCreatedUserCheckout =>
+  PreCreatedUserCheckout.build({
+    networkUuid: v4(),
+    email: randomDataGenerator.email(),
+    status: PreCreatedUserStatus.AwaitingPayment,
+    tierId: null,
+    setupEmailSentAt: null,
+    setupEmailResendCount: 0,
+    ...attributes,
+  });
 
 export const newPreCreatedUser = (): PreCreatedUser => {
   const randomEmail = randomDataGenerator.email();

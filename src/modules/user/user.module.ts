@@ -37,6 +37,8 @@ import { AppSumoModule } from '../app-sumo/app-sumo.module';
 import { PlanModule } from '../plan/plan.module';
 import { SequelizePreCreatedUsersRepository } from './pre-created-users.repository';
 import { PreCreatedUserModel } from './pre-created-users.model';
+import { PreCreatedUserCheckoutModel } from './pre-created-user-checkout.model';
+import { SequelizePreCreatedUserCheckoutRepository } from './pre-created-user-checkout.repository';
 import { SharingModule } from '../sharing/sharing.module';
 import { SequelizeAttemptChangeEmailRepository } from './attempt-change-email.repository';
 import { AttemptChangeEmailModel } from './attempt-change-email.model';
@@ -59,6 +61,7 @@ import { CaptchaService } from '../../externals/captcha/captcha.service';
     SequelizeModule.forFeature([
       UserModel,
       PreCreatedUserModel,
+      PreCreatedUserCheckoutModel,
       ReferralModel,
       UserReferralModel,
       FriendInvitationModel,
@@ -91,6 +94,7 @@ import { CaptchaService } from '../../externals/captcha/captcha.service';
   providers: [
     SequelizeUserRepository,
     SequelizePreCreatedUsersRepository,
+    SequelizePreCreatedUserCheckoutRepository,
     SequelizeSharedWorkspaceRepository,
     SequelizeReferralRepository,
     SequelizeKeyServerRepository,
