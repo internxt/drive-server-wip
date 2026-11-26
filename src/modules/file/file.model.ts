@@ -39,6 +39,11 @@ export const sortByUuidInsteadOfId = (options: FindOptions) => {
   ) as FindOptions['order'];
 };
 
+// Legacy clients key files by id, so it must be stable and differ between a user's files.
+// The last uuid segment is random in v4 and mostly random in v7.
+export const deriveFileIdFromUuid = (uuid: string): number =>
+  parseInt(uuid.slice(-12), 16) + 1;
+
 @Table({
   underscored: true,
   timestamps: true,
@@ -54,13 +59,14 @@ export class FileModel extends Model implements FileAttributes {
   // Not stored anymore, kept for clients that still read id and expect a number
   @Column({
     type: DataType.VIRTUAL,
-    get() {
+    get(this: FileModel) {
       if (
         getDeprecationMode(DeprecatedField.FILE_ID) === DeprecationMode.OMIT
       ) {
         return undefined;
       }
-      return 0;
+      const uuid = this.getDataValue('uuid');
+      return uuid ? deriveFileIdFromUuid(uuid) : 0;
     },
   })
   id: number;

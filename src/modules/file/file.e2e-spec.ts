@@ -19,7 +19,7 @@ import { FileUseCases } from './file.usecase';
 import { SequelizeFileRepository } from './file.repository';
 import { UsageType } from '../usage/usage.domain';
 import { UsageModel } from '../usage/usage.model';
-import { FileModel } from './file.model';
+import { deriveFileIdFromUuid, FileModel } from './file.model';
 import { newFile } from '../../../test/fixtures';
 import { Time } from '../../lib/time';
 import { type File, FileStatus } from './file.domain';
@@ -792,6 +792,28 @@ describe('File module', () => {
         const syncedFile = await requestSyncedFile({});
 
         expect(syncedFile.name).toBe(file.plainName);
+      });
+    });
+
+    // TODO: remove once there are no FILE_ID rules in deprecated-fields.ts.
+    describe('id', () => {
+      it('When a client that still uses file ids syncs twice, then the file has the same id derived from its uuid', async () => {
+        const firstSync = await requestSyncedFile({});
+        const secondSync = await requestSyncedFile({});
+
+        expect(firstSync.id).toBe(deriveFileIdFromUuid(file.uuid));
+        expect(secondSync.id).toBe(firstSync.id);
+      });
+
+      it('When a client that no longer uses file ids syncs, then the id is not sent', async () => {
+        const headers = {
+          'internxt-client': ClientEnum.Web,
+          'internxt-version': '99.0.0',
+        };
+
+        const syncedFile = await requestSyncedFile(headers);
+
+        expect(syncedFile).not.toHaveProperty('id');
       });
     });
   });

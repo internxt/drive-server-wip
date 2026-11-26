@@ -1,4 +1,5 @@
 import { type FindOptions } from 'sequelize';
+import { v7 } from 'uuid';
 import { Sequelize } from 'sequelize-typescript';
 import { heavyReadPoolModels } from '../../config/heavy-read-pool-connection';
 import {
@@ -6,7 +7,11 @@ import {
   DeprecationMode,
   getDeprecationMode,
 } from '../../common/deprecated-fields/deprecated-fields';
-import { FileModel, sortByUuidInsteadOfId } from './file.model';
+import {
+  deriveFileIdFromUuid,
+  FileModel,
+  sortByUuidInsteadOfId,
+} from './file.model';
 
 jest.mock('../../common/deprecated-fields/deprecated-fields', () => ({
   ...jest.requireActual('../../common/deprecated-fields/deprecated-fields'),
@@ -36,14 +41,34 @@ describe('FileModel', () => {
   });
 
   describe('id', () => {
-    it('When the client still uses file ids, then it returns 0', () => {
+    it('When the client still uses file ids, then it returns a number derived from the uuid', () => {
       mockFileIdMode(null);
-      const file = FileModel.build({ uuid: 'file-uuid' });
+      const uuid = v7();
+      const file = FileModel.build({ uuid });
 
       const plain = file.get({ plain: true });
 
-      expect(file.id).toBe(0);
-      expect(plain.id).toBe(0);
+      expect(file.id).toBe(deriveFileIdFromUuid(uuid));
+      expect(plain.id).toBe(deriveFileIdFromUuid(uuid));
+    });
+
+    it('When the same file is requested twice, then it returns the same id', () => {
+      mockFileIdMode(null);
+      const uuid = v7();
+
+      const firstId = FileModel.build({ uuid }).id;
+      const secondId = FileModel.build({ uuid }).id;
+
+      expect(firstId).toBe(secondId);
+    });
+
+    it('When files are created in the same millisecond, then each one has a different id', () => {
+      mockFileIdMode(null);
+      const uuids = Array.from({ length: 10000 }, () => v7());
+
+      const ids = uuids.map((uuid) => FileModel.build({ uuid }).id);
+
+      expect(new Set(ids).size).toBe(uuids.length);
     });
 
     it('When the client no longer uses file ids, then the id is not sent', () => {
