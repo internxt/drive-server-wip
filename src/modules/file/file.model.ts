@@ -1,6 +1,5 @@
 import {
   AllowNull,
-  AutoIncrement,
   BelongsTo,
   Column,
   DataType,
@@ -30,6 +29,11 @@ import {
 } from '../../common/deprecated-fields/deprecated-fields';
 import { FavoriteModel } from '../favorite/favorite.model';
 
+// Legacy clients key files by id, so it must be stable and differ between a user's files.
+// The last uuid segment is random in v4 and mostly random in v7.
+export const deriveFileIdFromUuid = (uuid: string): number =>
+  parseInt(uuid.slice(-12), 16) + 1;
+
 @Table({
   underscored: true,
   timestamps: true,
@@ -41,17 +45,17 @@ export class FileModel extends Model implements FileAttributes {
   @Column(DataType.UUIDV4)
   uuid: string;
 
-  @AutoIncrement
+  // Not stored anymore, kept for clients that still read id and expect a number
   @Column({
-    type: DataType.INTEGER,
+    type: DataType.VIRTUAL,
     get(this: FileModel) {
       if (
         getDeprecationMode(DeprecatedField.FILE_ID) === DeprecationMode.OMIT
       ) {
         return undefined;
       }
-      // Clients that still read id expect a number
-      return this.getDataValue('id') ?? 0;
+      const uuid = this.getDataValue('uuid');
+      return uuid ? deriveFileIdFromUuid(uuid) : 0;
     },
   })
   id: number;

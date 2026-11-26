@@ -1,3 +1,4 @@
+import { v7 } from 'uuid';
 import { Sequelize } from 'sequelize-typescript';
 import { heavyReadPoolModels } from '../../config/heavy-read-pool-connection';
 import {
@@ -5,7 +6,7 @@ import {
   DeprecationMode,
   getDeprecationMode,
 } from '../../common/deprecated-fields/deprecated-fields';
-import { FileModel } from './file.model';
+import { deriveFileIdFromUuid, FileModel } from './file.model';
 
 jest.mock('../../common/deprecated-fields/deprecated-fields', () => ({
   ...jest.requireActual('../../common/deprecated-fields/deprecated-fields'),
@@ -35,29 +36,39 @@ describe('FileModel', () => {
   });
 
   describe('id', () => {
-    it('When the client still uses file ids, then it returns the id', () => {
+    it('When the client still uses file ids, then it returns a number derived from the uuid', () => {
       mockFileIdMode(null);
-      const file = FileModel.build({ id: 1, uuid: 'file-uuid' });
+      const uuid = v7();
+      const file = FileModel.build({ uuid });
 
       const plain = file.get({ plain: true });
 
-      expect(file.id).toBe(1);
-      expect(plain.id).toBe(1);
+      expect(file.id).toBe(deriveFileIdFromUuid(uuid));
+      expect(plain.id).toBe(deriveFileIdFromUuid(uuid));
     });
 
-    it('When the client still uses file ids and the file has no id, then it returns 0', () => {
+    it('When the same file is requested twice, then it returns the same id', () => {
       mockFileIdMode(null);
-      const file = FileModel.build({ id: null, uuid: 'file-uuid' });
+      const uuid = v7();
 
-      const plain = file.get({ plain: true });
+      const firstId = FileModel.build({ uuid }).id;
+      const secondId = FileModel.build({ uuid }).id;
 
-      expect(file.id).toBe(0);
-      expect(plain.id).toBe(0);
+      expect(firstId).toBe(secondId);
+    });
+
+    it('When files are created in the same millisecond, then each one has a different id', () => {
+      mockFileIdMode(null);
+      const uuids = Array.from({ length: 10000 }, () => v7());
+
+      const ids = uuids.map((uuid) => FileModel.build({ uuid }).id);
+
+      expect(new Set(ids).size).toBe(uuids.length);
     });
 
     it('When the client no longer uses file ids, then the id is not sent', () => {
       mockFileIdMode(DeprecationMode.OMIT);
-      const file = FileModel.build({ id: 1, uuid: 'file-uuid' });
+      const file = FileModel.build({ uuid: 'file-uuid' });
 
       const serialized = JSON.parse(JSON.stringify(file.toJSON()));
 
@@ -66,13 +77,12 @@ describe('FileModel', () => {
       expect(serialized.uuid).toBe('file-uuid');
     });
 
-    it('When the client no longer uses file ids, then the stored id is kept', () => {
-      mockFileIdMode(DeprecationMode.OMIT);
-      const file = FileModel.build({ id: 1, uuid: 'file-uuid' });
+    it('When files are queried, then the id is not read from the database', () => {
+      const idAttribute = FileModel.getAttributes().id;
 
-      const storedId = file.getDataValue('id');
+      const columnType = idAttribute.type['key'];
 
-      expect(storedId).toBe(1);
+      expect(columnType).toBe('VIRTUAL');
     });
   });
 });

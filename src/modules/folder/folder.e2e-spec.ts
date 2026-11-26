@@ -102,7 +102,7 @@ describe('Folder module', () => {
     });
 
     afterEach(async () => {
-      await fileRepository.destroyFile({ id: file.id });
+      await fileRepository.destroyFile({ uuid: file.uuid });
     });
 
     it('When successful, it returns files with valid params', async () => {
@@ -407,7 +407,7 @@ describe('Folder module', () => {
     });
 
     afterEach(async () => {
-      await fileRepository.destroyFile({ id: file.id });
+      await fileRepository.destroyFile({ uuid: file.uuid });
     });
 
     it('When the user checks a file that exists in their folder, then the file is returned', async () => {

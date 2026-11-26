@@ -19,7 +19,7 @@ import { FileUseCases } from './file.usecase';
 import { SequelizeFileRepository } from './file.repository';
 import { UsageType } from '../usage/usage.domain';
 import { UsageModel } from '../usage/usage.model';
-import { FileModel } from './file.model';
+import { deriveFileIdFromUuid, FileModel } from './file.model';
 import { newFile } from '../../../test/fixtures';
 import { Time } from '../../lib/time';
 import { type File, FileStatus } from './file.domain';
@@ -128,8 +128,8 @@ describe('File module', () => {
         if (createdFiles.length > 0) {
           await fileModel.destroy({
             where: {
-              id: {
-                [Op.in]: createdFiles.map((f) => f.id),
+              uuid: {
+                [Op.in]: createdFiles.map((f) => f.uuid),
               },
             },
           });
@@ -227,7 +227,7 @@ describe('File module', () => {
         const twoDaysAgo = Time.daysAgo(2);
         await fileModel.update(
           { status: 'DELETED', updatedAt: twoDaysAgo },
-          { where: { id: file.id }, silent: true },
+          { where: { uuid: file.uuid }, silent: true },
         );
 
         await fileUseCases.getUserUsedStorageIncrementally(testUser.user);
@@ -253,7 +253,7 @@ describe('File module', () => {
         // Delete the file AFTER the period (today)
         await fileModel.update(
           { status: 'DELETED', updatedAt: Time.now() },
-          { where: { id: file.id }, silent: true },
+          { where: { uuid: file.uuid }, silent: true },
         );
 
         await fileUseCases.getUserUsedStorageIncrementally(testUser.user);
@@ -380,7 +380,7 @@ describe('File module', () => {
           const yesterdayEnd = Time.endOfDay(Time.daysAgo(1));
           await fileModel.update(
             { status: 'DELETED', updatedAt: yesterdayEnd },
-            { where: { id: file.id }, silent: true },
+            { where: { uuid: file.uuid }, silent: true },
           );
 
           await fileUseCases.getUserUsedStorageIncrementally(testUser.user);
@@ -399,7 +399,7 @@ describe('File module', () => {
           const todayStart = Time.startOf(fixedSystemCurrentDate, 'day');
           await fileModel.update(
             { status: 'DELETED', updatedAt: todayStart },
-            { where: { id: file.id }, silent: true },
+            { where: { uuid: file.uuid }, silent: true },
           );
 
           await fileUseCases.getUserUsedStorageIncrementally(testUser.user);
@@ -438,7 +438,7 @@ describe('File module', () => {
     afterEach(async () => {
       if (createdFiles.length > 0) {
         await fileModel.destroy({
-          where: { id: { [Op.in]: createdFiles.map((f) => f.id) } },
+          where: { uuid: { [Op.in]: createdFiles.map((f) => f.uuid) } },
         });
         createdFiles = [];
       }
@@ -637,7 +637,7 @@ describe('File module', () => {
 
     afterEach(async () => {
       await fileModel.destroy({
-        where: { id: { [Op.in]: createdFiles.map((f) => f.id) } },
+        where: { uuid: { [Op.in]: createdFiles.map((f) => f.uuid) } },
       });
     });
 
@@ -687,7 +687,7 @@ describe('File module', () => {
     });
 
     afterEach(async () => {
-      await fileModel.destroy({ where: { id: file.id } });
+      await fileModel.destroy({ where: { uuid: file.uuid } });
     });
 
     const requestSyncedFile = async (headers: Record<string, string>) => {
@@ -792,6 +792,28 @@ describe('File module', () => {
         const syncedFile = await requestSyncedFile({});
 
         expect(syncedFile.name).toBe(file.plainName);
+      });
+    });
+
+    // TODO: remove once there are no FILE_ID rules in deprecated-fields.ts.
+    describe('id', () => {
+      it('When a client that still uses file ids syncs twice, then the file has the same id derived from its uuid', async () => {
+        const firstSync = await requestSyncedFile({});
+        const secondSync = await requestSyncedFile({});
+
+        expect(firstSync.id).toBe(deriveFileIdFromUuid(file.uuid));
+        expect(secondSync.id).toBe(firstSync.id);
+      });
+
+      it('When a client that no longer uses file ids syncs, then the id is not sent', async () => {
+        const headers = {
+          'internxt-client': ClientEnum.Web,
+          'internxt-version': '99.0.0',
+        };
+
+        const syncedFile = await requestSyncedFile(headers);
+
+        expect(syncedFile).not.toHaveProperty('id');
       });
     });
   });
