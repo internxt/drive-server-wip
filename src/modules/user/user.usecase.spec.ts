@@ -56,7 +56,10 @@ import {
   newPreCreatedUser,
   newSharingInvite,
 } from '../../../test/fixtures';
-import { EmailTokenAction, signEmailToken } from './utils/email-token.util';
+import {
+  EmailLinkTokenAction,
+  signEmailLinkToken,
+} from './utils/email-link-token.util';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import * as openpgpUtils from '../../externals/asymmetric-encryption/openpgp';
@@ -2316,7 +2319,7 @@ describe('User use cases', () => {
       invitationId: string,
       email = preCreatedUser.email,
     ) =>
-      signEmailToken(EmailTokenAction.Invitation, {
+      signEmailLinkToken(EmailLinkTokenAction.Invitation, {
         email,
         invitationId,
         type,

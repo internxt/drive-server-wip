@@ -29,9 +29,9 @@ import { MailerService } from '../../externals/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
 import { Sign } from '../../middlewares/passport';
 import {
-  EmailTokenAction,
-  signEmailToken,
-} from '../user/utils/email-token.util';
+  EmailLinkTokenAction,
+  signEmailLinkToken,
+} from '../user/utils/email-link-token.util';
 import { type ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { type WorkspaceTeamAttributes } from './attributes/workspace-team.attributes';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
@@ -451,7 +451,7 @@ export class WorkspacesUsecases {
 
     if (isUserPreCreated) {
       const encodedUserEmail = encodeURIComponent(userJoining.email);
-      const token = signEmailToken(EmailTokenAction.Invitation, {
+      const token = signEmailLinkToken(EmailLinkTokenAction.Invitation, {
         email: userJoining.email,
         invitationId: newInvite.id,
         type: 'workspace',

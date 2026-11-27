@@ -99,7 +99,10 @@ import {
   ACCOUNT_SETUP_TOKEN_ACTION,
   buildAccountSetupUrl,
 } from './account-setup-link';
-import { EmailTokenAction, decodeEmailToken } from './utils/email-token.util';
+import {
+  EmailLinkTokenAction,
+  verifyEmailLinkToken,
+} from './utils/email-link-token.util';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -845,10 +848,10 @@ export class UserUseCases {
     preCreatedUser: PreCreatedUser,
   ): Promise<boolean> {
     const decoded = token
-      ? decodeEmailToken<{
+      ? verifyEmailLinkToken<{
           invitationId: string;
           type: 'sharing' | 'workspace';
-        }>(EmailTokenAction.Invitation, token)
+        }>(EmailLinkTokenAction.Invitation, token)
       : null;
 
     if (decoded?.email !== preCreatedUser.email) {

@@ -3,15 +3,18 @@ import { v4 } from 'uuid';
 import getEnv from '../../../config/configuration';
 import { verifyWithDefaultSecret } from '../../../lib/jwt';
 
-export enum EmailTokenAction {
+export enum EmailLinkTokenAction {
   Invitation = 'invitation',
 }
 
-export type EmailToken<T extends object = object> = { email: string } & T;
+export type EmailLinkToken<T extends object = object> = {
+  email: string;
+  action: EmailLinkTokenAction;
+} & T;
 
-export function signEmailToken<T extends object>(
-  action: EmailTokenAction,
-  { email, ...data }: EmailToken<T>,
+export function signEmailLinkToken<T extends object>(
+  action: EmailLinkTokenAction,
+  { email, ...data }: { email: string } & T,
   expiresAt?: Date | null,
 ): string {
   return jwt.sign(
@@ -24,22 +27,20 @@ export function signEmailToken<T extends object>(
   );
 }
 
-export function decodeEmailToken<T extends object = object>(
-  action: EmailTokenAction,
+export function verifyEmailLinkToken<T extends object = object>(
+  action: EmailLinkTokenAction,
   token: string,
-): EmailToken<T> | null {
+): EmailLinkToken<T> | null {
   try {
     const { payload } = verifyWithDefaultSecret(token) as {
-      payload?: EmailToken<T> & { action?: string };
+      payload?: EmailLinkToken<T>;
     };
 
     if (payload?.action !== action) {
       return null;
     }
 
-    const { action: _action, ...emailToken } = payload;
-
-    return emailToken as EmailToken<T>;
+    return payload;
   } catch {
     return null;
   }

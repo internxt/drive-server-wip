@@ -3,12 +3,12 @@ import { v4 } from 'uuid';
 import getEnv from '../../../config/configuration';
 import { Time } from '../../../lib/time';
 import {
-  EmailTokenAction,
-  decodeEmailToken,
-  signEmailToken,
-} from './email-token.util';
+  EmailLinkTokenAction,
+  verifyEmailLinkToken,
+  signEmailLinkToken,
+} from './email-link-token.util';
 
-describe('Email token', () => {
+describe('Email link token', () => {
   const originalJwtSecret = process.env.JWT_SECRET;
 
   beforeAll(() => {
@@ -25,22 +25,32 @@ describe('Email token', () => {
     type: 'sharing' as const,
   };
 
-  it('When the token is decoded, then it returns the email in lowercase and the data of its action', () => {
-    const token = signEmailToken(EmailTokenAction.Invitation, invitation);
+  it('When the token is verified, then it returns the email in lowercase and its action and data', () => {
+    const token = signEmailLinkToken(
+      EmailLinkTokenAction.Invitation,
+      invitation,
+    );
 
-    const decoded = decodeEmailToken(EmailTokenAction.Invitation, token);
+    const verified = verifyEmailLinkToken(
+      EmailLinkTokenAction.Invitation,
+      token,
+    );
 
-    expect(decoded).toEqual({
+    expect(verified).toEqual({
       email: 'invited@example.com',
+      action: EmailLinkTokenAction.Invitation,
       invitationId: invitation.invitationId,
       type: 'sharing',
     });
   });
 
   it('When a token is signed, then it has a unique id', () => {
-    const token = signEmailToken(EmailTokenAction.Invitation, invitation);
-    const anotherToken = signEmailToken(
-      EmailTokenAction.Invitation,
+    const token = signEmailLinkToken(
+      EmailLinkTokenAction.Invitation,
+      invitation,
+    );
+    const anotherToken = signEmailLinkToken(
+      EmailLinkTokenAction.Invitation,
       invitation,
     );
 
@@ -53,8 +63,8 @@ describe('Email token', () => {
   it('When it is signed with an expiration, then the token expires at that time', () => {
     const expiresAt = Time.dateWithTimeAdded(2, 'day');
 
-    const token = signEmailToken(
-      EmailTokenAction.Invitation,
+    const token = signEmailLinkToken(
+      EmailLinkTokenAction.Invitation,
       invitation,
       expiresAt,
     );
@@ -64,22 +74,28 @@ describe('Email token', () => {
   });
 
   it('When it is signed without an expiration, then the token does not expire', () => {
-    const token = signEmailToken(EmailTokenAction.Invitation, invitation);
+    const token = signEmailLinkToken(
+      EmailLinkTokenAction.Invitation,
+      invitation,
+    );
 
     const { exp } = jwt.decode(token) as { exp?: number };
     expect(exp).toBeUndefined();
   });
 
   it('When the token has expired, then it is not valid', () => {
-    const token = signEmailToken(
-      EmailTokenAction.Invitation,
+    const token = signEmailLinkToken(
+      EmailLinkTokenAction.Invitation,
       invitation,
       Time.dateWithTimeAdded(-1, 'minute'),
     );
 
-    const decoded = decodeEmailToken(EmailTokenAction.Invitation, token);
+    const verified = verifyEmailLinkToken(
+      EmailLinkTokenAction.Invitation,
+      token,
+    );
 
-    expect(decoded).toBeNull();
+    expect(verified).toBeNull();
   });
 
   it('When the token was signed for another action, then it is not valid', () => {
@@ -88,19 +104,25 @@ describe('Email token', () => {
       getEnv().secrets.jwt,
     );
 
-    const decoded = decodeEmailToken(EmailTokenAction.Invitation, token);
+    const verified = verifyEmailLinkToken(
+      EmailLinkTokenAction.Invitation,
+      token,
+    );
 
-    expect(decoded).toBeNull();
+    expect(verified).toBeNull();
   });
 
   it('When the token was signed with another secret, then it is not valid', () => {
     const token = jwt.sign(
-      { payload: { ...invitation, action: EmailTokenAction.Invitation } },
+      { payload: { ...invitation, action: EmailLinkTokenAction.Invitation } },
       'another-secret',
     );
 
-    const decoded = decodeEmailToken(EmailTokenAction.Invitation, token);
+    const verified = verifyEmailLinkToken(
+      EmailLinkTokenAction.Invitation,
+      token,
+    );
 
-    expect(decoded).toBeNull();
+    expect(verified).toBeNull();
   });
 });

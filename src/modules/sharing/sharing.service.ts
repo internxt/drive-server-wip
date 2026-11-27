@@ -11,9 +11,9 @@ import {
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { v4, validate as validateUuid } from 'uuid';
 import {
-  EmailTokenAction,
-  signEmailToken,
-} from '../user/utils/email-token.util';
+  EmailLinkTokenAction,
+  signEmailLinkToken,
+} from '../user/utils/email-link-token.util';
 
 import {
   type Item,
@@ -1158,8 +1158,8 @@ export class SharingService {
 
     if (isUserPreCreated) {
       const encodedUserEmail = encodeURIComponent(userJoining.email);
-      const token = signEmailToken(
-        EmailTokenAction.Invitation,
+      const token = signEmailLinkToken(
+        EmailLinkTokenAction.Invitation,
         {
           email: userJoining.email,
           invitationId: createdInvite.id,
