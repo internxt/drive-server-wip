@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { v4 } from 'uuid';
 import { aes } from '@internxt/lib';
-import { sign } from 'jsonwebtoken';
+import jwt, { sign } from 'jsonwebtoken';
 
 import {
   newFile,
@@ -45,6 +45,7 @@ import { SharingNotFoundException } from './exception/sharing-not-found.exceptio
 import { SharingAccessTokenInvalidException } from './exception/sharing-access-token-invalid.exception';
 import { type GetInviteDto } from './dto/get-invites.dto';
 import { type BridgeService } from '../../externals/bridge/bridge.service';
+import { MailerService } from '../../externals/mailer/mailer.service';
 
 jest.mock('../../lib/jwt');
 jest.mock('../../externals/mailer/mailer.service', () => ({
@@ -1609,6 +1610,16 @@ describe('Sharing Use Cases', () => {
   });
 
   describe('createInvite', () => {
+    const originalJwtSecret = process.env.JWT_SECRET;
+
+    beforeAll(() => {
+      process.env.JWT_SECRET = 'test-jwt-secret';
+    });
+
+    afterAll(() => {
+      process.env.JWT_SECRET = originalJwtSecret;
+    });
+
     const owner = newUser();
     const folder = newFolder({ owner });
     const inviteeUser = newUser();
@@ -1654,6 +1665,39 @@ describe('Sharing Use Cases', () => {
       await sharingService.createInvite(owner, createInviteDto);
 
       expect(sharingRepository.createInvite).toHaveBeenCalled();
+    });
+
+    it('When owner invites a pre-created user, then the email link carries a token for that invitation and email', async () => {
+      const preCreatedUser = newPreCreatedUser();
+      const createdInvite = newSharingInvite({
+        sharedWith: preCreatedUser.uuid,
+        expirationAt: Time.dateWithTimeAdded(2, 'day'),
+      });
+      usersUsecases.findByEmail.mockResolvedValue(null);
+      usersUsecases.findPreCreatedByEmail.mockResolvedValue(preCreatedUser);
+      sharingRepository.getInviteByItemAndUser.mockResolvedValue(null);
+      sharingRepository.findOneSharing.mockResolvedValue(null);
+      folderUseCases.getByUuid.mockResolvedValue(folder);
+      sharingRepository.getSharingsCountBy.mockResolvedValue(10);
+      sharingRepository.getInvitesCountBy.mockResolvedValue(20);
+      sharingRepository.createInvite.mockResolvedValue(createdInvite);
+
+      await sharingService.createInvite(owner, createInviteDto);
+
+      const mailer = (MailerService as unknown as jest.Mock).mock.results.at(
+        -1,
+      ).value;
+      const [, , , { signUpUrl }] =
+        mailer.sendInvitationToSharingGuestEmail.mock.calls[0];
+      const token = signUpUrl.split('&token=')[1];
+      expect(jwt.decode(token)).toMatchObject({
+        payload: {
+          email: preCreatedUser.email.toLowerCase(),
+          invitationId: createdInvite.id,
+          type: 'sharing',
+        },
+        exp: Math.floor(createdInvite.expirationAt.getTime() / 1000),
+      });
     });
 
     it('When owner tries to share with themselves, then it throws OwnerCannotBeSharedWithError', async () => {

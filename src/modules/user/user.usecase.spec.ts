@@ -54,7 +54,12 @@ import {
   newWorkspace,
   newWorkspaceUser,
   newPreCreatedUser,
+  newSharingInvite,
 } from '../../../test/fixtures';
+import {
+  EmailLinkTokenAction,
+  signEmailLinkToken,
+} from './utils/email-link-token.util';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import * as openpgpUtils from '../../externals/asymmetric-encryption/openpgp';
@@ -65,6 +70,7 @@ import {
 } from './dto/register-notification-token.dto';
 import { type UserNotificationTokens } from './user-notification-tokens.domain';
 import { v4 } from 'uuid';
+import { Time } from '../../lib/time';
 import { SequelizeKeyServerRepository } from '../keyserver/key-server.repository';
 import * as speakeasy from 'speakeasy';
 import { MailerService } from '../../externals/mailer/mailer.service';
@@ -2303,6 +2309,123 @@ describe('User use cases', () => {
       expect(userRepository.deleteBy).toHaveBeenCalledWith({
         uuid: userMock.uuid,
       });
+    });
+  });
+
+  describe('Validating the token of an invitation email', () => {
+    const preCreatedUser = newPreCreatedUser();
+    const signFor = (
+      type: 'sharing' | 'workspace',
+      invitationId: string,
+      email = preCreatedUser.email,
+    ) =>
+      signEmailLinkToken(EmailLinkTokenAction.Invitation, {
+        email,
+        invitationId,
+        type,
+      });
+
+    it('When there is no token, then it is not valid', async () => {
+      const isValid = await userUseCases.isInvitedEmailTokenValid(
+        undefined,
+        preCreatedUser,
+      );
+
+      expect(isValid).toBe(false);
+    });
+
+    it('When the token is for another email, then it is not valid', async () => {
+      const token = signFor('sharing', v4(), 'another@example.com');
+
+      const isValid = await userUseCases.isInvitedEmailTokenValid(
+        token,
+        preCreatedUser,
+      );
+
+      expect(isValid).toBe(false);
+    });
+
+    it('When the sharing invitation is still pending for the email, then it is valid', async () => {
+      const invite = newSharingInvite({
+        sharedWith: preCreatedUser.uuid,
+        expirationAt: Time.dateWithTimeAdded(1, 'day'),
+      });
+      jest.spyOn(sharingRepository, 'getInviteById').mockResolvedValue(invite);
+
+      const isValid = await userUseCases.isInvitedEmailTokenValid(
+        signFor('sharing', invite.id),
+        preCreatedUser,
+      );
+
+      expect(isValid).toBe(true);
+    });
+
+    it('When the sharing invitation no longer exists, then it is not valid', async () => {
+      jest.spyOn(sharingRepository, 'getInviteById').mockResolvedValue(null);
+
+      const isValid = await userUseCases.isInvitedEmailTokenValid(
+        signFor('sharing', v4()),
+        preCreatedUser,
+      );
+
+      expect(isValid).toBe(false);
+    });
+
+    it('When the sharing invitation has expired, then it is not valid', async () => {
+      const invite = newSharingInvite({
+        sharedWith: preCreatedUser.uuid,
+        expirationAt: Time.dateWithTimeAdded(-1, 'minute'),
+      });
+      jest.spyOn(sharingRepository, 'getInviteById').mockResolvedValue(invite);
+
+      const isValid = await userUseCases.isInvitedEmailTokenValid(
+        signFor('sharing', invite.id),
+        preCreatedUser,
+      );
+
+      expect(isValid).toBe(false);
+    });
+
+    it('When the sharing invitation belongs to someone else, then it is not valid', async () => {
+      const invite = newSharingInvite({
+        sharedWith: v4(),
+        expirationAt: Time.dateWithTimeAdded(1, 'day'),
+      });
+      jest.spyOn(sharingRepository, 'getInviteById').mockResolvedValue(invite);
+
+      const isValid = await userUseCases.isInvitedEmailTokenValid(
+        signFor('sharing', invite.id),
+        preCreatedUser,
+      );
+
+      expect(isValid).toBe(false);
+    });
+
+    it('When the workspace invitation is still pending for the email, then it is valid', async () => {
+      const invite = newWorkspaceInvite({ invitedUser: preCreatedUser.uuid });
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(invite);
+
+      const isValid = await userUseCases.isInvitedEmailTokenValid(
+        signFor('workspace', invite.id),
+        preCreatedUser,
+      );
+
+      expect(isValid).toBe(true);
+      expect(workspaceRepository.findInvite).toHaveBeenCalledWith({
+        id: invite.id,
+        invitedUser: preCreatedUser.uuid,
+      });
+    });
+
+    it('When the workspace invitation no longer exists, then it is not valid', async () => {
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValue(null);
+
+      const isValid = await userUseCases.isInvitedEmailTokenValid(
+        signFor('workspace', v4()),
+        preCreatedUser,
+      );
+
+      expect(isValid).toBe(false);
     });
   });
 

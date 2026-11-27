@@ -28,6 +28,10 @@ import { type CreateWorkspaceInviteDto } from './dto/create-workspace-invite.dto
 import { MailerService } from '../../externals/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
 import { Sign } from '../../middlewares/passport';
+import {
+  EmailLinkTokenAction,
+  signEmailLinkToken,
+} from '../user/utils/email-link-token.util';
 import { type ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { type WorkspaceTeamAttributes } from './attributes/workspace-team.attributes';
 import { WorkspaceRole } from './guards/workspace-required-access.decorator';
@@ -447,6 +451,11 @@ export class WorkspacesUsecases {
 
     if (isUserPreCreated) {
       const encodedUserEmail = encodeURIComponent(userJoining.email);
+      const token = signEmailLinkToken(EmailLinkTokenAction.Invitation, {
+        email: userJoining.email,
+        invitationId: newInvite.id,
+        type: 'workspace',
+      });
       try {
         await this.mailerService.sendWorkspaceUserExternalInvitation(
           inviterName,
@@ -456,7 +465,7 @@ export class WorkspacesUsecases {
             'clients.drive.web',
           )}/workspace-guest?invitation=${
             newInvite.id
-          }&email=${encodedUserEmail}`,
+          }&email=${encodedUserEmail}&token=${token}`,
           {
             avatar: {
               initials: user.name[0] + user.lastname[0],

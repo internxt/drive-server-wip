@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken';
 import { Test, type TestingModule } from '@nestjs/testing';
 import {
   calculateTrashExpirationDate,
@@ -142,6 +143,16 @@ describe('WorkspacesUsecases', () => {
   });
 
   describe('inviteUserToWorkspace', () => {
+    const originalJwtSecret = process.env.JWT_SECRET;
+
+    beforeAll(() => {
+      process.env.JWT_SECRET = 'test-jwt-secret';
+    });
+
+    afterAll(() => {
+      process.env.JWT_SECRET = originalJwtSecret;
+    });
+
     const user = newUser();
 
     it('When workspace does not exist, then it should throw', async () => {
@@ -213,6 +224,57 @@ describe('WorkspacesUsecases', () => {
       expect(
         mailerService.sendWorkspaceUserExternalInvitation,
       ).toHaveBeenCalled();
+    });
+
+    it('When a pre-created user is invited, then the email link carries a token for that invitation and email', async () => {
+      const workspace = newWorkspace();
+      const preCreatedUser = { uuid: v4(), email: 'invited@example.com' };
+      jest
+        .spyOn(workspaceRepository, 'findById')
+        .mockResolvedValueOnce(workspace);
+      jest.spyOn(userUsecases, 'findByEmail').mockResolvedValueOnce(null);
+      jest
+        .spyOn(userUsecases, 'findPreCreatedByEmail')
+        .mockResolvedValueOnce(preCreatedUser as PreCreatedUser);
+      jest
+        .spyOn(workspaceRepository, 'findWorkspaceUser')
+        .mockResolvedValueOnce(null);
+      jest.spyOn(workspaceRepository, 'findInvite').mockResolvedValueOnce(null);
+      jest.spyOn(service, 'isWorkspaceFull').mockResolvedValueOnce(false);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValueOnce(user);
+      jest
+        .spyOn(service, 'getOwnerAvailableSpace')
+        .mockResolvedValueOnce(6000000);
+      jest
+        .spyOn(service, 'getWorkspaceFixedStoragePerUser')
+        .mockResolvedValueOnce(1024);
+      const createInvite = jest
+        .spyOn(workspaceRepository, 'createInvite')
+        .mockResolvedValueOnce(undefined);
+      const sendInvitation = jest
+        .spyOn(mailerService, 'sendWorkspaceUserExternalInvitation')
+        .mockResolvedValueOnce(undefined);
+
+      await service.inviteUserToWorkspace(user, 'workspace-id', {
+        invitedUser: preCreatedUser.email,
+        encryptionKey: '',
+        encryptionAlgorithm: '',
+      });
+
+      const [createdInvite] = createInvite.mock.calls[0] as unknown as [
+        { id: string },
+      ];
+      const [, , , signUpUrl] = sendInvitation.mock.calls[0];
+      const token = signUpUrl.split('&token=')[1];
+      const decoded = jwt.decode(token) as { exp?: number };
+      expect(decoded).toMatchObject({
+        payload: {
+          email: preCreatedUser.email,
+          invitationId: createdInvite.id,
+          type: 'workspace',
+        },
+      });
+      expect(decoded.exp).toBeUndefined();
     });
 
     it('When user is already registered, then it should be successfully invited', async () => {

@@ -1,5 +1,5 @@
-import { IsNotEmpty, IsUUID } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CreateUserDto } from './create-user.dto';
 import { type SharingInvite } from '../../sharing/sharing.domain';
 
@@ -11,4 +11,12 @@ export class RegisterPreCreatedUserDto extends CreateUserDto {
   })
   @IsUUID()
   invitationId: SharingInvite['id'];
+
+  @IsOptional()
+  @IsString()
+  @ApiPropertyOptional({
+    description:
+      'Token of the invitation email link. When valid, the email is verified',
+  })
+  token?: string;
 }
