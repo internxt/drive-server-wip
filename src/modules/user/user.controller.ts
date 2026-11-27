@@ -164,15 +164,6 @@ export class UserController {
         },
       );
 
-      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
-        await this.userUseCases.replacePreCreatedUser(
-          response.user.email,
-          response.user.uuid,
-          keys.ecc.publicKey,
-          keys.kyber?.publicKey,
-        );
-      }
-
       this.notificationsService.add(new SignUpSuccessEvent(response.user, req));
 
       // TODO: Move to EventBus
@@ -335,13 +326,23 @@ export class UserController {
         },
       );
 
-      if (keys.ecc?.publicKey && keys.ecc?.privateKey) {
+      if (emailVerified && keys.ecc?.publicKey && keys.ecc?.privateKey) {
         await this.userUseCases.replacePreCreatedUser(
           userCreated.user.email,
           userCreated.user.uuid,
           keys.ecc.publicKey,
           keys.kyber?.publicKey,
         );
+
+        await this.sharingService
+          .acceptInvite(userCreated.user, invitationId, {})
+          .catch((err) => {
+            this.logger.error(
+              `[AUTH/REGISTER-PRE-CREATED-USER/AUTO-ACCEPT-INVITE] ERROR: ${
+                (err as Error).message
+              }, EMAIL: ${createUserDto.email}, STACK: ${(err as Error).stack}`,
+            );
+          });
       }
 
       this.notificationsService.add(
@@ -356,16 +357,6 @@ export class UserController {
         .catch((err) => {
           this.logger.error(
             `[AUTH/REGISTER/SENDWELCOMEEMAIL] ERROR: ${
-              (err as Error).message
-            }, EMAIL: ${createUserDto.email}, STACK: ${(err as Error).stack}`,
-          );
-        });
-
-      await this.sharingService
-        .acceptInvite(userCreated.user, invitationId, {})
-        .catch((err) => {
-          this.logger.error(
-            `[AUTH/REGISTER-PRE-CREATED-USER/AUTO-ACCEPT-INVITE] ERROR: ${
               (err as Error).message
             }, EMAIL: ${createUserDto.email}, STACK: ${(err as Error).stack}`,
           );
