@@ -14,6 +14,8 @@ import {
 import { PLAN_FREE_INDIVIDUAL_TIER_LABEL } from '../feature-limit/limits.enum';
 import { Tier } from '../feature-limit/domain/tier.domain';
 import { ItemToTrashType } from './dto/controllers/move-items-to-trash.dto';
+import { RestoreFailureReason } from './dto/controllers/restore-items-from-trash.dto';
+import { StorageNotificationService } from '../../externals/notifications/storage.notifications.service';
 import {
   DeleteItemType,
   type DeleteItemsDto,
@@ -34,6 +36,7 @@ describe('TrashController', () => {
   let fileUseCases: FileUseCases;
   let userUseCases: UserUseCases;
   let trashUseCases: TrashUseCases;
+  let storageNotificationService: StorageNotificationService;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -47,6 +50,7 @@ describe('TrashController', () => {
     userUseCases = moduleRef.get(UserUseCases);
     folderUseCases = moduleRef.get(FolderUseCases);
     trashUseCases = moduleRef.get(TrashUseCases);
+    storageNotificationService = moduleRef.get(StorageNotificationService);
   });
 
   afterEach(() => {
@@ -264,6 +268,54 @@ describe('TrashController', () => {
           requester,
         ),
       ).rejects.toThrow(InternalServerErrorException);
+    });
+  });
+
+  describe('restoreItems', () => {
+    it('When items are restored, then the restored and failed ones are returned and each restored one is notified as updated', async () => {
+      const photo = newFile();
+      const invoices = newFolder();
+      const missing = {
+        uuid: v4(),
+        type: ItemToTrashType.FILE,
+        reason: RestoreFailureReason.NotRestorable,
+      };
+      jest.spyOn(trashUseCases, 'restoreItems').mockResolvedValue({
+        restoredFiles: [photo],
+        restoredFolders: [invoices],
+        failed: [missing],
+      });
+      const items = [
+        { uuid: photo.uuid, type: ItemToTrashType.FILE },
+        { uuid: invoices.uuid, type: ItemToTrashType.FOLDER },
+        { uuid: missing.uuid, type: missing.type },
+      ];
+
+      const result = await controller.restoreItems(
+        { items },
+        user,
+        'drive-web',
+        requester,
+      );
+
+      expect(trashUseCases.restoreItems).toHaveBeenCalledWith(user, items);
+      expect(result).toEqual({
+        restored: [
+          { uuid: photo.uuid, type: ItemToTrashType.FILE },
+          { uuid: invoices.uuid, type: ItemToTrashType.FOLDER },
+        ],
+        failed: [missing],
+      });
+      expect(storageNotificationService.fileUpdated).toHaveBeenCalledWith({
+        payload: photo,
+        user: requester,
+        clientId: 'drive-web',
+      });
+      expect(storageNotificationService.folderUpdated).toHaveBeenCalledWith({
+        payload: { ...invoices, status: invoices.getFolderStatus() },
+        user: requester,
+        clientId: 'drive-web',
+      });
     });
   });
 

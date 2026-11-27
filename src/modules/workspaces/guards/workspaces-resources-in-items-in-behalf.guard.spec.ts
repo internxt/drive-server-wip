@@ -368,6 +368,38 @@ describe('WorkspacesResourcesItemsInBehalfGuard', () => {
         originalTier,
       );
     });
+
+    it('When a member restores items from the trash that they did not create, then deny access', async () => {
+      const user = newUser();
+      const workspace = newWorkspace();
+      const member = newWorkspaceUser({ workspaceId: workspace.id });
+      const items = [{ uuid: v4(), type: 'file' }];
+      const context = createMockExecutionContext(user, {
+        headers: { 'x-internxt-workspace': 'valid-token' },
+        body: { items },
+      });
+
+      (verifyWithDefaultSecret as jest.Mock).mockReturnValue({
+        workspaceId: workspace.id,
+      });
+      jest
+        .spyOn(reflector, 'get')
+        .mockReturnValueOnce(WorkspaceResourcesAction.RestoreItemsFromTrash);
+      workspaceUseCases.findUserAndWorkspace.mockResolvedValue({
+        workspace,
+        workspaceUser: member,
+      });
+      (extractDataFromRequest as jest.Mock).mockReturnValue({ items });
+      workspaceUseCases.isUserCreatorOfAllItems.mockResolvedValue(false);
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(workspaceUseCases.isUserCreatorOfAllItems).toHaveBeenCalledWith(
+        user,
+        [{ itemId: items[0].uuid, itemType: 'file' }],
+      );
+    });
   });
 
   describe('hasUserPermissions', () => {
