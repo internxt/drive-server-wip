@@ -53,6 +53,16 @@ describe('Invited email token', () => {
     expect(exp).toBeUndefined();
   });
 
+  it('When a token is signed, then it has a unique id', () => {
+    const token = signInvitedEmailToken(payload);
+    const anotherToken = signInvitedEmailToken(payload);
+
+    const { jti } = jwt.decode(token) as { jti: string };
+    const { jti: anotherJti } = jwt.decode(anotherToken) as { jti: string };
+    expect(jti).toBeDefined();
+    expect(jti).not.toBe(anotherJti);
+  });
+
   it('When the token has expired, then it is not valid', () => {
     const token = signInvitedEmailToken(
       payload,

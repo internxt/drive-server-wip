@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { v4 } from 'uuid';
 import getEnv from '../../config/configuration';
 import { verifyWithDefaultSecret } from '../../lib/jwt';
 
@@ -25,6 +26,7 @@ export function signInvitedEmailToken(
       ...(expiresAt && { exp: Math.floor(expiresAt.getTime() / 1000) }),
     },
     getEnv().secrets.jwt,
+    { jwtid: v4() },
   );
 }
 
