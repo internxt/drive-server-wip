@@ -10,7 +10,10 @@ import {
 } from '@nestjs/common';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { v4, validate as validateUuid } from 'uuid';
-import { signInvitedEmailToken } from '../user/invited-email-token';
+import {
+  EmailTokenAction,
+  signEmailToken,
+} from '../user/utils/email-token.util';
 
 import {
   type Item,
@@ -1155,7 +1158,8 @@ export class SharingService {
 
     if (isUserPreCreated) {
       const encodedUserEmail = encodeURIComponent(userJoining.email);
-      const token = signInvitedEmailToken(
+      const token = signEmailToken(
+        EmailTokenAction.Invitation,
         {
           email: userJoining.email,
           invitationId: createdInvite.id,

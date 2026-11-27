@@ -99,7 +99,7 @@ import {
   ACCOUNT_SETUP_TOKEN_ACTION,
   buildAccountSetupUrl,
 } from './account-setup-link';
-import { decodeInvitedEmailToken } from './invited-email-token';
+import { EmailTokenAction, decodeEmailToken } from './utils/email-token.util';
 
 export class ReferralsNotAvailableError extends Error {
   constructor() {
@@ -844,7 +844,12 @@ export class UserUseCases {
     token: string | undefined,
     preCreatedUser: PreCreatedUser,
   ): Promise<boolean> {
-    const decoded = token ? decodeInvitedEmailToken(token) : null;
+    const decoded = token
+      ? decodeEmailToken<{
+          invitationId: string;
+          type: 'sharing' | 'workspace';
+        }>(EmailTokenAction.Invitation, token)
+      : null;
 
     if (decoded?.email !== preCreatedUser.email) {
       return false;

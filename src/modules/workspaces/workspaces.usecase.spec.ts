@@ -261,7 +261,9 @@ describe('WorkspacesUsecases', () => {
         encryptionAlgorithm: '',
       });
 
-      const [createdInvite] = createInvite.mock.calls[0];
+      const [createdInvite] = createInvite.mock.calls[0] as unknown as [
+        { id: string },
+      ];
       const [, , , signUpUrl] = sendInvitation.mock.calls[0];
       const token = signUpUrl.split('&token=')[1];
       const decoded = jwt.decode(token) as { exp?: number };

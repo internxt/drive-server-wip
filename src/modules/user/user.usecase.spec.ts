@@ -56,7 +56,7 @@ import {
   newPreCreatedUser,
   newSharingInvite,
 } from '../../../test/fixtures';
-import { signInvitedEmailToken } from './invited-email-token';
+import { EmailTokenAction, signEmailToken } from './utils/email-token.util';
 import { MailTypes } from '../security/mail-limit/mailTypes';
 import { SequelizeWorkspaceRepository } from '../workspaces/repositories/workspaces.repository';
 import * as openpgpUtils from '../../externals/asymmetric-encryption/openpgp';
@@ -2315,7 +2315,12 @@ describe('User use cases', () => {
       type: 'sharing' | 'workspace',
       invitationId: string,
       email = preCreatedUser.email,
-    ) => signInvitedEmailToken({ email, invitationId, type });
+    ) =>
+      signEmailToken(EmailTokenAction.Invitation, {
+        email,
+        invitationId,
+        type,
+      });
 
     it('When there is no token, then it is not valid', async () => {
       const isValid = await userUseCases.isInvitedEmailTokenValid(
