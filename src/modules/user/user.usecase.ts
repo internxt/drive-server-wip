@@ -2008,6 +2008,23 @@ export class UserUseCases {
     await this.userRepository.updateByUuid(userUuid, {
       emailVerified: true,
     });
+
+    const user = await this.userRepository.findByUuid(userUuid);
+
+    if (!user) {
+      return;
+    }
+
+    const keys = await this.keyServerUseCases.getPublicKeys(user.id);
+
+    if (keys.ecc) {
+      await this.replacePreCreatedUser(
+        user.email,
+        user.uuid,
+        keys.ecc,
+        keys.kyber,
+      );
+    }
   }
 
   async sendAccountEmailVerification(user: User) {

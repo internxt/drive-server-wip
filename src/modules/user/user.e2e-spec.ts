@@ -2,6 +2,8 @@ import { HttpStatus } from '@nestjs/common';
 import { type NestExpressApplication } from '@nestjs/platform-express';
 import { getModelToken } from '@nestjs/sequelize';
 import request from 'supertest';
+import { v4 } from 'uuid';
+import getEnv from '../../config/configuration';
 
 import { createTestApp } from '../../../test/helpers/test-app.helper';
 import {
@@ -17,6 +19,16 @@ import { TierModel } from '../feature-limit/models/tier.model';
 import { SequelizeFeatureLimitsRepository } from '../feature-limit/feature-limit.repository';
 import { Op } from 'sequelize';
 import { createTestUser } from '../../../test/helpers/user.helper';
+import { AsymmetricEncryptionService } from '../../externals/asymmetric-encryption/asymmetric-encryption.service';
+import { RoleModel, SharingInviteModel, SharingModel } from '../sharing/models';
+import { HYBRID_ALGORITHM } from '../sharing/sharing.domain';
+import { Time } from '../../lib/time';
+import { PreCreatedUserModel } from './pre-created-users.model';
+import { UserUseCases } from './user.usecase';
+import {
+  EmailLinkTokenAction,
+  signEmailLinkToken,
+} from './utils/email-link-token.util';
 
 describe('User Registration E2E', () => {
   let app: NestExpressApplication;
@@ -27,7 +39,14 @@ describe('User Registration E2E', () => {
   let tierModel: typeof TierModel;
   let featureLimitsRepository: SequelizeFeatureLimitsRepository;
   let cryptoService: CryptoService;
+  let asymmetricEncryptionService: AsymmetricEncryptionService;
+  let userUseCases: UserUseCases;
+  let preCreatedUserModel: typeof PreCreatedUserModel;
+  let sharingInviteModel: typeof SharingInviteModel;
+  let sharingModel: typeof SharingModel;
+  let roleModel: typeof RoleModel;
   let createdUserIds: number[] = [];
+  const cleanups: (() => Promise<void>)[] = [];
 
   const encryptRegistrationData = (data: RegisterUserDto): RegisterUserDto => {
     return {
@@ -46,9 +65,18 @@ describe('User Registration E2E', () => {
     tierModel = app.get(getModelToken(TierModel));
     featureLimitsRepository = app.get(SequelizeFeatureLimitsRepository);
     cryptoService = app.get(CryptoService);
+    asymmetricEncryptionService = app.get(AsymmetricEncryptionService);
+    userUseCases = app.get(UserUseCases);
+    preCreatedUserModel = app.get(getModelToken(PreCreatedUserModel));
+    sharingInviteModel = app.get(getModelToken(SharingInviteModel));
+    sharingModel = app.get(getModelToken(SharingModel));
+    roleModel = app.get(getModelToken(RoleModel));
   });
 
   afterEach(async () => {
+    while (cleanups.length) {
+      await cleanups.pop()();
+    }
     for (const userId of createdUserIds) {
       await userModel.update({ rootFolderId: null }, { where: { id: userId } });
       await keyServerModel.destroy({ where: { userId } });
@@ -184,6 +212,17 @@ describe('User Registration E2E', () => {
       });
     });
 
+    describe('Pending invitations of the email', () => {
+      it('When someone signs up with an invited email, then the invitations stay pending until the email is verified', async () => {
+        const { email, preCreatedUser, invitation } =
+          await shareFolderWithEmailWithoutAccount();
+
+        await signUp(email);
+
+        expect(await whoIsInvited(invitation)).toBe(preCreatedUser.uuid);
+      });
+    });
+
     describe('All user resources are created correctly after registration', () => {
       it('When registration data includes fields not allowed at signup, then they are ignored', async () => {
         const freeTier = await featureLimitsRepository.getFreeTier();
@@ -315,6 +354,74 @@ describe('User Registration E2E', () => {
     });
   });
 
+  describe('POST /users/email-verification - Email verification', () => {
+    it('When the email is verified, then the pending invitations are handed over to the user', async () => {
+      const { email, invitation } = await shareFolderWithEmailWithoutAccount();
+      const user = await signUp(email);
+
+      await request(app.getHttpServer())
+        .post('/users/email-verification')
+        .send({
+          verificationToken: cryptoService.encryptText(
+            user.uuid,
+            getEnv().secrets.jwt,
+          ),
+        })
+        .expect(HttpStatus.CREATED);
+
+      expect(await whoIsInvited(invitation)).toBe(user.uuid);
+    });
+  });
+
+  describe('POST /users/pre-created-users/register - Registration from an invitation', () => {
+    it('When the user signs up with the token of the invitation email, then the email is verified and the folder is shared with them', async () => {
+      const { email, invitation } = await shareFolderWithEmailWithoutAccount();
+      const token = signEmailLinkToken(
+        EmailLinkTokenAction.Invitation,
+        { email, invitationId: invitation.id, type: 'sharing' },
+        invitation.expirationAt,
+      );
+
+      const user = await signUpFromInvitationLink(email, invitation, token);
+
+      expect(user.emailVerified).toBe(true);
+      expect(
+        await sharingModel.count({
+          where: { itemId: invitation.itemId, sharedWith: user.uuid },
+        }),
+      ).toBe(1);
+    });
+
+    it('When the user signs up without the token, then the email is not verified and the invitations stay pending', async () => {
+      const { email, preCreatedUser, invitation } =
+        await shareFolderWithEmailWithoutAccount();
+
+      const user = await signUpFromInvitationLink(email, invitation);
+
+      expect(user.emailVerified).toBe(false);
+      expect(await whoIsInvited(invitation)).toBe(preCreatedUser.uuid);
+    });
+
+    it('When the user signs up with a token for another email, then the email is not verified and the invitations stay pending', async () => {
+      const { email, preCreatedUser, invitation } =
+        await shareFolderWithEmailWithoutAccount();
+      const token = signEmailLinkToken(
+        EmailLinkTokenAction.Invitation,
+        {
+          email: 'another@test.com',
+          invitationId: invitation.id,
+          type: 'sharing',
+        },
+        invitation.expirationAt,
+      );
+
+      const user = await signUpFromInvitationLink(email, invitation, token);
+
+      expect(user.emailVerified).toBe(false);
+      expect(await whoIsInvited(invitation)).toBe(preCreatedUser.uuid);
+    });
+  });
+
   describe('PATCH /users/profile - Profile update', () => {
     it('When the update includes fields not allowed, then only the name and lastname change', async () => {
       const freeTier = await featureLimitsRepository.getFreeTier();
@@ -349,4 +456,74 @@ describe('User Registration E2E', () => {
       expect(updatedUser.emailVerified).toBe(false);
     });
   });
+
+  const shareFolderWithEmailWithoutAccount = async () => {
+    const email = `invited-${v4()}@test.com`;
+    const owner = await createTestUser(app);
+    const [preCreatedUser] = await userUseCases.preCreateUser({ email });
+    const role = await roleModel.findOne();
+    const invitation = await sharingInviteModel.create({
+      id: v4(),
+      itemId: owner.rootFolder.uuid,
+      itemType: 'folder',
+      sharedWith: preCreatedUser.uuid,
+      encryptionKey:
+        await asymmetricEncryptionService.hybridEncryptMessageWithPublicKey({
+          message: 'folder-encryption-key',
+          publicKeyInBase64: preCreatedUser.publicKey,
+          publicKyberKeyBase64: preCreatedUser.publicKyberKey,
+        }),
+      encryptionAlgorithm: HYBRID_ALGORITHM,
+      type: 'OWNER',
+      roleId: role.id,
+      expirationAt: Time.dateWithTimeAdded(2, 'day'),
+    });
+
+    cleanups.push(async () => {
+      await sharingModel.destroy({ where: { itemId: invitation.itemId } });
+      await sharingInviteModel.destroy({ where: { id: invitation.id } });
+      await preCreatedUserModel.destroy({ where: { email } });
+      await owner.cleanup();
+    });
+
+    return { email, preCreatedUser, invitation };
+  };
+
+  const signUp = async (email: string) => {
+    await registerUser(
+      encryptRegistrationData(await generateValidRegistrationData({ email })),
+    ).expect(HttpStatus.CREATED);
+
+    return findCreatedUser(email);
+  };
+
+  const signUpFromInvitationLink = async (
+    email: string,
+    invitation: SharingInviteModel,
+    token?: string,
+  ) => {
+    await request(app.getHttpServer())
+      .post('/users/pre-created-users/register')
+      .set('x-internxt-captcha', 'captcha-token')
+      .send({
+        ...encryptRegistrationData(
+          await generateValidRegistrationData({ email }),
+        ),
+        invitationId: invitation.id,
+        token,
+      })
+      .expect(HttpStatus.CREATED);
+
+    return findCreatedUser(email);
+  };
+
+  const findCreatedUser = async (email: string) => {
+    const user = await userModel.findOne({ where: { email } });
+    createdUserIds.push(user.id);
+
+    return user;
+  };
+
+  const whoIsInvited = async (invitation: SharingInviteModel) =>
+    (await sharingInviteModel.findByPk(invitation.id)).sharedWith;
 });

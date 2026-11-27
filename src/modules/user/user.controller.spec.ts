@@ -15,6 +15,7 @@ import {
   newUser,
 } from '../../../test/fixtures';
 import getEnv from '../../config/configuration';
+import { SharingService } from '../sharing/sharing.service';
 import { UserController } from './user.controller';
 import {
   InvalidReferralCodeError,
@@ -110,6 +111,7 @@ describe('User Controller', () => {
   let auditLogService: DeepMocked<AuditLogService>;
   let klaviyoService: KlaviyoTrackingService;
   let featureLimitService: DeepMocked<FeatureLimitService>;
+  let sharingService: DeepMocked<SharingService>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -126,6 +128,7 @@ describe('User Controller', () => {
     auditLogService = moduleRef.get(AuditLogService);
     klaviyoService = moduleRef.get(KlaviyoTrackingService);
     featureLimitService = moduleRef.get(FeatureLimitService);
+    sharingService = moduleRef.get(SharingService);
     userUseCases.hasPendingAccountSetup.mockResolvedValue(false);
   });
 
@@ -999,7 +1002,7 @@ describe('User Controller', () => {
       });
     });
 
-    it('When the user is created and ecc keys are found, then it should try to replace pre created user invitations', async () => {
+    it('When the user signs up, then the pending invitations of the email wait until it is verified', async () => {
       const existentEccKey = newKeyServer({ userId: mockUser.id });
 
       const createUserDto: CreateUserDto = {
@@ -1019,7 +1022,7 @@ describe('User Controller', () => {
 
       await userController.createUser(createUserDto, req, clientId);
 
-      expect(userUseCases.replacePreCreatedUser).toHaveBeenCalled();
+      expect(userUseCases.replacePreCreatedUser).not.toHaveBeenCalled();
     });
 
     it('When referral code is invalid, then it fails', async () => {
@@ -1187,7 +1190,7 @@ describe('User Controller', () => {
       expect(userUseCases.replacePreCreatedUser).not.toHaveBeenCalled();
     });
 
-    it('When the token of the invitation email is valid, then the account is created with the email verified', async () => {
+    it('When the token of the invitation email is valid, then the account is created with the email verified and the invitations are handed over', async () => {
       const dto: RegisterPreCreatedUserDto = {
         name: 'My',
         lastname: 'Internxt',
@@ -1199,12 +1202,14 @@ describe('User Controller', () => {
         token: 'invited-email-token',
       };
       userUseCases.findPreCreatedByEmail.mockResolvedValueOnce(preCreatedUser);
+      const eccKey = newKeyServer({ userId: mockUser.id });
       userUseCases.isInvitedEmailTokenValid.mockResolvedValueOnce(true);
       userUseCases.createUser.mockResolvedValueOnce(mockCreateUserResponse);
       keyServerUseCases.addKeysToUser.mockResolvedValueOnce({
         kyber: null,
-        ecc: null,
+        ecc: eccKey,
       });
+      sharingService.acceptInvite.mockResolvedValueOnce(undefined);
 
       await userController.registerPreCreatedUser(dto, req);
 
@@ -1218,9 +1223,20 @@ describe('User Controller', () => {
       expect(userUseCases.createUser).toHaveBeenCalledWith(
         expect.not.objectContaining({ token: expect.anything() }),
       );
+      expect(userUseCases.replacePreCreatedUser).toHaveBeenCalledWith(
+        mockCreateUserResponse.user.email,
+        mockCreateUserResponse.user.uuid,
+        eccKey.publicKey,
+        undefined,
+      );
+      expect(sharingService.acceptInvite).toHaveBeenCalledWith(
+        mockCreateUserResponse.user,
+        dto.invitationId,
+        {},
+      );
     });
 
-    it('When the token of the invitation email is not valid, then the account is created with the email not verified', async () => {
+    it('When the token of the invitation email is not valid, then the account is created with the email not verified and no invitation is handed over or accepted', async () => {
       const dto: RegisterPreCreatedUserDto = {
         name: 'My',
         lastname: 'Internxt',
@@ -1235,7 +1251,7 @@ describe('User Controller', () => {
       userUseCases.createUser.mockResolvedValueOnce(mockCreateUserResponse);
       keyServerUseCases.addKeysToUser.mockResolvedValueOnce({
         kyber: null,
-        ecc: null,
+        ecc: newKeyServer({ userId: mockUser.id }),
       });
 
       await userController.registerPreCreatedUser(dto, req);
@@ -1243,6 +1259,8 @@ describe('User Controller', () => {
       expect(userUseCases.createUser).toHaveBeenCalledWith(
         expect.objectContaining({ emailVerified: false }),
       );
+      expect(userUseCases.replacePreCreatedUser).not.toHaveBeenCalled();
+      expect(sharingService.acceptInvite).not.toHaveBeenCalled();
     });
 
     it('When pre-created user is not found, then it fails', async () => {

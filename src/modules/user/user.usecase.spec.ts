@@ -1547,12 +1547,54 @@ describe('User use cases', () => {
 
       jest.spyOn(cryptoService, 'decryptText').mockReturnValue(decryptedUuid);
       jest.spyOn(userRepository, 'updateByUuid');
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(null);
 
       await userUseCases.verifyUserEmail(verificationToken);
 
       expect(userRepository.updateByUuid).toHaveBeenCalledWith(decryptedUuid, {
         emailVerified: true,
       });
+    });
+
+    it('When the email is verified, then the pending invitations of the email are handed over to the user', async () => {
+      const user = newUser();
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(user.uuid);
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest.spyOn(keyServerUseCases, 'getPublicKeys').mockResolvedValue({
+        ecc: 'ecc-public-key',
+        kyber: 'kyber-public-key',
+      });
+      const replacePreCreatedUser = jest
+        .spyOn(userUseCases, 'replacePreCreatedUser')
+        .mockResolvedValue(undefined);
+
+      await userUseCases.verifyUserEmail('validToken');
+
+      expect(replacePreCreatedUser).toHaveBeenCalledWith(
+        user.email,
+        user.uuid,
+        'ecc-public-key',
+        'kyber-public-key',
+      );
+    });
+
+    it('When the user has no keys, then the invitations are not handed over', async () => {
+      const user = newUser();
+      jest.spyOn(cryptoService, 'decryptText').mockReturnValue(user.uuid);
+      jest.spyOn(userRepository, 'updateByUuid').mockResolvedValue(undefined);
+      jest.spyOn(userRepository, 'findByUuid').mockResolvedValue(user);
+      jest
+        .spyOn(keyServerUseCases, 'getPublicKeys')
+        .mockResolvedValue({ ecc: null, kyber: null });
+      const replacePreCreatedUser = jest.spyOn(
+        userUseCases,
+        'replacePreCreatedUser',
+      );
+
+      await userUseCases.verifyUserEmail('validToken');
+
+      expect(replacePreCreatedUser).not.toHaveBeenCalled();
     });
 
     it('When the verificationToken is invalid, then it should throw BadRequestException', async () => {

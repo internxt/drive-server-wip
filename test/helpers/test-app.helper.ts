@@ -9,6 +9,7 @@ import { TransformInterceptor } from '../../src/lib/transform.interceptor';
 import { AuthGuard } from '../../src/modules/auth/auth.guard';
 import { BridgeService } from '../../src/externals/bridge/bridge.service';
 import { MailerService } from '../../src/externals/mailer/mailer.service';
+import { CaptchaService } from '../../src/externals/captcha/captcha.service';
 import { NewsletterService } from '../../src/externals/newsletter';
 import { NotificationListener } from '../../src/externals/notifications/listeners/notification.listener';
 
@@ -36,6 +37,12 @@ class MockBridgeService {
 class MockMailerService {
   async send() {
     return;
+  }
+}
+
+class MockCaptchaService {
+  async verifyCaptcha() {
+    return true;
   }
 }
 
@@ -74,6 +81,8 @@ export async function createTestApp(
     .useClass(MockBridgeService)
     .overrideProvider(MailerService)
     .useClass(MockMailerService)
+    .overrideProvider(CaptchaService)
+    .useClass(MockCaptchaService)
     .overrideProvider(NewsletterService)
     .useClass(MockNewsletterService)
     .overrideProvider(NotificationListener)
